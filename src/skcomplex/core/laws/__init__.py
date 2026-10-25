@@ -1,7 +1,7 @@
 """Laws that components and interactions follow, by time semantics, and the expressions they are written in."""
 
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
-from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, distributed_delay, lookup, transfer
+from ._flows import Auxiliary, Invariant, Sink, Source, TransferLaw, distributed_delay, lookup, transfer
 from ._functions import (
     both,
     delayed,
@@ -17,22 +17,22 @@ from ._functions import (
     step,
     where,
 )
-from ._law import Law, has_trait, is_registered, law_classes, register_laws
+from ._law import BaseLaw, has_trait, is_registered, law_classes, register_laws
 from ._laws import (
-    Boundary,
+    BoundaryLaw,
     Call,
-    Emission,
-    Equation,
-    Event,
-    Jump,
-    Noise,
+    EmissionLaw,
+    EquationLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
     NumericFunction,
     Objective,
     Process,
-    Rate,
+    RateLaw,
     Target,
-    Transition,
-    Update,
+    TransitionLaw,
+    UpdateLaw,
 )
 from ._neighbourhoods import NEIGHBOR_REDUCTIONS, NeighborReduction, neighborhoods_in, neighbors
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
@@ -43,22 +43,22 @@ from ._values import values_of
 __all__: list[str] = [
     'NEIGHBOR_REDUCTIONS',
     'Auxiliary',
-    'Boundary',
+    'BaseLaw',
+    'BoundaryLaw',
     'Call',
     'Draw',
-    'Emission',
-    'Equation',
-    'Event',
+    'EmissionLaw',
+    'EquationLaw',
+    'EventLaw',
     'Invariant',
-    'Jump',
-    'Law',
+    'JumpLaw',
     'NeighborReduction',
-    'Noise',
+    'NoiseLaw',
     'NumericFunction',
     'Objective',
     'OuterTotalistic',
     'Process',
-    'Rate',
+    'RateLaw',
     'Reduction',
     'Sink',
     'Source',
@@ -66,9 +66,9 @@ __all__: list[str] = [
     'Table',
     'Target',
     'Totalistic',
-    'Transfer',
-    'Transition',
-    'Update',
+    'TransferLaw',
+    'TransitionLaw',
+    'UpdateLaw',
     'bernoulli',
     'both',
     'categorical',

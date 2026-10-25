@@ -11,14 +11,14 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate, derivative
+from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import Particle
-from ..realizations.particles import Gravity
+from ....formalisms.particles import ParticleComponent
+from ..realizations.particles import GravityInteraction
 
 FIGURE_EIGHT = {
     'G': 1.0,
@@ -46,19 +46,19 @@ def _primaries(mu: float, **_: float) -> list[list[float]]:
     return [[-mu, 0.0], [1 - mu, 0.0]]
 
 
-RotatingFrameBody = Element.define(
-    'RotatingFrameBody',
+RotatingFrameBodyComponent = ElementComponent.define(
+    'RotatingFrameBodyComponent',
     states={'x': state(default=0.5, order=2), 'y': state(default=0.0, order=2)},
-    parameters={'mu': parameter(default=0.01215, domain=Domain.POSITIVE)},
+    parameters={'mu': parameter(default=0.01215, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.x,
             2 * derivative(s.y, 1)
             + s.x
             - (1 - s.mu) * (s.x + s.mu) / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
             - s.mu * (s.x - 1 + s.mu) / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
         ),
-        Rate(
+        RateLaw(
             s.y,
             -2 * derivative(s.x, 1)
             + s.y
@@ -117,8 +117,11 @@ def two_body_orbit(
     """
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
-        components=[Particle('star', m=mass), Particle('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6)],
-        interactions=[Gravity('gravity', first='star', second='planet', G=G)],
+        components=[
+            ParticleComponent('star', m=mass),
+            ParticleComponent('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6),
+        ],
+        interactions=[GravityInteraction('gravity', first='star', second='planet', G=G)],
         space=ContinuousSpace(n_dim=2),
     )
 
@@ -179,11 +182,11 @@ def n_body(
     velocities = configuration['velocities'] if velocities is None else velocities
     G = configuration['G'] if G is None else G
     bodies = [
-        Particle(f'body_{index}', x=list(position), v=list(velocity), m=mass)
+        ParticleComponent(f'body_{index}', x=list(position), v=list(velocity), m=mass)
         for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
     ]
     attractions = [
-        Gravity(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
+        GravityInteraction(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
         for first, second in itertools.combinations(range(len(bodies)), 2)
     ]
     return System(components=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
@@ -240,14 +243,14 @@ def restricted_three_body(
         >>> restricted_three_body(mu=0.1).elements[0].mu
         0.1
     """
-    return System(components=[RotatingFrameBody('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
+    return System(components=[RotatingFrameBodyComponent('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
 
 
-SitnikovBody = Element.define(
-    'SitnikovBody',
+SitnikovBodyComponent = ElementComponent.define(
+    'SitnikovBodyComponent',
     states={'z': state(default=0.5, order=2)},
-    parameters={'e': parameter(default=0.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))],
+    parameters={'e': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))],
 )
 
 
@@ -284,4 +287,4 @@ def sitnikov(z: float = 0.5, vz: float = 0.0, *, e: float = 0.0) -> System:
         >>> sitnikov(e=0.1).elements[0].e
         0.1
     """
-    return System(components=[SitnikovBody('body', z=z, z_d1=vz, e=e)])
+    return System(components=[SitnikovBodyComponent('body', z=z, z_d1=vz, e=e)])

@@ -5,15 +5,15 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ReducingBall(Element):
+class ReducingBallComponent(ElementComponent):
     """Ball that jumps to a random lower state, and restarts from the top state after it reaches state 1.
 
     With probability `lam` the ball jumps uniformly to a state below its own, and otherwise uniformly to any state, so
@@ -33,17 +33,17 @@ class ReducingBall(Element):
             The probability of a reducing jump.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBall
-        >>> ReducingBall.group('balls', 3, n_states=10.0)
-        Group('balls', element=ReducingBall, size=3)
+        >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBallComponent
+        >>> ReducingBallComponent.group('balls', 3, n_states=10.0)
+        GroupComponent('balls', element=ReducingBallComponent, size=3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'level'})
-    level: float = state(default=10.0, domain=Domain.NONNEGATIVE_INTEGER)
-    n_states: float = parameter(10.0, domain=Domain.POSITIVE)
-    lam: float = parameter(1.0, domain=Domain.NONNEGATIVE)
+    level: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    n_states: float = parameter(10.0, domain=NumericDomain.POSITIVE)
+    lam: float = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the jump rule.
 
         Args:
@@ -54,7 +54,7 @@ class ReducingBall(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.jump)]
+        return [RuleLaw(self.jump)]
 
     def jump(self, agent: AgentView, model: ModelView) -> None:
         """Jump to a lower state, to any state, or back to the top state.
@@ -75,7 +75,7 @@ class ReducingBall(Element):
             agent.level = float(model.rng.integers(1, top + 1))
 
 
-class Fragment(Element):
+class FragmentComponent(ElementComponent):
     """Fragment of integer size that breaks at a uniformly random point into two smaller fragments.
 
     Args:
@@ -89,16 +89,16 @@ class Fragment(Element):
             The probability that a fragment larger than 1 breaks in a step.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import Fragment
-        >>> Fragment.group('fragments', 1, length=100.0)
-        Group('fragments', element=Fragment, size=1)
+        >>> from skcomplex.models.mathematics.stochastic_processes import FragmentComponent
+        >>> FragmentComponent.group('fragments', 1, length=100.0)
+        GroupComponent('fragments', element=FragmentComponent, size=1)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'length'})
-    length: float = state(default=1000.0, domain=Domain.POSITIVE)
-    rate: float = parameter(0.5, domain=Domain.NONNEGATIVE)
+    length: float = state(default=1000.0, domain=NumericDomain.POSITIVE)
+    rate: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the breaking rule.
 
         Args:
@@ -109,7 +109,7 @@ class Fragment(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.split)]
+        return [RuleLaw(self.split)]
 
     def split(self, agent: AgentView, model: ModelView) -> None:
         """Break the fragment in two with the breaking probability.
@@ -159,7 +159,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
     """
     return System(
         components=[
-            ReducingBall.group(
+            ReducingBallComponent.group(
                 'balls',
                 n_balls,
                 variable=True,
@@ -198,4 +198,4 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         >>> fragmentation(50).elements[0].size
         1
     """
-    return System(components=[Fragment.group('fragments', 1, variable=True, length=float(size), rate=rate)])
+    return System(components=[FragmentComponent.group('fragments', 1, variable=True, length=float(size), rate=rate)])

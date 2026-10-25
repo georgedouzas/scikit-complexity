@@ -24,7 +24,7 @@ def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
     return result
 
 
-class Structure:
+class StructureDomain:
     """Base class of the structure of a rewriting element at one generation.
 
     Subclasses give their line segments and polygons, from which the measures follow with Shapely.
@@ -173,7 +173,7 @@ class Structure:
         grid[rows, columns] = True
 
 
-class WordStructure(Structure):
+class WordStructure(StructureDomain):
     """Word of a string rewriting system at one generation, with its segments where a word geometry is declared.
 
     Args:
@@ -285,7 +285,7 @@ class WordStructure(Structure):
         return np.zeros((0, 2, 2)) if self._segments is None else self._segments
 
 
-class PatchStructure(Structure):
+class PatchStructure(StructureDomain):
     """Patch of tiles at one generation, each a prototile under a homogeneous affine matrix.
 
     Args:
@@ -393,7 +393,7 @@ class PatchStructure(Structure):
         return result
 
 
-class GraphStructure(Structure):
+class GraphStructure(StructureDomain):
     """Host graph of a graph rewriting system at one generation.
 
     Args:

@@ -11,7 +11,7 @@ import numpy as np
 
 from ...core.system import Observable, System
 from ..compile import Problem, observables_of
-from ..runtime import Frame, Observer, Simulation, Trajectory
+from ..runtime import BaseObserver, Frame, Simulation, Trajectory
 from ._designs import Row
 from ._results import RunResult
 from ._scenarios import Scenario
@@ -133,7 +133,7 @@ def run_task(task: Task) -> RunResult:
     )
 
 
-class _Schedule(Observer):
+class _Schedule(BaseObserver):
     """Observer that applies scheduled parameter changes from the first frame at or after their time."""
 
     def __init__(self, schedule: Sequence[tuple[float, str, Any]]) -> None:

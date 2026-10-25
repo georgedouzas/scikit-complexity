@@ -23,7 +23,7 @@ from ...core.base import (
     components_of,
     vector,
 )
-from ...core.laws import Law
+from ...core.laws import BaseLaw
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 LIMITERS = ('minmod', 'van-leer', None)
@@ -148,7 +148,7 @@ def advection(expression: object, velocity: Sequence[Any] | SymbolicVector) -> E
 
 
 @dataclass(frozen=True)
-class Flux(Law):
+class FluxLaw(BaseLaw):
     """Physical flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
 
     The flux is a symbolic expression of the field's states for one dimension, or one expression per dimension. The
@@ -170,9 +170,9 @@ class Flux(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.fields import Flux
+        >>> from skcomplex.formalisms.fields import FluxLaw
         >>> u = symbol('u')
-        >>> Flux(u, u**2 / 2, riemann='godunov').limiter
+        >>> FluxLaw(u, u**2 / 2, riemann='godunov').limiter
         'minmod'
     """
 

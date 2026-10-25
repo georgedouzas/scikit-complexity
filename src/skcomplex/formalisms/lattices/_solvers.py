@@ -8,12 +8,12 @@ from typing import ClassVar, cast
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ...engine.compile import Vector
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 from ._steps import CompiledExtremal, CompiledRelaxation, LatticeStep
 
 
-class LatticeStepper(Stepper):
-    """Stepper of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step.
+class LatticeSolver(Solver):
+    """Solver of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step.
 
     Steps apply in the order the laws are declared, and the boundary laws apply after every step. Relaxations record
     their size, duration, and area as events, and extremal laws record the site and the value of every application.
@@ -22,9 +22,9 @@ class LatticeStepper(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.formalisms.lattices import LatticeStepper
+        >>> from skcomplex.formalisms.lattices import LatticeSolver
         >>> problem = compile_system(elementary_automaton(30, size=11))
-        >>> stepper = LatticeStepper()
+        >>> stepper = LatticeSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
@@ -76,16 +76,16 @@ class LatticeStepper(Stepper):
         return state
 
 
-class MonteCarlo(LatticeStepper):
-    """Stepper of Monte Carlo sampling that sweeps the lattice once per unit of time.
+class MonteCarloSolver(LatticeSolver):
+    """Solver of Monte Carlo sampling that sweeps the lattice once per unit of time.
 
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.statistical_mechanics import ising
-        >>> from skcomplex.formalisms.lattices import MonteCarlo
+        >>> from skcomplex.formalisms.lattices import MonteCarloSolver
         >>> problem = compile_system(ising(size=8, temperature=1.0))
-        >>> stepper = MonteCarlo()
+        >>> stepper = MonteCarloSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 50.0)
         >>> bool(abs(state.mean()) > 0.9)

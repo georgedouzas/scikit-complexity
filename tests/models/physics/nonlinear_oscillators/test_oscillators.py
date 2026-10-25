@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import run
 from skcomplex.models.physics.nonlinear_oscillators import (
     adler_equation,
@@ -41,7 +41,7 @@ def test_stuart_landau_settles_on_its_limit_cycle():
 
 def test_forced_van_der_pol_locks_to_a_strong_force():
     """Test that a strong force entrains the Van der Pol oscillator to its own frequency."""
-    trajectory = _run(forced_van_der_pol(A=1.0, omega=1.1), 120.0, 0.05, solver=ScipyODE(rtol=1e-8))
+    trajectory = _run(forced_van_der_pol(A=1.0, omega=1.1), 120.0, 0.05, solver=ScipyODESolver(rtol=1e-8))
     crossings = _upward_crossings(trajectory.times, _series(trajectory, 'oscillator.x')[0])
     assert np.diff(crossings[-5:]).mean() == pytest.approx(2 * math.pi / 1.1, rel=1e-3)
 

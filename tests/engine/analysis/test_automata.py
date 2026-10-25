@@ -22,7 +22,7 @@ from skcomplex.engine.analysis import (
     is_surjective,
     spatial_entropy_rates,
 )
-from skcomplex.formalisms.groups import GroupSpace, permutation_group
+from skcomplex.formalisms.groups import CayleySpace, permutation_group
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2
@@ -37,7 +37,7 @@ def _elementary(number, size):
 
 def _cycle(size):
     """Return the cyclic group of an order as a group space."""
-    return GroupSpace(permutation_group([[(point + 1) % size for point in range(size)]]))
+    return CayleySpace(permutation_group([[(point + 1) % size for point in range(size)]]))
 
 
 def test_life_is_not_surjective_with_a_garden_of_eden():

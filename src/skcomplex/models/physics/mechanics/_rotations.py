@@ -7,30 +7,30 @@ import math
 
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Equation, Rate, derivative
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import EquationLaw, RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-RotatingSwing = Element.define(
-    'RotatingSwing',
+RotatingSwingComponent = ElementComponent.define(
+    'RotatingSwingComponent',
     states={
-        'phi': state(default=0.0, domain=Domain.ANGLE, order=2),
+        'phi': state(default=0.0, domain=NumericDomain.ANGLE, order=2),
         'theta': state(default=0.1, order=2),
     },
     parameters={
-        'J': parameter(default=10.0, domain=Domain.POSITIVE),
-        'm': parameter(default=1.0, domain=Domain.POSITIVE),
-        'n_chairs': parameter(default=8.0, domain=Domain.POSITIVE),
-        'a': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'l': parameter(default=1.0, domain=Domain.POSITIVE),
-        'g': parameter(default=9.81, domain=Domain.POSITIVE),
+        'J': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'n_chairs': parameter(default=8.0, domain=NumericDomain.POSITIVE),
+        'a': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
         'torque': 0.0,
-        'friction': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'friction': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             (s.J + s.n_chairs * s.m * (s.a + s.l * sin(s.theta)) ** 2) * derivative(s.phi, 2)
             + 2
             * s.n_chairs
@@ -42,7 +42,7 @@ RotatingSwing = Element.define(
             * cos(s.theta)
             == s.torque - s.friction * derivative(s.phi, 1),
         ),
-        Equation(
+        EquationLaw(
             s.l * derivative(s.theta, 2)
             - derivative(s.phi, 1) ** 2 * (s.a + s.l * sin(s.theta)) * cos(s.theta)
             + s.g * sin(s.theta)
@@ -51,49 +51,49 @@ RotatingSwing = Element.define(
     ],
 )
 
-RotatingBall = Element.define(
-    'RotatingBall',
-    states={'theta': state(default=0.0, domain=Domain.ANGLE)},
+RotatingBallComponent = ElementComponent.define(
+    'RotatingBallComponent',
+    states={'theta': state(default=0.0, domain=NumericDomain.ANGLE)},
     parameters={
-        'm': parameter(default=1.0, domain=Domain.POSITIVE),
-        'r': parameter(default=1.0, domain=Domain.POSITIVE),
-        'beta': parameter(default=math.pi / 2, domain=Domain.POSITIVE),
+        'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'r': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'beta': parameter(default=math.pi / 2, domain=NumericDomain.POSITIVE),
         'H': 1.0,
     },
-    laws=lambda s: [Rate(s.theta, s.H / (s.m * s.r**2 * sin(s.beta) ** 2))],
+    laws=lambda s: [RateLaw(s.theta, s.H / (s.m * s.r**2 * sin(s.beta) ** 2))],
 )
 
-Gyroscope = Element.define(
-    'Gyroscope',
+GyroscopeComponent = ElementComponent.define(
+    'GyroscopeComponent',
     states={
-        'alpha': state(default=0.0, domain=Domain.ANGLE, order=2),
+        'alpha': state(default=0.0, domain=NumericDomain.ANGLE, order=2),
         'beta': state(default=0.3, order=2),
-        'gamma': state(default=0.0, domain=Domain.ANGLE, order=2),
+        'gamma': state(default=0.0, domain=NumericDomain.ANGLE, order=2),
     },
     parameters={
-        'A': parameter(default=1.0, domain=Domain.POSITIVE),
-        'C': parameter(default=2.0, domain=Domain.POSITIVE),
-        'A1': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'B1': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'C1': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'A2': parameter(default=1.0, domain=Domain.NONNEGATIVE),
+        'A': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'C': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'A1': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'B1': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'C1': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'A2': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
         'torque': 1.0,
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             (s.A2 + (s.A + s.A1) * cos(s.beta) ** 2 + (s.C + s.C1) * sin(s.beta) ** 2) * derivative(s.alpha, 2)
             + 2 * (s.C + s.C1 - s.A - s.A1) * sin(s.beta) * cos(s.beta) * derivative(s.beta, 1) * derivative(s.alpha, 1)
             + s.C * sin(s.beta) * derivative(s.gamma, 2)
             + s.C * cos(s.beta) * derivative(s.beta, 1) * derivative(s.gamma, 1)
             == 0,
         ),
-        Equation(
+        EquationLaw(
             (s.A + s.B1) * derivative(s.beta, 2)
             + (s.A + s.A1 - s.C - s.C1) * derivative(s.alpha, 1) ** 2 * cos(s.beta) * sin(s.beta)
             - s.C * derivative(s.alpha, 1) * derivative(s.gamma, 1) * cos(s.beta)
             == s.torque,
         ),
-        Equation(
+        EquationLaw(
             s.C
             * (
                 derivative(s.alpha, 2) * sin(s.beta)
@@ -174,7 +174,7 @@ def rotating_swing(
     """
     return System(
         components=[
-            RotatingSwing(
+            RotatingSwingComponent(
                 'swing',
                 phi_d1=omega,
                 theta=theta,
@@ -235,8 +235,8 @@ def rotating_balls_on_rods(
     momentum = m * omega * r**2 * math.sin(beta) ** 2
     return System(
         components=[
-            RotatingBall('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
-            RotatingBall('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
+            RotatingBallComponent('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
+            RotatingBallComponent('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
         ],
     )
 
@@ -306,6 +306,17 @@ def gimballed_gyroscope(
     """
     return System(
         components=[
-            Gyroscope('gyroscope', beta=beta, gamma_d1=spin, A=A, C=C, A1=A1, B1=B1, C1=C1, A2=A2, torque=torque),
+            GyroscopeComponent(
+                'gyroscope',
+                beta=beta,
+                gamma_d1=spin,
+                A=A,
+                C=C,
+                A1=A1,
+                B1=B1,
+                C1=C1,
+                A2=A2,
+                torque=torque,
+            ),
         ],
     )

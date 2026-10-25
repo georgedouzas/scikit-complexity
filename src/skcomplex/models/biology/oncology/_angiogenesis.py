@@ -7,14 +7,14 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.fields import FieldComponent, laplacian
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
@@ -22,7 +22,7 @@ TUMOUR = 'cells/tumour'
 VESSELS = 'cells/vessels'
 
 
-class Tissue(Element):
+class TissueComponent(ElementComponent):
     """Tissue in which oxygen and the vascular endothelial growth factor VEGF diffuse and decay.
 
     Both follow `u' = D Δu - lambda u`, and cells add or remove amounts at their sites: vessels supply oxygen, tumour
@@ -51,19 +51,19 @@ class Tissue(Element):
             The decay rate of VEGF.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Tissue
-        >>> Tissue('tissue').D_vegf
+        >>> from skcomplex.models.biology.oncology import TissueComponent
+        >>> TissueComponent('tissue').D_vegf
         1.0
     """
 
-    oxygen: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    vegf: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    D_oxygen: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    decay_oxygen: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    D_vegf: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    decay_vegf: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
+    oxygen: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    vegf: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    D_oxygen: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    decay_oxygen: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    D_vegf: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    decay_vegf: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the diffusion and decay of oxygen and VEGF.
 
         Args:
@@ -75,12 +75,12 @@ class Tissue(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.oxygen, s.D_oxygen * laplacian(s.oxygen) - s.decay_oxygen * s.oxygen),
-            Rate(s.vegf, s.D_vegf * laplacian(s.vegf) - s.decay_vegf * s.vegf),
+            RateLaw(s.oxygen, s.D_oxygen * laplacian(s.oxygen) - s.decay_oxygen * s.oxygen),
+            RateLaw(s.vegf, s.D_vegf * laplacian(s.vegf) - s.decay_vegf * s.vegf),
         ]
 
 
-class TumourCell(Element):
+class TumourCellComponent(ElementComponent):
     """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
 
     Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
@@ -110,19 +110,19 @@ class TumourCell(Element):
             The oxygen below which a cell dies.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourCell
-        >>> TumourCell.group('tumour', 3, location=(5, 5)).size
+        >>> from skcomplex.models.biology.oncology import TumourCellComponent
+        >>> TumourCellComponent.group('tumour', 3, location=(5, 5)).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)})
-    hypoxic: float = state(default=0.0, domain=Domain.BOOLEAN)
-    consumption: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    proliferation: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    division: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    hypoxia: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    secretion: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    necrosis: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    hypoxic: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    consumption: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    proliferation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    division: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    hypoxia: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    secretion: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    necrosis: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def _divide(self, agent: AgentView, model: ModelView) -> None:
         """Place a daughter cell in a random neighbouring cell without a tumour cell, if there is one."""
@@ -131,7 +131,7 @@ class TumourCell(Element):
         if free:
             agent.create(location=free[int(model.rng.integers(len(free)))])
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life cycle rule.
 
         Args:
@@ -142,7 +142,7 @@ class TumourCell(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Consume oxygen, then die, signal for vessels, or divide, by the oxygen at the cell.
@@ -166,7 +166,7 @@ class TumourCell(Element):
             self._divide(agent, model)
 
 
-class Vessel(Element):
+class VesselComponent(ElementComponent):
     """Segment of a blood vessel, which supplies oxygen to its site every step.
 
     Args:
@@ -177,14 +177,14 @@ class Vessel(Element):
             The oxygen supplied per step.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Vessel
-        >>> Vessel.group('vessels', 2, location=[(0, 0), (0, 1)]).size
+        >>> from skcomplex.models.biology.oncology import VesselComponent
+        >>> VesselComponent.group('vessels', 2, location=[(0, 0), (0, 1)]).size
         2
     """
 
-    supply: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    supply: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the supply rule.
 
         Args:
@@ -195,7 +195,7 @@ class Vessel(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.supply_oxygen)]
+        return [RuleLaw(self.supply_oxygen)]
 
     def supply_oxygen(self, agent: AgentView, model: ModelView) -> None:
         """Add oxygen at the segment's site.
@@ -210,7 +210,7 @@ class Vessel(Element):
         model.deposit(OXYGEN, agent.location, agent.supply)
 
 
-class Sprout(Element):
+class SproutComponent(ElementComponent):
     """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
 
     Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
@@ -231,16 +231,16 @@ class Sprout(Element):
             The VEGF above which the tip moves.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Sprout
-        >>> Sprout.group('sprouts', 2, location=(0, 5)).size
+        >>> from skcomplex.models.biology.oncology import SproutComponent
+        >>> SproutComponent.group('sprouts', 2, location=(0, 5)).size
         2
     """
 
-    chemotaxis: float = parameter(default=30.0, domain=Domain.NONNEGATIVE)
-    branching: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    activation: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    chemotaxis: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
+    branching: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    activation: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the sprouting rule.
 
         Args:
@@ -251,7 +251,7 @@ class Sprout(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.sprout)]
+        return [RuleLaw(self.sprout)]
 
     def sprout(self, agent: AgentView, model: ModelView) -> None:
         """Move up the VEGF gradient, leave a vessel segment, and branch now and then.
@@ -337,11 +337,17 @@ def tumour_angiogenesis(
     ]
     tips = sorted(int(row) for row in rng.choice(height, size=n_sprouts, replace=False))
     groups = [
-        TumourCell.group('tumour', len(tumour), variable=True, location=tumour),
-        Vessel.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
-        Sprout.group('sprouts', n_sprouts, variable=True, location=[(0, row) for row in tips], chemotaxis=chemotaxis),
+        TumourCellComponent.group('tumour', len(tumour), variable=True, location=tumour),
+        VesselComponent.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
+        SproutComponent.group(
+            'sprouts',
+            n_sprouts,
+            variable=True,
+            location=[(0, row) for row in tips],
+            chemotaxis=chemotaxis,
+        ),
     ]
-    tissue = Field('tissue', Tissue, LatticeSpace((width, height), boundary='reflecting'))
+    tissue = FieldComponent('tissue', TissueComponent, LatticeSpace((width, height), boundary='reflecting'))
     return System(
         components=[
             System('cells', components=groups, space=LatticeSpace((width, height), boundary='fixed')),

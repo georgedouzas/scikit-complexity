@@ -8,37 +8,37 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, Update
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.fields import FieldComponent, laplacian
 
-NodeContent = Element.define(
-    'NodeContent',
+NodeContentComponent = ElementComponent.define(
+    'NodeContentComponent',
     states={'u': 0.0},
-    parameters={'D': parameter(1.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u))],
+    parameters={'D': parameter(1.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
 )
 
-NodeRank = Element.define(
-    'NodeRank',
-    states={'rank': state(default=0.0, domain=Domain.NONNEGATIVE)},
+NodeRankComponent = ElementComponent.define(
+    'NodeRankComponent',
+    states={'rank': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'damping': parameter(0.85, domain=Domain.NONNEGATIVE),
-        'degree': parameter(1.0, domain=Domain.POSITIVE),
-        'n_nodes': parameter(1.0, domain=Domain.POSITIVE),
+        'damping': parameter(0.85, domain=NumericDomain.NONNEGATIVE),
+        'degree': parameter(1.0, domain=NumericDomain.POSITIVE),
+        'n_nodes': parameter(1.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Update(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
+        UpdateLaw(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
     ],
 )
 
 
-class NetworkWalker(Element):
+class NetworkWalkerComponent(ElementComponent):
     """Walker that moves to a uniformly random neighbouring node of a network at every step.
 
     Args:
@@ -49,15 +49,15 @@ class NetworkWalker(Element):
             The initial number of steps taken.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkWalker
-        >>> NetworkWalker.group('walkers', 5)
-        Group('walkers', element=NetworkWalker, size=5)
+        >>> from skcomplex.models.mathematics.networks import NetworkWalkerComponent
+        >>> NetworkWalkerComponent.group('walkers', 5)
+        GroupComponent('walkers', element=NetworkWalkerComponent, size=5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'steps'})
-    steps: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stepping rule.
 
         Args:
@@ -68,7 +68,7 @@ class NetworkWalker(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.step)]
+        return [RuleLaw(self.step)]
 
     def step(self, agent: AgentView, model: ModelView) -> None:
         """Move to a random neighbouring node.
@@ -119,7 +119,7 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
         3
     """
     graph = _graph_or_default(graph)
-    return System(components=[NetworkWalker.group('walkers', n_walkers)], space=NetworkSpace(graph))
+    return System(components=[NetworkWalkerComponent.group('walkers', n_walkers)], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -156,7 +156,7 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     graph = _graph_or_default(graph)
     initial = np.zeros(graph.number_of_nodes())
     initial[source] = 1.0
-    nodes = Field('nodes', NodeContent, NetworkSpace(graph), values={'u': initial, 'D': D})
+    nodes = FieldComponent('nodes', NodeContentComponent, NetworkSpace(graph), values={'u': initial, 'D': D})
     return System(components=[nodes])
 
 
@@ -192,4 +192,4 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     size = graph.number_of_nodes()
     degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
     values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    return System(components=[Field('pages', NodeRank, NetworkSpace(graph), values=values)])
+    return System(components=[FieldComponent('pages', NodeRankComponent, NetworkSpace(graph), values=values)])

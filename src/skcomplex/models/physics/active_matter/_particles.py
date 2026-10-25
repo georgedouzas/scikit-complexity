@@ -10,21 +10,21 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
-from ....core.base import Domain, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import Law, Noise, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state, vector
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....engine.solvers import EulerMaruyamaSolver
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
 
-class ActiveParticle(Element):
+class ActiveParticleComponent(ElementComponent):
     """Self-propelled particle in the plane, `dx = v (cos theta, sin theta) dt + sqrt(2 D_t) dW`.
 
     The orientation turns at the angular velocity `omega` and diffuses, `dtheta = omega dt + sqrt(2 D_r) dW`. With
@@ -53,20 +53,20 @@ class ActiveParticle(Element):
             The angular velocity of a chiral particle.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import ActiveParticle
-        >>> ActiveParticle('swimmer', speed=2.0).speed
+        >>> from skcomplex.models.physics.active_matter import ActiveParticleComponent
+        >>> ActiveParticleComponent('swimmer', speed=2.0).speed
         2.0
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=Domain.ANGLE)
-    speed: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    D_t: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    D_r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
+    speed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    D_t: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    D_r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
     omega: float = parameter(default=0.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the self-propulsion, the turning, and the translational and rotational noise.
 
         Args:
@@ -78,14 +78,14 @@ class ActiveParticle(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.x, s.speed * vector([cos(s.theta), sin(s.theta)])),
-            Noise(s.x, sqrt(2 * s.D_t)),
-            Rate(s.theta, s.omega),
-            Noise(s.theta, sqrt(2 * s.D_r)),
+            RateLaw(s.x, s.speed * vector([cos(s.theta), sin(s.theta)])),
+            NoiseLaw(s.x, sqrt(2 * s.D_t)),
+            RateLaw(s.theta, s.omega),
+            NoiseLaw(s.theta, sqrt(2 * s.D_r)),
         ]
 
 
-class OrnsteinUhlenbeckParticle(Element):
+class OrnsteinUhlenbeckParticleComponent(ElementComponent):
     """Active Ornstein-Uhlenbeck particle, whose propulsion velocity `u` is an Ornstein-Uhlenbeck process.
 
     The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
@@ -111,19 +111,19 @@ class OrnsteinUhlenbeckParticle(Element):
             The translational diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import OrnsteinUhlenbeckParticle
-        >>> OrnsteinUhlenbeckParticle('swimmer').tau
+        >>> from skcomplex.models.physics.active_matter import OrnsteinUhlenbeckParticleComponent
+        >>> OrnsteinUhlenbeckParticleComponent('swimmer').tau
         1.0
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
     u: npt.ArrayLike = state(default=0.0, vector=True)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    D: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    D_t: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    D: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    D_t: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the propulsion, its relaxation and noise, and the translational noise.
 
         Args:
@@ -135,14 +135,14 @@ class OrnsteinUhlenbeckParticle(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.x, s.u),
-            Noise(s.x, sqrt(2 * s.D_t)),
-            Rate(s.u, -s.u / s.tau),
-            Noise(s.u, sqrt(2 * s.D) / s.tau),
+            RateLaw(s.x, s.u),
+            NoiseLaw(s.x, sqrt(2 * s.D_t)),
+            RateLaw(s.u, -s.u / s.tau),
+            NoiseLaw(s.u, sqrt(2 * s.D) / s.tau),
         ]
 
 
-class DepotParticle(Element):
+class DepotParticleComponent(ElementComponent):
     """Brownian particle pumped by an internal energy depot, as in the model of Schweitzer, Ebeling, and Tilch.
 
     The depot takes energy at the rate `q`, loses it at the rate `c e`, and converts it into motion at the rate
@@ -178,22 +178,22 @@ class DepotParticle(Element):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import DepotParticle
-        >>> DepotParticle('walker').q
+        >>> from skcomplex.models.physics.active_matter import DepotParticleComponent
+        >>> DepotParticleComponent('walker').q
         10.0
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
     v: npt.ArrayLike = state(default=0.0, vector=True)
-    e: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    q: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    c: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    D: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    e: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    q: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    c: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    D: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the motion, the friction and pumping of the velocity, its noise, and the depot balance.
 
         Args:
@@ -205,14 +205,14 @@ class DepotParticle(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.x, s.v),
-            Rate(s.v, (-s.gamma + s.d * s.e) * s.v),
-            Noise(s.v, sqrt(2 * s.D)),
-            Rate(s.e, s.q - s.c * s.e - s.d * s.e * s.v.dot_product(s.v)),
+            RateLaw(s.x, s.v),
+            RateLaw(s.v, (-s.gamma + s.d * s.e) * s.v),
+            NoiseLaw(s.v, sqrt(2 * s.D)),
+            RateLaw(s.e, s.q - s.c * s.e - s.d * s.e * s.v.dot_product(s.v)),
         ]
 
 
-class Tumbler(Element):
+class TumblerComponent(ElementComponent):
     """Run-and-tumble agent in a periodic square, which runs straight and tumbles to a random direction.
 
     Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
@@ -235,18 +235,18 @@ class Tumbler(Element):
             The side of the periodic square.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import Tumbler
-        >>> Tumbler('bacterium').speed
+        >>> from skcomplex.models.physics.active_matter import TumblerComponent
+        >>> TumblerComponent('bacterium').speed
         0.1
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'theta'})
     theta: float = state(default=0.0)
-    speed: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    tumble_rate: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    width: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    speed: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    tumble_rate: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    width: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the run-and-tumble rule.
 
         Args:
@@ -257,7 +257,7 @@ class Tumbler(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.run_and_tumble)]
+        return [RuleLaw(self.run_and_tumble)]
 
     def run_and_tumble(self, agent: AgentView, model: ModelView) -> None:
         """Run one step along the direction, then tumble at random.
@@ -290,7 +290,7 @@ def _swimmers(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'self-propulsion', 'diffusion'),
     references=('Argun et al. 2021', 'Bechinger et al. 2016', 'Volpe, Gigan, and Volpe 2014'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def active_brownian_particles(
     n_particles: int = 200,
@@ -335,7 +335,15 @@ def active_brownian_particles(
         10
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticle.group('swimmers', n_particles, x=positions, theta=angles, speed=speed, D_t=D_t, D_r=D_r)
+    group = ActiveParticleComponent.group(
+        'swimmers',
+        n_particles,
+        x=positions,
+        theta=angles,
+        speed=speed,
+        D_t=D_t,
+        D_r=D_r,
+    )
     return System(components=[group], space=ContinuousSpace(n_dim=2))
 
 
@@ -343,7 +351,7 @@ def active_brownian_particles(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'self-propulsion', 'chirality'),
     references=('Bechinger et al. 2016', 'van Teeffelen and Löwen 2008'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def chiral_active_particles(
     n_particles: int = 200,
@@ -391,7 +399,7 @@ def chiral_active_particles(
         1.0
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticle.group(
+    group = ActiveParticleComponent.group(
         'swimmers',
         n_particles,
         x=positions,
@@ -408,7 +416,7 @@ def chiral_active_particles(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'self-propulsion', 'colored noise'),
     references=('Bechinger et al. 2016', 'Fodor et al. 2016'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def active_ornstein_uhlenbeck_particles(
     n_particles: int = 200,
@@ -454,7 +462,15 @@ def active_ornstein_uhlenbeck_particles(
     rng = np.random.default_rng(random_state)
     positions = rng.uniform(0.0, size, (n_particles, 2))
     propulsion = rng.normal(0.0, math.sqrt(D / tau), (n_particles, 2))
-    group = OrnsteinUhlenbeckParticle.group('swimmers', n_particles, x=positions, u=propulsion, tau=tau, D=D, D_t=D_t)
+    group = OrnsteinUhlenbeckParticleComponent.group(
+        'swimmers',
+        n_particles,
+        x=positions,
+        u=propulsion,
+        tau=tau,
+        D=D,
+        D_t=D_t,
+    )
     return System(components=[group], space=ContinuousSpace(n_dim=2))
 
 
@@ -502,7 +518,7 @@ def run_and_tumble(
         10
     """
     positions, angles = _swimmers(n_agents, size, random_state)
-    group = Tumbler.group(
+    group = TumblerComponent.group(
         'bacteria',
         n_agents,
         location=positions,
@@ -518,7 +534,7 @@ def run_and_tumble(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'energy depot', 'self-propulsion'),
     references=('Schweitzer, Ebeling, and Tilch 1998', 'Helbing 2001'),
-    defaults={'until': 10.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.001)},
+    defaults={'until': 10.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.001)},
 )
 def depot_brownian_particles(
     n_particles: int = 50,
@@ -564,5 +580,5 @@ def depot_brownian_particles(
         10.0
     """
     velocities = np.random.default_rng(random_state).normal(0.0, 0.01, (n_particles, 2))
-    group = DepotParticle.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
+    group = DepotParticleComponent.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
     return System(components=[group], space=ContinuousSpace(n_dim=2))

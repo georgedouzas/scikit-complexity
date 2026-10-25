@@ -19,14 +19,14 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRK
+from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'burgers'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRK(), dt=0.01, observers=[observer]).run(until=2.99)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).run(until=2.99)
 
 # %%
 # Shock formation and conservation

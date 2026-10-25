@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, where
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -22,7 +22,7 @@ def _crowding(
     return weight_first / total * first.volume / first.mature + weight_second / total * second.volume / second.mature
 
 
-class Stand(Element):
+class StandComponent(ElementComponent):
     """Stand of trees of one successional group, measured by its stem volume.
 
     Args:
@@ -36,16 +36,16 @@ class Stand(Element):
             The stem volume of the group in a mature forest.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Stand
-        >>> Stand('keora', mature=196.11).mature
+        >>> from skcomplex.models.biology.ecology import StandComponent
+        >>> StandComponent('keora', mature=196.11).mature
         196.11
     """
 
-    volume: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    mature: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    volume: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    mature: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
 
-class PioneerGrowth(Interaction):
+class PioneerGrowthInteraction(BaseInteraction):
     """Michaelis-Menten regrowth of pioneer trees, whose input from seeds the other groups suppress.
 
     Alone, the volume follows `V(t) = V_mat t / (K_M + t)` after a clear cut, which is
@@ -75,19 +75,19 @@ class PioneerGrowth(Interaction):
             The weight of the climax group in the competition.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PioneerGrowth
-        >>> PioneerGrowth('growth', target='keora', intermediate='gewa', climax='sundari').half_time
+        >>> from skcomplex.models.biology.ecology import PioneerGrowthInteraction
+        >>> PioneerGrowthInteraction('growth', target='keora', intermediate='gewa', climax='sundari').half_time
         3.65
     """
 
     target: str = role()
     intermediate: str = role()
     climax: str = role()
-    half_time: float = parameter(default=3.65, domain=Domain.POSITIVE)
-    w_intermediate: float = parameter(default=0.32, domain=Domain.NONNEGATIVE)
-    w_climax: float = parameter(default=0.68, domain=Domain.NONNEGATIVE)
+    half_time: float = parameter(default=3.65, domain=NumericDomain.POSITIVE)
+    w_intermediate: float = parameter(default=0.32, domain=NumericDomain.NONNEGATIVE)
+    w_climax: float = parameter(default=0.68, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth with the suppressed input from seeds.
 
         Args:
@@ -101,10 +101,10 @@ class PioneerGrowth(Interaction):
         volume, mature = s.target.volume, s.target.mature
         free = 1 - _crowding(s.intermediate, s.climax, s.w_intermediate, s.w_climax)
         suppression = where(free > 0, free, 0)
-        return [Rate(volume, (volume * (volume / mature - 2) + suppression * mature) / s.half_time)]
+        return [RateLaw(volume, (volume * (volume / mature - 2) + suppression * mature) / s.half_time)]
 
 
-class SuccessionalGrowth(Interaction):
+class SuccessionalGrowthInteraction(BaseInteraction):
     """Logistic growth of intermediate or climax trees, crowded by their own group and another, with seedling input.
 
     The rate is `dV/dt = a + g V (1 - w_1 V_1 / V_mat,1 - w_2 V_2 / V_mat,2)`, with weights normalized to sum to one.
@@ -136,20 +136,20 @@ class SuccessionalGrowth(Interaction):
             The constant input `a` of seedlings that averts extinction.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import SuccessionalGrowth
-        >>> SuccessionalGrowth('growth', target='gewa', first='gewa', second='sundari', g=0.1).g
+        >>> from skcomplex.models.biology.ecology import SuccessionalGrowthInteraction
+        >>> SuccessionalGrowthInteraction('growth', target='gewa', first='gewa', second='sundari', g=0.1).g
         0.1
     """
 
     target: str = role()
     first: str = role()
     second: str = role()
-    g: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    w_first: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    w_second: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    seedlings: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    g: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    w_first: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    w_second: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    seedlings: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the crowded logistic growth with the seedling input.
 
         Args:
@@ -162,7 +162,7 @@ class SuccessionalGrowth(Interaction):
         """
         volume = s.target.volume
         crowding = _crowding(s.first, s.second, s.w_first, s.w_second)
-        return [Rate(volume, s.seedlings + s.g * volume * (1 - crowding))]
+        return [RateLaw(volume, s.seedlings + s.g * volume * (1 - crowding))]
 
 
 @register_model(
@@ -216,13 +216,13 @@ def mangrove_succession(
     """
     return System(
         components=[
-            Stand('keora', volume=keora, mature=196.11),
-            Stand('gewa', volume=gewa, mature=80.0),
-            Stand('sundari', volume=sundari, mature=320.0),
+            StandComponent('keora', volume=keora, mature=196.11),
+            StandComponent('gewa', volume=gewa, mature=80.0),
+            StandComponent('sundari', volume=sundari, mature=320.0),
         ],
         interactions=[
-            PioneerGrowth('keora_growth', target='keora', intermediate='gewa', climax='sundari'),
-            SuccessionalGrowth(
+            PioneerGrowthInteraction('keora_growth', target='keora', intermediate='gewa', climax='sundari'),
+            SuccessionalGrowthInteraction(
                 'gewa_growth',
                 target='gewa',
                 first='gewa',
@@ -232,7 +232,7 @@ def mangrove_succession(
                 w_second=0.68,
                 seedlings=seedlings,
             ),
-            SuccessionalGrowth(
+            SuccessionalGrowthInteraction(
                 'sundari_growth',
                 target='sundari',
                 first='gewa',

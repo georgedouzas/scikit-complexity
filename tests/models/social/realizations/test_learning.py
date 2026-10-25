@@ -3,15 +3,15 @@
 import numpy as np
 
 from skcomplex.core.base import state
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.space import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import Phase, Phases, Rule
+from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 from skcomplex.models.social.realizations import imitate
 
 
-class Imitator(Element):
+class ImitatorComponent(ElementComponent):
     """Test helper Imitator."""
 
     strategy: float = state(0.0)
@@ -19,7 +19,7 @@ class Imitator(Element):
 
     def laws(self, s):
         """Test helper laws."""
-        return [Rule(self.copy, phase='imitation')]
+        return [RuleLaw(self.copy, phase='imitation')]
 
     def copy(self, agent, model):
         """Test helper copy."""
@@ -33,9 +33,9 @@ def test_simultaneous_imitation():
     payoffs = np.zeros(width)
     payoffs[0] = 1.0
     system = System(
-        components=[Imitator.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
+        components=[ImitatorComponent.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
         space=LatticeSpace((width, 1), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=Phases([Phase('imitation', activation='simultaneous')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('imitation', activation='simultaneous')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
     for frame in range(4):

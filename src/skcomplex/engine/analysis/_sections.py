@@ -13,7 +13,7 @@ from ...core.base import AnalysisError, Form
 from ...core.system import System
 from ..compile import CompiledEvent, EventRecord, Problem, Vector, compile_system
 from ..runtime import Simulation
-from ..solvers import Stepper
+from ..solvers import Solver
 
 type Array = npt.NDArray[np.float64]
 
@@ -75,7 +75,7 @@ def poincare_section(
     direction: int = 1,
     until: float = 1000.0,
     transient: float = 0.0,
-    solver: str | Stepper = 'auto',
+    solver: str | Solver = 'auto',
     random_state: int | None = None,
 ) -> Section:
     """Return the states where a state crosses a value in a direction, located like an event.
@@ -149,7 +149,7 @@ def stroboscopic(
     *,
     n_points: int = 1000,
     transient: int = 100,
-    solver: str | Stepper = 'auto',
+    solver: str | Solver = 'auto',
     random_state: int | None = None,
 ) -> Section:
     """Return the states of a periodically forced system at multiples of the forcing period.

@@ -9,13 +9,13 @@ from ._groups import (
     parse_word,
     permutation_group,
 )
-from ._spaces import GroupSpace
+from ._spaces import CayleySpace
 from ._visuals import CayleyVisual
 
 __all__: list[str] = [
+    'CayleySpace',
     'CayleyVisual',
     'FinitelyGeneratedGroup',
-    'GroupSpace',
     'automaton_group',
     'finitely_presented_group',
     'matrix_group',
@@ -23,4 +23,4 @@ __all__: list[str] = [
     'permutation_group',
 ]
 
-register(Formalism('groups', depends=(), spaces=(GroupSpace,), visuals={'cayley': CayleyVisual}))
+register(Formalism('groups', depends=(), spaces=(CayleySpace,), visuals={'cayley': CayleyVisual}))

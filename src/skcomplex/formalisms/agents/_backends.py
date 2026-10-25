@@ -31,13 +31,13 @@ from ...core.base import (
     VariableKind,
     declarations_of,
 )
-from ...core.components import Group
-from ...core.laws import Law
-from ...core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, Space
+from ...core.components import GroupComponent
+from ...core.laws import BaseLaw
+from ...core.space import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ...engine.solvers import AgentSnapshot, AgentState, Stepper
-from ._laws import Rule
-from ._spaces import DEFAULT_PHASE, Phase, Phases
+from ...engine.solvers import AgentSnapshot, AgentState, Solver
+from ._laws import RuleLaw
+from ._spaces import DEFAULT_PHASE, Phase, PhasesSchedule
 
 MAX_SEED = 2**31 - 1
 HISTORY_LENGTH = 10_000
@@ -65,10 +65,10 @@ def _location_of(agent: mesa.Agent) -> object:
 
 def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
     """Return the element type of a compiled agent element or group."""
-    return spec.element.element if isinstance(spec.element, Group) else type(spec.element)
+    return spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element)
 
 
-def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
+def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
     """Return the Mesa space of a framework space."""
     if isinstance(space, LatticeSpace):
         grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
@@ -81,12 +81,12 @@ def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaS
     return None
 
 
-def _rules_of(laws: Iterable[Law]) -> list[Rule]:
+def _rules_of(laws: Iterable[BaseLaw]) -> list[RuleLaw]:
     """Return the rules among laws, which the compiled agents and the model rules hold alone."""
-    return [law for law in laws if isinstance(law, Rule)]
+    return [law for law in laws if isinstance(law, RuleLaw)]
 
 
-def _phase_of(rule: Rule) -> str:
+def _phase_of(rule: RuleLaw) -> str:
     """Return the name of the phase a rule runs in."""
     return rule.phase or DEFAULT_PHASE
 
@@ -130,12 +130,12 @@ def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mes
 
 def _check_variable(spec: CompiledAgents, action: str) -> None:
     """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
-    if isinstance(spec.element, Group) and spec.element.variable:
+    if isinstance(spec.element, GroupComponent) and spec.element.variable:
         return
     error_msg = (
         f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
-        '`variable=True`, such as `Element.group(label, size, variable=True)`, for its members to be created and '
-        'removed during a run.'
+        '`variable=True`, such as `ElementComponent.group(label, size, variable=True)`, for its members to be '
+        'created and removed during a run.'
     )
     raise SimulationError(error_msg)
 
@@ -195,7 +195,7 @@ class ModelView:
 
     def __init__(
         self,
-        stepper: 'MesaStepper',
+        stepper: 'MesaSolver',
         owner: str = '',
         roles: Mapping[str, str | tuple[str, ...]] | None = None,
     ) -> None:
@@ -530,7 +530,7 @@ class AgentView:
 
     __slots__ = ('_agent', '_stepper')
 
-    def __init__(self, agent: mesa.Agent, stepper: 'MesaStepper') -> None:
+    def __init__(self, agent: mesa.Agent, stepper: 'MesaSolver') -> None:
         object.__setattr__(self, '_agent', agent)
         object.__setattr__(self, '_stepper', stepper)
 
@@ -753,10 +753,10 @@ class AgentView:
         return AgentView(stepper.create_agent(target, place, values), stepper)
 
 
-class MesaStepper(Stepper):
+class MesaSolver(Solver):
     """Mesa backend of agent-based problems, one Mesa step per unit of time.
 
-    The agents are the members of the elements and groups whose laws include `Rule` laws, and of the variable groups.
+    The agents are the members of the elements and groups whose laws include `RuleLaw`s, and of the variable groups.
     Every step advances Mesa's clock by one, activates all agents in random order, or by the phases of the system's
     discrete time, and each agent runs the rules of its element type in declaration order. Interaction rules run once
     after the agents. Rules add and remove members of variable groups only. The class variable `supports` declares
@@ -770,19 +770,19 @@ class MesaStepper(Stepper):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.formalisms.agents import Rule
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.formalisms.agents import RuleLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> class Counter(Element):
+        >>> class CounterComponent(ElementComponent):
         ...     count: float = state(0.0)
         ...
         ...     def laws(self, s):
-        ...         return [Rule(self.tick)]
+        ...         return [RuleLaw(self.tick)]
         ...
         ...     def tick(self, agent, model):
         ...         agent.count += 1
-        >>> trajectory = Simulation(System(components=[Counter.group('counters', 3)])).run(until=4).trajectory_
+        >>> trajectory = Simulation(System(components=[CounterComponent.group('counters', 3)])).run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
@@ -840,7 +840,7 @@ class MesaStepper(Stepper):
         self._rules = [
             (ModelView(self, owner, roles.get(owner)), rule)
             for owner, rule in problem.model_rules
-            if isinstance(rule, Rule)
+            if isinstance(rule, RuleLaw)
         ]
         self._model_invariants = [
             (ModelView(self, owner, roles.get(owner)), owner, invariant)
@@ -848,9 +848,9 @@ class MesaStepper(Stepper):
         ]
         time = getattr(problem.system, 'time', None)
         schedule = time.schedule if isinstance(time, DiscreteTime) else None
-        self._phases = _phase_plan(schedule.phases if isinstance(schedule, Phases) else (), problem)
+        self._phases = _phase_plan(schedule.phases if isinstance(schedule, PhasesSchedule) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
-            (spec.path, spec.element.element if isinstance(spec.element, Group) else type(spec.element))
+            (spec.path, spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element))
             for spec in problem.agents
         ]
         for path, component in owners:
@@ -967,7 +967,7 @@ class MesaStepper(Stepper):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        given = spec.element.location if isinstance(spec.element, Group) else None
+        given = spec.element.location if isinstance(spec.element, GroupComponent) else None
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
             location = _member_location(given, index, spec.size)
@@ -1092,7 +1092,7 @@ class MesaStepper(Stepper):
         """Record the states that the element types of agents remember, at the end of a step."""
         remembering = {}
         for spec in self.problem_.agents:
-            agent_type = spec.element.element if isinstance(spec.element, Group) else type(spec.element)
+            agent_type = spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element)
             remembering[spec.path] = getattr(agent_type, 'remembers', None) or {}
         if not any(remembering.values()):
             return

@@ -68,7 +68,8 @@ def symbolic_components(value: object, size: int, owner: str) -> list[Expression
             The number of components of the law target. A scalar value is broadcast to every component.
 
         owner:
-            The law and the path of the component that returned it, such as `Rate law of hunt`, used in error messages.
+            The law and the path of the component that returned it, such as `RateLaw law of hunt`, used in error
+            messages.
 
     Returns:
         components:

@@ -8,33 +8,33 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Law, Noise, Rate, Symbols
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ....formalisms.fields import Field, divergence, gradient, laplacian
+from ....engine.solvers import EulerMaruyamaSolver
+from ....formalisms.fields import FieldComponent, divergence, gradient, laplacian
 
 
-def _active_model_b_laws(s: Symbols) -> list[Law]:
+def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
     """Return the rate and the conserved noise of Active Model B+ for one site."""
     phi = s.phi
     slope = gradient(phi)
     potential = -phi + phi**3 - s.kappa * laplacian(phi) + s.lam * sum(item**2 for item in slope)
     active = [s.zeta * laplacian(phi) * item for item in slope]
-    return [Rate(phi, laplacian(potential) - divergence(active)), Noise(phi, sqrt(2 * s.D), conserved=True)]
+    return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
 
 
-ActiveScalar = Element.define(
-    'ActiveScalar',
+ActiveScalarComponent = ElementComponent.define(
+    'ActiveScalarComponent',
     states={'phi': 0.0},
     parameters={
-        'kappa': parameter(default=1.0, domain=Domain.POSITIVE),
+        'kappa': parameter(default=1.0, domain=NumericDomain.POSITIVE),
         'lam': 1.0,
         'zeta': 4.0,
-        'D': parameter(default=0.05, domain=Domain.NONNEGATIVE),
+        'D': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_active_model_b_laws,
 )
@@ -44,7 +44,7 @@ ActiveScalar = Element.define(
     field='physics/active_matter',
     tags=('field', 'active matter', 'phase separation', 'microphase separation', 'conserved noise', 'model b', 'spde'),
     references=('Fodor, Jack, and Cates 2022', 'Wittkowski et al. 2014', 'Tjhung, Nardini, and Cates 2018'),
-    defaults={'until': 1500.0, 'dt': 30.0, 'solver': EulerMaruyama(dt=0.02), 'backend': 'numba'},
+    defaults={'until': 1500.0, 'dt': 30.0, 'solver': EulerMaruyamaSolver(dt=0.02), 'backend': 'numba'},
 )
 def active_model_b(
     shape: Sequence[int] = (64, 64),
@@ -107,4 +107,4 @@ def active_model_b(
         'zeta': zeta,
         'D': D,
     }
-    return System(components=[Field('fluid', ActiveScalar, LatticeSpace(shape), values=values)])
+    return System(components=[FieldComponent('fluid', ActiveScalarComponent, LatticeSpace(shape), values=values)])

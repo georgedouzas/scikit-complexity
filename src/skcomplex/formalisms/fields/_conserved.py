@@ -10,10 +10,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, ValidationError
-from ...core.laws import Noise
+from ...core.laws import NoiseLaw
 from ...core.space import LatticeSpace
 from ...engine.compile import NoiseProcess, Output, Reference, Source
-from ._components import Field
+from ._components import FieldComponent
 
 type Indices = npt.NDArray[np.intp]
 
@@ -22,7 +22,7 @@ def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpac
     """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
     space = getattr(place, 'space', None)
     is_lattice = (
-        isinstance(place, Field)
+        isinstance(place, FieldComponent)
         and isinstance(space, LatticeSpace)
         and space.geometry == 'square'
         and place.discretization == 'finite-difference'
@@ -31,13 +31,13 @@ def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpac
     if not is_lattice:
         error_msg = (
             f'The conserved noise law of {owner} drives {reference.entry.name}, which is not a state of a '
-            'finite-difference field on a square lattice. Declare the state on a `Field` of a `LatticeSpace`.'
+            'finite-difference field on a square lattice. Declare the state on a `FieldComponent` of a `LatticeSpace`.'
         )
         raise ValidationError(error_msg)
     return space  # type: ignore[return-value]
 
 
-def _amplitude(owner: str, law: Noise, references: Mapping[Expression, Reference]) -> Expression:
+def _amplitude(owner: str, law: NoiseLaw, references: Mapping[Expression, Reference]) -> Expression:
     """Return the amplitude of a conserved noise, or raise an error when it reads a state or is not symbolic."""
     if not isinstance(law.value, Expression | int | float):
         error_msg = f'The conserved noise law of {owner} has the value {law.value!r}. Give a number or an expression.'
@@ -87,9 +87,9 @@ def link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indic
 
 def conserved_outputs(
     owner: str,
-    law: Noise,
+    law: NoiseLaw,
     targets: list[Reference],
-    places: Mapping[str, Field],
+    places: Mapping[str, FieldComponent],
     references: Mapping[Expression, Reference],
 ) -> list[Output]:
     """Return the outputs of a conserved noise law, the divergence of a random flux on the links of a lattice.

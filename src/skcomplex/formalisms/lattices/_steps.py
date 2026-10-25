@@ -20,7 +20,7 @@ from ...core.base import Expression, SolverError, ValidationError, symbol
 from ...core.laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
 from ...engine.compile import numpy_function
-from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
+from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SamplerLaw
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
@@ -655,9 +655,9 @@ class LatticeContext:
 
 def _compile_part(law: object, context: LatticeContext) -> CompiledRule | CompiledDrive:
     """Return a law of a relaxation compiled."""
-    if isinstance(law, LocalRule):
+    if isinstance(law, LocalRuleLaw):
         return compile_rule(law, context)
-    if isinstance(law, Drive):
+    if isinstance(law, DriveLaw):
         return compile_drive(law, context)
     error_msg = f'A relaxation of {context.owner} holds {law!r}, which is not a local rule or a drive.'
     raise ValidationError(error_msg)
@@ -707,7 +707,7 @@ def _lower_neighbor_sums(  # noqa: PLR0917
     return SR(expression).subs(replacements) if replacements else SR(expression)
 
 
-def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
+def compile_rule(law: LocalRuleLaw, context: LatticeContext) -> CompiledRule:
     """Return a local rule compiled for its lattice.
 
     Args:
@@ -764,7 +764,7 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
     )
 
 
-def compile_drive(law: Drive, context: LatticeContext) -> CompiledDrive:
+def compile_drive(law: DriveLaw, context: LatticeContext) -> CompiledDrive:
     """Return a drive compiled for its lattice state.
 
     Args:
@@ -912,7 +912,7 @@ class CompiledRelaxation:
         return RelaxationRecord(self.label, time, size, duration, area)
 
 
-def compile_relaxation(law: Relaxation, context: LatticeContext) -> CompiledRelaxation:
+def compile_relaxation(law: RelaxationLaw, context: LatticeContext) -> CompiledRelaxation:
     """Return a relaxation compiled for its lattice.
 
     Args:
@@ -982,8 +982,8 @@ class CompiledMonteCarlo:
     delta: Callable[..., Any]
     arguments: Arguments
     temperature: Callable[..., Any]
-    move: Move
-    sampler: Sampler
+    move: MoveLaw
+    sampler: SamplerLaw
     classes: tuple[Indices, ...] = ()
     masked: bool = False
 
@@ -1069,7 +1069,12 @@ class CompiledMonteCarlo:
             self._update(x, p, np.asarray([site]), rng)
 
 
-def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: LatticeContext) -> CompiledMonteCarlo:
+def compile_monte_carlo(
+    energy: Energy,
+    move: MoveLaw,
+    sampler: SamplerLaw,
+    context: LatticeContext,
+) -> CompiledMonteCarlo:
     """Return Monte Carlo sampling compiled from a local energy, a move, and a sampler.
 
     Args:
@@ -1268,7 +1273,7 @@ class CompiledExtremal:
         ]
 
 
-def compile_extremal(law: Extremal, context: LatticeContext) -> CompiledExtremal:
+def compile_extremal(law: ExtremalLaw, context: LatticeContext) -> CompiledExtremal:
     """Return an extremal law compiled for its lattice or network.
 
     Args:

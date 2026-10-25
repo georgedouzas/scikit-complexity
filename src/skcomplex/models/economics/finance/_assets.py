@@ -3,15 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Noise, Rate, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class Asset(Element):
+class AssetComponent(ElementComponent):
     """Traded asset described by its price.
 
     Args:
@@ -22,15 +22,15 @@ class Asset(Element):
             The initial price.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import Asset
-        >>> Asset('stock', price=100.0).price
+        >>> from skcomplex.models.economics.finance import AssetComponent
+        >>> AssetComponent('stock', price=100.0).price
         100.0
     """
 
-    price: float = state(default=1.0, domain=Domain.POSITIVE)
+    price: float = state(default=1.0, domain=NumericDomain.POSITIVE)
 
 
-class GeometricBrownianMotion(Interaction):
+class GeometricBrownianMotionInteraction(BaseInteraction):
     """Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`.
 
     Args:
@@ -47,16 +47,16 @@ class GeometricBrownianMotion(Interaction):
             The volatility.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import GeometricBrownianMotion
-        >>> GeometricBrownianMotion('gbm', target='stock', sigma=0.3).sigma
+        >>> from skcomplex.models.economics.finance import GeometricBrownianMotionInteraction
+        >>> GeometricBrownianMotionInteraction('gbm', target='stock', sigma=0.3).sigma
         0.3
     """
 
     target: str = role()
-    mu: float = parameter(default=0.05, domain=Domain.REAL)
-    sigma: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
+    sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S`.
 
         Args:
@@ -67,7 +67,7 @@ class GeometricBrownianMotion(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.price, s.mu * s.target.price), Noise(s.target.price, s.sigma * s.target.price)]
+        return [RateLaw(s.target.price, s.mu * s.target.price), NoiseLaw(s.target.price, s.sigma * s.target.price)]
 
 
 @register_model(
@@ -99,6 +99,6 @@ def geometric_brownian_motion(price: float = 100.0, *, mu: float = 0.05, sigma: 
         0.3
     """
     return System(
-        components=[Asset('asset', price=price)],
-        interactions=[GeometricBrownianMotion('gbm', target='asset', mu=mu, sigma=sigma)],
+        components=[AssetComponent('asset', price=price)],
+        interactions=[GeometricBrownianMotionInteraction('gbm', target='asset', mu=mu, sigma=sigma)],
     )

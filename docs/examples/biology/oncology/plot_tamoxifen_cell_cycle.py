@@ -13,7 +13,7 @@ A continuous infusion of tamoxifen and its metabolite kills cells in the growth 
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -21,7 +21,7 @@ MODEL = 'tamoxifen_cell_cycle'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=8.0, solver=ScipyODE(method='LSODA'), observers=[observer]).run(until=2400)
+simulation = Simulation(system, dt=8.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).run(until=2400)
 
 # %%
 # Treated and untreated
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=8.0, solver=ScipyODE(method='LSODA'), observe
 # the tumour should shrink and the lymphocytes settle lower, at `s / (d1 + a2 (UX + delta2 UH))`.
 
 trajectory = simulation.trajectory_
-untreated = Simulation(create(MODEL, u=0.0), dt=8.0, solver=ScipyODE(method='LSODA')).run(until=2400).trajectory_
+untreated = Simulation(create(MODEL, u=0.0), dt=8.0, solver=ScipyODESolver(method='LSODA')).run(until=2400).trajectory_
 days = trajectory.times / 24
 
 

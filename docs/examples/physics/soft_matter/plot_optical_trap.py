@@ -17,7 +17,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import histogram
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -25,7 +25,7 @@ MODEL = 'optical_trap'
 
 system = create(MODEL, n_particles=500, k=(1.0, 0.25))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = EulerMaruyama(dt=0.01)
+solver = EulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=25)
 
 # %%

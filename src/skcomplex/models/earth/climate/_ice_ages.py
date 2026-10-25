@@ -7,20 +7,20 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import cos, pi
 
-from ....core.base import Domain, Expression, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _saltzman_laws(s: Symbols) -> list[Law]:
+def _saltzman_laws(s: Symbols) -> list[BaseLaw]:
     """Return the feedbacks of ice volume, carbon dioxide, and deep ocean temperature, with orbital forcing."""
     orbital = cos(2 * pi * s.t0 * s.t / 22.1) - cos(2 * pi * s.t0 * s.t / 44.1)
     return [
-        Rate(s.x, -s.x - s.y - s.u * s.z - s.nu * orbital),
-        Rate(s.y, -s.p * s.z + s.r * s.y - s.s * s.y**2 - s.y**3),
-        Rate(s.z, -s.q * (s.x + s.z)),
+        RateLaw(s.x, -s.x - s.y - s.u * s.z - s.nu * orbital),
+        RateLaw(s.y, -s.p * s.z + s.r * s.y - s.s * s.y**2 - s.y**3),
+        RateLaw(s.z, -s.q * (s.x + s.z)),
     ]
 
 
@@ -29,44 +29,47 @@ def _saturation(c: Any, crossover: Any, exponent: Any) -> Expression:  # noqa: A
     return c**exponent / (c**exponent + crossover**exponent)
 
 
-def _carbon_laws(s: Symbols) -> list[Law]:
+def _carbon_laws(s: Symbols) -> list[BaseLaw]:
     """Return Rothman's balance of carbonate ion and dissolved inorganic carbon."""
     burial = s.b * _saturation(s.c, s.c_p, s.gamma)
     respiration = s.theta * (1 - _saturation(s.c, s.c_x, s.gamma))
     buffer = s.f0 * _saturation(s.c, s.c_f, s.beta)
     return [
-        Rate(s.c, buffer * (s.mu * (1 - burial - respiration - s.nu) + s.w - s.w0)),
-        Rate(s.w, s.mu * (1 - burial + respiration + s.nu) - s.w + s.w0),
+        RateLaw(s.c, buffer * (s.mu * (1 - burial - respiration - s.nu) + s.w - s.w0)),
+        RateLaw(s.w, s.mu * (1 - burial + respiration + s.nu) - s.w + s.w0),
     ]
 
 
-SaltzmanMaasch = Element.define(
-    'SaltzmanMaasch',
+SaltzmanMaaschComponent = ElementComponent.define(
+    'SaltzmanMaaschComponent',
     states={'x': -0.2, 'y': 1.0, 'z': 0.0},
     parameters={'p': 1.0, 'q': 2.5, 'r': 1.3, 's': 0.6, 'u': 0.2, 'nu': 0.0, 't0': 10.0},
     laws=_saltzman_laws,
 )
 
 
-def _ice_age_laws(s: Symbols) -> list[Law]:
+def _ice_age_laws(s: Symbols) -> list[BaseLaw]:
     """Return the slow ice volume and the fast climate of a Van der Pol relaxation oscillator under orbital forcing."""
     forcing = cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)
     return [
-        Rate(s.x, -(s.y + s.beta + s.gamma * forcing) / s.tau),
-        Rate(s.y, -s.alpha * (s.y**3 / 3 - s.y - s.x) / s.tau),
+        RateLaw(s.x, -(s.y + s.beta + s.gamma * forcing) / s.tau),
+        RateLaw(s.y, -s.alpha * (s.y**3 / 3 - s.y - s.x) / s.tau),
     ]
 
 
-VanDerPolIceAges = Element.define(
-    'VanDerPolIceAges',
+VanDerPolIceAgesComponent = ElementComponent.define(
+    'VanDerPolIceAgesComponent',
     states={'x': 0.0, 'y': 1.0},
     parameters={'alpha': 30.0, 'beta': 0.75, 'gamma': 0.0, 'tau': 35.09},
     laws=_ice_age_laws,
 )
 
-CarbonCycle = Element.define(
-    'CarbonCycle',
-    states={'c': state(default=83.58, domain=Domain.POSITIVE), 'w': state(default=2050.0, domain=Domain.POSITIVE)},
+CarbonCycleComponent = ElementComponent.define(
+    'CarbonCycleComponent',
+    states={
+        'c': state(default=83.58, domain=NumericDomain.POSITIVE),
+        'w': state(default=2050.0, domain=NumericDomain.POSITIVE),
+    },
     parameters={
         'mu': 250.0,
         'b': 4.0,
@@ -146,7 +149,7 @@ def saltzman_glaciation(
         >>> saltzman_glaciation(nu=0.5).elements[0].nu
         0.5
     """
-    return System(components=[SaltzmanMaasch('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
+    return System(components=[SaltzmanMaaschComponent('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
 
 
 @register_model(
@@ -193,7 +196,7 @@ def carbon_cycle(
         >>> carbon_cycle(nu=0.1).elements[0].nu
         0.1
     """
-    return System(components=[CarbonCycle('ocean', c=c, w=w, c_x=c_x, nu=nu)])
+    return System(components=[CarbonCycleComponent('ocean', c=c, w=w, c_x=c_x, nu=nu)])
 
 
 @register_model(
@@ -248,5 +251,5 @@ def van_der_pol_ice_ages(
         0.4
     """
     return System(
-        components=[VanDerPolIceAges('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
+        components=[VanDerPolIceAgesComponent('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
     )

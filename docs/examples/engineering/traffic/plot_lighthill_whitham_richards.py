@@ -16,14 +16,14 @@ import numpy as np
 from skcomplex.engine.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRK
+from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'lighthill_whitham_richards'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.02, solver=SSPRK(), observers=[observer]).run(until=1.0)
+simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).run(until=1.0)
 
 # %%
 # Shock speed

@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, state
-from ....core.components import Element
-from ....core.laws import Update, where
+from ....core.base import Expression, NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -16,14 +16,14 @@ def _new_entities(previous: Expression, current: Expression, r: Expression) -> E
     return where(produced < 1 - current, produced, 1 - current)
 
 
-AdjacentPossible = Element.define(
-    'AdjacentPossible',
+AdjacentPossibleComponent = ElementComponent.define(
+    'AdjacentPossibleComponent',
     states={
-        'x': state(default=0.1, domain=Domain.NONNEGATIVE),
-        'd': state(default=0.0, domain=Domain.NONNEGATIVE),
+        'x': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'd': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={'r': 5.0},
-    laws=lambda s: [Update(s.x, s.x + s.d), Update(s.d, _new_entities(s.x, s.x + s.d, s.r))],
+    laws=lambda s: [UpdateLaw(s.x, s.x + s.d), UpdateLaw(s.d, _new_entities(s.x, s.x + s.d, s.r))],
 )
 
 
@@ -57,4 +57,4 @@ def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
         >>> creative_phase_transition(r=2.0).elements[0].r
         2.0
     """
-    return System(components=[AdjacentPossible('system', x=x, d=r * x**2 * (1 - x), r=r)])
+    return System(components=[AdjacentPossibleComponent('system', x=x, d=r * x**2 * (1 - x), r=r)])

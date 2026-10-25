@@ -5,25 +5,25 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, advection, laplacian
+from ....formalisms.fields import FieldComponent, advection, laplacian
 
-ArbitrageDensity = Element.define(
-    'ArbitrageDensity',
-    states={'rho': state(default=0.0, domain=Domain.NONNEGATIVE)},
+ArbitrageDensityComponent = ElementComponent.define(
+    'ArbitrageDensityComponent',
+    states={'rho': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'D': parameter(default=0.5, domain=Domain.POSITIVE),
-        'A_x': parameter(default=0.0, domain=Domain.REAL),
-        'E': parameter(default=0.5, domain=Domain.REAL),
-        'A_t': parameter(default=0.0, domain=Domain.REAL),
+        'D': parameter(default=0.5, domain=NumericDomain.POSITIVE),
+        'A_x': parameter(default=0.0, domain=NumericDomain.REAL),
+        'E': parameter(default=0.5, domain=NumericDomain.REAL),
+        'A_t': parameter(default=0.0, domain=NumericDomain.REAL),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.rho,
             s.D * laplacian(s.rho)
             - advection(s.rho, [2 * s.D * (s.A_x + s.E * s.t)])
@@ -87,5 +87,5 @@ def arbitrage_traders(
     rho = np.exp(-(positions**2)) / np.sqrt(np.pi)
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
-    market = Field('market', ArbitrageDensity, line, values=values)
+    market = FieldComponent('market', ArbitrageDensityComponent, line, values=values)
     return System(components=[market])

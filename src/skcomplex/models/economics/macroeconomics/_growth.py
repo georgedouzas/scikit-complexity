@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, Update, lag
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, lag
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -43,16 +43,16 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
         0.3
     """
     return System(
-        components=[Economy('economy', k=k)],
-        interactions=[SolowGrowth('growth', target='economy', s=s, alpha=alpha, delta=delta)],
+        components=[EconomyComponent('economy', k=k)],
+        interactions=[SolowGrowthInteraction('growth', target='economy', s=s, alpha=alpha, delta=delta)],
     )
 
 
-Income = Element.define(
-    'Income',
+IncomeComponent = ElementComponent.define(
+    'IncomeComponent',
     states={'Y': state(default=110.0, lags=1, initial=(100.0,))},
     parameters={'c': 0.8, 'v': 1.5, 'G': 20.0},
-    laws=lambda s: [Update(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
+    laws=lambda s: [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
 )
 
 
@@ -99,10 +99,10 @@ def multiplier_accelerator(
         >>> multiplier_accelerator(v=0.5).elements[0].v
         0.5
     """
-    return System(components=[Income('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
+    return System(components=[IncomeComponent('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
 
 
-class Economy(Element):
+class EconomyComponent(ElementComponent):
     """Economy described by its capital per worker.
 
     Args:
@@ -113,15 +113,15 @@ class Economy(Element):
             The initial capital per worker.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Economy
-        >>> Economy('country', k=1.0).k
+        >>> from skcomplex.models.economics.macroeconomics import EconomyComponent
+        >>> EconomyComponent('country', k=1.0).k
         1.0
     """
 
-    k: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    k: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class SolowGrowth(Interaction):
+class SolowGrowthInteraction(BaseInteraction):
     """Solow growth, `dk/dt = s * k**alpha - delta * k`.
 
     Args:
@@ -141,17 +141,17 @@ class SolowGrowth(Interaction):
             The depreciation rate.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import SolowGrowth
-        >>> SolowGrowth('solow', target='country', s=0.3).s
+        >>> from skcomplex.models.economics.macroeconomics import SolowGrowthInteraction
+        >>> SolowGrowthInteraction('solow', target='country', s=0.3).s
         0.3
     """
 
     target: str = role()
-    s: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    delta: float = parameter(default=0.05, domain=Domain.POSITIVE)
+    s: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    delta: float = parameter(default=0.05, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `s * k**alpha - delta * k`.
 
         Args:
@@ -162,4 +162,4 @@ class SolowGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.k, s.s * s.target.k**s.alpha - s.delta * s.target.k)]
+        return [RateLaw(s.target.k, s.s * s.target.k**s.alpha - s.delta * s.target.k)]

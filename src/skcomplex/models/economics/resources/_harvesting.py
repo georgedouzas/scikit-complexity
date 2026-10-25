@@ -5,26 +5,26 @@
 
 from typing import Any
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Aggregate, Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import Aggregate, ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
-Stock = Element.define(
-    'Stock',
-    states={'n': state(default=1000.0, domain=Domain.NONNEGATIVE)},
+StockComponent = ElementComponent.define(
+    'StockComponent',
+    states={'n': state(default=1000.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'r': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'K': parameter(default=1000.0, domain=Domain.POSITIVE),
+        'r': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'K': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
     },
-    laws=lambda s: [Rate(s.n, s.r * s.n * (1 - s.n / s.K))],
+    laws=lambda s: [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))],
 )
 
 
-class Farmer(Element):
+class FarmerComponent(ElementComponent):
     """Farmer who adds the catch of every step to its wealth, reading the resource from the other partition.
 
     Args:
@@ -44,12 +44,12 @@ class Farmer(Element):
                 The initial wealth.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Farmer
-        >>> Farmer.group('farmers', 10).size
+        >>> from skcomplex.models.economics.resources import FarmerComponent
+        >>> FarmerComponent.group('farmers', 10).size
         10
     """
 
-    wealth: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    wealth: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class Farmer(Element):
         self.resource = resource
         self.effort = effort
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the catch rule.
 
         Args:
@@ -74,7 +74,7 @@ class Farmer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.catch)]
+        return [RuleLaw(self.catch)]
 
     def catch(self, agent: AgentView, model: ModelView) -> None:
         """Add the effort times the resource stock at the last synchronisation point to the wealth.
@@ -89,7 +89,7 @@ class Farmer(Element):
         agent.wealth += model.parameters[self.effort] * float(model.inputs.get(self.resource, 0.0))
 
 
-class Harvest(Interaction):
+class HarvestInteraction(BaseInteraction):
     """Harvest of a resource proportional to its stock and to the number of harvesters, `-effort * N * n`.
 
     Args:
@@ -106,16 +106,16 @@ class Harvest(Interaction):
             The harvest rate per harvester and unit of stock.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Harvest
-        >>> Harvest('harvest', resource='land/stock', harvesters='village/size', effort=0.05).effort
+        >>> from skcomplex.models.economics.resources import HarvestInteraction
+        >>> HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=0.05).effort
         0.05
     """
 
     resource: str = role()
     harvesters: str = role()
-    effort: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    effort: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the harvest rate.
 
         Args:
@@ -126,7 +126,7 @@ class Harvest(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.resource.n, -s.effort * s.harvesters.value * s.resource.n)]
+        return [RateLaw(s.resource.n, -s.effort * s.harvesters.value * s.resource.n)]
 
 
 @register_model(
@@ -162,7 +162,10 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         >>> [subsystem.label for subsystem in harvesting().systems]
         ['land', 'village']
     """
-    land = System('land', components=[Stock('stock', n=K, r=r, K=K)])
-    village = System('village', components=[Farmer.group('farmers', farmers), Aggregate('size', group='farmers')])
-    harvest = Harvest('harvest', resource='land/stock', harvesters='village/size', effort=effort)
+    land = System('land', components=[StockComponent('stock', n=K, r=r, K=K)])
+    village = System(
+        'village',
+        components=[FarmerComponent.group('farmers', farmers), Aggregate('size', group='farmers')],
+    )
+    harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=effort)
     return System(components=[land, village], interactions=[harvest])

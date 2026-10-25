@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Rate, derivative
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DipoleCharge = Element.define(
-    'DipoleCharge',
+DipoleChargeComponent = ElementComponent.define(
+    'DipoleChargeComponent',
     states={
         'x': state(default=1.0, order=2),
         'y': state(default=0.0, order=2),
@@ -18,7 +18,7 @@ DipoleCharge = Element.define(
     },
     parameters={'alpha': 1.0},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.x,
             3
             * s.alpha
@@ -27,7 +27,7 @@ DipoleCharge = Element.define(
             * (derivative(s.y, 1) * s.z - derivative(s.z, 1) * s.y)
             - s.alpha * derivative(s.y, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
         ),
-        Rate(
+        RateLaw(
             s.y,
             -3
             * s.alpha
@@ -36,7 +36,7 @@ DipoleCharge = Element.define(
             * (derivative(s.x, 1) * s.z - derivative(s.z, 1) * s.x)
             + s.alpha * derivative(s.x, 1) / (s.x**2 + s.y**2 + s.z**2) ** (3 / 2),
         ),
-        Rate(
+        RateLaw(
             s.z,
             3
             * s.alpha
@@ -104,4 +104,4 @@ def stormer_problem(
         >>> stormer_problem(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[DipoleCharge('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])
+    return System(components=[DipoleChargeComponent('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])

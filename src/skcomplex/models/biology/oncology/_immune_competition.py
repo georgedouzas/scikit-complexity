@@ -8,14 +8,14 @@ from functools import partial
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import Destruction, Encounter, Proliferation, moment
+from ....formalisms.kinetics import DestructionLaw, EncounterLaw, ProliferationLaw, moment
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 
@@ -101,7 +101,7 @@ def mean_activity(s: Symbols, activities: npt.NDArray[np.float64]) -> Expression
     return moment(s.f, 1, activities, normalized=True)
 
 
-class Cells(Element):
+class CellsComponent(ElementComponent):
     """Density of a population of cells at one activity class, a member of a distribution over activities.
 
     Args:
@@ -112,15 +112,15 @@ class Cells(Element):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Cells
-        >>> Cells.group('tumour', 5, f=0.02).size
+        >>> from skcomplex.models.biology.oncology import CellsComponent
+        >>> CellsComponent.group('tumour', 5, f=0.02).size
         5
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class TumourGrowth(Interaction):
+class TumourGrowthInteraction(BaseInteraction):
     """Proliferation of tumour cells in the host environment, and their progression to higher activity classes.
 
     Args:
@@ -143,18 +143,18 @@ class TumourGrowth(Interaction):
             The rate at which tumour cells move one progression class up.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourGrowth
-        >>> TumourGrowth('growth', tumour='tumour', host='host').growth
+        >>> from skcomplex.models.biology.oncology import TumourGrowthInteraction
+        >>> TumourGrowthInteraction('growth', tumour='tumour', host='host').growth
         0.3
     """
 
     tumour: str = role()
     host: str = role()
-    classes: int = parameter(default=5, domain=Domain.POSITIVE)
-    growth: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    progression: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
+    growth: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    progression: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the proliferation and the progression.
 
         Args:
@@ -166,12 +166,12 @@ class TumourGrowth(Interaction):
                 The laws of the component.
         """
         return [
-            Proliferation(s.tumour.f, s.host.f, s.growth),
-            Encounter(s.tumour.f, s.host.f, s.progression, step_table(int(self.classes), 1)),
+            ProliferationLaw(s.tumour.f, s.host.f, s.growth),
+            EncounterLaw(s.tumour.f, s.host.f, s.progression, step_table(int(self.classes), 1)),
         ]
 
 
-class ImmuneCompetition(Interaction):
+class ImmuneCompetitionInteraction(BaseInteraction):
     """Encounters of tumour and immune cells: active immune cells destroy tumour cells, which inhibit immune cells.
 
     A tumour cell meets an immune cell of activation `v_k` and is destroyed at the rate `kill v_k`. An immune cell
@@ -197,18 +197,18 @@ class ImmuneCompetition(Interaction):
             The rate at which the most progressed tumour cells inhibit immune cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ImmuneCompetition
-        >>> ImmuneCompetition('competition', tumour='tumour', immune='immune').kill
+        >>> from skcomplex.models.biology.oncology import ImmuneCompetitionInteraction
+        >>> ImmuneCompetitionInteraction('competition', tumour='tumour', immune='immune').kill
         1.0
     """
 
     tumour: str = role()
     immune: str = role()
-    classes: int = parameter(default=5, domain=Domain.POSITIVE)
-    kill: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    inhibition: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
+    kill: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    inhibition: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the destruction of tumour cells and the inhibition of immune cells.
 
         Args:
@@ -223,8 +223,8 @@ class ImmuneCompetition(Interaction):
         activities = activity_grid(classes)
         kill = np.tile(activities, (classes, 1))
         return [
-            Destruction(s.tumour.f, s.immune.f, kill * s.kill),
-            Encounter(s.immune.f, s.tumour.f, kill * s.inhibition, step_table(classes, -1, classes)),
+            DestructionLaw(s.tumour.f, s.immune.f, kill * s.kill),
+            EncounterLaw(s.immune.f, s.tumour.f, kill * s.inhibition, step_table(classes, -1, classes)),
         ]
 
 
@@ -327,12 +327,12 @@ def immune_competition(
     immune_density[int(np.argmin(np.abs(activities - activation)))] = immune
     return System(
         components=[
-            Group('tumour', element=Cells, size=classes, on='sites', values={'f': tumour_density}),
-            Group('immune', element=Cells, size=classes, on='sites', values={'f': immune_density}),
-            Cells.group('host', 1, f=1.0),
+            GroupComponent('tumour', element=CellsComponent, size=classes, on='sites', values={'f': tumour_density}),
+            GroupComponent('immune', element=CellsComponent, size=classes, on='sites', values={'f': immune_density}),
+            CellsComponent.group('host', 1, f=1.0),
         ],
         interactions=[
-            TumourGrowth(
+            TumourGrowthInteraction(
                 'growth',
                 tumour='tumour',
                 host='host',
@@ -340,7 +340,7 @@ def immune_competition(
                 growth=growth,
                 progression=progression,
             ),
-            ImmuneCompetition(
+            ImmuneCompetitionInteraction(
                 'competition',
                 tumour='tumour',
                 immune='immune',

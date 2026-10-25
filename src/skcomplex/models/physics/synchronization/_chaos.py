@@ -5,10 +5,10 @@
 
 import numpy as np
 
-from ....core.base import Domain, Expression, parameter
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, Update
+from ....core.base import Expression, NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -20,39 +20,39 @@ def _logistic(r: Expression, x: Expression) -> Expression:
     return r * x * (1 - x)
 
 
-RosslerOscillator = Element.define(
-    'RosslerOscillator',
+RosslerOscillatorComponent = ElementComponent.define(
+    'RosslerOscillatorComponent',
     states={'x1': 1.0, 'x2': 0.0, 'x3': 0.0},
     parameters={'omega': 1.0, 'a': 0.2, 'b': 0.2, 'c': 5.7},
     laws=lambda s: [
-        Rate(s.x1, -s.omega * s.x2 - s.x3),
-        Rate(s.x2, s.omega * s.x1 + s.a * s.x2),
-        Rate(s.x3, s.b + s.x3 * (s.x1 - s.c)),
+        RateLaw(s.x1, -s.omega * s.x2 - s.x3),
+        RateLaw(s.x2, s.omega * s.x1 + s.a * s.x2),
+        RateLaw(s.x3, s.b + s.x3 * (s.x1 - s.c)),
     ],
 )
 
-DiffusiveCoupling = Interaction.define(
-    'DiffusiveCoupling',
+DiffusiveCouplingInteraction = BaseInteraction.define(
+    'DiffusiveCouplingInteraction',
     roles=['first', 'second'],
-    parameters={'k': parameter(default=0.1, domain=Domain.NONNEGATIVE)},
+    parameters={'k': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Rate(s.first.x2, s.k * (s.second.x2 - s.first.x2)),
-        Rate(s.second.x2, s.k * (s.first.x2 - s.second.x2)),
+        RateLaw(s.first.x2, s.k * (s.second.x2 - s.first.x2)),
+        RateLaw(s.second.x2, s.k * (s.first.x2 - s.second.x2)),
     ],
 )
 
-LogisticUnit = Element.define('LogisticUnit', states={'x': 0.3})
+LogisticUnitComponent = ElementComponent.define('LogisticUnitComponent', states={'x': 0.3})
 
-AggregateAveraging = Interaction.define(
-    'AggregateAveraging',
+AggregateAveragingInteraction = BaseInteraction.define(
+    'AggregateAveragingInteraction',
     roles=['first', 'second'],
     parameters={
-        'r': parameter(default=4.0, domain=Domain.NONNEGATIVE),
-        'kappa': parameter(default=0.4, domain=Domain.NONNEGATIVE),
+        'r': parameter(default=4.0, domain=NumericDomain.NONNEGATIVE),
+        'kappa': parameter(default=0.4, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Update(s.first.x, _logistic(s.r, (1 - s.kappa) * s.first.x + s.kappa * s.second.x)),
-        Update(s.second.x, _logistic(s.r, (1 - s.kappa) * s.second.x + s.kappa * s.first.x)),
+        UpdateLaw(s.first.x, _logistic(s.r, (1 - s.kappa) * s.first.x + s.kappa * s.second.x)),
+        UpdateLaw(s.second.x, _logistic(s.r, (1 - s.kappa) * s.second.x + s.kappa * s.first.x)),
     ],
 )
 
@@ -115,7 +115,7 @@ def coupled_rossler(
     omegas = np.linspace(1 - mismatch, 1 + mismatch, n_oscillators)
     starts = np.random.default_rng(seed).uniform(-1.0, 1.0, (n_oscillators, 2))
     oscillators = [
-        RosslerOscillator(
+        RosslerOscillatorComponent(
             f'oscillator_{index}',
             x1=float(starts[index, 0]),
             x2=float(starts[index, 1]),
@@ -131,7 +131,12 @@ def coupled_rossler(
     if n_oscillators > PAIR:
         links.append((n_oscillators - 1, 0))
     couplings = [
-        DiffusiveCoupling(f'coupling_{first}_{second}', first=f'oscillator_{first}', second=f'oscillator_{second}', k=k)
+        DiffusiveCouplingInteraction(
+            f'coupling_{first}_{second}',
+            first=f'oscillator_{first}',
+            second=f'oscillator_{second}',
+            k=k,
+        )
         for first, second in links
     ]
     return System(components=oscillators, interactions=couplings)
@@ -179,6 +184,6 @@ def aggregate_averaging_synchronization(
         0.1
     """
     return System(
-        components=[LogisticUnit('first', x=x1), LogisticUnit('second', x=x2)],
-        interactions=[AggregateAveraging('averaging', first='first', second='second', r=r, kappa=kappa)],
+        components=[LogisticUnitComponent('first', x=x1), LogisticUnitComponent('second', x=x2)],
+        interactions=[AggregateAveragingInteraction('averaging', first='first', second='second', r=r, kappa=kappa)],
     )

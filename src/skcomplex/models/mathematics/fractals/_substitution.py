@@ -10,12 +10,12 @@ from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.rewriting import (
     Affine,
-    Patch,
-    Production,
+    PatchComponent,
+    ProductionLaw,
     Prototile,
     Rewrite,
-    Substitution,
-    Word,
+    SubstitutionLaw,
+    WordComponent,
     WordGeometry,
 )
 
@@ -48,7 +48,7 @@ def koch_curve(angle: float = 60.0) -> System:
         >>> run('koch_curve', settings={'until': 3}).trajectory_['koch.F'].tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
-    word = Word(
+    word = WordComponent(
         'koch',
         axiom='F',
         alphabet='F+-',
@@ -57,7 +57,7 @@ def koch_curve(angle: float = 60.0) -> System:
     )
     return System(
         components=[word],
-        interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])],
+        interactions=[Rewrite('rules', target='koch', rules=[ProductionLaw('F', 'F+F--F+F')])],
     )
 
 
@@ -96,10 +96,10 @@ def cantor_set(ratio: float = 1 / 3) -> System:
         raise ValidationError(error_msg)
     interval = Prototile('interval', [(0.0, 0.0), (1.0, 0.0)])
     pieces = [('interval', Affine(scale=ratio)), ('interval', Affine(scale=ratio, translation=(1 - ratio, 0.0)))]
-    patch = Patch('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
+    patch = PatchComponent('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
     return System(
         components=[patch],
-        interactions=[Rewrite('rules', target='cantor', rules=[Substitution(pieces[0][0], pieces)])],
+        interactions=[Rewrite('rules', target='cantor', rules=[SubstitutionLaw(pieces[0][0], pieces)])],
     )
 
 
@@ -149,8 +149,8 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
     else:
         error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
         raise ValidationError(error_msg)
-    patch = Patch('sierpinski', prototiles=[prototile], filled=filled)
+    patch = PatchComponent('sierpinski', prototiles=[prototile], filled=filled)
     return System(
         components=[patch],
-        interactions=[Rewrite('rules', target='sierpinski', rules=[Substitution(pieces[0][0], pieces)])],
+        interactions=[Rewrite('rules', target='sierpinski', rules=[SubstitutionLaw(pieces[0][0], pieces)])],
     )

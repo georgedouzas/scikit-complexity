@@ -1,13 +1,13 @@
 """Realizations shared by the economics packages: markets, matching protocols, barter, institutions, and learning."""
 
 from ._exchange import NeighborPairing, cobb_douglas, marginal_rate, trade_goods
-from ._institutions import Institution
+from ._institutions import InstitutionInteraction
 from ._learning import evolve, heuristics, logit_choice, logit_probabilities
 from ._markets import (
     BilateralSearch,
     CallAuction,
     DeferredAcceptance,
-    Market,
+    MarketInteraction,
     Order,
     OrderBook,
     Protocol,
@@ -22,8 +22,8 @@ __all__: list[str] = [
     'BilateralSearch',
     'CallAuction',
     'DeferredAcceptance',
-    'Institution',
-    'Market',
+    'InstitutionInteraction',
+    'MarketInteraction',
     'NeighborPairing',
     'Order',
     'OrderBook',

@@ -11,7 +11,7 @@ import numpy.typing as npt
 
 from ...core.base import Expression, ValidationError, components_of
 from ...core.components import Wiener
-from ...core.laws import Noise
+from ...core.laws import NoiseLaw
 from ._declarations import Declarations
 from ._kernels import NoiseProcess
 from ._specs import KernelSpec
@@ -33,7 +33,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
     return ('wiener', *found)
 
 
-def process_keys(spec: KernelSpec, law: Noise, declarations: Declarations) -> list[ProcessKey | None]:
+def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
     """Return the process of every component of the target of a noise law, `None` for an independent process."""
     count = len(components_of(law.target))
     process = law.process

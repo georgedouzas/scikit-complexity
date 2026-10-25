@@ -7,10 +7,10 @@ from collections.abc import Callable
 from typing import Any
 
 from ..base import state
-from ._components import Element
+from ._components import ElementComponent
 
 
-class Aggregate(Element):
+class Aggregate(ElementComponent):
     """Summary of a group, the count of its members or a reduction of one of its states, held in the state `value`.
 
     In a co-simulation the scheduler computes the value at every synchronisation point, so partitions that cannot

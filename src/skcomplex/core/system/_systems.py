@@ -7,21 +7,21 @@ from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from ..base import ComponentKind
-from ..components import Component, Element, Group
-from ..interactions import Interaction
-from ..space import Space, Time
+from ..components import BaseComponent, ElementComponent, GroupComponent
+from ..interactions import BaseInteraction
+from ..space import BaseSpace, BaseTime
 
 LEGACY_ARGUMENTS = {
     'elements': 'Pass elements and groups in `components`.',
     'systems': 'Pass nested systems in `components`.',
     'observables': 'Pass observables to `Simulation(observables=...)`, or declare them on the catalog entry.',
     'history': 'Declare the history on the delayed state with `state(history=...)`.',
-    'noise': 'Give the convention to each noise law with `Noise(..., convention=...)`.',
-    'phases': 'Declare the phases as the schedule of the time, `DiscreteTime(schedule=Phases([...]))`.',
+    'noise': 'Give the convention to each noise law with `NoiseLaw(..., convention=...)`.',
+    'phases': 'Declare the phases as the schedule of the time, `DiscreteTime(schedule=PhasesSchedule([...]))`.',
 }
 
 
-class System(Component):
+class System(BaseComponent):
     """Composition of components and the interactions between them, on a space, in a time.
 
     A system is defined by its components, its interactions, its space, and its time, and by nothing about how it
@@ -57,10 +57,10 @@ class System(Component):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
         >>> system = System(
-        ...     components=[Population('rabbits', n=10)],
-        ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+        ...     components=[PopulationComponent('rabbits', n=10)],
+        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> system
         System(components=1, interactions=1)
@@ -72,10 +72,10 @@ class System(Component):
         self,
         label: str = 'system',
         *,
-        components: Sequence['Element | Group | System'] = (),
-        interactions: Sequence[Interaction] = (),
-        space: Space | None = None,
-        time: Time | None = None,
+        components: Sequence['ElementComponent | GroupComponent | System'] = (),
+        interactions: Sequence[BaseInteraction] = (),
+        space: BaseSpace | None = None,
+        time: BaseTime | None = None,
         **legacy: Any,  # noqa: ANN401
     ) -> None:
         if legacy:
@@ -89,7 +89,7 @@ class System(Component):
         self.time = time
 
     @property
-    def elements(self) -> tuple['Element | Group', ...]:
+    def elements(self) -> tuple['ElementComponent | GroupComponent', ...]:
         """Return the elements and groups among the components, in order."""
         return tuple(component for component in self.components if not isinstance(component, System))
 

@@ -5,15 +5,15 @@
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, role
+from ....core.base import Expression, NumericDomain, parameter, role
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import Particle, Potential
+from ....formalisms.particles import ParticleComponent, PotentialInteraction
 
 
-class ExponentialWell(Potential):
+class ExponentialWellInteraction(PotentialInteraction):
     """Potential `k x² e^-x` on a particle in one dimension, a well at `x = 0` behind a barrier at `x = 2`.
 
     Args:
@@ -27,13 +27,13 @@ class ExponentialWell(Potential):
             The strength of the potential.
 
     Examples:
-        >>> from skcomplex.models.physics.mechanics import ExponentialWell
-        >>> ExponentialWell('well', target='particle', k=2.0).k
+        >>> from skcomplex.models.physics.mechanics import ExponentialWellInteraction
+        >>> ExponentialWellInteraction('well', target='particle', k=2.0).k
         2.0
     """
 
     target: str = role()
-    k: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `k x² e^-x`.
@@ -86,7 +86,7 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
         3.0
     """
     return System(
-        components=[Particle('particle', x=x, v=v, m=m)],
-        interactions=[ExponentialWell('well', target='particle', k=k)],
+        components=[ParticleComponent('particle', x=x, v=v, m=m)],
+        interactions=[ExponentialWellInteraction('well', target='particle', k=k)],
         space=ContinuousSpace(n_dim=1),
     )

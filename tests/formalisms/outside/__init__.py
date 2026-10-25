@@ -8,11 +8,11 @@ import numpy as np
 
 from skcomplex.core.base import (
     ComponentKind,
-    Domain,
     DomainKind,
     Form,
     LawClass,
     LawKind,
+    NumericDomain,
     OrderKind,
     Requires,
     Supports,
@@ -23,11 +23,11 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Law, Symbols
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import BaseLaw, Symbols
 from skcomplex.core.system import System
 from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass, Vector
-from skcomplex.engine.solvers import Stepper
+from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 
 DECAY = LawKind('DECAY', 'decay')
@@ -35,7 +35,7 @@ DECAYING = Form('DECAYING', 'exponential decay')
 
 
 @dataclass(frozen=True)
-class Decay(Law):
+class DecayLaw(BaseLaw):
     """Decay of a state at a rate given by a parameter symbol.
 
     Args:
@@ -55,7 +55,7 @@ class Decay(Law):
     rate: object
 
 
-class Nucleus(Element):
+class NucleusComponent(ElementComponent):
     """Amount of a substance that decays.
 
     Args:
@@ -69,12 +69,12 @@ class Nucleus(Element):
             The decay rate.
     """
 
-    n: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the decay of `n` at the rate `k`."""
-        return [Decay(s.n, s.k)]
+        return [DecayLaw(s.n, s.k)]
 
 
 @dataclass(frozen=True)
@@ -94,7 +94,7 @@ class DecayPass(SystemPass):
 
     def claims(self, system: System) -> bool:
         """Check whether every element of the system is a nucleus."""
-        return bool(system.elements) and all(isinstance(element, Nucleus) for element in system.elements)
+        return bool(system.elements) and all(isinstance(element, NucleusComponent) for element in system.elements)
 
     def compile(
         self,
@@ -107,8 +107,8 @@ class DecayPass(SystemPass):
         """Compile the nuclei into one state and one rate parameter each."""
         del backend, solver
         nuclei = list(system.elements)
-        states = [Entry(f'{item.label}.n', index, (), Domain.NONNEGATIVE) for index, item in enumerate(nuclei)]
-        parameters = [Entry(f'{item.label}.k', index, (), Domain.POSITIVE) for index, item in enumerate(nuclei)]
+        states = [Entry(f'{item.label}.n', index, (), NumericDomain.NONNEGATIVE) for index, item in enumerate(nuclei)]
+        parameters = [Entry(f'{item.label}.k', index, (), NumericDomain.POSITIVE) for index, item in enumerate(nuclei)]
         symbols = {entry.name: symbol(entry.name.replace('.', '_')) for entry in [*states, *parameters]}
         columns = {symbols[entry.name]: entry.start for entry in parameters}
         laws = [item.laws(Symbols(n=symbols[f'{item.label}.n'], k=symbols[f'{item.label}.k'])) for item in nuclei]
@@ -134,8 +134,8 @@ class DecayPass(SystemPass):
         )
 
 
-class ExactDecay(Stepper):
-    """Stepper that advances every state by its exact exponential decay."""
+class ExactDecaySolver(Solver):
+    """Solver that advances every state by its exact exponential decay."""
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
@@ -154,12 +154,12 @@ class ExactDecay(Stepper):
 
 FORMALISM = Formalism(
     'outside',
-    laws=(Decay,),
-    components=(Nucleus,),
+    laws=(DecayLaw,),
+    components=(NucleusComponent,),
     passes=(DecayPass(),),
     forms=(DECAYING,),
-    solvers={'exact-decay': ExactDecay},
-    defaults=(ExactDecay,),
+    solvers={'exact-decay': ExactDecaySolver},
+    defaults=(ExactDecaySolver,),
 )
 
 register(FORMALISM)

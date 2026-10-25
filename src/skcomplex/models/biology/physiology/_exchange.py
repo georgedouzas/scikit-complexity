@@ -8,16 +8,16 @@ from collections.abc import Sequence
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, Update, shift_member
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, shift_member
 from ....core.space import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-class ContourCell(Element):
+class ContourCellComponent(ElementComponent):
     """Logistic cell of a closed contour that takes up the signalling molecules of the next cell through a power map.
 
     The concentration of cell `i` follows `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic
@@ -41,17 +41,17 @@ class ContourCell(Element):
             The affinity of the cell for the uptake of signalling molecules.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import ContourCell
-        >>> ContourCell('cells').r
+        >>> from skcomplex.models.biology.physiology import ContourCellComponent
+        >>> ContourCellComponent('cells').r
         2.5
     """
 
-    x: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    r: float = parameter(default=2.5, domain=Domain.NONNEGATIVE)
-    c: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    p: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    x: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    r: float = parameter(default=2.5, domain=NumericDomain.NONNEGATIVE)
+    c: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    p: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the logistic intracellular map and the uptake from the next cell of the contour.
 
         Args:
@@ -62,10 +62,10 @@ class ContourCell(Element):
             laws:
                 The laws of the component.
         """
-        return [Update(s.x, (1 - s.c) * s.r * s.x * (1 - s.x) + s.c * shift_member(s.x, 1) ** s.p)]
+        return [UpdateLaw(s.x, (1 - s.c) * s.r * s.x * (1 - s.x) + s.c * shift_member(s.x, 1) ** s.p)]
 
 
-class ExchangingCell(Element):
+class ExchangingCellComponent(ElementComponent):
     """Cell that metabolizes a substance and exchanges it with its neighbours through gap junctions and nanotubes.
 
     The concentration follows `dx_i/dt = -alpha_i x_i / (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the
@@ -96,19 +96,19 @@ class ExchangingCell(Element):
             The number of neighbours of the cell.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import ExchangingCell
-        >>> ExchangingCell('cells').g
+        >>> from skcomplex.models.biology.physiology import ExchangingCellComponent
+        >>> ExchangingCellComponent('cells').g
         0.1
     """
 
     x: float = state(default=1.0)
-    alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    g: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    xi: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    degree: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    xi: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    degree: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the metabolism of the substance and its exchange through gap junctions and nanotubes.
 
         Args:
@@ -120,7 +120,7 @@ class ExchangingCell(Element):
                 The laws of the component.
         """
         exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
-        return [Rate(s.x, -s.alpha * s.x / (s.beta + s.x) + exchange)]
+        return [RateLaw(s.x, -s.alpha * s.x / (s.beta + s.x) + exchange)]
 
 
 @register_model(
@@ -171,7 +171,7 @@ def closed_contour_cell_exchange(
         5
     """
     rng = np.random.default_rng(random_state)
-    cells = ContourCell.group(
+    cells = ContourCellComponent.group(
         'cells',
         n_cells,
         x=rng.uniform(0.2, 0.8, n_cells),
@@ -254,5 +254,5 @@ def nanotube_gap_junction_exchange(
         'xi': xi,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    cells = Field('cells', ExchangingCell, NetworkSpace(graph), values=values)
+    cells = FieldComponent('cells', ExchangingCellComponent, NetworkSpace(graph), values=values)
     return System(components=[cells], time=ContinuousTime())

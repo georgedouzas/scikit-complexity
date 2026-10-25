@@ -9,14 +9,14 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics
 
 type Array = npt.NDArray[np.float64]
@@ -77,7 +77,7 @@ def forecasts(history: npt.ArrayLike) -> Array:
     return np.clip(predicted, 0.0, MAX_ATTENDANCE)
 
 
-class Patron(Element):
+class PatronComponent(ElementComponent):
     """Patron of the El Farol bar, who goes when its most accurate predictor forecasts room in the bar.
 
     Every patron holds a few predictors of the pool, the set bits of `predictors`. The accuracy of a predictor is the
@@ -101,18 +101,18 @@ class Patron(Element):
             The weight of the past errors in the accuracy of a predictor.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Patron
-        >>> Patron.group('patrons', 100, predictors=7).size
+        >>> from skcomplex.models.economics.econophysics import PatronComponent
+        >>> PatronComponent.group('patrons', 100, predictors=7).size
         100
     """
 
     bar: ClassVar[str] = 'bar'
-    predictors: float = state(default=1, domain=Domain.NONNEGATIVE_INTEGER)
-    forecast: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    attends: float = state(default=0.0, domain=Domain.BOOLEAN)
-    discount: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
+    predictors: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    forecast: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    attends: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    discount: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the decision rule.
 
         Args:
@@ -123,7 +123,7 @@ class Patron(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.decide, phase='decide')]
+        return [RuleLaw(self.decide, phase='decide')]
 
     def _pool(self, model: ModelView) -> dict[str, Array]:
         """Return this week's forecasts and errors of the pool, shared by the patrons and updated once a week."""
@@ -160,7 +160,7 @@ class Patron(Element):
         agent.attends = float(agent.forecast < model.parameters[f'{self.bar}.capacity'])
 
 
-class Bar(Institution):
+class BarInteraction(InstitutionInteraction):
     """El Farol bar, which counts its patrons every week and reports the attendance.
 
     Args:
@@ -180,13 +180,13 @@ class Bar(Institution):
                 The attendance above which the bar is too crowded to enjoy.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Bar
-        >>> Bar('bar', patrons='patrons').capacity
+        >>> from skcomplex.models.economics.econophysics import BarInteraction
+        >>> BarInteraction('bar', patrons='patrons').capacity
         60.0
     """
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
-    capacity: float = parameter(default=60.0, domain=Domain.NONNEGATIVE)
+    capacity: float = parameter(default=60.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -260,9 +260,9 @@ def el_farol(
         float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
         for _ in range(n_agents)
     ]
-    patrons = Patron.group('patrons', n_agents, predictors=masks, discount=discount)
+    patrons = PatronComponent.group('patrons', n_agents, predictors=masks, discount=discount)
     return System(
         components=[patrons],
-        interactions=[Bar('bar', capacity=capacity)],
-        time=DiscreteTime(schedule=Phases([Phase('decide'), Phase('count')])),
+        interactions=[BarInteraction('bar', capacity=capacity)],
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('decide'), Phase('count')])),
     )

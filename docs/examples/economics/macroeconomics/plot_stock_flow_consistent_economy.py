@@ -16,7 +16,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.analysis import flow_matrix
-from skcomplex.engine.runtime import ConservationMonitor, Simulation
+from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationMonitor()]).run(100)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).run(100)
 
 # %%
 # Money changes only at the boundary

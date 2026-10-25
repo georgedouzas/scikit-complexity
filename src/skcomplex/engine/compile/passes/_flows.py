@@ -6,24 +6,24 @@
 from dataclasses import replace
 from typing import cast
 
-from ....core.laws import Auxiliary, Invariant, Law, Transfer
+from ....core.laws import Auxiliary, BaseLaw, Invariant, TransferLaw
 from .._census import Census
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._flows import StockFlowPass, quantities_of
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._problem import Problem
 from .._quantities import StockFlow
 from .._specs import KernelSpec
 
 
-def _flow_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
+def _flow_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the component that declares a flow, an auxiliary, or an invariant, or `None` for another law."""
     del agents
-    return spec.owner if isinstance(law, Transfer | Auxiliary | Invariant) else None
+    return spec.owner if isinstance(law, TransferLaw | Auxiliary | Invariant) else None
 
 
-class ExpandFlowsPass(Pass):
+class ExpandFlowsPass(BasePass):
     """Pass that expands the flows, auxiliaries, invariants, and objectives of components into laws of other kinds."""
 
     reads = ('collected', 'layout')
@@ -45,7 +45,7 @@ class ExpandFlowsPass(Pass):
         compilation.facts['flows'] = flows
 
 
-class FlowsCensusPass(Pass):
+class FlowsCensusPass(BasePass):
     """Pass that leaves the auxiliaries and invariants, which change no state, out of the census."""
 
     reads = ('census',)
@@ -63,7 +63,7 @@ class FlowsCensusPass(Pass):
         compilation.census = replace(census, records=records)
 
 
-class LowerFlowsPass(Pass):
+class LowerFlowsPass(BasePass):
     """Pass that checks the conserved quantities and lowers flows and delays into the laws of every spec, in place."""
 
     reads = ('lowered', 'layout', 'flows')
@@ -82,7 +82,7 @@ class LowerFlowsPass(Pass):
         compilation.facts['stock_flow'] = flows.lower([(spec, laws) for spec, laws, _ in lowered], declarations)
 
 
-class FlowsProblemPass(Pass):
+class FlowsProblemPass(BasePass):
     """Pass that adds the quantities, flows, and records of the stock and flow structure to the problem."""
 
     reads = ('problem', 'stock_flow')

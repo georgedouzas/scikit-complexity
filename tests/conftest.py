@@ -8,9 +8,9 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.base import parameter, role
-from skcomplex.core.components import Element, Wiener
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Law, Noise, Rate, Symbols, Update
+from skcomplex.core.components import ElementComponent, Wiener
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw
 from skcomplex.core.system import System
 
 
@@ -44,65 +44,65 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(pytest.mark.skip(reason=reason))
 
 
-Node = Element.define('Node', states={'x': 0.0})
-Holding = Element.define('Holding', states={'n': 0.0})
+NodeComponent = ElementComponent.define('NodeComponent', states={'x': 0.0})
+HoldingComponent = ElementComponent.define('HoldingComponent', states={'n': 0.0})
 
 
 def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
     """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
     elements = [
-        Node('a', x=1.0),
-        Node('b', x=2.0),
-        Node('c', x=4.0),
-        Node('hub', x=8.0),
-        Node('target'),
-        Node.group('nodes', 10, x=np.arange(10.0)),
+        NodeComponent('a', x=1.0),
+        NodeComponent('b', x=2.0),
+        NodeComponent('c', x=4.0),
+        NodeComponent('hub', x=8.0),
+        NodeComponent('target'),
+        NodeComponent.group('nodes', 10, x=np.arange(10.0)),
     ]
     return System(
         components=elements,
-        interactions=[WeightedSum('sum', target='target', inputs=inputs, weights=weights)],
+        interactions=[WeightedSumInteraction('sum', target='target', inputs=inputs, weights=weights)],
     )
 
 
 def _correlated(covariance: npt.ArrayLike | None) -> System:
     """Return two holdings driven by a Wiener element of a covariance."""
     return System(
-        components=[Holding('a'), Holding('b'), Wiener('market', dimension=2, covariance=covariance)],
-        interactions=[Drive('drive', first='a', second='b', noise='market')],
+        components=[HoldingComponent('a'), HoldingComponent('b'), Wiener('market', dimension=2, covariance=covariance)],
+        interactions=[DriveInteraction('drive', first='a', second='b', noise='market')],
     )
 
 
-class CallableGrowth(Interaction):
+class CallableGrowthInteraction(BaseInteraction):
     """Growth whose rate is a Python callable."""
 
     target: str = role()
     r: float = parameter(1.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return a callable rate law."""
         name = f'{self.target}.n'
-        return [Rate(s.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
+        return [RateLaw(s.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
 
 
-class Drive(Interaction):
+class DriveInteraction(BaseInteraction):
     """Unit noise on two elements from the two processes of a Wiener element."""
 
     first: str = role()
     second: str = role()
     noise: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the noise of both elements."""
-        return [Noise(s.first.n, 1.0, process=s.noise.dW[0]), Noise(s.second.n, 1.0, process=s.noise.dW[1])]
+        return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
 
 
-class WeightedSum(Interaction):
+class WeightedSumInteraction(BaseInteraction):
     """Update of a target to the weighted sum of the states of a variable number of inputs."""
 
     target: str = role()
     inputs: list[str] = role(variadic=True)
     weights: list[float] = parameter(1.0, per='inputs')
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the update of the target."""
-        return [Update(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]
+        return [UpdateLaw(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]

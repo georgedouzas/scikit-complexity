@@ -13,9 +13,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, ValidationError, VariableKind, declarations_of
-from ...core.laws import Boundary, Law, Noise, Rate, Update
+from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.space import LatticeSpace
 from ...engine.compile import (
+    BasePass,
     Block,
     Census,
     CensusRecord,
@@ -27,27 +28,26 @@ from ...engine.compile import (
     Layout,
     Node,
     Output,
-    Pass,
     Problem,
     Source,
     Vector,
     target_references,
 )
-from ._components import Field
+from ._components import FieldComponent
 from ._conserved import conserved_outputs
-from ._laws import Flux
+from ._laws import FluxLaw
 from ._lowering import FieldLowering, has_operators
-from ._spaces import Mesh
+from ._spaces import MeshSpace
 from ._splitting import LinearTerm, linear_terms
 from ._volumes import FiniteVolume, compile_volumes
 
 
-def _places(declarations: Declarations) -> dict[str, Field]:
+def _places(declarations: Declarations) -> dict[str, FieldComponent]:
     """Return the fields by the name of each of their entries."""
     return {
         entry.name: block.node.component
         for block in declarations.blocks.values()
-        if isinstance(block.node.component, Field)
+        if isinstance(block.node.component, FieldComponent)
         for entry in block.entries.values()
     }
 
@@ -63,11 +63,11 @@ def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expres
     }
 
 
-def _linear_terms_of(spec: KernelSpec, laws: list[Law], places: dict[str, Field]) -> list[LinearTerm]:
+def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldComponent]) -> list[LinearTerm]:
     """Return the linear terms with constant coefficients of the rates of field states."""
     terms = []
     for law in laws:
-        if not isinstance(law, Rate) or not isinstance(law.value, Expression):
+        if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
             continue
         for reference in target_references(law.target, spec):
             if reference.entry.name in places and reference.source is Source.MEMBER:
@@ -75,25 +75,30 @@ def _linear_terms_of(spec: KernelSpec, laws: list[Law], places: dict[str, Field]
     return terms
 
 
-def _with_fields(spec: KernelSpec, laws: list[Law], declarations: Declarations, facts: dict[str, Any]) -> list[Law]:
+def _with_fields(
+    spec: KernelSpec,
+    laws: list[BaseLaw],
+    declarations: Declarations,
+    facts: dict[str, Any],
+) -> list[BaseLaw]:
     """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
     places = _places(declarations)
     facts['linear'] += _linear_terms_of(spec, laws, places)
     if not any(has_operators(getattr(law, 'value', None)) for law in laws):
         return laws
     lowering = FieldLowering(spec.owner, spec.references, places, _initial_values(spec, declarations))
-    result: list[Law] = []
+    result: list[BaseLaw] = []
     for law in laws:
-        if not isinstance(law, Rate | Noise | Update | Boundary) or not has_operators(law.value):
+        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not has_operators(law.value):
             result.append(law)
             continue
-        if isinstance(law, Rate):
+        if isinstance(law, RateLaw):
             lowering.note_limit(law.value)
         lowered = lowering.lower(law.value)
         if isinstance(law.value, Expression):
             for reference in target_references(law.target, spec):
                 facts['written'][(reference.entry.name, reference.column)].append((lowered, law.value))
-        if isinstance(law, Rate | Noise):
+        if isinstance(law, RateLaw | NoiseLaw):
             result.append(replace(law, value=lowered))
         else:
             result.append(type(law)(law.target, lowered))
@@ -117,13 +122,13 @@ def _written_equations(
 
 
 def _compile_fluxes(
-    specs: list[tuple[KernelSpec, list[Law]]],
+    specs: list[tuple[KernelSpec, list[BaseLaw]]],
     declarations: Declarations,
 ) -> tuple[FiniteVolume, ...]:
     """Return the conservation laws of every finite-volume field from the flux laws of its component."""
     volumes = []
     for spec, laws in specs:
-        fluxes = [law for law in laws if isinstance(law, Flux)]
+        fluxes = [law for law in laws if isinstance(law, FluxLaw)]
         if not fluxes:
             continue
         targets = [(law, target_references(law.target, spec)[0]) for law in fluxes]
@@ -131,7 +136,7 @@ def _compile_fluxes(
         for owner in sorted(owners):
             block = declarations.blocks[owner]
             place = block.node.component
-            if not isinstance(place, Field):
+            if not isinstance(place, FieldComponent):
                 error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                 raise ValidationError(error_msg)
             mine = [(law, reference) for law, reference in targets if reference.entry.name.startswith(f'{owner}.')]
@@ -145,7 +150,7 @@ def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.ND
     values: list[npt.NDArray[np.float64]] = []
     for block in blocks:
         place = block.node.component
-        if not isinstance(place, Field) or not isinstance(place.space, Mesh):
+        if not isinstance(place, FieldComponent) or not isinstance(place.space, MeshSpace):
             continue
         if place.discretization != 'finite-element':
             error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
@@ -171,7 +176,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
     found = []
     for block in blocks:
         place = block.node.component
-        if not isinstance(place, Field) or not place.symmetry:
+        if not isinstance(place, FieldComponent) or not place.symmetry:
             continue
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
@@ -241,7 +246,7 @@ def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa
 
 def _with_discretizations(
     functions: dict[str, Any],
-    specs: list[tuple[KernelSpec, list[Law]]],
+    specs: list[tuple[KernelSpec, list[BaseLaw]]],
     declarations: Declarations,
     blocks: list[Block],
 ) -> tuple[tuple[FiniteVolume, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
@@ -261,7 +266,7 @@ def _with_discretizations(
 def _is_lattice_field(component: object) -> bool:
     """Check whether a component is a finite-difference field on a square lattice."""
     return (
-        isinstance(component, Field)
+        isinstance(component, FieldComponent)
         and isinstance(component.space, LatticeSpace)
         and component.space.geometry == 'square'
         and component.discretization == 'finite-difference'
@@ -274,10 +279,10 @@ def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> 
     if not outside:
         return None
     message = (
-        f'The conserved {type(record.law).__name__} law of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
+        f'The conserved {type(record.law).__name__} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
         'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per link.'
     )
-    fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
+    fix = 'Declare the state on a `FieldComponent` of a `LatticeSpace`, or remove `conserved=True`.'
     return Issue('noise-unsupported', record.path, message, fix)
 
 
@@ -288,7 +293,7 @@ def _conserved_issues(compilation: Compilation) -> list[Issue]:
     found = [
         _conserved_issue(record, components)
         for record in records
-        if isinstance(record.law, Noise) and record.law.conserved
+        if isinstance(record.law, NoiseLaw) and record.law.conserved
     ]
     return [issue for issue in found if issue is not None]
 
@@ -299,13 +304,13 @@ def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, lis
     outputs = {}
     for spec, laws in specs:
         for law in laws:
-            if isinstance(law, Noise) and law.conserved:
+            if isinstance(law, NoiseLaw) and law.conserved:
                 targets = target_references(law.target, spec)
                 outputs[id(law)] = conserved_outputs(spec.owner, law, targets, places, spec.references)
     return outputs
 
 
-class LowerFieldsPass(Pass):
+class LowerFieldsPass(BasePass):
     """Pass that lowers the differential operators of laws to stencils and notes stable steps and linear terms."""
 
     reads = ('corrected', 'layout')
@@ -326,7 +331,7 @@ class LowerFieldsPass(Pass):
         compilation.facts.update(facts)
 
 
-class FieldFunctionsPass(Pass):
+class FieldFunctionsPass(BasePass):
     """Pass that writes operators back into the equations and adds flux differences, symmetries, and fixed nodes."""
 
     reads = ('functions', 'written', 'reduced', 'layout')
@@ -350,7 +355,7 @@ class FieldFunctionsPass(Pass):
         compilation.facts['constrained'] = constrained
 
 
-class FieldJacobianPass(Pass):
+class FieldJacobianPass(BasePass):
     """Pass that adds the conservation laws, symmetries, and fixed nodes of the fields to the exact Jacobian."""
 
     reads = ('jacobian', 'volumes', 'symmetries', 'constrained')
@@ -373,7 +378,7 @@ class FieldJacobianPass(Pass):
         )
 
 
-class FieldProblemPass(Pass):
+class FieldProblemPass(BasePass):
     """Pass that adds the stable step, the linear terms, the finite volumes, and the fixed nodes to the problem."""
 
     reads = ('problem', 'limits', 'volume_limits', 'linear', 'volumes', 'constrained')
@@ -401,7 +406,7 @@ class FieldProblemPass(Pass):
         )
 
 
-class ConservedNoisePass(Pass):
+class ConservedNoisePass(BasePass):
     """Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
 
     reads = ('reduced', 'layout', 'outputs')

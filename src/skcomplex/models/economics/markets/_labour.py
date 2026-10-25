@@ -7,18 +7,18 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
-from ..realizations._markets import DeferredAcceptance, Market, Trade
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
+from ..realizations._markets import DeferredAcceptance, MarketInteraction, Trade
 
 
-class Employer(Element):
+class EmployerComponent(ElementComponent):
     """Firm that posts a vacancy with a random wage offer in some steps, filled by at most one worker.
 
     Args:
@@ -44,19 +44,19 @@ class Employer(Element):
             The highest wage offer.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Employer
-        >>> Employer.group('firms', 5).size
+        >>> from skcomplex.models.economics.markets import EmployerComponent
+        >>> EmployerComponent.group('firms', 5).size
         5
     """
 
-    bid: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     posted: float = state(default=-1.0)
-    vacancy_rate: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    low_wage: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    high_wage: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    vacancy_rate: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    low_wage: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    high_wage: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the posting rule in the phase of offers.
 
         Args:
@@ -67,7 +67,7 @@ class Employer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.post, phase='offers')]
+        return [RuleLaw(self.post, phase='offers')]
 
     def post(self, agent: AgentView, model: ModelView) -> None:
         """Withdraw the last vacancy and post a new one with a uniform wage offer at the vacancy rate.
@@ -86,7 +86,7 @@ class Employer(Element):
             agent.posted = model.time
 
 
-class Jobseeker(Element):
+class JobseekerComponent(ElementComponent):
     """Worker who loses its job at the separation rate and, while unemployed, lowers its reservation wage.
 
     A worker who loses its job searches from the next step. An unemployed worker asks the reservation wage
@@ -127,23 +127,23 @@ class Jobseeker(Element):
             The relative fall of the reservation wage per step of search.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Jobseeker
-        >>> Jobseeker.group('workers', 5).size
+        >>> from skcomplex.models.economics.markets import JobseekerComponent
+        >>> JobseekerComponent.group('workers', 5).size
         5
     """
 
-    ask: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    supply: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
+    ask: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    supply: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     employer: float = state(default=-1.0)
-    wage: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    duration: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    wage: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    duration: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     hired: float = state(default=-1.0)
     offer: float = state(default=-1.0)
-    separation: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    reservation: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    decline: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    separation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    reservation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    decline: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of separations and search in the phase of offers.
 
         Args:
@@ -154,7 +154,7 @@ class Jobseeker(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.search, phase='offers')]
+        return [RuleLaw(self.search, phase='offers')]
 
     def search(self, agent: AgentView, model: ModelView) -> None:
         """Lose the job at the separation rate, or search with a reservation wage that falls with the duration.
@@ -191,7 +191,7 @@ def hire(trade: Trade, model: Any) -> None:  # noqa: ANN401
     worker.hired, worker.offer = model.time, firm.posted
 
 
-class SearchCount(Institution):
+class SearchCountInteraction(InstitutionInteraction):
     """Statistics office that counts the workers searching in a step before the labour market clears.
 
     Args:
@@ -208,8 +208,8 @@ class SearchCount(Institution):
             The phase the office counts in, which must precede the clearing of the market.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import SearchCount
-        >>> SearchCount('office', workers='workers', phase='matching').reports
+        >>> from skcomplex.models.economics.markets import SearchCountInteraction
+        >>> SearchCountInteraction('office', workers='workers', phase='matching').reports
         ('searching',)
     """
 
@@ -304,7 +304,7 @@ def labour_market(
     rng = np.random.default_rng(random_state)
     employed = rng.random(n_workers) >= unemployment
     employers = np.where(employed, rng.integers(n_firms, size=n_workers), -1).astype(float)
-    firms = Employer.group(
+    firms = EmployerComponent.group(
         'firms',
         n_firms,
         vacancy_rate=vacancy_rate,
@@ -312,7 +312,7 @@ def labour_market(
         high_wage=high_wage,
         bid=low_wage,
     )
-    workers = Jobseeker.group(
+    workers = JobseekerComponent.group(
         'workers',
         n_workers,
         employer=employers,
@@ -323,7 +323,7 @@ def labour_market(
         reservation=reservation,
         decline=decline,
     )
-    market = Market(
+    market = MarketInteraction(
         'labour',
         buyers='firms',
         sellers='workers',
@@ -335,6 +335,6 @@ def labour_market(
     )
     return System(
         components=[firms, workers],
-        interactions=[SearchCount('office', workers='workers', phase='matching'), market],
-        time=DiscreteTime(schedule=Phases([Phase('offers'), Phase('matching')])),
+        interactions=[SearchCountInteraction('office', workers='workers', phase='matching'), market],
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('offers'), Phase('matching')])),
     )

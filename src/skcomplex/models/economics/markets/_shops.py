@@ -9,14 +9,14 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, transfer
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._markets import Trade
 
 
@@ -99,7 +99,7 @@ class DeliveredPriceChoice:
         return trades
 
 
-class Resident(Element):
+class ResidentComponent(ElementComponent):
     """Shopper who wants one unit a step and shops in person, paying for travel, or online, where distance is free.
 
     Args:
@@ -125,20 +125,20 @@ class Resident(Element):
             The probability of shopping online in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Resident
-        >>> Resident.group('shoppers', 3, online=1.0).size
+        >>> from skcomplex.models.economics.markets import ResidentComponent
+        >>> ResidentComponent.group('shoppers', 3, online=1.0).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)})
-    bid: float = state(default=20.0, domain=Domain.NONNEGATIVE)
-    demand: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    money: float = state(default=1000.0, domain=Domain.REAL)
-    travel: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    distance_cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    online: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    bid: float = state(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    demand: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    money: float = state(default=1000.0, domain=NumericDomain.REAL)
+    travel: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    distance_cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    online: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that decides how the shopper shops in the step.
 
         Args:
@@ -149,7 +149,7 @@ class Resident(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.plan, phase='market')]
+        return [RuleLaw(self.plan, phase='market')]
 
     def plan(self, agent: AgentView, model: ModelView) -> None:
         """Want one unit, and shop online with the probability of shopping online.
@@ -166,7 +166,7 @@ class Resident(Element):
         agent.travel = 0.0 if online else model.parameter('distance_cost')
 
 
-class Store(Element):
+class StoreComponent(ElementComponent):
     """Shop that offers its capacity at its price, searches for the price of the largest profit, and may close.
 
     The shop searches for its price by trial and error: it moves the price by `adjustment` in the same direction as
@@ -211,25 +211,25 @@ class Store(Element):
             The relative change of the price in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Store
-        >>> Store.group('shops', 4, price=10.0).size
+        >>> from skcomplex.models.economics.markets import StoreComponent
+        >>> StoreComponent.group('shops', 4, price=10.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'price'})
-    price: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    ask: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    sales: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    money: float = state(default=100.0, domain=Domain.REAL)
-    profit: float = state(default=0.0, domain=Domain.REAL)
-    direction: float = state(default=1.0, domain=Domain.REAL)
-    capacity: float = parameter(default=1000.0, domain=Domain.POSITIVE)
-    unit_cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    fixed_cost: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    adjustment: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    price: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    ask: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    sales: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    money: float = state(default=100.0, domain=NumericDomain.REAL)
+    profit: float = state(default=0.0, domain=NumericDomain.REAL)
+    direction: float = state(default=1.0, domain=NumericDomain.REAL)
+    capacity: float = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
+    unit_cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    fixed_cost: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    adjustment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that opens the shop for the market and the rule that settles its accounts.
 
         Args:
@@ -240,7 +240,7 @@ class Store(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.open, phase='market'), Rule(self.settle, phase='accounts')]
+        return [RuleLaw(self.open, phase='market'), RuleLaw(self.settle, phase='accounts')]
 
     def open(self, agent: AgentView, model: ModelView) -> None:
         """Offer the capacity at the price.
@@ -278,7 +278,7 @@ class Store(Element):
         agent.price = max(unit_cost, agent.price * (1 + agent.direction * model.parameter('adjustment')))
 
 
-class Shopping(Interaction):
+class ShoppingInteraction(BaseInteraction):
     """Market where shoppers buy from the shops they prefer, by price plus travel cost.
 
     The matching law pairs every shopper with the shop of the lowest price plus travel cost that has units left, and
@@ -295,8 +295,8 @@ class Shopping(Interaction):
             The path of the group of shops.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Shopping
-        >>> Shopping('shopping', shoppers='shoppers', shops='shops').reports
+        >>> from skcomplex.models.economics.markets import ShoppingInteraction
+        >>> ShoppingInteraction('shopping', shoppers='shoppers', shops='shops').reports
         ('volume',)
     """
 
@@ -316,8 +316,8 @@ class Shopping(Interaction):
                 The laws of the component.
         """
         return [
-            Match('shoppers', 'shops', pairing=DeliveredPriceChoice(), label='purchases', phase='market'),
-            Rule(self.buy, phase='market'),
+            MatchLaw('shoppers', 'shops', pairing=DeliveredPriceChoice(), label='purchases', phase='market'),
+            RuleLaw(self.buy, phase='market'),
         ]
 
     def buy(self, model: Any) -> None:  # noqa: ANN401
@@ -406,7 +406,7 @@ def shops(
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
     places = rng.choice(len(cells), size=min(n_shops, len(cells)), replace=False)
-    shoppers = Resident.group(
+    shoppers = ResidentComponent.group(
         'shoppers',
         len(cells),
         location=cells,
@@ -414,7 +414,7 @@ def shops(
         online=online,
         distance_cost=distance_cost,
     )
-    stores = Store.group(
+    stores = StoreComponent.group(
         'shops',
         len(places),
         variable=True,
@@ -425,7 +425,7 @@ def shops(
     )
     return System(
         components=[shoppers, stores],
-        interactions=[Shopping('shopping', shoppers='shoppers', shops='shops')],
+        interactions=[ShoppingInteraction('shopping', shoppers='shoppers', shops='shops')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='moore'),
-        time=DiscreteTime(schedule=Phases([Phase('market'), Phase('accounts')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('market'), Phase('accounts')])),
     )

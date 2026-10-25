@@ -26,7 +26,7 @@ from ...core.base import (
     ValidationError,
 )
 from ...engine.compile import Problem, Vector
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 
 EIGENVALUE_TOLERANCE = 1e-10
 GRID_TOLERANCE = 1e-9
@@ -91,7 +91,7 @@ def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Ge
     return np.asarray(scipy.fft.fft(scale * gaussian, axis=0)[:n].real, dtype=float)
 
 
-class FractionalEulerMaruyama(Stepper):
+class FractionalEulerMaruyamaSolver(Solver):
     """Euler-Maruyama integrator of stochastic differential equations driven by fractional and ordinary noise.
 
     The stepper draws the correlated increments of every fractional noise row for the whole run when it first advances,
@@ -119,17 +119,17 @@ class FractionalEulerMaruyama(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.formalisms.fractional import FractionalNoise
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.formalisms.fractional import FractionalNoiseLaw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.fractional import FractionalEulerMaruyama
-        >>> Walker = Element.define(
-        ...     'Walker',
+        >>> from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver
+        >>> WalkerComponent = ElementComponent.define(
+        ...     'WalkerComponent',
         ...     states={'x': 0.0},
-        ...     laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.75)],
+        ...     laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=0.75)],
         ... )
-        >>> problem = compile_system(System(components=[Walker.group('walkers', 500)]))
-        >>> stepper = FractionalEulerMaruyama(dt=0.01, horizon=1.0)
+        >>> problem = compile_system(System(components=[WalkerComponent.group('walkers', 500)]))
+        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(np.var(state)), 1)
@@ -170,7 +170,7 @@ class FractionalEulerMaruyama(Stepper):
         """
         super().initialize(problem, rng)
         if problem.delays or problem.events:
-            error_msg = 'FractionalEulerMaruyama does not integrate delays or events.'
+            error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)
         self.horizon_ = self.horizon
         self.hurst_: Vector | None = None
@@ -200,8 +200,10 @@ class FractionalEulerMaruyama(Stepper):
         horizon = self.horizon_
         if horizon is None or not math.isfinite(horizon):
             error_msg = (
-                f'FractionalEulerMaruyama draws the noise of a whole run, but the run has the horizon {horizon}. Give '
-                'FractionalEulerMaruyama(horizon=...) a finite horizon, or run the simulation to a finite end time.'
+                f'FractionalEulerMaruyamaSolver draws the noise of a whole run, but the run has the horizon {horizon}. '
+                'Give '
+                'FractionalEulerMaruyamaSolver(horizon=...) a finite horizon, or run the simulation to a finite end '
+                'time.'
             )
             raise HorizonError(error_msg)
         hurst = self._hurst(p)
@@ -213,7 +215,8 @@ class FractionalEulerMaruyama(Stepper):
         size = steps * fractional.size
         if size > self.max_increments:
             error_msg = (
-                f'FractionalEulerMaruyama needs {size} increments, {8 * size / 1e6:.1f} MB, for the horizon {horizon}, '
+                f'FractionalEulerMaruyamaSolver needs {size} increments, {8 * size / 1e6:.1f} MB, for the horizon '
+                f'{horizon}, '
                 f'above max_increments = {self.max_increments}. Shorten the horizon, take a larger dt, or raise '
                 'max_increments.'
             )
@@ -232,7 +235,8 @@ class FractionalEulerMaruyama(Stepper):
         index = round(position)
         if abs(position - index) > GRID_TOLERANCE * max(1.0, abs(position)):
             error_msg = (
-                f'FractionalEulerMaruyama steps on multiples of dt = {self.dt} from t = {self._origin}, but was asked '
+                f'FractionalEulerMaruyamaSolver steps on multiples of dt = {self.dt} from t = {self._origin}, but was '
+                'asked '
                 f'for t = {time}. Make the time between frames a multiple of dt.'
             )
             raise SolverError(error_msg)
@@ -277,7 +281,7 @@ class FractionalEulerMaruyama(Stepper):
         if until > last + GRID_TOLERANCE * max(1.0, abs(last)):
             error_msg = (
                 f'The fractional noise was drawn up to the horizon {self.horizon_}, but the run asked for t = {until}. '
-                'Give FractionalEulerMaruyama a larger horizon.'
+                'Give FractionalEulerMaruyamaSolver a larger horizon.'
             )
             raise HorizonError(error_msg)
         if self.hurst_ is not None and not np.array_equal(self._hurst(p), self.hurst_):

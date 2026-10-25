@@ -7,13 +7,13 @@ import numpy as np
 import numpy.typing as npt
 from scipy.special import expit
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -31,7 +31,7 @@ def _first_shop_probabilities(customers: list[AgentView], temperature: float) ->
     return expit(difference / temperature)
 
 
-class Customer(Element):
+class CustomerComponent(ElementComponent):
     """Customer who remembers how satisfied it was with the products of each of two shops.
 
     Args:
@@ -45,15 +45,15 @@ class Customer(Element):
             The satisfaction with the second shop.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Customer
-        >>> Customer.group('customers', 10, s1=0.5, s2=0.5).size
+        >>> from skcomplex.models.economics.markets import CustomerComponent
+        >>> CustomerComponent.group('customers', 10, s1=0.5, s2=0.5).size
         10
     """
 
-    s1: float = state(default=0.5, domain=Domain.REAL)
-    s2: float = state(default=0.5, domain=Domain.REAL)
+    s1: float = state(default=0.5, domain=NumericDomain.REAL)
+    s2: float = state(default=0.5, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the trade moves every customer.
 
         Args:
@@ -67,7 +67,7 @@ class Customer(Element):
         return []
 
 
-class Product(Element):
+class ProductComponent(ElementComponent):
     """Product on the shelf of a shop, which ages from the time it was shelved.
 
     Args:
@@ -81,15 +81,15 @@ class Product(Element):
             The time at which the product was put on the shelf.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Product
-        >>> Product.group('products', 4, shop=[0, 0, 1, 1]).size
+        >>> from skcomplex.models.economics.markets import ProductComponent
+        >>> ProductComponent.group('products', 4, shop=[0, 0, 1, 1]).size
         4
     """
 
-    shop: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    shelved: float = state(default=0.0, domain=Domain.REAL)
+    shop: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    shelved: float = state(default=0.0, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the trade sells and replaces products.
 
         Args:
@@ -103,7 +103,7 @@ class Product(Element):
         return []
 
 
-class Shop(Element):
+class ShopComponent(ElementComponent):
     """Shop of perishable goods, described by its share of customers and the mean freshness of its stock.
 
     Args:
@@ -117,15 +117,15 @@ class Shop(Element):
             The mean freshness of the products on its shelves.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Shop
-        >>> Shop.group('shops', 2, share=0.5).size
+        >>> from skcomplex.models.economics.markets import ShopComponent
+        >>> ShopComponent.group('shops', 2, share=0.5).size
         2
     """
 
-    share: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    freshness: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    share: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    freshness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the trade records the shares and the freshness.
 
         Args:
@@ -139,7 +139,7 @@ class Shop(Element):
         return []
 
 
-class PerishableTrade(Interaction):
+class PerishableTradeInteraction(BaseInteraction):
     """Visits of customers to two shops, one random customer at a time, `N` visits per unit of time.
 
     A customer visits the first shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` and buys a random product
@@ -170,19 +170,19 @@ class PerishableTrade(Interaction):
             The time over which the products age.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import PerishableTrade
-        >>> PerishableTrade('trade', customers='customers', products='products', shops='shops', T=0.1).T
+        >>> from skcomplex.models.economics.markets import PerishableTradeInteraction
+        >>> PerishableTradeInteraction('trade', customers='customers', products='products', shops='shops', T=0.1).T
         0.1
     """
 
     customers: str = role()
     products: str = role()
     shops: str = role()
-    T: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    alpha: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    tau_a: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    T: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    alpha: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    tau_a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the trade rule.
 
         Args:
@@ -193,7 +193,7 @@ class PerishableTrade(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.trade)]
+        return [RuleLaw(self.trade)]
 
     def trade(self, model: ModelView) -> None:
         """Run the visits of one unit of time and record the shares and the freshness of the shops.
@@ -284,7 +284,7 @@ def perishable_goods_duopoly(
     rng = np.random.default_rng(random_state)
     shelf = max(round(stock * customers), 1)
     satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, customers))
-    trade = PerishableTrade(
+    trade = PerishableTradeInteraction(
         'trade',
         customers='customers',
         products='products',
@@ -295,9 +295,13 @@ def perishable_goods_duopoly(
     )
     return System(
         components=[
-            Customer.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
-            Product.group('products', N_SHOPS * shelf, shop=np.repeat(np.arange(N_SHOPS), shelf).astype(float)),
-            Shop.group('shops', N_SHOPS),
+            CustomerComponent.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
+            ProductComponent.group(
+                'products',
+                N_SHOPS * shelf,
+                shop=np.repeat(np.arange(N_SHOPS), shelf).astype(float),
+            ),
+            ShopComponent.group('shops', N_SHOPS),
         ],
         interactions=[trade],
     )

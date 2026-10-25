@@ -27,8 +27,8 @@ from ...engine.compile import (
     numpy_function,
     spectral_multiplier,
 )
-from ._components import Field
-from ._spaces import Mesh
+from ._components import FieldComponent
+from ._spaces import MeshSpace
 
 type Indices = npt.NDArray[np.intp]
 type Offset = tuple[int, ...]
@@ -70,7 +70,7 @@ def _mesh_matrices(
 
     nodes = np.frombuffer(points).reshape(shape)
     elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-    space = Mesh(nodes, elements)
+    space = MeshSpace(nodes, elements)
     basis = Basis(space.skfem_mesh(), ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
     stiffness = asm(laplace, basis).tocsr()
     lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
@@ -115,7 +115,7 @@ def has_operators(expression: object) -> bool:
     return bool(re.search(r'\b(laplacian|partial|upwind|inverse_laplacian)\(', str(expression)))
 
 
-def mesh_matrices(space: Mesh) -> tuple[Any, npt.NDArray[np.float64]]:
+def mesh_matrices(space: MeshSpace) -> tuple[Any, npt.NDArray[np.float64]]:
     """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
 
     Args:
@@ -131,7 +131,7 @@ def mesh_matrices(space: Mesh) -> tuple[Any, npt.NDArray[np.float64]]:
     return _mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
 
-def mesh_laplacian(space: Mesh) -> Any:  # noqa: ANN401
+def mesh_laplacian(space: MeshSpace) -> Any:  # noqa: ANN401
     """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
 
     Args:
@@ -257,15 +257,15 @@ class FieldLowering:
 
     owner: str
     references: dict[Expression, Any]
-    fields: Mapping[str, Field]
+    fields: Mapping[str, FieldComponent]
     initial: Mapping[Expression, float] = field(default_factory=dict)
     shifted: dict[Expression, tuple[Expression, Offset | int]] = field(default_factory=dict)
-    derived: dict[Expression, tuple[Field, DerivedRead]] = field(default_factory=dict)
+    derived: dict[Expression, tuple[FieldComponent, DerivedRead]] = field(default_factory=dict)
     limits: list[float] = field(default_factory=list)
     volume_limits: list[DiffusiveLimit] = field(default_factory=list)
     _tables: dict[tuple[Any, ...], tuple[Indices, float | None]] = field(default_factory=dict)
 
-    def _field_of(self, item: Expression) -> Field | None:
+    def _field_of(self, item: Expression) -> FieldComponent | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
         reference = self.references[item]
         if reference.source is not Source.MEMBER:
@@ -274,12 +274,17 @@ class FieldLowering:
         if found is None:
             error_msg = (
                 f'A law of {self.owner} applies a differential operator to {item}, which is not a state or parameter '
-                'of a field. Create the group with `Field`.'
+                'of a field. Create the group with `FieldComponent`.'
             )
             raise ValidationError(error_msg)
         return found
 
-    def _table(self, item: Expression, place: Field, offset: Offset | int) -> tuple[Indices, float | None, int]:
+    def _table(
+        self,
+        item: Expression,
+        place: FieldComponent,
+        offset: Offset | int,
+    ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
         reference = self.references[item]
         variable = reference.entry.name.rpartition('.')[2]
@@ -362,9 +367,9 @@ class FieldLowering:
             replacements[item] = target
         return expression.subs(replacements)
 
-    def _places(self, expression: Expression) -> dict[int, Field]:
+    def _places(self, expression: Expression) -> dict[int, FieldComponent]:
         """Return the fields an expression reads, through member symbols, neighbour reads, and derived values."""
-        places: dict[int, Field] = {}
+        places: dict[int, FieldComponent] = {}
         for item in SR(expression).variables():
             if item in self.derived:
                 place = self.derived[item][0]
@@ -375,7 +380,7 @@ class FieldLowering:
                 places[id(place)] = place
         return places
 
-    def _place(self, expression: Expression) -> Field:
+    def _place(self, expression: Expression) -> FieldComponent:
         """Return the one field an expression reads, or raise an error."""
         places = self._places(expression)
         discretizations = {place.discretization for place in places.values()}
@@ -468,7 +473,7 @@ class FieldLowering:
         ahead = (self.shift(value, step) - value) / space.spacings[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
-    def _derived(self, place: Field, read: DerivedRead) -> Expression:
+    def _derived(self, place: FieldComponent, read: DerivedRead) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
         target = symbol(f'_derived_{place.label}_{len(self.derived)}')
         entry = next(
@@ -480,7 +485,7 @@ class FieldLowering:
         self.derived[target] = (place, read)
         return target
 
-    def _spectral(self, name: str, operands: list[Any], place: Field) -> Expression:
+    def _spectral(self, name: str, operands: list[Any], place: FieldComponent) -> Expression:
         """Return the symbol of a spectral operator applied to an expression, composing chains of operators."""
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
@@ -503,7 +508,7 @@ class FieldLowering:
         read = DerivedRead(operand, symbols, spectral_apply(multiplier, dimensions), multiplier, dimensions)
         return self._derived(place, read)
 
-    def _finite_element(self, name: str, operand: Expression, place: Field) -> Expression:
+    def _finite_element(self, name: str, operand: Expression, place: FieldComponent) -> Expression:
         """Return the symbol of the finite element Laplacian of an expression."""
         if name != 'laplacian':
             error_msg = (

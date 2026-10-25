@@ -2,20 +2,20 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._backends import AgentView, MesaStepper, ModelView
+from ._backends import AgentView, MesaSolver, ModelView
 from ._components import memory
-from ._laws import Match, Rule, matches, random_pairing, runs_rules
+from ._laws import MatchLaw, RuleLaw, matches, random_pairing, runs_rules
 from ._passes import AgentsPass, AgentsProblemPass, SetRulesApartPass, UnpackMatchesPass, _agent_owner
-from ._spaces import Phase, Phases
+from ._spaces import Phase, PhasesSchedule
 
 __all__: list[str] = [
     'AgentView',
-    'Match',
-    'MesaStepper',
+    'MatchLaw',
+    'MesaSolver',
     'ModelView',
     'Phase',
-    'Phases',
-    'Rule',
+    'PhasesSchedule',
+    'RuleLaw',
     'matches',
     'memory',
     'random_pairing',
@@ -25,12 +25,12 @@ __all__: list[str] = [
 register(
     Formalism(
         'agents',
-        laws=(Rule, Match),
+        laws=(RuleLaw, MatchLaw),
         passes=(AgentsPass(), UnpackMatchesPass(), SetRulesApartPass(), AgentsProblemPass()),
         forms=(Form.AGENT,),
-        solvers={'mesa': MesaStepper},
-        defaults=(MesaStepper,),
-        stepwise_forms={frozenset({Rule}): Form.AGENT},
+        solvers={'mesa': MesaSolver},
+        defaults=(MesaSolver,),
+        stepwise_forms={frozenset({RuleLaw}): Form.AGENT},
         owners=(_agent_owner,),
     ),
 )

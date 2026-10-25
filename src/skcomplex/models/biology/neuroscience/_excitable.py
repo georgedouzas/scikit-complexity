@@ -9,13 +9,13 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -27,7 +27,7 @@ def _excited_fraction(phases: Array) -> float:
     return float(np.mean(np.asarray(phases) == EXCITED))
 
 
-class ExcitableElement(Element):
+class ExcitableElementComponent(ElementComponent):
     """Cyclic excitable element of the Kinouchi-Copelli network: quiescent at 0, excited at 1, refractory up to `m - 1`.
 
     Every step, a quiescent element is excited by the external stimulus with probability `1 - exp(-r)`, where `r` is
@@ -55,14 +55,14 @@ class ExcitableElement(Element):
                 The rate `r` of the external stimulus per step.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import ExcitableElement
-        >>> ExcitableElement('neuron').n_states
+        >>> from skcomplex.models.biology.neuroscience import ExcitableElementComponent
+        >>> ExcitableElementComponent('neuron').n_states
         5
     """
 
-    phase: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    p: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    stimulus: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    phase: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    stimulus: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -74,7 +74,7 @@ class ExcitableElement(Element):
         super().__init__(label, **values)
         self.n_states = n_states
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stochastic rule of excitation by the stimulus and the neighbours, and of the refractory cycle.
 
         Args:
@@ -93,7 +93,7 @@ class ExcitableElement(Element):
             fires = np.where(random >= quiet, float(EXCITED), 0.0)
             return np.where(phase == 0, fires, (phase + 1) % n_states)
 
-        return [LocalRule(s.phase, Adjacency(), excite, stochastic=True)]
+        return [LocalRuleLaw(s.phase, Adjacency(), excite, stochastic=True)]
 
 
 @register_model(
@@ -160,7 +160,7 @@ def kinouchi_copelli(
         if excited is None
         else (rng.random(size) < excited).astype(float)
     )
-    neurons = ExcitableElement.lattice(
+    neurons = ExcitableElementComponent.lattice(
         'neurons',
         NetworkSpace(graph),
         phase=phase,

@@ -5,20 +5,20 @@
 
 from typing import Any
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols
 
 
-def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[Law]:
+def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[BaseLaw]:
     """Return the laws that move individuals from one compartment to another at a rate."""
     if stochastic:
-        return [Jump(rate, {source: -1, destination: 1})]
-    return [Rate(source, -rate), Rate(destination, rate)]
+        return [JumpLaw(rate, {source: -1, destination: 1})]
+    return [RateLaw(source, -rate), RateLaw(destination, rate)]
 
 
-class Compartment(Element):
+class CompartmentComponent(ElementComponent):
     """Group of individuals in one epidemiological state, such as susceptible, infected, or recovered.
 
     Args:
@@ -29,15 +29,15 @@ class Compartment(Element):
             The initial number of individuals.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Compartment
-        >>> Compartment('S', n=990).n
+        >>> from skcomplex.models.biology.epidemiology import CompartmentComponent
+        >>> CompartmentComponent('S', n=990).n
         990
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Infection(Interaction):
+class InfectionInteraction(BaseInteraction):
     """Mass-action infection, which moves `beta * S * I` individuals per unit time from susceptible to infected.
 
     In stochastic mode each infection is a random event that moves one individual.
@@ -62,14 +62,14 @@ class Infection(Interaction):
                 The transmission rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Infection
-        >>> Infection('infection', susceptible='S', infected='I', beta=0.001).beta
+        >>> from skcomplex.models.biology.epidemiology import InfectionInteraction
+        >>> InfectionInteraction('infection', susceptible='S', infected='I', beta=0.001).beta
         0.001
     """
 
     susceptible: str = role()
     infected: str = role()
-    beta: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
+    beta: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -81,7 +81,7 @@ class Infection(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transfer of `beta * S * I` from susceptible to infected.
 
         Args:
@@ -96,7 +96,7 @@ class Infection(Interaction):
         return _transfer(s.susceptible.n, s.infected.n, rate, stochastic=self.stochastic)
 
 
-class Recovery(Interaction):
+class RecoveryInteraction(BaseInteraction):
     """Recovery, which moves `gamma * I` individuals per unit time from infected to recovered.
 
     In stochastic mode each recovery is a random event that moves one individual.
@@ -121,14 +121,14 @@ class Recovery(Interaction):
                 The recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Recovery
-        >>> Recovery('recovery', infected='I', recovered='R', gamma=0.1).gamma
+        >>> from skcomplex.models.biology.epidemiology import RecoveryInteraction
+        >>> RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1).gamma
         0.1
     """
 
     infected: str = role()
     recovered: str = role()
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -140,7 +140,7 @@ class Recovery(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transfer of `gamma * I` from infected to recovered.
 
         Args:
@@ -154,7 +154,7 @@ class Recovery(Interaction):
         return _transfer(s.infected.n, s.recovered.n, s.gamma * s.infected.n, stochastic=self.stochastic)
 
 
-class ImmunityLoss(Interaction):
+class ImmunityLossInteraction(BaseInteraction):
     """Loss of immunity, which moves `xi * R` individuals per unit time from recovered back to susceptible.
 
     In stochastic mode each loss is a random event that moves one individual.
@@ -179,14 +179,14 @@ class ImmunityLoss(Interaction):
                 The rate at which immunity wanes.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ImmunityLoss
-        >>> ImmunityLoss('waning', recovered='R', susceptible='S', xi=0.05).xi
+        >>> from skcomplex.models.biology.epidemiology import ImmunityLossInteraction
+        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).xi
         0.05
     """
 
     recovered: str = role()
     susceptible: str = role()
-    xi: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    xi: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -198,7 +198,7 @@ class ImmunityLoss(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transfer of `xi * R` from recovered to susceptible.
 
         Args:

@@ -8,23 +8,23 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import cos, sqrt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Boundary, Law, Noise, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DoubleWell = Element.define(
-    'DoubleWell',
+DoubleWellComponent = ElementComponent.define(
+    'DoubleWellComponent',
     states={'x': -1.0},
     parameters={
         'amplitude': 0.1,
         'frequency': 0.01,
-        'D': parameter(default=0.12, domain=Domain.NONNEGATIVE),
+        'D': parameter(default=0.12, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
-        Noise(s.x, sqrt(2 * s.D)),
+        RateLaw(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
+        NoiseLaw(s.x, sqrt(2 * s.D)),
     ],
 )
 
@@ -69,10 +69,10 @@ def stochastic_resonance(
         >>> stochastic_resonance(D=0.2).elements[0].D
         0.2
     """
-    return System(components=[DoubleWell('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
+    return System(components=[DoubleWellComponent('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
 
 
-class WallParticle(Element):
+class WallParticleComponent(ElementComponent):
     """Brownian particle whose diffusion slows near a wall, with multiplicative noise of a chosen convention.
 
     Args:
@@ -98,14 +98,14 @@ class WallParticle(Element):
                 The settling velocity far from the wall.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import WallParticle
-        >>> WallParticle('bead').convention
+        >>> from skcomplex.models.physics.soft_matter import WallParticleComponent
+        >>> WallParticleComponent('bead').convention
         'anti-ito'
     """
 
-    z: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    D0: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    a: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    z: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    D0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     drift: float = parameter(default=0.2)
 
     def __init__(
@@ -118,7 +118,7 @@ class WallParticle(Element):
         super().__init__(label, **values)
         self.convention = convention
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the settling drift, the hindered noise, and the reflection at the wall.
 
         Args:
@@ -130,9 +130,9 @@ class WallParticle(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.z, -s.drift * s.z * abs(s.z) / (s.z**2 + s.a**2)),
-            Noise(s.z, sqrt(2 * s.D0) * s.z / sqrt(s.z**2 + s.a**2), convention=self.convention),
-            Boundary(s.z, abs(s.z)),
+            RateLaw(s.z, -s.drift * s.z * abs(s.z) / (s.z**2 + s.a**2)),
+            NoiseLaw(s.z, sqrt(2 * s.D0) * s.z / sqrt(s.z**2 + s.a**2), convention=self.convention),
+            BoundaryLaw(s.z, abs(s.z)),
         ]
 
 
@@ -182,5 +182,5 @@ def brownian_near_wall(
         >>> brownian_near_wall(convention='ito').components[0].convention
         'ito'
     """
-    particle = WallParticle('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
+    particle = WallParticleComponent('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
     return System(components=[particle])

@@ -11,14 +11,14 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, transfer
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, transfer
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, RuleLaw, matches
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 
@@ -91,7 +91,7 @@ def _trade_network(topology: str, n_agents: int, n_groups: int, shortcuts: int, 
     return graph
 
 
-class BarterTrader(Element):
+class BarterTraderComponent(ElementComponent):
     """Trader with a bundle of two goods and the Cobb-Douglas utility `good1 good2`, who records its rate.
 
     Its marginal rate of substitution `good2 / good1` is the price of the first good, in units of the second, at
@@ -114,17 +114,17 @@ class BarterTrader(Element):
             The number of trading partners the trader can search.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import BarterTrader
-        >>> BarterTrader.group('traders', 4).size
+        >>> from skcomplex.models.economics.markets import BarterTraderComponent
+        >>> BarterTraderComponent.group('traders', 4).size
         4
     """
 
-    good1: float = state(default=10.0, domain=Domain.POSITIVE)
-    good2: float = state(default=10.0, domain=Domain.POSITIVE)
-    mrs: float = state(default=1.0, domain=Domain.POSITIVE)
-    links: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    good1: float = state(default=10.0, domain=NumericDomain.POSITIVE)
+    good2: float = state(default=10.0, domain=NumericDomain.POSITIVE)
+    mrs: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    links: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that records the rate of substitution.
 
         Args:
@@ -135,7 +135,7 @@ class BarterTrader(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.appraise)]
+        return [RuleLaw(self.appraise)]
 
     def appraise(self, agent: AgentView, model: ModelView) -> None:
         """Record the marginal rate of substitution of the bundle.
@@ -150,7 +150,7 @@ class BarterTrader(Element):
         agent.mrs = agent.good2 / agent.good1
 
 
-class BilateralBarter(Interaction):
+class BilateralBarterInteraction(BaseInteraction):
     """Barter in which every trader searches its neighbours and trades with the one whose rate differs the most.
 
     Each pair trades single units of the first good at the price `(g2 + g2') / (g1 + g1')` of their pooled bundles,
@@ -168,16 +168,16 @@ class BilateralBarter(Interaction):
             The most units one pair trades in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import BilateralBarter
-        >>> BilateralBarter('barter', traders='traders').units
+        >>> from skcomplex.models.economics.markets import BilateralBarterInteraction
+        >>> BilateralBarterInteraction('barter', traders='traders').units
         100
     """
 
     reports: ClassVar[tuple[str, ...]] = ('trades', 'searches')
     traders: str = role()
-    units: int = parameter(default=100, domain=Domain.NONNEGATIVE_INTEGER)
+    units: int = parameter(default=100, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the matching of every trader with its best neighbour and the rule that trades along the pairs.
 
         Args:
@@ -188,7 +188,7 @@ class BilateralBarter(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [Match(self.traders, pairing=_best_neighbors, label='partners'), Rule(self.trade)]
+        laws: list[Any] = [MatchLaw(self.traders, pairing=_best_neighbors, label='partners'), RuleLaw(self.trade)]
         return laws
 
     def trade(self, model: Any) -> None:  # noqa: ANN401
@@ -276,7 +276,7 @@ def wilhite_trade_networks(
     rng = np.random.default_rng(random_state)
     graph = _trade_network(topology, n_agents, n_groups, shortcuts, rng)
     goods = rng.integers(1, int(endowment) + 1, size=(2, n_agents)).astype(float)
-    traders = BarterTrader.group(
+    traders = BarterTraderComponent.group(
         'traders',
         n_agents,
         location=list(range(n_agents)),
@@ -287,7 +287,7 @@ def wilhite_trade_networks(
     )
     return System(
         components=[traders],
-        interactions=[BilateralBarter('barter', traders='traders', units=units)],
+        interactions=[BilateralBarterInteraction('barter', traders='traders', units=units)],
         space=NetworkSpace(graph),
         time=DiscreteTime(),
     )

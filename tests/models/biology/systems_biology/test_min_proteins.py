@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.engine.analysis import dispersion_relation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.systems_biology import (
     min_protein_skeleton,
 )
@@ -18,7 +18,7 @@ def test_min_protein_skeleton_conserves_both_proteins_and_forms_oscillating_band
     unstable = relation.growth_rates > 0
     assert unstable.any()
     assert np.abs(relation.frequencies[unstable]).max() > 0.01
-    trajectory = _run_with_solver(system, 200, 10.0, ScipyODE(method='BDF', jacobian='exact'))
+    trajectory = _run_with_solver(system, 200, 10.0, ScipyODESolver(method='BDF', jacobian='exact'))
     states = {name: trajectory[f'cell.{name}'] for name in ('md', 'mde', 'cdt', 'cdd', 'ce')}
     total_D = (states['md'] + states['mde'] + states['cdt'] + states['cdd']).sum(axis=1)
     total_E = (states['mde'] + states['ce']).sum(axis=1)

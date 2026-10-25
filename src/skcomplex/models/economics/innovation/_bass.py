@@ -3,28 +3,28 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Transfer
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _adoption(s: Symbols) -> list[Law]:
+def _adoption(s: Symbols) -> list[BaseLaw]:
     """Return the adoption flow from potential adopters to adopters, driven by innovation and imitation."""
     market = s.P + s.A
-    return [Transfer(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
+    return [TransferLaw(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
 
 
-BassMarket = Element.define(
-    'BassMarket',
+BassMarketComponent = ElementComponent.define(
+    'BassMarketComponent',
     states={
-        'P': state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='people'),
-        'A': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='people'),
+        'P': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
+        'A': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
     },
     parameters={
-        'p': parameter(default=0.03, domain=Domain.NONNEGATIVE),
-        'q': parameter(default=0.38, domain=Domain.NONNEGATIVE),
+        'p': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
+        'q': parameter(default=0.38, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_adoption,
 )
@@ -70,4 +70,4 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
         490.0
     """
-    return System(components=[BassMarket('market', P=market - adopters, A=adopters, p=p, q=q)])
+    return System(components=[BassMarketComponent('market', P=market - adopters, A=adopters, p=p, q=q)])

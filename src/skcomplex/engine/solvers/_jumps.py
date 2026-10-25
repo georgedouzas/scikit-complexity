@@ -21,10 +21,10 @@ from ...core.base import (
 )
 from ..compile import Problem, Vector
 from ._hybrid import reject_hybrid
-from ._stepper import Stepper, register_solver
+from ._stepper import Solver, register_solver
 
 
-class Gillespie(Stepper):
+class GillespieSolver(Solver):
     """Exact stochastic simulation of jump processes by the Gillespie direct method.
 
     An event that would fire after `until` is discarded, which is exact because waiting times are memoryless.
@@ -33,15 +33,15 @@ class Gillespie(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.epidemiology import Compartment, Recovery
-        >>> from skcomplex.engine.solvers import Gillespie
+        >>> from skcomplex.models.biology.epidemiology import CompartmentComponent, RecoveryInteraction
+        >>> from skcomplex.engine.solvers import GillespieSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[Compartment('I', n=10), Compartment('R', n=0)],
-        ...         interactions=[Recovery('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
+        ...         components=[CompartmentComponent('I', n=10), CompartmentComponent('R', n=0)],
+        ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
-        >>> stepper = Gillespie()
+        >>> stepper = GillespieSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
         [0.0, 10.0]
@@ -146,7 +146,7 @@ class Gillespie(Stepper):
             state = self._bounded(t, state, p)
 
 
-class RenewalStepper(Stepper):
+class RenewalSolver(Solver):
     """Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid.
 
     Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
@@ -154,17 +154,17 @@ class RenewalStepper(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Jump, draw
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import JumpLaw, draw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.solvers import RenewalStepper
-        >>> Counter = Element.define(
-        ...     'Counter',
+        >>> from skcomplex.engine.solvers import RenewalSolver
+        >>> CounterComponent = ElementComponent.define(
+        ...     'CounterComponent',
         ...     states={'n': 0.0},
-        ...     laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
+        ...     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
         ... )
-        >>> problem = compile_system(System(components=[Counter.group('counters', 3)]))
-        >>> stepper = RenewalStepper()
+        >>> problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
+        >>> stepper = RenewalSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0)
         >>> bool(np.all(state[:3] > 50))
@@ -211,5 +211,5 @@ class RenewalStepper(Stepper):
         return self._bounded(until, clock.fire_until(until, x, p), p)
 
 
-register_solver('gillespie', Gillespie, default=True)
-register_solver('renewal', RenewalStepper, default=True)
+register_solver('gillespie', GillespieSolver, default=True)
+register_solver('renewal', RenewalSolver, default=True)

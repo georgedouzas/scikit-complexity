@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import describe
 from skcomplex.models.biology.oncology import (
     angiogenesis_immunotherapy,
@@ -14,10 +14,10 @@ from skcomplex.models.biology.oncology import (
     her2_targeted_therapy,
 )
 
-PRECISE = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+PRECISE = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 
-STIFF = ScipyODE(method='LSODA', rtol=1e-6, atol=1e-6)
+STIFF = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 
 def _run(system, until, dt, solver='auto', observables=()):

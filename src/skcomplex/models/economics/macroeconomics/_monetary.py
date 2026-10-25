@@ -3,34 +3,34 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, Update
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-Households = Element.define(
-    'Households',
-    states={'deposits': state(default=60.0, domain=Domain.NONNEGATIVE, quantity='money')},
+HouseholdsComponent = ElementComponent.define(
+    'HouseholdsComponent',
+    states={'deposits': state(default=60.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
 )
 
-Firms = Element.define(
-    'Firms',
+FirmsComponent = ElementComponent.define(
+    'FirmsComponent',
     states={
-        'deposits': state(default=20.0, domain=Domain.NONNEGATIVE, quantity='money'),
-        'loans': state(default=50.0, domain=Domain.NONNEGATIVE),
-        'sales': state(default=40.0, domain=Domain.NONNEGATIVE),
+        'deposits': state(default=20.0, domain=NumericDomain.NONNEGATIVE, quantity='money'),
+        'loans': state(default=50.0, domain=NumericDomain.NONNEGATIVE),
+        'sales': state(default=40.0, domain=NumericDomain.NONNEGATIVE),
     },
 )
 
-MonetaryBank = Element.define(
-    'MonetaryBank',
-    states={'deposits': state(default=10.0, domain=Domain.NONNEGATIVE, quantity='money')},
+MonetaryBankComponent = ElementComponent.define(
+    'MonetaryBankComponent',
+    states={'deposits': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
 )
 
 
-def _circuit(s: Symbols) -> list[Law]:
+def _circuit(s: Symbols) -> list[BaseLaw]:
     """Return the transactions of one period between households, firms, and the bank."""
     households, firms, bank = s.households, s.firms, s.bank
     consumption = Auxiliary(
@@ -41,30 +41,30 @@ def _circuit(s: Symbols) -> list[Law]:
     return [
         consumption,
         lending,
-        Transfer(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
-        Transfer(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
-        Transfer(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
-        Transfer(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
-        Transfer(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
-        Transfer(Source('lending'), firms.deposits, lending.symbol, label='lending'),
-        Transfer(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
-        Update(firms.loans, firms.loans + lending.symbol - s.repayment * firms.loans),
-        Update(firms.sales, consumption.symbol),
+        TransferLaw(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
+        TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
+        TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
+        TransferLaw(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
+        TransferLaw(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
+        TransferLaw(Source('lending'), firms.deposits, lending.symbol, label='lending'),
+        TransferLaw(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
+        UpdateLaw(firms.loans, firms.loans + lending.symbol - s.repayment * firms.loans),
+        UpdateLaw(firms.sales, consumption.symbol),
     ]
 
 
-Circuit = Interaction.define(
-    'Circuit',
+CircuitInteraction = BaseInteraction.define(
+    'CircuitInteraction',
     roles=['households', 'firms', 'bank'],
     parameters={
-        'alpha_income': parameter(default=0.6, domain=Domain.NONNEGATIVE),
-        'alpha_wealth': parameter(default=0.4, domain=Domain.NONNEGATIVE),
-        'wage_share': parameter(default=0.7, domain=Domain.NONNEGATIVE),
-        'interest': parameter(default=0.03, domain=Domain.NONNEGATIVE),
-        'payout': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'distribution': parameter(default=0.3, domain=Domain.NONNEGATIVE),
-        'credit': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'repayment': parameter(default=0.08, domain=Domain.NONNEGATIVE),
+        'alpha_income': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
+        'alpha_wealth': parameter(default=0.4, domain=NumericDomain.NONNEGATIVE),
+        'wage_share': parameter(default=0.7, domain=NumericDomain.NONNEGATIVE),
+        'interest': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
+        'payout': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'distribution': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
+        'credit': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'repayment': parameter(default=0.08, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_circuit,
 )
@@ -157,12 +157,12 @@ def stock_flow_consistent_economy(
     """
     return System(
         components=[
-            Households('households', deposits=household_deposits),
-            Firms('firms', deposits=firm_deposits, loans=loans, sales=sales),
-            MonetaryBank('bank', deposits=bank_deposits),
+            HouseholdsComponent('households', deposits=household_deposits),
+            FirmsComponent('firms', deposits=firm_deposits, loans=loans, sales=sales),
+            MonetaryBankComponent('bank', deposits=bank_deposits),
         ],
         interactions=[
-            Circuit(
+            CircuitInteraction(
                 'circuit',
                 households='households',
                 firms='firms',

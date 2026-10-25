@@ -10,14 +10,14 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import KDTree
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -48,7 +48,7 @@ def _collide(headings: Array, pairs: list[tuple[int, int]], sigma: float, rng: n
         headings[first], headings[second] = mean + rng.normal(0.0, sigma, 2)
 
 
-class Flocker(Element):
+class FlockerComponent(ElementComponent):
     """Self-propelled point particle with a heading `theta`, in a periodic square.
 
     Args:
@@ -59,8 +59,8 @@ class Flocker(Element):
             The initial heading.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import Flocker
-        >>> Flocker('bird', theta=1.0).theta
+        >>> from skcomplex.models.physics.active_matter import FlockerComponent
+        >>> FlockerComponent('bird', theta=1.0).theta
         1.0
     """
 
@@ -68,7 +68,7 @@ class Flocker(Element):
     theta: float = state(default=0.0)
 
 
-class BinaryCollisions(Interaction):
+class BinaryCollisionsInteraction(BaseInteraction):
     """Motion, self-diffusion, and aligning binary collisions of self-propelled particles, in steps of `1 / substeps`.
 
     In every substep of length `tau` each particle moves `speed * tau` along its heading, and with probability
@@ -99,19 +99,19 @@ class BinaryCollisions(Interaction):
             The number of substeps per unit of time.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import BinaryCollisions
-        >>> BinaryCollisions('collisions', target='birds').d0
+        >>> from skcomplex.models.physics.active_matter import BinaryCollisionsInteraction
+        >>> BinaryCollisionsInteraction('collisions', target='birds').d0
         0.5
     """
 
     target: str = role()
-    speed: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    sigma: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    d0: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    substeps: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    speed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    sigma: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    d0: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    substeps: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that moves the particles for one unit of time.
 
         Args:
@@ -122,7 +122,7 @@ class BinaryCollisions(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.fly)]
+        return [RuleLaw(self.fly)]
 
     def fly(self, model: ModelView) -> None:
         """Move the particles for one unit of time, with self-diffusion and collisions in every substep.
@@ -221,13 +221,13 @@ def binary_collision_flocking(
         0.3
     """
     rng = np.random.default_rng(random_state)
-    birds = Flocker.group(
+    birds = FlockerComponent.group(
         'birds',
         n_particles,
         location=rng.uniform(0.0, size, (n_particles, 2)),
         theta=rng.uniform(0.0, 2 * math.pi, n_particles),
     )
-    collisions = BinaryCollisions(
+    collisions = BinaryCollisionsInteraction(
         'collisions',
         target='birds',
         speed=speed,

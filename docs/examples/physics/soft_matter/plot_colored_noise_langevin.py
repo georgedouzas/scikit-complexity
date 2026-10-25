@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -22,7 +22,7 @@ MODEL = 'colored_noise_langevin'
 
 system = create(MODEL, n_particles=1, gamma=1.0, D=1.0, tau=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, solver=EulerMaruyama(dt=0.01), observers=[observer], random_state=0)
+simulation = Simulation(system, dt=0.2, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0)
 simulation.run(until=59.8)
 
 # %%
@@ -39,7 +39,7 @@ for tau in taus:
     run = Simulation(
         create(MODEL, n_particles=500, tau=tau, random_state=0),
         dt=0.5,
-        solver=EulerMaruyama(dt=min(0.01, tau / 20)),
+        solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
         random_state=0,
     ).run(until=20)
     variances.append(np.mean(run.trajectory_['particles.v'][20:] ** 2))

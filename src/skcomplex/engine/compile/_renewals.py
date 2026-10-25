@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
 from ...core.laws import Draw, draws_in, has_reductions, is_draw
-from ...core.laws._laws import Renewal
+from ...core.laws._laws import RenewalLaw
 from ._arrays import Indices, Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
@@ -345,7 +345,7 @@ def _recorded_states(group: str, references: dict[Expression, Reference], rows: 
 
 def compile_renewal(
     owner: str,
-    law: Renewal,
+    law: RenewalLaw,
     references: dict[Expression, Reference],
     *,
     time: Expression,
@@ -448,8 +448,8 @@ def compile_renewal(
 
 
 @dataclass(frozen=True)
-class RenewalLaw:
-    """Renewal law of a component with its label, the group it renews, and the hidden state that counts it.
+class BoundRenewal:
+    """RenewalLaw of a component with its label, the group it renews, and the hidden state that counts it.
 
     Args:
         spec:
@@ -472,7 +472,7 @@ class RenewalLaw:
     """
 
     spec: KernelSpec
-    law: Renewal
+    law: RenewalLaw
     label: str
     group: str
     entry: Entry

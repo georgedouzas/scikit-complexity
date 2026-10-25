@@ -9,14 +9,14 @@ from typing import Any, ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import I, exp, sin
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ._particles import ActiveParticle
+from ....engine.solvers import EulerMaruyamaSolver
+from ._particles import ActiveParticleComponent
 
 HEADINGS = VisualSpec(
     'points',
@@ -34,7 +34,7 @@ def _polarization(s: Symbols) -> Expression:
     return abs(s.mean_heading)
 
 
-class PolarAlignment(Interaction):
+class PolarAlignmentInteraction(BaseInteraction):
     """Alignment torque between two particles closer than the cutoff, `dtheta_i/dt = gamma sin(theta_j - theta_i)`.
 
     Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
@@ -63,8 +63,8 @@ class PolarAlignment(Interaction):
                 The strength of the alignment.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import PolarAlignment
-        >>> PolarAlignment('align', first='swimmers', second='swimmers', gamma=0.5).gamma
+        >>> from skcomplex.models.physics.active_matter import PolarAlignmentInteraction
+        >>> PolarAlignmentInteraction('align', first='swimmers', second='swimmers', gamma=0.5).gamma
         0.5
     """
 
@@ -72,9 +72,9 @@ class PolarAlignment(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    gamma: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -86,7 +86,7 @@ class PolarAlignment(Interaction):
         super().__init__(label, **values)
         self.period = period
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the opposite torques on the two members of a pair.
 
         Args:
@@ -98,14 +98,14 @@ class PolarAlignment(Interaction):
                 The laws of the component.
         """
         torque = s.gamma * sin(s.second.theta - s.first.theta)
-        return [Rate(s.first.theta, torque), Rate(s.second.theta, -torque)]
+        return [RateLaw(s.first.theta, torque), RateLaw(s.second.theta, -torque)]
 
 
 @register_model(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'flocking', 'alignment', 'pair interaction'),
     references=('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyama(dt=0.05)},
+    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.05)},
     observables=lambda system: [
         Observable('mean_heading', _heading, group='swimmers'),
         Observable('polarization', _polarization),
@@ -166,7 +166,7 @@ def aligning_active_brownian_particles(
         0.5
     """
     rng = np.random.default_rng(random_state)
-    swimmers = ActiveParticle.group(
+    swimmers = ActiveParticleComponent.group(
         'swimmers',
         n_particles,
         x=rng.uniform(0.0, size, (n_particles, 2)),
@@ -176,7 +176,14 @@ def aligning_active_brownian_particles(
         D_r=D_r,
         visual=HEADINGS,
     )
-    alignment = PolarAlignment('align', first='swimmers', second='swimmers', cutoff=d0, period=size, gamma=gamma)
+    alignment = PolarAlignmentInteraction(
+        'align',
+        first='swimmers',
+        second='swimmers',
+        cutoff=d0,
+        period=size,
+        gamma=gamma,
+    )
     return System(
         components=[swimmers],
         interactions=[alignment],

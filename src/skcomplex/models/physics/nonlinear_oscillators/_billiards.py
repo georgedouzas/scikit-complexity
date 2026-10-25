@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import Event, Law, Rate, Symbols, where
+from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -21,36 +21,36 @@ def _reflections(s: Symbols, normal: tuple[Expression, Expression]) -> dict[Expr
     return {s.vx: s.vx - 2 * projection * nx, s.vy: s.vy - 2 * projection * ny}
 
 
-def _sinai_laws(s: Symbols) -> list[Law]:
+def _sinai_laws(s: Symbols) -> list[BaseLaw]:
     """Return the free flight in a square table and the reflections off its walls and its central disc."""
     return [
-        Rate(s.x, s.vx),
-        Rate(s.y, s.vy),
-        Event(s.x - s.size, {s.vx: -s.vx}, direction=1, label='right wall'),
-        Event(s.x + s.size, {s.vx: -s.vx}, direction=-1, label='left wall'),
-        Event(s.y - s.size, {s.vy: -s.vy}, direction=1, label='top wall'),
-        Event(s.y + s.size, {s.vy: -s.vy}, direction=-1, label='bottom wall'),
-        Event(s.x**2 + s.y**2 - s.radius**2, _reflections(s, (s.x, s.y)), direction=-1, label='disc'),
+        RateLaw(s.x, s.vx),
+        RateLaw(s.y, s.vy),
+        EventLaw(s.x - s.size, {s.vx: -s.vx}, direction=1, label='right wall'),
+        EventLaw(s.x + s.size, {s.vx: -s.vx}, direction=-1, label='left wall'),
+        EventLaw(s.y - s.size, {s.vy: -s.vy}, direction=1, label='top wall'),
+        EventLaw(s.y + s.size, {s.vy: -s.vy}, direction=-1, label='bottom wall'),
+        EventLaw(s.x**2 + s.y**2 - s.radius**2, _reflections(s, (s.x, s.y)), direction=-1, label='disc'),
     ]
 
 
-def _mushroom_laws(s: Symbols) -> list[Law]:
+def _mushroom_laws(s: Symbols) -> list[BaseLaw]:
     """Return the free flight in a mushroom table and the reflections off the parts of its lines that are walls."""
     cap = _reflections(s, (s.x, s.y))
     in_cap, in_stem = s.y > 0, s.y < 0
     return [
-        Rate(s.x, s.vx),
-        Rate(s.y, s.vy),
-        Event(
+        RateLaw(s.x, s.vx),
+        RateLaw(s.y, s.vy),
+        EventLaw(
             s.x**2 + s.y**2 - s.radius**2,
             {s.vx: where(in_cap, cap[s.vx], s.vx), s.vy: where(in_cap, cap[s.vy], s.vy)},
             direction=1,
             label='cap',
         ),
-        Event(s.y, {s.vy: where(abs(s.x) > s.width, -s.vy, s.vy)}, direction=-1, label='cap floor'),
-        Event(s.x - s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=1, label='right stem wall'),
-        Event(s.x + s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=-1, label='left stem wall'),
-        Event(s.y + s.height, {s.vy: -s.vy}, direction=-1, label='stem floor'),
+        EventLaw(s.y, {s.vy: where(abs(s.x) > s.width, -s.vy, s.vy)}, direction=-1, label='cap floor'),
+        EventLaw(s.x - s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=1, label='right stem wall'),
+        EventLaw(s.x + s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=-1, label='left stem wall'),
+        EventLaw(s.y + s.height, {s.vy: -s.vy}, direction=-1, label='stem floor'),
     ]
 
 
@@ -61,24 +61,24 @@ def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
     return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
-SinaiBilliard = Element.define(
-    'SinaiBilliard',
+SinaiBilliardComponent = ElementComponent.define(
+    'SinaiBilliardComponent',
     states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
     parameters={
-        'size': parameter(default=1.0, domain=Domain.POSITIVE),
-        'radius': parameter(default=0.4, domain=Domain.POSITIVE),
+        'size': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'radius': parameter(default=0.4, domain=NumericDomain.POSITIVE),
     },
     laws=_sinai_laws,
     visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls}),
 )
 
-MushroomBilliard = Element.define(
-    'MushroomBilliard',
+MushroomBilliardComponent = ElementComponent.define(
+    'MushroomBilliardComponent',
     states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
     parameters={
-        'radius': parameter(default=1.0, domain=Domain.POSITIVE),
-        'width': parameter(default=0.4, domain=Domain.POSITIVE),
-        'height': parameter(default=1.0, domain=Domain.POSITIVE),
+        'radius': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'width': parameter(default=0.4, domain=NumericDomain.POSITIVE),
+        'height': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_mushroom_laws,
 )
@@ -152,13 +152,22 @@ def billiards(
     Examples:
         >>> from skcomplex.models.physics.nonlinear_oscillators import billiards
         >>> type(billiards('mushroom').elements[0]).__name__
-        'MushroomBilliard'
+        'MushroomBilliardComponent'
     """
     if shape == 'sinai':
-        table = SinaiBilliard('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
+        table = SinaiBilliardComponent('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
         return System(components=[table])
     if shape == 'mushroom':
-        table = MushroomBilliard('particle', x=x, y=y, vx=vx, vy=vy, radius=cap_radius, width=width, height=height)
+        table = MushroomBilliardComponent(
+            'particle',
+            x=x,
+            y=y,
+            vx=vx,
+            vy=vy,
+            radius=cap_radius,
+            width=width,
+            height=height,
+        )
         return System(components=[table])
     error_msg = f'Unknown billiard shape {shape!r}. Use one of {", ".join(SHAPES)}.'
     raise ValidationError(error_msg)

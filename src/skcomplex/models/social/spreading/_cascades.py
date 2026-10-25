@@ -8,16 +8,16 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ThresholdNode(Element):
+class ThresholdNodeComponent(ElementComponent):
     """Node of the Watts cascade model, which becomes active once the share of active neighbours reaches its threshold.
 
     Args:
@@ -31,16 +31,16 @@ class ThresholdNode(Element):
             The share of active neighbours at which the node becomes active.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import ThresholdNode
-        >>> ThresholdNode.group('nodes', 10, threshold=0.18)
-        Group('nodes', element=ThresholdNode, size=10)
+        >>> from skcomplex.models.social.spreading import ThresholdNodeComponent
+        >>> ThresholdNodeComponent.group('nodes', 10, threshold=0.18)
+        GroupComponent('nodes', element=ThresholdNodeComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
-    active: float = state(default=0.0, domain=Domain.BOOLEAN)
-    threshold: float = state(default=0.18, domain=Domain.NONNEGATIVE)
+    active: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    threshold: float = state(default=0.18, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the activation rule.
 
         Args:
@@ -51,7 +51,7 @@ class ThresholdNode(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.activate)]
+        return [RuleLaw(self.activate)]
 
     def activate(self, agent: AgentView, model: ModelView) -> None:
         """Become active once the share of active neighbours reaches the threshold.
@@ -113,5 +113,5 @@ def watts_cascades(
     size = nx.number_of_nodes(graph)
     active = np.zeros(size)
     active[rng.choice(size, seeds, replace=False)] = 1.0
-    nodes = ThresholdNode.group('nodes', size, active=active, threshold=threshold)
+    nodes = ThresholdNodeComponent.group('nodes', size, active=active, threshold=threshold)
     return System(components=[nodes], space=NetworkSpace(graph))

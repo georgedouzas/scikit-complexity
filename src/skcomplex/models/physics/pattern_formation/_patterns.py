@@ -9,12 +9,12 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4, Field, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
 
 type Array = npt.NDArray[np.float64]
 
@@ -24,21 +24,21 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
     return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
 
-GinzburgLandau = Element.define(
-    'GinzburgLandau',
+GinzburgLandauComponent = ElementComponent.define(
+    'GinzburgLandauComponent',
     states={'u': 0.0, 'v': 0.0},
     parameters={'b': 1.0, 'c': -1.5},
     laws=lambda s: [
-        Rate(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
-        Rate(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
+        RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
+        RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
     ],
 )
 
-SwiftHohenberg = Element.define(
-    'SwiftHohenberg',
+SwiftHohenbergComponent = ElementComponent.define(
+    'SwiftHohenbergComponent',
     states={'u': 0.0},
     parameters={'r': 0.3},
-    laws=lambda s: [Rate(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)],
+    laws=lambda s: [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)],
 )
 
 
@@ -46,7 +46,7 @@ SwiftHohenberg = Element.define(
     field='physics/pattern_formation',
     tags=('field', 'chaos', 'spirals', 'spectral', 'pde'),
     references=('Aranson and Kramer 2002', 'Gros 2015'),
-    defaults={'until': 50.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.1)},
+    defaults={'until': 50.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.1)},
 )
 def complex_ginzburg_landau(
     shape: Sequence[int] = (64, 64),
@@ -90,14 +90,16 @@ def complex_ginzburg_landau(
     rng = np.random.default_rng(random_state)
     values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[Field('medium', GinzburgLandau, space, values=values, discretization='spectral')])
+    return System(
+        components=[FieldComponent('medium', GinzburgLandauComponent, space, values=values, discretization='spectral')],
+    )
 
 
 @register_model(
     field='physics/pattern_formation',
     tags=('field', 'rolls', 'convection', 'spectral', 'pde'),
     references=('Swift and Hohenberg 1977', 'Cross and Hohenberg 1993', 'Datseris and Parlitz 2022'),
-    defaults={'until': 200.0, 'dt': 5.0, 'solver': ETDRK4(dt=0.5)},
+    defaults={'until': 200.0, 'dt': 5.0, 'solver': ETDRK4Solver(dt=0.5)},
 )
 def swift_hohenberg(
     shape: Sequence[int] = (64, 64),
@@ -135,4 +137,6 @@ def swift_hohenberg(
     shape = tuple(shape)
     values = {'u': _noise(shape, 0.01, random_state), 'r': r}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[Field('cells', SwiftHohenberg, space, values=values, discretization='spectral')])
+    return System(
+        components=[FieldComponent('cells', SwiftHohenbergComponent, space, values=values, discretization='spectral')],
+    )

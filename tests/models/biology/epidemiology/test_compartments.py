@@ -6,16 +6,16 @@ from skcomplex.core.base import Form
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
 
 
 def test_epidemic_stochastic_mode_is_jump_process():
     """Test that stochastic infection and recovery give integer counts of a jump process."""
     system = System(
-        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
-            Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
     assert compile_system(system).form is Form.JUMP
@@ -28,10 +28,10 @@ def test_epidemic_stochastic_mode_is_jump_process():
 def test_epidemic_deterministic_mode_conserves_population():
     """Test that the deterministic SIR model keeps the total population."""
     system = System(
-        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=0.0005),
-            Recovery('recovery', infected='I', recovered='R', gamma=0.1),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1),
         ],
     )
     states = Simulation(system, dt=1.0).run(until=50).trajectory_.states

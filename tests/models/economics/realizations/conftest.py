@@ -1,10 +1,10 @@
 """Share the trader element of the tests of the economics realizations."""
 
 from skcomplex.core.base import state
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 
 
-class Trader(Element):
+class TraderComponent(ElementComponent):
     """Trader with prices, quantities, money, goods, and a value."""
 
     bid: float = state(0.0)

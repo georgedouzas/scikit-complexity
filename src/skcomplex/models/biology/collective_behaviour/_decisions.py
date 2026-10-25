@@ -5,22 +5,22 @@
 
 from typing import Any
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[Law]:
+def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[BaseLaw]:
     """Return the laws that move individuals from one state to another at a rate."""
     if stochastic:
-        return [Jump(rate, {source: -1, destination: 1})]
-    return [Rate(source, -rate), Rate(destination, rate)]
+        return [JumpLaw(rate, {source: -1, destination: 1})]
+    return [RateLaw(source, -rate), RateLaw(destination, rate)]
 
 
-class Branch(Element):
+class BranchComponent(ElementComponent):
     """Branch of a path that ants can take, holding the pheromone marks left by the ants that took it.
 
     Args:
@@ -40,13 +40,13 @@ class Branch(Element):
                 The rate at which each mark evaporates.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Branch
-        >>> Branch('left', n=5.0).n
+        >>> from skcomplex.models.biology.collective_behaviour import BranchComponent
+        >>> BranchComponent('left', n=5.0).n
         5.0
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    evaporation: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    evaporation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -58,7 +58,7 @@ class Branch(Element):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the evaporation of the marks.
 
         Args:
@@ -70,11 +70,11 @@ class Branch(Element):
                 The laws of the component.
         """
         if self.stochastic:
-            return [Jump(s.evaporation * s.n, {s.n: -1})]
-        return [Rate(s.n, -s.evaporation * s.n)]
+            return [JumpLaw(s.evaporation * s.n, {s.n: -1})]
+        return [RateLaw(s.n, -s.evaporation * s.n)]
 
 
-class TrailChoice(Interaction):
+class TrailChoiceInteraction(BaseInteraction):
     """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
@@ -106,16 +106,16 @@ class TrailChoice(Interaction):
                 The nonlinearity of the choice.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import TrailChoice
-        >>> TrailChoice('left', chosen='left', other='right').h
+        >>> from skcomplex.models.biology.collective_behaviour import TrailChoiceInteraction
+        >>> TrailChoiceInteraction('left', chosen='left', other='right').h
         2.0
     """
 
     chosen: str = role()
     other: str = role()
-    flux: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    h: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    flux: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    h: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -127,7 +127,7 @@ class TrailChoice(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the marking of the chosen branch at the rate of ants that choose it.
 
         Args:
@@ -141,11 +141,11 @@ class TrailChoice(Interaction):
         attraction = (s.k + s.chosen.n) ** s.h
         rate = s.flux * attraction / (attraction + (s.k + s.other.n) ** s.h)
         if self.stochastic:
-            return [Jump(rate, {s.chosen.n: 1})]
-        return [Rate(s.chosen.n, rate)]
+            return [JumpLaw(rate, {s.chosen.n: 1})]
+        return [RateLaw(s.chosen.n, rate)]
 
 
-class Rats(Element):
+class RatsComponent(ElementComponent):
     """Rats in one behavioural state, calm or nervous, counted.
 
     Args:
@@ -156,15 +156,15 @@ class Rats(Element):
             The initial number of rats.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Rats
-        >>> Rats('calm', n=90.0).n
+        >>> from skcomplex.models.biology.collective_behaviour import RatsComponent
+        >>> RatsComponent('calm', n=90.0).n
         90.0
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Nervousness(Interaction):
+class NervousnessInteraction(BaseInteraction):
     """Calm rats that become nervous on their own or by meeting nervous rats, and nervous rats that calm down.
 
     A calm rat turns nervous at rate `spontaneous + contagion * nervous / N` and a nervous one calms down at rate
@@ -196,16 +196,16 @@ class Nervousness(Interaction):
                 The rate at which a nervous rat calms down.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Nervousness
-        >>> Nervousness('panic', calm='calm', nervous='nervous').calming
+        >>> from skcomplex.models.biology.collective_behaviour import NervousnessInteraction
+        >>> NervousnessInteraction('panic', calm='calm', nervous='nervous').calming
         1.0
     """
 
     calm: str = role()
     nervous: str = role()
-    spontaneous: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    contagion: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    calming: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    spontaneous: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    contagion: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    calming: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -217,7 +217,7 @@ class Nervousness(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transitions between calm and nervous.
 
         Args:
@@ -281,9 +281,17 @@ def binary_ant_decision(
         >>> [branch.label for branch in binary_ant_decision().elements]
         ['left', 'right']
     """
-    branches = [Branch(label, evaporation=evaporation, stochastic=stochastic) for label in ('left', 'right')]
+    branches = [BranchComponent(label, evaporation=evaporation, stochastic=stochastic) for label in ('left', 'right')]
     choices = [
-        TrailChoice(f'choice_{chosen}', chosen=chosen, other=other, flux=flux, k=k, h=h, stochastic=stochastic)
+        TrailChoiceInteraction(
+            f'choice_{chosen}',
+            chosen=chosen,
+            other=other,
+            flux=flux,
+            k=k,
+            h=h,
+            stochastic=stochastic,
+        )
         for chosen, other in (('left', 'right'), ('right', 'left'))
     ]
     return System(components=branches, interactions=choices)
@@ -337,8 +345,8 @@ def rats(
         >>> [group.n for group in rats().elements]
         [95.0, 5.0]
     """
-    groups = [Rats('calm', n=float(n_rats - nervous)), Rats('nervous', n=float(nervous))]
-    transitions = Nervousness(
+    groups = [RatsComponent('calm', n=float(n_rats - nervous)), RatsComponent('nervous', n=float(nervous))]
+    transitions = NervousnessInteraction(
         'nervousness',
         calm='calm',
         nervous='nervous',

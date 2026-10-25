@@ -2,8 +2,8 @@
 
 from .. import lattices  # noqa: F401 - registers the formalism that fields builds on
 from .._formalism import Formalism, register
-from ._components import Field
-from ._laws import Flux, advection, divergence, gradient, inverse_laplacian, laplacian
+from ._components import FieldComponent
+from ._laws import FluxLaw, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._lowering import mesh_laplacian
 from ._passes import (
     CHECKS,
@@ -13,23 +13,23 @@ from ._passes import (
     FieldProblemPass,
     LowerFieldsPass,
 )
-from ._solvers import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
-from ._spaces import Mesh
+from ._solvers import CrankNicolsonSolver, ETDRK4Solver, IMEX2Solver, IMEXEulerSolver, SplitOperator, SSPRKSolver
+from ._spaces import MeshSpace
 
 __all__: list[str] = [
-    'ETDRK4',
-    'IMEX2',
-    'SSPRK',
     'ConservedNoisePass',
-    'CrankNicolson',
-    'Field',
+    'CrankNicolsonSolver',
+    'ETDRK4Solver',
+    'FieldComponent',
     'FieldFunctionsPass',
     'FieldJacobianPass',
     'FieldProblemPass',
-    'Flux',
-    'IMEXEuler',
+    'FluxLaw',
+    'IMEX2Solver',
+    'IMEXEulerSolver',
     'LowerFieldsPass',
-    'Mesh',
+    'MeshSpace',
+    'SSPRKSolver',
     'SplitOperator',
     'advection',
     'divergence',
@@ -43,16 +43,16 @@ register(
     Formalism(
         'fields',
         depends=('lattices',),
-        laws=(Flux,),
-        components=(Field,),
-        spaces=(Mesh,),
+        laws=(FluxLaw,),
+        components=(FieldComponent,),
+        spaces=(MeshSpace,),
         passes=(LowerFieldsPass(), ConservedNoisePass(), FieldFunctionsPass(), FieldJacobianPass(), FieldProblemPass()),
         solvers={
-            'ssp-rk': SSPRK,
-            'imex-euler': IMEXEuler,
-            'imex2': IMEX2,
-            'crank-nicolson': CrankNicolson,
-            'etdrk4': ETDRK4,
+            'ssp-rk': SSPRKSolver,
+            'imex-euler': IMEXEulerSolver,
+            'imex2': IMEX2Solver,
+            'crank-nicolson': CrankNicolsonSolver,
+            'etdrk4': ETDRK4Solver,
         },
         checks=CHECKS,
     ),

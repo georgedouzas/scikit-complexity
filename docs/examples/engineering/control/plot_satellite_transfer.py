@@ -16,7 +16,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
@@ -41,7 +41,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 simulation = Simulation(
     system,
     dt=0.05,
-    solver=RK4(dt=0.005),
+    solver=RK4Solver(dt=0.005),
     observers=[observer],
     observables=describe(MODEL).observables_of(system),
 ).run(until=20)

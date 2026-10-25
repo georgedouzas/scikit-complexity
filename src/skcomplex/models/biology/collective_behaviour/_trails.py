@@ -7,14 +7,14 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.fields import FieldComponent, laplacian
 
 GROUND = 'land/ground.G'
 TRAIL = 'land/ground.V'
@@ -25,7 +25,7 @@ def _corners(width: int, height: int) -> list[tuple[int, int]]:
     return [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
 
 
-class Ground(Element):
+class GroundComponent(ElementComponent):
     """Ground whose structure `G` is raised by footprints and recovers, with a trail potential `V` that smooths it.
 
     The structure relaxes back to bare ground as `G' = -G / T`, and walkers add footprints. The trail potential
@@ -52,18 +52,18 @@ class Ground(Element):
             The relaxation time of the trail potential.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Ground
-        >>> Ground('ground').T
+        >>> from skcomplex.models.biology.collective_behaviour import GroundComponent
+        >>> GroundComponent('ground').T
         200.0
     """
 
-    G: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    V: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    T: float = parameter(default=200.0, domain=Domain.POSITIVE)
-    D: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    G: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    V: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    T: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
+    D: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fading of the structure and the smoothing of the trail potential.
 
         Args:
@@ -74,10 +74,10 @@ class Ground(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.G, -s.G / s.T), Rate(s.V, s.D * laplacian(s.V) + (s.G - s.V) / s.tau)]
+        return [RateLaw(s.G, -s.G / s.T), RateLaw(s.V, s.D * laplacian(s.V) + (s.G - s.V) / s.tau)]
 
 
-class Walker(Element):
+class WalkerComponent(ElementComponent):
     """Pedestrian who walks toward a goal, drawn to existing trails, and leaves footprints that build them.
 
     The walker heads along the unit vector toward its goal plus `attraction` times the gradient of the trail potential
@@ -114,20 +114,20 @@ class Walker(Element):
             The number of rows of the grid.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Walker
-        >>> Walker.group('walkers', 4, location=(0, 0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import WalkerComponent
+        >>> WalkerComponent.group('walkers', 4, location=(0, 0)).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'goal_x'})
     goal_x: float = state(default=0.0)
     goal_y: float = state(default=0.0)
-    directedness: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    attraction: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    intensity: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    G_max: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    width: float = parameter(default=30.0, domain=Domain.POSITIVE)
-    height: float = parameter(default=30.0, domain=Domain.POSITIVE)
+    directedness: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    attraction: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    G_max: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    width: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    height: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
 
     def _choose_goal(self, agent: AgentView, model: ModelView) -> None:
         """Pick another entry point as the new goal."""
@@ -147,7 +147,7 @@ class Walker(Element):
         alignment = steps @ heading / (lengths * max(float(np.hypot(*heading)), 1e-12))
         return np.exp(agent.directedness * (alignment - alignment.max()))
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the walking rule.
 
         Args:
@@ -158,7 +158,7 @@ class Walker(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.walk)]
+        return [RuleLaw(self.walk)]
 
     def walk(self, agent: AgentView, model: ModelView) -> None:
         """Step toward the goal along trails, leave a footprint, and pick a new goal on arrival.
@@ -229,7 +229,7 @@ def active_walkers(
     corners = _corners(size, size)
     starts = rng.integers(len(corners), size=n_walkers)
     goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
-    walkers = Walker.group(
+    walkers = WalkerComponent.group(
         'walkers',
         n_walkers,
         location=[corners[start] for start in starts],
@@ -239,7 +239,12 @@ def active_walkers(
         width=float(size),
         height=float(size),
     )
-    ground = Field('ground', Ground, LatticeSpace((size, size), boundary='reflecting'), values={'T': T})
+    ground = FieldComponent(
+        'ground',
+        GroundComponent,
+        LatticeSpace((size, size), boundary='reflecting'),
+        values={'T': T},
+    )
     return System(
         components=[
             System('people', components=[walkers], space=LatticeSpace((size, size), boundary='fixed')),

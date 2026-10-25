@@ -17,7 +17,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 system = create(MODEL)
-solver = ScipyODE(method='LSODA')
+solver = ScipyODESolver(method='LSODA')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).run(until=20)
 

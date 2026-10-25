@@ -8,13 +8,13 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousSpace, DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 
 
 def _unit(vector: np.ndarray) -> np.ndarray:
@@ -32,7 +32,7 @@ def _turned(heading: np.ndarray, desired: np.ndarray, max_turn: float) -> np.nda
     return np.array([cosine * heading[0] - sine * heading[1], sine * heading[0] + cosine * heading[1]])
 
 
-class ShoalMember(Element):
+class ShoalMemberComponent(ElementComponent):
     """Fish of a Couzin shoal that avoids close neighbours, follows farther ones, and may know a preferred direction.
 
     Every step a fish first sets its desired direction. When neighbours lie within the zone of repulsion `alpha`, it
@@ -76,22 +76,22 @@ class ShoalMember(Element):
             The side of the square torus.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import ShoalMember
-        >>> ShoalMember.group('shoal', 10, location=(5.0, 5.0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import ShoalMemberComponent
+        >>> ShoalMemberComponent.group('shoal', 10, location=(5.0, 5.0)).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'omega'})
     vx: float = state(default=1.0)
     vy: float = state(default=0.0)
-    omega: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    omega: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     preferred: float = parameter(default=0.0)
-    alpha: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    rho: float = parameter(default=6.0, domain=Domain.POSITIVE)
-    speed: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    max_turn: float = parameter(default=0.4, domain=Domain.POSITIVE)
-    noise: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    size: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    rho: float = parameter(default=6.0, domain=NumericDomain.POSITIVE)
+    speed: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    max_turn: float = parameter(default=0.4, domain=NumericDomain.POSITIVE)
+    noise: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    size: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
     def _desired(self, agent: AgentView) -> np.ndarray:
         """Return the desired direction from repulsion, or from attraction and alignment."""
@@ -113,7 +113,7 @@ class ShoalMember(Element):
         goal = np.array([math.cos(agent.preferred), math.sin(agent.preferred)])
         return _unit(_unit(social) + agent.omega * goal)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the simultaneous turning and the swimming of the fish.
 
         Args:
@@ -124,7 +124,7 @@ class ShoalMember(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.turn, phase='turn'), Rule(self.swim, phase='swim')]
+        return [RuleLaw(self.turn, phase='turn'), RuleLaw(self.swim, phase='swim')]
 
     def turn(self, agent: AgentView, model: ModelView) -> None:
         """Turn toward the desired direction, with angular noise.
@@ -218,7 +218,7 @@ def couzin_leadership(
     weights = np.zeros(n_fish)
     weights[: round(informed * n_fish)] = omega
     locations = size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-    shoal = ShoalMember.group(
+    shoal = ShoalMemberComponent.group(
         'shoal',
         n_fish,
         location=[tuple(point) for point in locations],
@@ -231,5 +231,5 @@ def couzin_leadership(
     return System(
         components=[shoal],
         space=ContinuousSpace(size, size, boundary='periodic'),
-        time=DiscreteTime(schedule=Phases([Phase('turn', activation='simultaneous'), Phase('swim')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('turn', activation='simultaneous'), Phase('swim')])),
     )

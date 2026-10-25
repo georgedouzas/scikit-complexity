@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from typing import Any
 
 from ....core.base import Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Boundary, Law, Rate, Symbols, derivative, where
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, BoundaryLaw, RateLaw, Symbols, derivative, where
 
 
 def _limited(value: Expression, limits: tuple[float, float] | None) -> Expression:
@@ -26,7 +26,7 @@ def _read(plant: Symbols, name: str) -> Expression:
     return value
 
 
-class Integrator(Element):
+class IntegratorComponent(ElementComponent):
     """Element that holds the integral of a signal, whose rate a controller sets.
 
     Args:
@@ -37,21 +37,21 @@ class Integrator(Element):
             The initial value of the integral.
 
     Examples:
-        >>> from skcomplex.models.engineering.realizations import Integrator
-        >>> Integrator('memory').value
+        >>> from skcomplex.models.engineering.realizations import IntegratorComponent
+        >>> IntegratorComponent('memory').value
         0.0
     """
 
     value: float = state(default=0.0)
 
 
-class PID(Interaction):
+class PIDInteraction(BaseInteraction):
     """Proportional-integral-derivative controller that sets a control input of a plant from the error of a measure.
 
     The error is `e = setpoint - y` for the measured state `y`, and the controller sets the control input to
     `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative taken on the measure. The integral
-    `I' = e` of the error lives in an `Integrator` bound to the role `integrator`. The control input is an adaptive
-    parameter of the plant, which the controller sets after every solver step, so it holds within a step like a
+    `I' = e` of the error lives in an `IntegratorComponent` bound to the role `integrator`. The control input is an
+    adaptive parameter of the plant, which the controller sets after every solver step, so it holds within a step like a
     sampled controller. The derivative term reads the first derivative of the measure, so a measure with a derivative
     term is a state of order 2.
 
@@ -90,8 +90,8 @@ class PID(Interaction):
                 The value the measure is kept at.
 
     Examples:
-        >>> from skcomplex.models.engineering.realizations import PID
-        >>> PID('pid', plant='cart', integrator='memory', control='force', measure='theta', kp=40.0).kp
+        >>> from skcomplex.models.engineering.realizations import PIDInteraction
+        >>> PIDInteraction('pid', plant='cart', integrator='memory', control='force', measure='theta', kp=40.0).kp
         40.0
     """
 
@@ -116,7 +116,7 @@ class PID(Interaction):
         self.measure = measure
         self.limits = limits
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate of the integral of the error and the control input it sets.
 
         Args:
@@ -132,10 +132,13 @@ class PID(Interaction):
         output = s.kp * error + s.ki * s.integrator.value
         if self.kd != 0:
             output -= s.kd * derivative(measured, 1)
-        return [Rate(s.integrator.value, error), Boundary(_read(s.plant, self.control), _limited(output, self.limits))]
+        return [
+            RateLaw(s.integrator.value, error),
+            BoundaryLaw(_read(s.plant, self.control), _limited(output, self.limits)),
+        ]
 
 
-class StateFeedback(Interaction):
+class StateFeedbackInteraction(BaseInteraction):
     """Linear state feedback `u = -K x` that sets a control input of a plant from its states.
 
     The control input is an adaptive parameter of the plant, which the controller sets after every solver step, so it
@@ -165,8 +168,10 @@ class StateFeedback(Interaction):
                 The path of the element that holds the states and the control input.
 
     Examples:
-        >>> from skcomplex.models.engineering.realizations import StateFeedback
-        >>> StateFeedback('regulator', plant='mass', control='force', states=('x', 'x_d1'), gain=(1.0, 1.7)).gain
+        >>> from skcomplex.models.engineering.realizations import StateFeedbackInteraction
+        >>> StateFeedbackInteraction(
+        ...     'regulator', plant='mass', control='force', states=('x', 'x_d1'), gain=(1.0, 1.7)
+        ... ).gain
         (1.0, 1.7)
     """
 
@@ -188,7 +193,7 @@ class StateFeedback(Interaction):
         self.gain = gain
         self.limits = limits
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the control input the feedback sets.
 
         Args:
@@ -203,4 +208,4 @@ class StateFeedback(Interaction):
             (float(gain) * _read(s.plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
             0,
         )
-        return [Boundary(_read(s.plant, self.control), _limited(feedback, self.limits))]
+        return [BoundaryLaw(_read(s.plant, self.control), _limited(feedback, self.limits))]

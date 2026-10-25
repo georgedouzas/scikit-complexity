@@ -8,13 +8,13 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -30,7 +30,7 @@ def _fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
     return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 
-class BitString(Element):
+class BitStringComponent(ElementComponent):
     """Agent whose genome is a string of bits, stored as the integer it spells, with the fitness of that genome.
 
     Args:
@@ -44,17 +44,17 @@ class BitString(Element):
             The initial fitness.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import BitString
-        >>> BitString.group('genomes', 4, genome=[0, 1, 2, 3])
-        Group('genomes', element=BitString, size=4)
+        >>> from skcomplex.models.computer_science.evolutionary_computation import BitStringComponent
+        >>> BitStringComponent.group('genomes', 4, genome=[0, 1, 2, 3])
+        GroupComponent('genomes', element=BitStringComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness'})
-    genome: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    fitness: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    genome: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Reproduction(Interaction):
+class ReproductionInteraction(BaseInteraction):
     """Death at a constant rate and replacement by mutated copies of parents chosen in proportion to their fitness.
 
     The fitness of a genome is the mean over its loci of a value given to each allele of each locus, an additive
@@ -83,13 +83,15 @@ class Reproduction(Interaction):
                 The path of the group of bit strings.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import Reproduction
-        >>> Reproduction('reproduction', population='genomes', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)).mutation
+        >>> from skcomplex.models.computer_science.evolutionary_computation import ReproductionInteraction
+        >>> ReproductionInteraction(
+        ...     'reproduction', population='genomes', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)
+        ... ).mutation
         0.05
     """
 
-    death: float = parameter(0.1, domain=Domain.NONNEGATIVE)
-    mutation: float = parameter(0.05, domain=Domain.NONNEGATIVE)
+    death: float = parameter(0.1, domain=NumericDomain.NONNEGATIVE)
+    mutation: float = parameter(0.05, domain=NumericDomain.NONNEGATIVE)
     population: str = role()
 
     def __init__(
@@ -104,7 +106,7 @@ class Reproduction(Interaction):
         self.zero_values = zero_values
         self.one_values = one_values
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of one generation step.
 
         Args:
@@ -115,7 +117,7 @@ class Reproduction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.reproduce)]
+        return [RuleLaw(self.reproduce)]
 
     def reproduce(self, model: ModelView) -> None:
         """Replace the dead by mutated copies of parents chosen by fitness, and update every fitness.
@@ -187,7 +189,7 @@ def bit_string_evolution(
     zero_values, one_values = rng.random(n_bits), rng.random(n_bits)
     genomes = rng.integers(0, 2**n_bits, size=n_agents).astype(float)
     fitness = _fitness_of(genomes, zero_values, one_values)
-    reproduction = Reproduction(
+    reproduction = ReproductionInteraction(
         'reproduction',
         population='genomes',
         death=death,
@@ -196,6 +198,6 @@ def bit_string_evolution(
         one_values=tuple(one_values.tolist()),
     )
     return System(
-        components=[BitString.group('genomes', n_agents, genome=genomes, fitness=fitness)],
+        components=[BitStringComponent.group('genomes', n_agents, genome=genomes, fitness=fitness)],
         interactions=[reproduction],
     )

@@ -9,18 +9,18 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
 
-class HodgepodgeCell(Element):
+class HodgepodgeCellComponent(ElementComponent):
     """Cell of the hodgepodge machine of Gerhardt and Schuster, healthy at 0, infected below `n`, and ill at `n`.
 
     Healthy cells catch the infection from their infected and ill neighbours, infected cells worsen by the mean of their
@@ -46,18 +46,18 @@ class HodgepodgeCell(Element):
             The speed of the infection.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import HodgepodgeCell
-        >>> HodgepodgeCell('cell').n
+        >>> from skcomplex.models.chemistry.kinetics import HodgepodgeCellComponent
+        >>> HodgepodgeCellComponent('cell').n
         100.0
     """
 
-    level: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    n: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    k1: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    k2: float = parameter(default=3.0, domain=Domain.POSITIVE)
-    g: float = parameter(default=34.0, domain=Domain.NONNEGATIVE)
+    level: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    n: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    k1: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    k2: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=34.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of infection, worsening, and healing.
 
         Args:
@@ -77,7 +77,7 @@ class HodgepodgeCell(Element):
             worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
             return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
 
-        return [LocalRule(s.level, Neighborhood.moore(center=True), rule)]
+        return [LocalRuleLaw(s.level, Neighborhood.moore(center=True), rule)]
 
 
 @register_model(
@@ -127,4 +127,4 @@ def hodgepodge(
     """
     levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[HodgepodgeCell.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])
+    return System(components=[HodgepodgeCellComponent.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])

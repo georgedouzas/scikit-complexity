@@ -8,21 +8,21 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, maximum, neighbors, where
+from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, maximum, neighbors, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.topology import add_edge, remove_node, rewire
-from ._growth import DEGREE_VISUAL, Link
+from ._growth import DEGREE_VISUAL, LinkComponent
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
 STRATEGIES = ('random', 'targeted')
 
 
-class Failing(Element):
+class FailingComponent(ElementComponent):
     """Node of a network under failures or attacks, removed at random or when it has the largest degree.
 
     Every step a node fails with probability `rate` under random failures, and under a targeted attack the nodes
@@ -42,17 +42,17 @@ class Failing(Element):
             1 for a targeted attack on the nodes of the largest degree and 0 for random failures.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Failing
-        >>> Failing('nodes', targeted=1).targeted
+        >>> from skcomplex.models.mathematics.networks import FailingComponent
+        >>> FailingComponent('nodes', targeted=1).targeted
         1
     """
 
     visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    rate: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    targeted: float = parameter(default=0, domain=Domain.BOOLEAN)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    rate: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    targeted: float = parameter(default=0, domain=NumericDomain.BOOLEAN)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the degree of the node and its removal.
 
         Args:
@@ -65,10 +65,10 @@ class Failing(Element):
         """
         degree = neighbors(1)
         hub = where(s.targeted * (degree - maximum(degree)) >= 0, s.targeted, 0)
-        return [Update(s.degree, degree), Update(remove_node(), (1 - s.targeted) * s.rate + hub)]
+        return [UpdateLaw(s.degree, degree), UpdateLaw(remove_node(), (1 - s.targeted) * s.rate + hub)]
 
 
-class EnsembleNode(Element):
+class EnsembleNodeComponent(ElementComponent):
     """Node of a random graph that adds edges to uniformly random nodes, building an Erdős-Rényi graph edge by edge.
 
     Args:
@@ -82,16 +82,16 @@ class EnsembleNode(Element):
             The probability that the node adds an edge to a random node in a step.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import EnsembleNode
-        >>> EnsembleNode('nodes', rate=0.1).rate
+        >>> from skcomplex.models.mathematics.networks import EnsembleNodeComponent
+        >>> EnsembleNodeComponent('nodes', rate=0.1).rate
         0.1
     """
 
     visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    rate: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    rate: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the degree of the node and its new edges.
 
         Args:
@@ -102,10 +102,10 @@ class EnsembleNode(Element):
             laws:
                 The laws of the component.
         """
-        return [Update(s.degree, neighbors(1)), Update(add_edge(), s.rate)]
+        return [UpdateLaw(s.degree, neighbors(1)), UpdateLaw(add_edge(), s.rate)]
 
 
-class Rewiring(Interaction):
+class RewiringInteraction(BaseInteraction):
     """Rewiring of every edge of a ring lattice to a uniformly random node, the Watts-Strogatz construction.
 
     Every step every edge moves its target to a random node with probability `rate`, so after `n` steps an edge has
@@ -126,17 +126,17 @@ class Rewiring(Interaction):
             The probability that an edge moves in a step.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Rewiring
-        >>> Rewiring('rewiring', nodes='nodes', links='links', rate=0.01).rate
+        >>> from skcomplex.models.mathematics.networks import RewiringInteraction
+        >>> RewiringInteraction('rewiring', nodes='nodes', links='links', rate=0.01).rate
         0.01
     """
 
     over: ClassVar[str] = 'neighbors'
     nodes: str = role()
     links: str = role()
-    rate: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    rate: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rewiring of one edge.
 
         Args:
@@ -147,12 +147,17 @@ class Rewiring(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Update(rewire(keep='source'), s.rate)]
+        return [UpdateLaw(rewire(keep='source'), s.rate)]
 
 
-def _variable_network(element: type[Element], space: NetworkSpace, capacity: int, **values: object) -> list[Group]:
+def _variable_network(
+    element: type[ElementComponent],
+    space: NetworkSpace,
+    capacity: int,
+    **values: object,
+) -> list[GroupComponent]:
     """Return the variable groups on the nodes and the edges of a network."""
-    nodes = Group(
+    nodes = GroupComponent(
         'nodes',
         element=element,
         on='sites',
@@ -161,7 +166,7 @@ def _variable_network(element: type[Element], space: NetworkSpace, capacity: int
         values=values,
         visual=DEGREE_VISUAL,
     )
-    links = Group('links', element=Link, on='edges', variable=True, capacity=capacity)
+    links = GroupComponent('links', element=LinkComponent, on='edges', variable=True, capacity=capacity)
     return [nodes, links]
 
 
@@ -221,7 +226,7 @@ def network_attack(
         raise ValidationError(error_msg)
     space = NetworkSpace.barabasi_albert(n_nodes, edges, seed=random_state)
     targeted = float(strategy == 'targeted')
-    groups = _variable_network(Failing, space, space.graph.number_of_edges(), rate=rate, targeted=targeted)
+    groups = _variable_network(FailingComponent, space, space.graph.number_of_edges(), rate=rate, targeted=targeted)
     return System(components=groups, space=space, time=DiscreteTime())
 
 
@@ -285,10 +290,15 @@ def random_graph_ensembles(
     if ensemble == 'erdos_renyi':
         space = NetworkSpace(nx.empty_graph(n_nodes))
         rate = mean_degree / 2 / steps
-        groups = _variable_network(EnsembleNode, space, int(np.ceil(1.5 * mean_degree * n_nodes / 2)) + 10, rate=rate)
+        groups = _variable_network(
+            EnsembleNodeComponent,
+            space,
+            int(np.ceil(1.5 * mean_degree * n_nodes / 2)) + 10,
+            rate=rate,
+        )
         return System(components=groups, space=space, time=DiscreteTime())
     space = NetworkSpace.watts_strogatz(n_nodes, int(mean_degree), 0.0)
     rate = 1 - (1 - rewiring) ** (1 / steps)
-    groups = _variable_network(EnsembleNode, space, space.graph.number_of_edges())
-    rewiring_law = Rewiring('rewiring', nodes='nodes', links='links', rate=rate)
+    groups = _variable_network(EnsembleNodeComponent, space, space.graph.number_of_edges())
+    rewiring_law = RewiringInteraction('rewiring', nodes='nodes', links='links', rate=rate)
     return System(components=groups, interactions=[rewiring_law], space=space, time=DiscreteTime())

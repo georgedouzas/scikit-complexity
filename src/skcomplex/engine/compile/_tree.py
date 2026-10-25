@@ -13,18 +13,18 @@ import numpy.typing as npt
 
 from ...core.base import (
     AnyDomain,
-    Domain,
     LabelError,
+    NumericDomain,
     SpaceError,
     TimeKind,
     Trait,
     ValidationError,
     Variable,
 )
-from ...core.components import Element, Group, probe_laws
-from ...core.interactions import Interaction
+from ...core.components import ElementComponent, GroupComponent, probe_laws
+from ...core.interactions import BaseInteraction
 from ...core.laws import has_trait
-from ...core.space import LatticeSpace, NetworkSpace, Space, part_count
+from ...core.space import BaseSpace, LatticeSpace, NetworkSpace, part_count
 from ...core.system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -56,7 +56,7 @@ def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
         raise ValidationError(error_msg)
 
 
-def _check_group(group: Group, scope: str) -> None:
+def _check_group(group: GroupComponent, scope: str) -> None:
     """Raise an error for a group with an element type or size that is not valid."""
     where = f'Group {group.label!r} in {scope or "the root system"}'
     if group.size is None and group.on is not None:
@@ -82,9 +82,9 @@ def _check_group(group: Group, scope: str) -> None:
 
 def _check_children(system: System, scope: str) -> None:
     """Raise an error for a child of the wrong type or a duplicated label."""
-    children: list[tuple[Element | Group | Interaction | System, type | tuple[type, ...]]] = [
-        *((element, (Element, Group)) for element in system.elements),
-        *((interaction, Interaction) for interaction in system.interactions),
+    children: list[tuple[ElementComponent | GroupComponent | BaseInteraction | System, type | tuple[type, ...]]] = [
+        *((element, (ElementComponent, GroupComponent)) for element in system.elements),
+        *((interaction, BaseInteraction) for interaction in system.interactions),
         *((child, System) for child in system.systems),
     ]
     labels: set[str] = set()
@@ -95,7 +95,7 @@ def _check_children(system: System, scope: str) -> None:
             )
             error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
             raise ValidationError(error_msg)
-        if isinstance(child, Group):
+        if isinstance(child, GroupComponent):
             _check_group(child, scope)
         _check_label(child.label, scope)
         if child.label in labels:
@@ -104,9 +104,9 @@ def _check_children(system: System, scope: str) -> None:
         labels.add(child.label)
 
 
-def _sized(element: Element | Group, space: Space | None) -> Element | Group:
+def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) -> ElementComponent | GroupComponent:
     """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
-    if not isinstance(element, Group) or element.size is not None:
+    if not isinstance(element, GroupComponent) or element.size is not None:
         return element
     if space is None:
         error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
@@ -116,11 +116,14 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
     return sized
 
 
-def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
+def _with_capacity(
+    element: ElementComponent | GroupComponent,
+    space: BaseSpace | None,
+) -> tuple[ElementComponent | GroupComponent, int | None]:
     """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
     if not is_topology_group(element, space):
         return element, None
-    group = cast('Group', element)
+    group = cast('GroupComponent', element)
     initial = int(group.size) if group.size is not None else 0
     capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
     if capacity < initial:
@@ -134,7 +137,7 @@ def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Eleme
     return sized, initial
 
 
-def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
+def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
     """Return the first network space seen that equals a space, so clones of one network share one space."""
     if not isinstance(space, NetworkSpace):
         return space
@@ -172,15 +175,15 @@ class Node:
 
     path: str
     scope: str
-    component: Element | Group | Interaction
-    space: Space | None
+    component: ElementComponent | GroupComponent | BaseInteraction
+    space: BaseSpace | None
     agent: bool = False
     active: int | None = None
 
     @property
     def members(self) -> int | None:
         """Size of a group, or `None` for a single element or an interaction."""
-        return self.component.size if isinstance(self.component, Group) else None
+        return self.component.size if isinstance(self.component, GroupComponent) else None
 
     @property
     def is_agent(self) -> bool:
@@ -188,9 +191,9 @@ class Node:
         return self.agent
 
     @property
-    def component_type(self) -> type[Element] | type[Interaction]:
+    def component_type(self) -> type[ElementComponent] | type[BaseInteraction]:
         """Element type of a group, or the type of an element or interaction."""
-        return self.component.element if isinstance(self.component, Group) else type(self.component)
+        return self.component.element if isinstance(self.component, GroupComponent) else type(self.component)
 
     def value_of(self, variable: str) -> Any:  # noqa: ANN401
         """Return the value of a variable, or the element type's default for a group that does not set it.
@@ -203,7 +206,7 @@ class Node:
             value:
                 The value given by the user or the default.
         """
-        if not isinstance(self.component, Group):
+        if not isinstance(self.component, GroupComponent):
             return getattr(self.component, variable)
         values = self.component.values or {}
         default = self.component.element.get_default(variable)
@@ -220,7 +223,7 @@ class Node:
         return value
 
 
-def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] | None = None) -> list[Node]:
+def _flatten(system: System, scope: str, space: BaseSpace | None, seen: list[BaseSpace] | None = None) -> list[Node]:
     """Return the nodes of a system tree in tree order."""
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
@@ -286,7 +289,7 @@ def _flat_value(
     return array.ravel()
 
 
-def is_topology_group(component: object, space: Space | None) -> bool:
+def is_topology_group(component: object, space: BaseSpace | None) -> bool:
     """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
 
     Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
@@ -303,14 +306,14 @@ def is_topology_group(component: object, space: Space | None) -> bool:
         topology_group:
             Whether the group runs with a capacity layout.
     """
-    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
+    if not (isinstance(component, GroupComponent) and component.variable and component.on in {'sites', 'edges'}):
         return False
     if not isinstance(space, NetworkSpace):
         return False
     return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
 
 
-def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
+def flatten_system(system: System, scope: str = '', space: BaseSpace | None = None) -> list[Node]:
     """Return the elements and interactions of a system tree with their paths.
 
     Args:
@@ -361,7 +364,7 @@ def declared_times(system: System, scope: str = '', inherited: TimeKind | None =
     return times
 
 
-def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int, ...]:
+def shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple[int, ...]:
     """Return the shape of a declared variable in its space.
 
     Args:
@@ -390,7 +393,7 @@ def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int
     if space is None:
         error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
         raise SpaceError(error_msg)
-    if not Domain.POSITIVE.contains(space.n_dim) or not Domain.INTEGER.contains(space.n_dim):
+    if not NumericDomain.POSITIVE.contains(space.n_dim) or not NumericDomain.INTEGER.contains(space.n_dim):
         error_msg = f'The space of {name} has n_dim = {space.n_dim!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
     return (int(space.n_dim),)
@@ -433,11 +436,11 @@ def coerce_value(
     """
     if not domain.contains(value):
         error_msg = f'{name} = {_describe(value)} is not in the {domain.value} domain.'
-        if Domain.COMPLEX.contains(value):
+        if NumericDomain.COMPLEX.contains(value):
             error_msg = (
                 f'{name} = {_describe(value)} has a nonzero imaginary part, which the {domain.value} domain does not '
                 f'hold. Declare {name.rpartition(".")[2]} with `domain=Domain.COMPLEX` to give it complex values.'
             )
         raise ValidationError(error_msg)
     flat = _flat_value(name, value, domain.encode(value), shape, members)
-    return np.ascontiguousarray(flat).view(float) if domain is Domain.COMPLEX else flat
+    return np.ascontiguousarray(flat).view(float) if domain is NumericDomain.COMPLEX else flat

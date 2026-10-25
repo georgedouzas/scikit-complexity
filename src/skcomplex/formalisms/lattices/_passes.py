@@ -8,9 +8,10 @@ from dataclasses import replace
 from typing import cast
 
 from ...core.base import Form, Trait, ValidationError
-from ...core.laws import Law, has_trait
+from ...core.laws import BaseLaw, has_trait
 from ...core.space import NetworkSpace, SiteSpace
 from ...engine.compile import (
+    BasePass,
     BlockLaws,
     Census,
     Compilation,
@@ -18,14 +19,13 @@ from ...engine.compile import (
     Issue,
     KernelSpec,
     Laws,
-    Pass,
     Problem,
     Source,
     member_count,
     resolve_backend,
     target_references,
 )
-from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
+from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SampleLaw, SamplerLaw
 from ._steps import (
     LatticeContext,
     LatticeState,
@@ -61,11 +61,11 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
     return LatticeContext(spec.owner, states, arguments, fused, others)
 
 
-def _monte_carlo_step(spec: KernelSpec, laws: list[Law], context: LatticeContext) -> LatticeStep | None:
+def _monte_carlo_step(spec: KernelSpec, laws: list[BaseLaw], context: LatticeContext) -> LatticeStep | None:
     """Return the Monte Carlo sampling of a component's energy, move, and sampler, or `None` without them."""
     energies = [law for law in laws if isinstance(law, Energy)]
-    moves = [law for law in laws if isinstance(law, Move)]
-    samplers = [law for law in laws if isinstance(law, Sampler)]
+    moves = [law for law in laws if isinstance(law, MoveLaw)]
+    samplers = [law for law in laws if isinstance(law, SamplerLaw)]
     if not (energies or moves or samplers):
         return None
     if len(energies) != 1 or len(moves) != 1 or len(samplers) > 1:
@@ -77,7 +77,7 @@ def _monte_carlo_step(spec: KernelSpec, laws: list[Law], context: LatticeContext
     if samplers:
         sampler = samplers[0]
     elif hasattr(spec.namespace, 'temperature'):
-        sampler = Sampler(temperature=spec.namespace.temperature)
+        sampler = SamplerLaw(temperature=spec.namespace.temperature)
     else:
         error_msg = f'{spec.owner} declares no sampler and no parameter `temperature` for the default sampler.'
         raise ValidationError(error_msg)
@@ -85,17 +85,17 @@ def _monte_carlo_step(spec: KernelSpec, laws: list[Law], context: LatticeContext
 
 
 def _compile_lattice(
-    specs: list[tuple[KernelSpec, list[Law]]],
+    specs: list[tuple[KernelSpec, list[BaseLaw]]],
     declarations: Declarations,
     fused: bool,
 ) -> tuple[LatticeStep, ...]:
     """Return the steps of local rules, drives, relaxations, and Monte Carlo sampling in declaration order."""
     steps: list[LatticeStep] = []
     compilers = {
-        LocalRule: compile_rule,
-        Drive: compile_drive,
-        Relaxation: compile_relaxation,
-        Extremal: compile_extremal,
+        LocalRuleLaw: compile_rule,
+        DriveLaw: compile_drive,
+        RelaxationLaw: compile_relaxation,
+        ExtremalLaw: compile_extremal,
     }
     for spec, laws in specs:
         if not any(has_trait(law, Trait.LATTICE) for law in laws):
@@ -108,28 +108,28 @@ def _compile_lattice(
     return tuple(steps)
 
 
-def _lattice_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
+def _lattice_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the element or group whose sites a lattice law updates, or `None` for another law.
 
     Monte Carlo sampling belongs to the component that declares it.
     """
     del agents
-    if isinstance(law, Sample | Energy | Sampler):
+    if isinstance(law, SampleLaw | Energy | SamplerLaw):
         return spec.owner
-    if isinstance(law, Relaxation):
+    if isinstance(law, RelaxationLaw):
         target = next(iter(law.targets), None)
         return spec.owner if target is None else target_references(target, spec)[0].entry.name.rpartition('.')[0]
-    if isinstance(law, LocalRule | Extremal):
+    if isinstance(law, LocalRuleLaw | ExtremalLaw):
         return target_references(law.targets[0], spec)[0].entry.name.rpartition('.')[0]
     return None
 
 
 def _schedule_of(law: object) -> str | None:
     """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
-    if isinstance(law, LocalRule):
+    if isinstance(law, LocalRuleLaw):
         return law.schedule
-    if isinstance(law, Sample):
-        return (law.sampler or Sampler()).schedule
+    if isinstance(law, SampleLaw):
+        return (law.sampler or SamplerLaw()).schedule
     return None
 
 
@@ -141,7 +141,7 @@ def _schedule_issues(compilation: Compilation) -> list[Issue]:
         lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
         if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
             message = (
-                f'The {type(record.law).__name__} law of {record.path} uses the checkerboard schedule, which needs the '
+                f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs the '
                 f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
             )
             fix = (
@@ -152,7 +152,7 @@ def _schedule_issues(compilation: Compilation) -> list[Issue]:
     return issues
 
 
-class UnpackSamplesPass(Pass):
+class UnpackSamplesPass(BasePass):
     """Pass that replaces every Monte Carlo sample by its energy, move, and sampler."""
 
     reads = ('collected',)
@@ -166,12 +166,12 @@ class UnpackSamplesPass(Pass):
                 The compilation state.
         """
         compilation.collected = [
-            (spec, [part for law in laws for part in (law.parts if isinstance(law, Sample) else (law,))], block)
+            (spec, [part for law in laws for part in (law.parts if isinstance(law, SampleLaw) else (law,))], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
 
 
-class LatticeProblemPass(Pass):
+class LatticeProblemPass(BasePass):
     """Pass that adds the steps of local rules, drives, relaxations, extremal updates, and Monte Carlo sampling."""
 
     reads = ('problem', 'reduced', 'layout')
@@ -197,10 +197,10 @@ STEPWISE_FORMS: dict[frozenset[type], Form] = {
     **{
         frozenset(kinds): Form.LATTICE
         for count in (1, 2, 3, 4)
-        for kinds in itertools.combinations((LocalRule, Drive, Relaxation, Extremal), count)
+        for kinds in itertools.combinations((LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw), count)
     },
-    frozenset({Energy, Move}): Form.MONTE_CARLO,
-    frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
+    frozenset({Energy, MoveLaw}): Form.MONTE_CARLO,
+    frozenset({Energy, MoveLaw, SamplerLaw}): Form.MONTE_CARLO,
 }
 OWNER_RULES = (_lattice_owner,)
 CHECKS = (_schedule_issues,)

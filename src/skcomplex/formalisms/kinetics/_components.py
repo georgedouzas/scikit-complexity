@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import ValidationError, VariableKind, declarations_of
-from ...core.components import Element, Group
+from ...core.components import ElementComponent, GroupComponent
 
 type Values = npt.NDArray[np.float64]
 
@@ -22,7 +22,7 @@ def _grid(activities: object) -> Values:
     return grid
 
 
-def _state_name(element: type[Element], state: str | None) -> str:
+def _state_name(element: type[ElementComponent], state: str | None) -> str:
     """Return the name of a state of an element, the only state when no name is given."""
     states = declarations_of(element, VariableKind.STATE)
     if state is None and len(states) == 1:
@@ -36,9 +36,9 @@ def _state_name(element: type[Element], state: str | None) -> str:
     raise ValidationError(error_msg)
 
 
-def _member_values(group: Group | npt.ArrayLike, state: str) -> Values:
+def _member_values(group: GroupComponent | npt.ArrayLike, state: str) -> Values:
     """Return the values of a state of every member of a group, or the values themselves."""
-    if not isinstance(group, Group):
+    if not isinstance(group, GroupComponent):
         return np.ravel(np.asarray(group, dtype=float))
     name = _state_name(group.element, state)
     value = (group.values or {}).get(name)
@@ -48,14 +48,14 @@ def _member_values(group: Group | npt.ArrayLike, state: str) -> Values:
 
 
 def distribution_from(
-    group: Group | npt.ArrayLike,
+    group: GroupComponent | npt.ArrayLike,
     state: str,
     activities: npt.ArrayLike,
     *,
-    element: type[Element],
+    element: type[ElementComponent],
     label: str | None = None,
     density: str | None = None,
-) -> Group:
+) -> GroupComponent:
     """Return a distribution site group that bins the values of a state of the members of a group over activities.
 
     Every member counts at the activity value nearest to its value, and the densities are the fractions of members at
@@ -91,11 +91,11 @@ def distribution_from(
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.components import ElementComponent
         >>> from skcomplex.formalisms.kinetics import distribution_from
-        >>> class Density(Element):
+        >>> class DensityComponent(ElementComponent):
         ...     f: float = state(default=0.0)
-        >>> distribution = distribution_from([0.0, 1.0, 1.0, 2.0], 'wealth', [0.0, 1.0, 2.0], element=Density)
+        >>> distribution = distribution_from([0.0, 1.0, 1.0, 2.0], 'wealth', [0.0, 1.0, 2.0], element=DensityComponent)
         >>> distribution.values['f'].tolist()
         [0.25, 0.5, 0.25]
     """
@@ -110,12 +110,18 @@ def distribution_from(
         nearest -= np.abs(values - grid[nearest - 1]) <= np.abs(values - grid[nearest])
     fractions = np.bincount(nearest, minlength=grid.size) / values.size
     name = label if label is not None else f'{getattr(group, "label", "members")}_distribution'
-    return Group(name, element=element, size=grid.size, on='sites', values={_state_name(element, density): fractions})
+    return GroupComponent(
+        name,
+        element=element,
+        size=grid.size,
+        on='sites',
+        values={_state_name(element, density): fractions},
+    )
 
 
 def members_from(
-    distribution: Group | npt.ArrayLike,
-    element: type[Element],
+    distribution: GroupComponent | npt.ArrayLike,
+    element: type[ElementComponent],
     n: int,
     *,
     activities: npt.ArrayLike,
@@ -123,7 +129,7 @@ def members_from(
     label: str | None = None,
     density: str | None = None,
     random_state: int | np.random.Generator | None = None,
-) -> Group:
+) -> GroupComponent:
     """Return a variable group of members whose state values are drawn from a distribution over activities.
 
     Every member takes the activity of a site drawn with probability proportional to the site's density.
@@ -163,16 +169,16 @@ def members_from(
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.components import ElementComponent
         >>> from skcomplex.formalisms.kinetics import members_from
-        >>> class Trader(Element):
+        >>> class TraderComponent(ElementComponent):
         ...     wealth: float = state(default=0.0)
-        >>> traders = members_from([0.0, 1.0, 0.0], Trader, 4, activities=[0.0, 1.0, 2.0], random_state=0)
+        >>> traders = members_from([0.0, 1.0, 0.0], TraderComponent, 4, activities=[0.0, 1.0, 2.0], random_state=0)
         >>> traders.values['wealth'].tolist(), traders.variable
         ([1.0, 1.0, 1.0, 1.0], True)
     """
     grid = _grid(activities)
-    if isinstance(distribution, Group):
+    if isinstance(distribution, GroupComponent):
         weights = _member_values(distribution, _state_name(distribution.element, density))
     else:
         weights = np.ravel(np.asarray(distribution, dtype=float))
@@ -185,4 +191,4 @@ def members_from(
     rng = np.random.default_rng(random_state)
     drawn = grid[rng.choice(grid.size, size=n, p=weights / weights.sum())]
     name = label if label is not None else f'{getattr(distribution, "label", "distribution")}_members'
-    return Group(name, element=element, size=n, values={_state_name(element, state): drawn}, variable=True)
+    return GroupComponent(name, element=element, size=n, values={_state_name(element, state): drawn}, variable=True)

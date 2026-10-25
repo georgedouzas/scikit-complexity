@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import (
     continuous_androgen_suppression,
     ideta_intermittent_androgen,
@@ -14,7 +14,7 @@ from skcomplex.models.biology.oncology import (
 
 from ..conftest import _run_seeded
 
-STIFF = ScipyODE(method='LSODA', rtol=1e-10, atol=1e-12)
+STIFF = ScipyODESolver(method='LSODA', rtol=1e-10, atol=1e-12)
 
 
 def test_continuous_androgen_suppression_relapses_through_independent_cells():

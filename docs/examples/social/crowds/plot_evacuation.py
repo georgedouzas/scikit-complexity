@@ -16,7 +16,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.kinetics import ParticleKinetics
+from skcomplex.formalisms.kinetics import KineticSolver
 from skcomplex.models import create, describe
 
 MODEL = 'evacuation'
@@ -42,7 +42,7 @@ simulation = Simulation(system, observers=[observer], dt=0.2, observables=observ
 # down more in encounters should take longer to leave.
 
 times = simulation.trajectory_.times
-sampled = Simulation(system, dt=0.2, observables=observables, solver=ParticleKinetics(n=5000), random_state=0)
+sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0)
 particles = sampled.run(until=20).trajectory_['evacuated']
 crowded_system = create(MODEL, crowding=8.0)
 crowded = Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system)).run(until=20)

@@ -15,7 +15,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import detect_events
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +23,7 @@ MODEL = 'oregonator'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-solver = ScipyODE(method='LSODA', rtol=1e-6, atol=1e-9)
+solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
 simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).run(until=30)
 
 # %%

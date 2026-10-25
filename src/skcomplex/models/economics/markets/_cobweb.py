@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -46,12 +46,12 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         2.0
     """
     return System(
-        components=[Market('market', price=price)],
-        interactions=[Cobweb('cobweb', target='market', a=a, b=b, c=c, d=d)],
+        components=[MarketComponent('market', price=price)],
+        interactions=[CobwebInteraction('cobweb', target='market', a=a, b=b, c=c, d=d)],
     )
 
 
-class Market(Element):
+class MarketComponent(ElementComponent):
     """Market of one good described by its price.
 
     Args:
@@ -62,15 +62,15 @@ class Market(Element):
             The initial price.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Market
-        >>> Market('wheat', price=2.0).price
+        >>> from skcomplex.models.economics.markets import MarketComponent
+        >>> MarketComponent('wheat', price=2.0).price
         2.0
     """
 
-    price: float = state(default=1.0, domain=Domain.REAL)
+    price: float = state(default=1.0, domain=NumericDomain.REAL)
 
 
-class Cobweb(Interaction):
+class CobwebInteraction(BaseInteraction):
     """Cobweb model, where supply reacts to the previous price and demand clears the market.
 
     Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
@@ -96,18 +96,18 @@ class Cobweb(Interaction):
             The supply slope.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Cobweb
-        >>> Cobweb('cobweb', target='wheat', a=10, b=2, c=1, d=1).b
+        >>> from skcomplex.models.economics.markets import CobwebInteraction
+        >>> CobwebInteraction('cobweb', target='wheat', a=10, b=2, c=1, d=1).b
         2
     """
 
     target: str = role()
-    a: float = parameter(default=10.0, domain=Domain.REAL)
-    b: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    c: float = parameter(default=1.0, domain=Domain.REAL)
-    d: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=10.0, domain=NumericDomain.REAL)
+    b: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    c: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    d: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the next price `(a - c - d * price) / b`.
 
         Args:
@@ -118,4 +118,4 @@ class Cobweb(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Update(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
+        return [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]

@@ -15,7 +15,7 @@ from ..compile import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
 from ..runtime import Frame
 from ._colors import palette_colors
 from ._utils import GRID_RADIUS, NODE_SPACING, _network_layout
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
 CHANGING_REACH = 10.0
@@ -30,7 +30,7 @@ def _changes_topology(element: CompiledElement, problem: Problem) -> bool:
     return topology is not None and element.path in {path for path, _ in topology.layers}
 
 
-class SiteVisual(Visual):
+class SiteVisual(BaseVisual):
     """Visual that logs every state of a lattice group that is not square as colored sites.
 
     A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
@@ -172,12 +172,12 @@ class SiteVisual(Visual):
             >>> import networkx as nx
             >>> from skcomplex.core.base import state
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.core.components import Element
+            >>> from skcomplex.core.components import ElementComponent
             >>> from skcomplex.core.space import NetworkSpace
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.viz import SiteVisual
-            >>> Node = Element.define('Node', states={'value': state(0.0)})
-            >>> system = System(components=[Node.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
+            >>> NodeComponent = ElementComponent.define('NodeComponent', states={'value': state(0.0)})
+            >>> system = System(components=[NodeComponent.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)
             >>> [type(view).__name__ for view in SiteVisual().views(problem.elements[0], problem)]
             ['GraphView']

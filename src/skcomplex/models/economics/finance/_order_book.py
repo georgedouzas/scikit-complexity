@@ -9,14 +9,14 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Invariant, Law, Symbols, transfer
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Invariant, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._markets import OrderBook, Trade
 
 LOWEST_PRICE = 0.01
@@ -36,7 +36,7 @@ def _order_book_observables(system: System) -> list[Observable]:
     ]
 
 
-class StockTrader(Element):
+class StockTraderComponent(ElementComponent):
     """Trader who forecasts the price as a fundamentalist or a chartist, quotes a limit order, and imitates.
 
     A fundamentalist expects the price `p` to revert to the fundamental value `F`, `p + reversion (F - p)`, and a
@@ -92,28 +92,28 @@ class StockTrader(Element):
             The probability of copying a more successful neighbour.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import StockTrader
-        >>> StockTrader.group('traders', 4, strategy=1.0).size
+        >>> from skcomplex.models.economics.finance import StockTraderComponent
+        >>> StockTraderComponent.group('traders', 4, strategy=1.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
-    strategy: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    money: float = state(default=1000.0, domain=Domain.REAL)
-    shares: float = state(default=10.0, domain=Domain.REAL)
-    bid: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    ask: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    wealth: float = state(default=0.0, domain=Domain.REAL)
-    gain: float = state(default=0.0, domain=Domain.REAL)
-    fundamental: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    reversion: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    extrapolation: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    noise: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    imitation: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    strategy: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    money: float = state(default=1000.0, domain=NumericDomain.REAL)
+    shares: float = state(default=10.0, domain=NumericDomain.REAL)
+    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ask: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    wealth: float = state(default=0.0, domain=NumericDomain.REAL)
+    gain: float = state(default=0.0, domain=NumericDomain.REAL)
+    fundamental: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    reversion: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    extrapolation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    noise: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    imitation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the quoting, accounting, and imitation rules in their phases.
 
         Args:
@@ -125,9 +125,9 @@ class StockTrader(Element):
                 The laws of the component.
         """
         return [
-            Rule(self.quote, phase='quote'),
-            Rule(self.account, phase='account'),
-            Rule(self.imitate, phase='imitation'),
+            RuleLaw(self.quote, phase='quote'),
+            RuleLaw(self.account, phase='account'),
+            RuleLaw(self.imitate, phase='imitation'),
         ]
 
     def _prices(self, model: ModelView) -> tuple[float, float]:
@@ -190,7 +190,7 @@ class StockTrader(Element):
             agent.strategy = other.strategy
 
 
-class Book(Interaction):
+class BookInteraction(BaseInteraction):
     """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
 
     The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.realizations`, and
@@ -212,8 +212,8 @@ class Book(Interaction):
                 The path of the group of traders.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import Book
-        >>> Book('book', traders='traders').reports
+        >>> from skcomplex.models.economics.finance import BookInteraction
+        >>> BookInteraction('book', traders='traders').reports
         ('price', 'volume')
     """
 
@@ -242,8 +242,8 @@ class Book(Interaction):
                 The laws of the component.
         """
         return [
-            Match('traders', pairing=OrderBook(), label='trades', phase='trade'),
-            Rule(self.settle, phase='trade'),
+            MatchLaw('traders', pairing=OrderBook(), label='trades', phase='trade'),
+            RuleLaw(self.settle, phase='trade'),
             *(
                 Invariant(f'total {name}', functools.partial(_total, name), tolerance=1e-6)
                 for name in ('money', 'shares')
@@ -335,7 +335,7 @@ def order_book(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    traders = StockTrader.group(
+    traders = StockTraderComponent.group(
         'traders',
         len(cells),
         location=cells,
@@ -351,10 +351,10 @@ def order_book(
     )
     return System(
         components=[traders],
-        interactions=[Book('book', traders='traders', opening=fundamental)],
+        interactions=[BookInteraction('book', traders='traders', opening=fundamental)],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(
-            schedule=Phases(
+            schedule=PhasesSchedule(
                 [Phase('quote'), Phase('trade'), Phase('account'), Phase('imitation', activation='simultaneous')],
             ),
         ),

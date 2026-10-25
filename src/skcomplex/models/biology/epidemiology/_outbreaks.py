@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, total
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, total
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
@@ -22,7 +22,7 @@ def _infected_share(member: Symbols) -> Expression:
     return member.P * member.i
 
 
-class ImmunizingDegreeClass(Element):
+class ImmunizingDegreeClassComponent(ElementComponent):
     """Susceptible, infected, and recovered densities of the nodes of one degree, in heterogeneous mean field.
 
     A susceptible node of degree `k` is infected at rate `beta k theta` and an infected node recovers at rate `mu`, so
@@ -57,20 +57,20 @@ class ImmunizingDegreeClass(Element):
             The probability `P(k)` of the degree.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ImmunizingDegreeClass
-        >>> ImmunizingDegreeClass.group('network', 3, k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2]).size
+        >>> from skcomplex.models.biology.epidemiology import ImmunizingDegreeClassComponent
+        >>> ImmunizingDegreeClassComponent.group('network', 3, k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2]).size
         3
     """
 
-    s: float = state(default=0.999, domain=Domain.NONNEGATIVE)
-    i: float = state(default=0.001, domain=Domain.NONNEGATIVE)
-    r: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    mu: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    P: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    s: float = state(default=0.999, domain=NumericDomain.NONNEGATIVE)
+    i: float = state(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    r: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    mu: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    P: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the infections along contacts and the recoveries of the class.
 
         Args:
@@ -84,7 +84,7 @@ class ImmunizingDegreeClass(Element):
         theta = total((s.k - 1) * s.P * s.i) / total(s.k * s.P)
         infections = s.beta * s.k * s.s * theta
         recoveries = s.mu * s.i
-        return [Rate(s.s, -infections), Rate(s.i, infections - recoveries), Rate(s.r, recoveries)]
+        return [RateLaw(s.s, -infections), RateLaw(s.i, infections - recoveries), RateLaw(s.r, recoveries)]
 
 
 @register_model(
@@ -149,7 +149,7 @@ def heterogeneous_mean_field_sir(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = ImmunizingDegreeClass.group(
+    classes = ImmunizingDegreeClassComponent.group(
         'network',
         len(degrees),
         s=1.0 - infected,

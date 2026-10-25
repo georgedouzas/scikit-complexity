@@ -11,7 +11,7 @@ from ._frames import Frame
 from ._trajectories import Trajectory
 
 
-class Observer:
+class BaseObserver:
     """Base class of objects that receive the frames of a simulation.
 
     Subclasses override any of `on_start`, `on_frame`, and `on_stop`.
@@ -37,15 +37,15 @@ class Observer:
         """Receive the end of the run."""
 
 
-class Recorder(Observer):
+class RecorderObserver(BaseObserver):
     """Observer that keeps every frame it receives.
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import Population
-        >>> from skcomplex.engine.runtime import Recorder, Simulation
-        >>> recorder = Recorder()
-        >>> _ = Simulation(System(components=[Population('a')]), dt=1, observers=[recorder]).run(until=2)
+        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
+        >>> recorder = RecorderObserver()
+        >>> _ = Simulation(System(components=[PopulationComponent('a')]), dt=1, observers=[recorder]).run(until=2)
         >>> len(recorder.trajectory)
         3
     """

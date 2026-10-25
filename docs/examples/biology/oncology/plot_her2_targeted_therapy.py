@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'her2_targeted_therapy'
-SOLVER = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)

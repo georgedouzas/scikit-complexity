@@ -9,28 +9,30 @@ import numpy as np
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ...engine.compile import Problem, Vector
-from ...engine.solvers import Stepper, StructureState
+from ...engine.solvers import Solver, StructureState
 from ._passes import RewritingProblem
 
 
-class Rewriter(Stepper):
-    """Stepper of rewriting systems, which rewrites every structure in parallel once per generation.
+class RewritingSolver(Solver):
+    """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
 
     The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Word
+        >>> from skcomplex.formalisms.rewriting import WordComponent
         >>> from skcomplex.formalisms.rewriting import Rewrite
-        >>> from skcomplex.formalisms.rewriting import Production
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.rewriting import Rewriter
+        >>> from skcomplex.formalisms.rewriting import RewritingSolver
         >>> system = System(
-        ...     components=[Word('algae', axiom='A')],
-        ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
+        ...     components=[WordComponent('algae', axiom='A')],
+        ...     interactions=[
+        ...         Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
+        ...     ],
         ... )
-        >>> trajectory = Simulation(system, solver=Rewriter()).run(until=5).trajectory_
+        >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
         >>> trajectory['algae.size'].tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """

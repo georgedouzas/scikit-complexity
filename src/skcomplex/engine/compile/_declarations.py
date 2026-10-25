@@ -13,9 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import I
 
 from ...core.base import (
-    Domain,
     Expression,
     LabelError,
+    NumericDomain,
     SymbolicVector,
     ValidationError,
     Variable,
@@ -26,7 +26,7 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import Element, Group, Wiener
+from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import Symbols
 from ...core.space import NetworkSpace
 from ._arrays import Vector
@@ -85,7 +85,7 @@ def check_symbol_names(blocks: dict[str, 'Block']) -> None:
 
 def is_interaction(node: Node) -> bool:
     """Check whether a node is an interaction."""
-    return not isinstance(node.component, Element | Group)
+    return not isinstance(node.component, ElementComponent | GroupComponent)
 
 
 def member_count(blocks: list['Block']) -> int:
@@ -210,14 +210,14 @@ class Declarations:
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
-        is_complex = declaration.domain is Domain.COMPLEX
+        is_complex = declaration.domain is NumericDomain.COMPLEX
         entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex)
         entries.append(entry)
         self.ends[is_state] += entry.size
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         names = [f'{base}_{index}' for index in range(member_shape[0])] if member_shape else [base]
         columns = [f'{item}_{part}' for item in names for part in ('re', 'im')] if is_complex else names
-        domain = Domain.REAL if is_complex else declaration.domain
+        domain = NumericDomain.REAL if is_complex else declaration.domain
         components = [symbol(item, domain) for item in columns]
         values_of = (
             [real + I * imaginary for real, imaginary in itertools.batched(components, 2)] if is_complex else components
@@ -232,11 +232,11 @@ class Declarations:
         node = block.node
         rows = node.members or 1
         name = f'{node.path}.{variable}'
-        entry = Entry(name, self.ends[False], (rows,), Domain.REAL, rows)
+        entry = Entry(name, self.ends[False], (rows,), NumericDomain.REAL, rows)
         self.parameters.append(entry)
         self.initial_parameters.append(np.asarray(values, dtype=float))
         self.ends[False] += entry.size
-        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', Domain.REAL)
+        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', NumericDomain.REAL)
         block.symbols[variable] = item
         block.entries[variable] = entry
         block.references[item] = Reference(entry, False, 0)
@@ -244,7 +244,7 @@ class Declarations:
     def _declare_topology(self, block: Block) -> None:
         """Add the activity of every row of a capacity group, and the ends of every edge of a group on edges."""
         node = block.node
-        group = cast('Group', node.component)
+        group = cast('GroupComponent', node.component)
         rows, active = node.members or 0, node.active or 0
         self._declare_hidden(block, ACTIVE, (np.arange(rows) < active).astype(float))
         if group.on != 'edges':
@@ -258,7 +258,7 @@ class Declarations:
         self,
         name: str,
         initial: Vector,
-        domain: Domain,
+        domain: NumericDomain,
         shape: tuple[int, ...] = (),
         members: int | None = None,
     ) -> Entry:

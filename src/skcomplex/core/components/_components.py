@@ -10,7 +10,7 @@ import numpy as np
 
 from ..base import (
     ComponentKind,
-    Domain,
+    NumericDomain,
     Requires,
     SpaceError,
     ValidationError,
@@ -18,9 +18,9 @@ from ..base import (
     VisualSpec,
     declarations_of,
 )
-from ..laws import Law
-from ..space import LatticeSpace, NetworkSpace, SiteSpace, Space, part_count
-from ._component import Component
+from ..laws import BaseLaw
+from ..space import BaseSpace, LatticeSpace, NetworkSpace, SiteSpace, part_count
+from ._component import BaseComponent
 
 PARTS = ('sites', 'edges', 'hyperedges')
 
@@ -34,25 +34,25 @@ def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> V
 
 
 def _check_element(label: str, element: object) -> None:
-    """Raise an error for a group whose element type is not an `Element` subclass."""
-    if isinstance(element, type) and issubclass(element, Element):
+    """Raise an error for a group whose element type is not an `ElementComponent` subclass."""
+    if isinstance(element, type) and issubclass(element, ElementComponent):
         return
     error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
     raise ValidationError(error_msg)
 
 
-def _check_size(group: 'Group') -> None:
+def _check_size(group: 'GroupComponent') -> None:
     """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
     if group.size is None and group.on is not None:
         return
     empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
-    if empty or (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
+    if empty or (NumericDomain.POSITIVE.contains(group.size) and NumericDomain.INTEGER.contains(group.size)):
         return
     error_msg = f'Group {group.label!r} has size {group.size!r}, which is not a positive integer.'
     raise ValidationError(error_msg)
 
 
-def _check_value_names(group: 'Group') -> None:
+def _check_value_names(group: 'GroupComponent') -> None:
     """Raise an error for a value whose name the element type of a group does not declare."""
     unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
     if not unknown:
@@ -66,7 +66,7 @@ def _check_value_names(group: 'Group') -> None:
     raise ValidationError(error_msg)
 
 
-def _check_value_rows(group: 'Group') -> None:
+def _check_value_rows(group: 'GroupComponent') -> None:
     """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
     if group.size is None:
         return
@@ -74,7 +74,7 @@ def _check_value_rows(group: 'Group') -> None:
     dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
-        if declaration is None or not isinstance(declaration.domain, Domain):
+        if declaration is None or not isinstance(declaration.domain, NumericDomain):
             continue
         try:
             shape = np.shape(value)
@@ -90,7 +90,7 @@ def _check_value_rows(group: 'Group') -> None:
         raise ValidationError(error_msg)
 
 
-def _check_group(group: 'Group') -> None:
+def _check_group(group: 'GroupComponent') -> None:
     """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
     _check_element(group.label, group.element)
     _check_size(group)
@@ -98,7 +98,7 @@ def _check_group(group: 'Group') -> None:
     _check_value_rows(group)
 
 
-class Element(Component):
+class ElementComponent(BaseComponent):
     """Base class of entities that carry state, such as particles, populations, agents, or firms.
 
     Subclasses declare their states with `state` and their parameters with `parameter`, and can override `laws` to
@@ -116,12 +116,12 @@ class Element(Component):
             The label of the element, unique among the children of its system.
 
     Examples:
-        >>> from skcomplex.core.base import Domain, state
-        >>> from skcomplex.core.components import Element
-        >>> class Population(Element):
-        ...     n: float = state(1.0, domain=Domain.NONNEGATIVE)
-        >>> Population('rabbits', n=40)
-        Population(label='rabbits', n=40)
+        >>> from skcomplex.core.base import NumericDomain, state
+        >>> from skcomplex.core.components import ElementComponent
+        >>> class PopulationComponent(ElementComponent):
+        ...     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
+        >>> PopulationComponent('rabbits', n=40)
+        PopulationComponent(label='rabbits', n=40)
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.ELEMENT
@@ -138,9 +138,9 @@ class Element(Component):
         *,
         states: Mapping[str, Any] | None = None,
         parameters: Mapping[str, Any] | None = None,
-        laws: Callable[..., list[Law]] | None = None,
+        laws: Callable[..., list[BaseLaw]] | None = None,
         visual: VisualSpec | None = None,
-    ) -> type['Element']:
+    ) -> type['ElementComponent']:
         """Return a new element type built from declarations, without writing a class.
 
         The type behaves like a subclass in groups, cloning, and parameter introspection. Assign it to a module-level
@@ -167,17 +167,17 @@ class Element(Component):
                 The new element type, a subclass of the type `define` is called on.
 
         Examples:
-            >>> from skcomplex.core.base import Domain, state
-            >>> from skcomplex.core.components import Element
-            >>> from skcomplex.core.laws import Rate
-            >>> Decaying = Element.define(
-            ...     'Decaying',
-            ...     states={'n': state(1.0, domain=Domain.NONNEGATIVE)},
+            >>> from skcomplex.core.base import NumericDomain, state
+            >>> from skcomplex.core.components import ElementComponent
+            >>> from skcomplex.core.laws import RateLaw
+            >>> DecayingComponent = ElementComponent.define(
+            ...     'DecayingComponent',
+            ...     states={'n': state(1.0, domain=NumericDomain.NONNEGATIVE)},
             ...     parameters={'k': 0.5},
-            ...     laws=lambda s: [Rate(s.n, -s.k * s.n)],
+            ...     laws=lambda s: [RateLaw(s.n, -s.k * s.n)],
             ... )
-            >>> Decaying('atoms', n=10.0)
-            Decaying(label='atoms', n=10.0)
+            >>> DecayingComponent('atoms', n=10.0)
+            DecayingComponent(label='atoms', n=10.0)
         """
         attributes = {} if visual is None else {'visual': visual}
         return cls._define(name, states=states, parameters=parameters, laws=laws, attributes=attributes)
@@ -193,7 +193,7 @@ class Element(Component):
         variable: bool = False,
         location: object = None,
         **values: object,
-    ) -> 'Group':
+    ) -> 'GroupComponent':
         """Return a group of identical members of this element type.
 
         The label and the size are given by position, so a state named `size` takes per-member values by keyword.
@@ -223,11 +223,19 @@ class Element(Component):
                 The group.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import Population
-            >>> Population.group('herds', 3, n=[10, 20, 30])
-            Group('herds', element=Population, size=3)
+            >>> from skcomplex.models.biology.ecology import PopulationComponent
+            >>> PopulationComponent.group('herds', 3, n=[10, 20, 30])
+            GroupComponent('herds', element=PopulationComponent, size=3)
         """
-        return Group(label, element=cls, size=size, values=values, visual=visual, variable=variable, location=location)
+        return GroupComponent(
+            label,
+            element=cls,
+            size=size,
+            values=values,
+            visual=visual,
+            variable=variable,
+            location=location,
+        )
 
     @classmethod
     def lattice(
@@ -238,7 +246,7 @@ class Element(Component):
         *,
         visual: VisualSpec | None = None,
         **values: Any,  # noqa: ANN401
-    ) -> 'Group':
+    ) -> 'GroupComponent':
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
@@ -268,11 +276,13 @@ class Element(Component):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.base import Domain, state
-            >>> from skcomplex.core.components import Element
+            >>> from skcomplex.core.base import NumericDomain, state
+            >>> from skcomplex.core.components import ElementComponent
             >>> from skcomplex.core.space import LatticeSpace
-            >>> Cell = Element.define('Cell', states={'alive': state(0, domain=Domain.BOOLEAN)})
-            >>> cells = Cell.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
+            >>> CellComponent = ElementComponent.define(
+            ...     'CellComponent', states={'alive': state(0, domain=NumericDomain.BOOLEAN)}
+            ... )
+            >>> cells = CellComponent.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
@@ -283,19 +293,28 @@ class Element(Component):
                 for name, value in values.items()
             }
             visual = _lattice_visual(cls, visual, 'sites')
-            return Group(label, element=cls, size=len(nodes), values=by_node, visual=visual, space=space, on='sites')
+            return GroupComponent(
+                label,
+                element=cls,
+                size=len(nodes),
+                values=by_node,
+                visual=visual,
+                space=space,
+                on='sites',
+            )
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
         visual = _lattice_visual(cls, visual, space.default_visual)
-        return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
+        return GroupComponent(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
 
 
-class Group(Component):
+class GroupComponent(BaseComponent):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
-    Groups are usually created with `Element.group`. A value is either an array whose first dimension is the size of
-    the group, or one value shared by every member. Variables without a value take the default of the element type.
+    Groups are usually created with `ElementComponent.group`. A value is either an array whose first dimension is the
+    size of the group, or one value shared by every member. Variables without a value take the default of the element
+    type.
 
     Args:
         label:
@@ -340,21 +359,23 @@ class Group(Component):
             The part is unknown, or the space does not have it, such as edges outside a network.
 
         ValidationError:
-            The element type is not an `Element` subclass, the size is not a positive integer, a value names a
+            The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value names a
             variable the element type does not declare, or a per-member value does not have one row per member.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components import Group
+        >>> from skcomplex.core.components import GroupComponent
         >>> from skcomplex.core.space import NetworkSpace
-        >>> from skcomplex.models.biology.ecology import Population
-        >>> Group('herds', element=Population, size=3).size
+        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> GroupComponent('herds', element=PopulationComponent, size=3).size
         3
-        >>> Group('weights', element=Population, space=NetworkSpace(nx.cycle_graph(30)), on='edges').size
+        >>> GroupComponent(
+        ...     'weights', element=PopulationComponent, space=NetworkSpace(nx.cycle_graph(30)), on='edges'
+        ... ).size
         30
         >>> from skcomplex.core.space import Layer
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
-        >>> Group('wages', element=Population, space=space, on='edges', layer='work').size
+        >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').size
         6
     """
 
@@ -364,11 +385,11 @@ class Group(Component):
         self,
         label: str,
         *,
-        element: type[Element],
+        element: type[ElementComponent],
         size: int | None = None,
         values: Mapping[str, Any] | None = None,
         visual: VisualSpec | None = None,
-        space: Space | None = None,
+        space: BaseSpace | None = None,
         variable: bool = False,
         on: str | None = None,
         location: object = None,
@@ -393,7 +414,7 @@ class Group(Component):
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
-        return f'Group({self.label!r}, element={self.element.__name__}, size={self.size})'
+        return f'{type(self).__name__}({self.label!r}, element={self.element.__name__}, size={self.size})'
 
     def default_visual(self) -> VisualSpec:
         """Return the visual of the group when it sets none, the visual of its element type.
@@ -403,9 +424,11 @@ class Group(Component):
                 The visual.
 
         Examples:
-            >>> from skcomplex.core.components import Group
-            >>> from skcomplex.models.biology.ecology import Population
-            >>> Group('herds', element=Population, size=3).default_visual() == Population.visual
+            >>> from skcomplex.core.components import GroupComponent
+            >>> from skcomplex.models.biology.ecology import PopulationComponent
+            >>> GroupComponent(
+            ...     'herds', element=PopulationComponent, size=3
+            ... ).default_visual() == PopulationComponent.visual
             True
         """
         return self.element.visual

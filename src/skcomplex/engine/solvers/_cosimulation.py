@@ -11,11 +11,11 @@ from sklearn.base import clone
 
 from ...core.base import (
     ComponentKind,
-    Domain,
     DomainKind,
     Form,
     LawKind,
     NoiseKind,
+    NumericDomain,
     OrderKind,
     SolverError,
     SpaceKind,
@@ -27,14 +27,14 @@ from ...core.components import Aggregate
 from ...core.system import reduce_values
 from ..compile import Partition, Problem, Vector, partition_system
 from ._snapshots import AgentState
-from ._stepper import Stepper, register_solver, resolve_solver
+from ._stepper import Solver, register_solver, resolve_solver
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
 TOLERANCE = 1e-9
 SCHEMES = ('gauss-seidel', 'jacobi')
 
 
-class CoSimulation(Stepper):
+class CoSimulationSolver(Solver):
     """Scheduler that advances every partition of a co-simulation to each synchronisation point with its own solver.
 
     Between synchronisation points a partition holds the states of the other partitions at their last values, so a
@@ -62,16 +62,24 @@ class CoSimulation(Stepper):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.engine.solvers import CoSimulation
+        >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(
         ...     components=[
-        ...         System('a', components=[Population('x', n=1)], interactions=[ExponentialGrowth('g', target='x')]),
-        ...         System('b', components=[Population('y', n=1)], interactions=[ExponentialGrowth('g', target='y')]),
+        ...         System(
+        ...             'a',
+        ...             components=[PopulationComponent('x', n=1)],
+        ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
+        ...         ),
+        ...         System(
+        ...             'b',
+        ...             components=[PopulationComponent('y', n=1)],
+        ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
+        ...         ),
         ...     ],
         ... )
-        >>> simulation = Simulation(system, solver=CoSimulation(split=True), dt=0.5).run(until=1)
+        >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5).run(until=1)
         >>> sorted(simulation.stepper_.steppers_)
         ['a', 'b']
     """
@@ -111,7 +119,7 @@ class CoSimulation(Stepper):
 
     def __init__(
         self,
-        solvers: Mapping[str, str | Stepper] | None = None,
+        solvers: Mapping[str, str | Solver] | None = None,
         sync_dt: float | None = None,
         scheme: str = 'gauss-seidel',
         split: bool = False,
@@ -141,7 +149,7 @@ class CoSimulation(Stepper):
         if problem.form is not Form.COUPLED:
             if not self.split or problem.system is None:
                 error_msg = (
-                    f'CoSimulation runs co-simulations, but the problem has the {problem.form.value} form. Pass '
+                    f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form.value} form. Pass '
                     '`split=True` to split it into one partition per subsystem.'
                 )
                 raise SolverError(error_msg)
@@ -149,10 +157,10 @@ class CoSimulation(Stepper):
         self.problem_, self.rng_ = problem, rng
         generators = rng.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
-        self.steppers_: dict[str, Stepper] = {}
+        self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
             solver = given.get(partition.name, 'auto')
-            stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Stepper) else solver)
+            stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
             stepper.initialize(partition.problem, generator)
             self.steppers_[partition.name] = stepper
         self._aggregates = [element for element in problem.elements if isinstance(element.element, Aggregate)]
@@ -166,7 +174,7 @@ class CoSimulation(Stepper):
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
-        if stepwise and not Domain.INTEGER.contains(round(interval, 9)):
+        if stepwise and not NumericDomain.INTEGER.contains(round(interval, 9)):
             error_msg = f'sync_dt = {interval!r} must be a whole number of steps for discrete and agent partitions.'
             raise ValidationError(error_msg)
         return [
@@ -297,4 +305,4 @@ class CoSimulation(Stepper):
         return AgentState(groups, reporters) if groups or reporters else None
 
 
-register_solver('co-simulation', CoSimulation, default=True)
+register_solver('co-simulation', CoSimulationSolver, default=True)

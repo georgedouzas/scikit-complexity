@@ -8,16 +8,16 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import SSPRK, Field, Flux
+from ....formalisms.fields import FieldComponent, FluxLaw, SSPRKSolver
 
 
-class WaveNumber(Element):
+class WaveNumberComponent(ElementComponent):
     """Local wave number of deep-water waves, conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
 
     The wave number travels at the group speed `C(k) = sqrt(g / k) / 2`, which falls as the waves shorten, so long
@@ -34,15 +34,15 @@ class WaveNumber(Element):
             The gravitational acceleration.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import WaveNumber
-        >>> WaveNumber('site').g
+        >>> from skcomplex.models.physics.fluids import WaveNumberComponent
+        >>> WaveNumberComponent('site').g
         1.0
     """
 
-    k: float = state(default=1.0, domain=Domain.POSITIVE)
-    g: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    k: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the conservation of waves, with the frequency as the flux of the wave number.
 
         Args:
@@ -53,10 +53,10 @@ class WaveNumber(Element):
             laws:
                 The laws of the component.
         """
-        return [Flux(s.k, sqrt(s.g * s.k))]
+        return [FluxLaw(s.k, sqrt(s.g * s.k))]
 
 
-class CarlemanGas(Element):
+class CarlemanGasComponent(ElementComponent):
     """Site of the Carleman discrete-velocity gas, densities `f_plus` and `f_minus` moving at the speeds `c` and `-c`.
 
     Collisions turn two particles of one velocity into two of the other at the rate `kappa`, so
@@ -80,17 +80,17 @@ class CarlemanGas(Element):
             The collision rate.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import CarlemanGas
-        >>> CarlemanGas('site').kappa
+        >>> from skcomplex.models.physics.fluids import CarlemanGasComponent
+        >>> CarlemanGasComponent('site').kappa
         1.0
     """
 
-    f_plus: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    f_minus: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    c: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    kappa: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    f_plus: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    f_minus: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    c: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    kappa: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transport of both densities and their collisions.
 
         Args:
@@ -103,10 +103,10 @@ class CarlemanGas(Element):
         """
         collisions = s.kappa * (s.f_minus**2 - s.f_plus**2)
         return [
-            Flux(s.f_plus, s.c * s.f_plus),
-            Flux(s.f_minus, -s.c * s.f_minus),
-            Rate(s.f_plus, collisions),
-            Rate(s.f_minus, -collisions),
+            FluxLaw(s.f_plus, s.c * s.f_plus),
+            FluxLaw(s.f_minus, -s.c * s.f_minus),
+            RateLaw(s.f_plus, collisions),
+            RateLaw(s.f_minus, -collisions),
         ]
 
 
@@ -114,7 +114,7 @@ class CarlemanGas(Element):
     field='physics/fluids',
     tags=('field', 'waves', 'breaking', 'conservation law', 'finite volume', 'pde'),
     references=('Whitham 1974', 'Forrest 2018'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': SSPRK()},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': SSPRKSolver()},
 )
 def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: float = 1.0) -> System:
     """Return the kinematic wave equation of deep-water wave trains on a periodic interval of length 2 pi.
@@ -149,14 +149,16 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
     centers = (np.arange(n) + 0.5) * spacing
     values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
     space = LatticeSpace(n, spacing=spacing)
-    return System(components=[Field('train', WaveNumber, space, values=values, discretization='finite-volume')])
+    return System(
+        components=[FieldComponent('train', WaveNumberComponent, space, values=values, discretization='finite-volume')],
+    )
 
 
 @register_model(
     field='physics/fluids',
     tags=('field', 'kinetic theory', 'discrete velocities', 'finite volume', 'pde'),
     references=('Carleman 1957', 'Gatignol 1975', 'Bellomo et al. 2017'),
-    defaults={'until': 5.0, 'dt': 0.1, 'solver': SSPRK()},
+    defaults={'until': 5.0, 'dt': 0.1, 'solver': SSPRKSolver()},
 )
 def discrete_velocity_boltzmann(
     n: int = 200,
@@ -197,4 +199,6 @@ def discrete_velocity_boltzmann(
     pulse = np.exp(-((centers - length / 2) ** 2))
     values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
     space = LatticeSpace(n, spacing=spacing)
-    return System(components=[Field('gas', CarlemanGas, space, values=values, discretization='finite-volume')])
+    return System(
+        components=[FieldComponent('gas', CarlemanGasComponent, space, values=values, discretization='finite-volume')],
+    )

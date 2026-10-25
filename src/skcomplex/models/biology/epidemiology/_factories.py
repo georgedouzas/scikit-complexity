@@ -5,7 +5,7 @@
 
 from ....core.system import System
 from ....engine.runtime import register_model
-from ._compartments import Compartment, ImmunityLoss, Infection, Recovery
+from ._compartments import CompartmentComponent, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 
 
 @register_model(
@@ -54,10 +54,14 @@ def sir(
         ['S', 'I', 'R']
     """
     return System(
-        components=[Compartment('S', n=susceptible), Compartment('I', n=infected), Compartment('R', n=recovered)],
+        components=[
+            CompartmentComponent('S', n=susceptible),
+            CompartmentComponent('I', n=infected),
+            CompartmentComponent('R', n=recovered),
+        ],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
-            Recovery('recovery', infected='I', recovered='R', gamma=gamma, stochastic=stochastic),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=gamma, stochastic=stochastic),
         ],
     )
 
@@ -106,10 +110,10 @@ def sis(
         ['S', 'I']
     """
     return System(
-        components=[Compartment('S', n=susceptible), Compartment('I', n=infected)],
+        components=[CompartmentComponent('S', n=susceptible), CompartmentComponent('I', n=infected)],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
-            Recovery('recovery', infected='I', recovered='S', gamma=gamma, stochastic=stochastic),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
+            RecoveryInteraction('recovery', infected='I', recovered='S', gamma=gamma, stochastic=stochastic),
         ],
     )
 
@@ -166,10 +170,14 @@ def sirs(
         0.1
     """
     return System(
-        components=[Compartment('S', n=susceptible), Compartment('I', n=infected), Compartment('R', n=recovered)],
+        components=[
+            CompartmentComponent('S', n=susceptible),
+            CompartmentComponent('I', n=infected),
+            CompartmentComponent('R', n=recovered),
+        ],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
-            Recovery('recovery', infected='I', recovered='R', gamma=gamma, stochastic=stochastic),
-            ImmunityLoss('waning', recovered='R', susceptible='S', xi=xi, stochastic=stochastic),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=gamma, stochastic=stochastic),
+            ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=xi, stochastic=stochastic),
         ],
     )

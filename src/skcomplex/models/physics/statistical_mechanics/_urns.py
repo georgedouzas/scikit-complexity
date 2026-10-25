@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Update, bernoulli
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import UpdateLaw, bernoulli
 from ....core.system import System
 from ....engine.runtime import register_model
 
-EhrenfestUrn = Element.define(
-    'EhrenfestUrn',
-    states={'n': state(default=0, domain=Domain.NONNEGATIVE_INTEGER)},
-    parameters={'N': parameter(40, domain=Domain.POSITIVE)},
-    laws=lambda s: [Update(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))],
+EhrenfestUrnComponent = ElementComponent.define(
+    'EhrenfestUrnComponent',
+    states={'n': state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)},
+    parameters={'N': parameter(40, domain=NumericDomain.POSITIVE)},
+    laws=lambda s: [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))],
 )
 
 
@@ -49,4 +49,4 @@ def ehrenfest_urn(n_balls: int = 40, *, in_first: int | None = None) -> System:
         10
     """
     n = n_balls if in_first is None else in_first
-    return System(components=[EhrenfestUrn('urn', n=n, N=n_balls)])
+    return System(components=[EhrenfestUrnComponent('urn', n=n, N=n_balls)])

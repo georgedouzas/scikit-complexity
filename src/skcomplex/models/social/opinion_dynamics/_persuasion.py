@@ -9,14 +9,14 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -26,7 +26,7 @@ def _shares(size: int, share: float, random_state: int | np.random.Generator | N
     return (np.random.default_rng(random_state).random(size) < share).astype(float)
 
 
-class Persuader(Element):
+class PersuaderComponent(ElementComponent):
     """Agent of the Sznajd model, who convinces the neighbours of an agreeing pair.
 
     A step of an agent picks a random neighbour, and when both share an opinion every neighbour of either adopts it.
@@ -40,15 +40,15 @@ class Persuader(Element):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Persuader
-        >>> Persuader.group('people', 10, opinion=1.0)
-        Group('people', element=Persuader, size=10)
+        >>> from skcomplex.models.social.opinion_dynamics import PersuaderComponent
+        >>> PersuaderComponent.group('people', 10, opinion=1.0)
+        GroupComponent('people', element=PersuaderComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the persuasion rule.
 
         Args:
@@ -59,7 +59,7 @@ class Persuader(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.persuade)]
+        return [RuleLaw(self.persuade)]
 
     def persuade(self, agent: AgentView, model: ModelView) -> None:
         """Convince the neighbours of the agent and a random neighbour when the two agree.
@@ -81,7 +81,7 @@ class Persuader(Element):
             other.opinion = agent.opinion
 
 
-class Citizen(Element):
+class CitizenComponent(ElementComponent):
     """Agent of the Galam majority model, who holds a binary opinion.
 
     Args:
@@ -95,16 +95,16 @@ class Citizen(Element):
             The number of agents in each discussion group.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Citizen
-        >>> Citizen.group('citizens', 10, group_size=3)
-        Group('citizens', element=Citizen, size=10)
+        >>> from skcomplex.models.social.opinion_dynamics import CitizenComponent
+        >>> CitizenComponent.group('citizens', 10, group_size=3)
+        GroupComponent('citizens', element=CitizenComponent, size=10)
     """
 
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    group_size: float = parameter(default=3, domain=Domain.POSITIVE)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    group_size: float = parameter(default=3, domain=NumericDomain.POSITIVE)
 
 
-class Discussions(Interaction):
+class DiscussionsInteraction(BaseInteraction):
     """Discussions of the Galam model, which split the agents into random groups that adopt their majority opinion.
 
     A tie in a group of even size goes to opinion 0, the status quo.
@@ -117,14 +117,14 @@ class Discussions(Interaction):
             The path of the group of citizens.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Discussions
-        >>> Discussions('talks', target='citizens').target
+        >>> from skcomplex.models.social.opinion_dynamics import DiscussionsInteraction
+        >>> DiscussionsInteraction('talks', target='citizens').target
         'citizens'
     """
 
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the discussion rule.
 
         Args:
@@ -135,7 +135,7 @@ class Discussions(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.discuss)]
+        return [RuleLaw(self.discuss)]
 
     def discuss(self, model: ModelView) -> None:
         """Split the citizens into random groups and give each group its majority opinion.
@@ -156,7 +156,7 @@ class Discussions(Interaction):
                 member.opinion = majority
 
 
-class Influencee(Element):
+class InfluenceeComponent(ElementComponent):
     """Agent of the social impact model, with an opinion of -1 or 1, a persuasiveness, and a supportiveness.
 
     Args:
@@ -179,20 +179,20 @@ class Influencee(Element):
             The half-width of the uniform random field added to the impact on every agent and step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Influencee
-        >>> Influencee.group('people', 4, opinion=-1.0)
-        Group('people', element=Influencee, size=4)
+        >>> from skcomplex.models.social.opinion_dynamics import InfluenceeComponent
+        >>> InfluenceeComponent.group('people', 4, opinion=-1.0)
+        GroupComponent('people', element=InfluenceeComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
-    opinion: float = state(default=1.0, domain=Domain.INTEGER)
-    persuasiveness: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    supportiveness: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    exponent: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    noise: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=1.0, domain=NumericDomain.INTEGER)
+    persuasiveness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    supportiveness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    exponent: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    noise: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class SocialImpact(Interaction):
+class SocialImpactInteraction(BaseInteraction):
     """Synchronous update of the social impact model, where every agent takes the opinion of the stronger impact.
 
     The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
@@ -208,14 +208,14 @@ class SocialImpact(Interaction):
             The path of the group of agents.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import SocialImpact
-        >>> SocialImpact('impact', target='people').target
+        >>> from skcomplex.models.social.opinion_dynamics import SocialImpactInteraction
+        >>> SocialImpactInteraction('impact', target='people').target
         'people'
     """
 
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the impact rule.
 
         Args:
@@ -226,7 +226,7 @@ class SocialImpact(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.update)]
+        return [RuleLaw(self.update)]
 
     def update(self, model: ModelView) -> None:
         """Flip every opinion under a positive net pressure to change.
@@ -291,7 +291,7 @@ def sznajd(
     """
     graph = nx.cycle_graph(50) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    people = Persuader.group('people', size, opinion=_shares(size, share, random_state))
+    people = PersuaderComponent.group('people', size, opinion=_shares(size, share, random_state))
     return System(components=[people], space=NetworkSpace(graph))
 
 
@@ -332,13 +332,13 @@ def galam_majority(
         >>> galam_majority(30, random_state=0).elements[0].size
         30
     """
-    citizens = Citizen.group(
+    citizens = CitizenComponent.group(
         'citizens',
         n_agents,
         opinion=_shares(n_agents, share, random_state),
         group_size=group_size,
     )
-    return System(components=[citizens], interactions=[Discussions('talks', target='citizens')])
+    return System(components=[citizens], interactions=[DiscussionsInteraction('talks', target='citizens')])
 
 
 @register_model(
@@ -388,7 +388,7 @@ def social_impact(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    people = Influencee.group(
+    people = InfluenceeComponent.group(
         'people',
         size,
         location=[(column, row) for column in range(width) for row in range(height)],
@@ -400,6 +400,6 @@ def social_impact(
     )
     return System(
         components=[people],
-        interactions=[SocialImpact('impact', target='people')],
+        interactions=[SocialImpactInteraction('impact', target='people')],
         space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

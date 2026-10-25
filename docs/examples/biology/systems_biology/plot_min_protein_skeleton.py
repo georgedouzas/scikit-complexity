@@ -19,7 +19,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import dispersion_relation
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -30,7 +30,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = Simulation(
     system,
     dt=4.0,
-    solver=ScipyODE(method='BDF', jacobian='exact'),
+    solver=ScipyODESolver(method='BDF', jacobian='exact'),
     observers=[observer],
     random_state=0,
 ).run(until=400)

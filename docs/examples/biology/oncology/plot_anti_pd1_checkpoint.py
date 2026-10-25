@@ -13,13 +13,13 @@ grows back toward its capacity.
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'anti_pd1_checkpoint'
 
-solver = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).run(until=150)

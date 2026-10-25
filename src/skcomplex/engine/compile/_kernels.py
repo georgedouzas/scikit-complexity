@@ -14,7 +14,7 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ...core.base import Expression, ValidationError, symbols_of
-from ...core.laws import Law, NumericFunction
+from ...core.laws import BaseLaw, NumericFunction
 from ._arrays import Indices, Vector
 from ._layout import Entry, Layout
 from ._printing import numpy_function
@@ -837,4 +837,4 @@ class Lowered:
 
     kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
     jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
-    laws: dict[int, tuple[Any, Law]] = field(default_factory=dict)
+    laws: dict[int, tuple[Any, BaseLaw]] = field(default_factory=dict)

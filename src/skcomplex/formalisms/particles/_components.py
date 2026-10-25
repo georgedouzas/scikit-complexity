@@ -7,12 +7,12 @@ from typing import ClassVar
 
 import numpy.typing as npt
 
-from ...core.base import Domain, Requires, SpaceKind, VisualSpec, parameter, state
-from ...core.components import Element
-from ...core.laws import Law, Rate, Symbols
+from ...core.base import NumericDomain, Requires, SpaceKind, VisualSpec, parameter, state
+from ...core.components import ElementComponent
+from ...core.laws import BaseLaw, RateLaw, Symbols
 
 
-class Particle(Element):
+class ParticleComponent(ElementComponent):
     """Point particle with a position, a velocity, and a mass.
 
     The particle moves with its velocity, and every force on it changes its velocity by the force divided by its mass.
@@ -31,9 +31,9 @@ class Particle(Element):
             The mass.
 
     Examples:
-        >>> from skcomplex.formalisms.particles import Particle
-        >>> Particle('ball', x=[0, 1], m=2.0)
-        Particle(label='ball', m=2.0, x=[0, 1])
+        >>> from skcomplex.formalisms.particles import ParticleComponent
+        >>> ParticleComponent('ball', x=[0, 1], m=2.0)
+        ParticleComponent(label='ball', m=2.0, x=[0, 1])
     """
 
     requires: ClassVar[Requires] = Requires(space={SpaceKind.CONTINUOUS})
@@ -41,9 +41,9 @@ class Particle(Element):
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x'})
     x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
     v: npt.ArrayLike = state(default=0.0, vector=True, velocity_of='x')
-    m: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    m: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the kinematic law `dx/dt = v`.
 
         Args:
@@ -54,4 +54,4 @@ class Particle(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.x, s.v)]
+        return [RateLaw(s.x, s.v)]

@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate, Symbols, derivative, pulse_train, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, Symbols, derivative, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -20,49 +20,49 @@ def _wheel_load(s: Symbols) -> Expression:
     return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
 
-RegenerativeCar = Element.define(
-    'RegenerativeCar',
+RegenerativeCarComponent = ElementComponent.define(
+    'RegenerativeCarComponent',
     states={'v': state(default=20.0), 'I': 0.0, 'Vs': 0.0},
     parameters={
-        'm': parameter(default=1000.0, domain=Domain.POSITIVE),
-        'A': parameter(default=1.2, domain=Domain.NONNEGATIVE),
-        'L': parameter(default=0.01, domain=Domain.POSITIVE),
-        'R': parameter(default=0.05, domain=Domain.POSITIVE),
-        'C': parameter(default=680.0, domain=Domain.POSITIVE),
-        'alpha': parameter(default=50.0, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=5.0, domain=Domain.NONNEGATIVE),
+        'm': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
+        'A': parameter(default=1.2, domain=NumericDomain.NONNEGATIVE),
+        'L': parameter(default=0.01, domain=NumericDomain.POSITIVE),
+        'R': parameter(default=0.05, domain=NumericDomain.POSITIVE),
+        'C': parameter(default=680.0, domain=NumericDomain.POSITIVE),
+        'alpha': parameter(default=50.0, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
-        Rate(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
-        Rate(s.Vs, s.I / s.C),
+        RateLaw(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
+        RateLaw(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
+        RateLaw(s.Vs, s.I / s.C),
     ],
 )
 
-FaradayDisk = Element.define(
-    'FaradayDisk',
+FaradayDiskComponent = ElementComponent.define(
+    'FaradayDiskComponent',
     states={'I': 0.0, 'U': 0.0, 'omega': 0.0},
     parameters={
-        'B': parameter(default=1.5, domain=Domain.NONNEGATIVE),
-        'r1': parameter(default=0.025, domain=Domain.POSITIVE),
-        'r2': parameter(default=0.55, domain=Domain.POSITIVE),
-        'L': parameter(default=0.2, domain=Domain.POSITIVE),
-        'C': parameter(default=0.75, domain=Domain.POSITIVE),
-        'R1': parameter(default=2.3, domain=Domain.POSITIVE),
-        'R2': parameter(default=109.0, domain=Domain.POSITIVE),
-        'alpha': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'J': parameter(default=0.5, domain=Domain.POSITIVE),
-        'mu': parameter(default=1.2566370614359173e-4, domain=Domain.NONNEGATIVE),
-        'N': parameter(default=250.0, domain=Domain.NONNEGATIVE),
-        'l': parameter(default=0.05, domain=Domain.POSITIVE),
+        'B': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
+        'r1': parameter(default=0.025, domain=NumericDomain.POSITIVE),
+        'r2': parameter(default=0.55, domain=NumericDomain.POSITIVE),
+        'L': parameter(default=0.2, domain=NumericDomain.POSITIVE),
+        'C': parameter(default=0.75, domain=NumericDomain.POSITIVE),
+        'R1': parameter(default=2.3, domain=NumericDomain.POSITIVE),
+        'R2': parameter(default=109.0, domain=NumericDomain.POSITIVE),
+        'alpha': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'J': parameter(default=0.5, domain=NumericDomain.POSITIVE),
+        'mu': parameter(default=1.2566370614359173e-4, domain=NumericDomain.NONNEGATIVE),
+        'N': parameter(default=250.0, domain=NumericDomain.NONNEGATIVE),
+        'l': parameter(default=0.05, domain=NumericDomain.POSITIVE),
         'M': parameter(default=4.8),
         'a0': 8.0,
-        'a1': parameter(default=0.75, domain=Domain.NONNEGATIVE),
-        'a3': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'a1': parameter(default=0.75, domain=NumericDomain.NONNEGATIVE),
+        'a3': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.I,
             (
                 -s.R1 * s.I
@@ -72,8 +72,8 @@ FaradayDisk = Element.define(
             )
             / s.L,
         ),
-        Rate(s.U, (s.I - s.U / s.R2) / s.C),
-        Rate(
+        RateLaw(s.U, (s.I - s.U / s.R2) / s.C),
+        RateLaw(
             s.omega,
             (
                 s.M
@@ -86,30 +86,30 @@ FaradayDisk = Element.define(
     ],
 )
 
-RailSegment = Element.define(
-    'RailSegment',
+RailSegmentComponent = ElementComponent.define(
+    'RailSegmentComponent',
     states={'z': state(default=0.0, order=2), 'zs': state(default=0.0, order=2)},
     parameters={
-        'Mr': parameter(default=60.0, domain=Domain.POSITIVE),
-        'Ms': parameter(default=156.0, domain=Domain.POSITIVE),
-        'kr': parameter(default=6000.0, domain=Domain.NONNEGATIVE),
-        'br': parameter(default=300.0, domain=Domain.NONNEGATIVE),
-        'ks': parameter(default=1500.0, domain=Domain.NONNEGATIVE),
-        'bs': parameter(default=520.0, domain=Domain.NONNEGATIVE),
-        'k2': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'Mr': parameter(default=60.0, domain=NumericDomain.POSITIVE),
+        'Ms': parameter(default=156.0, domain=NumericDomain.POSITIVE),
+        'kr': parameter(default=6000.0, domain=NumericDomain.NONNEGATIVE),
+        'br': parameter(default=300.0, domain=NumericDomain.NONNEGATIVE),
+        'ks': parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE),
+        'bs': parameter(default=520.0, domain=NumericDomain.NONNEGATIVE),
+        'k2': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
         'alpha': 1.75,
         'beta': -1.0,
-        'F': parameter(default=1000.0, domain=Domain.NONNEGATIVE),
-        'T': parameter(default=10.0, domain=Domain.POSITIVE),
-        'width': parameter(default=1.0, domain=Domain.POSITIVE),
-        'spacing': parameter(default=3.0, domain=Domain.NONNEGATIVE),
+        'F': parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE),
+        'T': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'width': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'spacing': parameter(default=3.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.z,
             (_wheel_load(s) - s.br * (derivative(s.z, 1) - derivative(s.zs, 1)) - s.kr * (s.z - s.zs)) / s.Mr,
         ),
-        Rate(
+        RateLaw(
             s.zs,
             (
                 s.br * (derivative(s.z, 1) - derivative(s.zs, 1))
@@ -183,7 +183,7 @@ def regenerative_braking(
         >>> regenerative_braking(C=100.0).elements[0].C
         100.0
     """
-    car = RegenerativeCar('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
+    car = RegenerativeCarComponent('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
     return System(components=[car])
 
 
@@ -265,7 +265,7 @@ def faraday_disk(
         >>> faraday_disk(M=6.0).elements[0].M
         6.0
     """
-    charger = FaradayDisk('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
+    charger = FaradayDiskComponent('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
     return System(components=[charger])
 
 
@@ -324,5 +324,5 @@ def wheel_rail_contact(
         >>> wheel_rail_contact(k2=500.0).elements[0].k2
         500.0
     """
-    rail = RailSegment('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
+    rail = RailSegmentComponent('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
     return System(components=[rail])

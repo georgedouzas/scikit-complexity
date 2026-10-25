@@ -5,22 +5,22 @@
 
 import math
 
-from ....core.base import Domain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import Equation, derivative
+from ....core.base import NumericDomain, ValidationError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import EquationLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-ScaleFactor = Element.define(
-    'ScaleFactor',
-    states={'a': state(default=1.0, domain=Domain.POSITIVE, order=2)},
+ScaleFactorComponent = ElementComponent.define(
+    'ScaleFactorComponent',
+    states={'a': state(default=1.0, domain=NumericDomain.POSITIVE, order=2)},
     parameters={
-        'H0': parameter(default=1.0, domain=Domain.POSITIVE),
-        'omega_matter': parameter(default=0.3, domain=Domain.NONNEGATIVE),
+        'H0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'omega_matter': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
         'omega_lambda': 0.7,
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             s.a**2 * derivative(s.a, 2) == -s.omega_matter * s.H0**2 / 2 + s.omega_lambda * s.H0**2 * s.a**3,
         ),
     ],
@@ -81,7 +81,7 @@ def friedmann_expansion(
             'omega_matter, and omega_lambda for which it is positive.'
         )
         raise ValidationError(error_msg)
-    universe = ScaleFactor(
+    universe = ScaleFactorComponent(
         'universe',
         a=a,
         a_d1=math.sqrt(square),

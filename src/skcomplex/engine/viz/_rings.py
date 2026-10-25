@@ -12,7 +12,7 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _phase_colors
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 PHASE_MARGIN = 0.1
 HEIGHT_SHARE = 0.6
@@ -24,7 +24,7 @@ def _phase_scale(extent: float) -> float:
     return HEIGHT_SHARE * max(extent, 1.0) / (2 * np.pi)
 
 
-class PhaseRingVisual(Visual):
+class PhaseRingVisual(BaseVisual):
     """Visual that logs the wrapped phases of a group of oscillators against their position as colored points.
 
     Every member is a point at its position along the group and its phase wrapped into `(-pi, pi]`, colored by the

@@ -7,20 +7,20 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
-NonreciprocalMixture = Element.define(
-    'NonreciprocalMixture',
+NonreciprocalMixtureComponent = ElementComponent.define(
+    'NonreciprocalMixtureComponent',
     states={'phi': 0.0, 'psi': 0.0},
     parameters={'chi': 0.0, 'alpha': 0.3, 'D': 0.1, 'kappa': 1.0},
     laws=lambda s: [
-        Rate(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
-        Rate(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
+        RateLaw(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
+        RateLaw(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
     ],
 )
 
@@ -91,4 +91,4 @@ def nonreciprocal_cahn_hilliard(
         'kappa': kappa,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[Field('mixture', NonreciprocalMixture, space, values=values)])
+    return System(components=[FieldComponent('mixture', NonreciprocalMixtureComponent, space, values=values)])

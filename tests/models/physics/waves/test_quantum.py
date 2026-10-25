@@ -7,7 +7,7 @@ from skcomplex.core.base import ValidationError
 from skcomplex.engine.analysis import purity
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4
+from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 from skcomplex.models.physics.waves import schrodinger
 
@@ -28,7 +28,7 @@ def test_schrodinger_packet_moves_at_the_group_velocity_and_keeps_its_norm():
 def test_schrodinger_formulations_agree():
     """Test that the field and operator formulations give the same probability of every site."""
     spacing = 40.0 / 128
-    fields = Simulation(create('schrodinger', n_sites=128), dt=0.5, solver=ETDRK4(dt=0.01)).run(until=4.0)
+    fields = Simulation(create('schrodinger', n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).run(until=4.0)
     operators = Simulation(create('schrodinger', n_sites=128, formulation='operators'), dt=0.5).run(until=4.0)
     density = fields.trajectory_['packet.u'] ** 2 + fields.trajectory_['packet.w'] ** 2
     probability = np.abs(operators.trajectory_['schrodinger.state']) ** 2

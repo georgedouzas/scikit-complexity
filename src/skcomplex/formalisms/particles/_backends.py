@@ -17,10 +17,10 @@ from ...core.base import (
     NUMERIC_DOMAINS,
     BackendError,
     ComponentKind,
-    Domain,
     Form,
     LawKind,
     NoiseKind,
+    NumericDomain,
     OrderKind,
     SpaceKind,
     Supports,
@@ -29,15 +29,15 @@ from ...core.base import (
     declarations_of,
     symbol,
 )
-from ...core.interactions import Interaction
+from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ...core.space import ContinuousSpace
 from ...core.system import System
-from ...engine.backends import ExternalBackend
+from ...engine.backends import ExternalSolver
 from ...engine.compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, Vector, compile_system
 from ...engine.solvers import step_count
-from ._components import Particle
-from ._interactions import PairPotential
+from ._components import ParticleComponent
+from ._interactions import PairPotentialInteraction
 from ._lepton import lepton_expression
 
 LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
@@ -46,18 +46,18 @@ MAX_SEED = 900_000_000
 SUPPORTED_DIMENSIONS = (2, 3)
 type PairArguments = Callable[[Callable[[str], Vector]], str]
 type FixCommand = Callable[[LammpsFix], str]
-NATIVE_PAIRS: dict[type[Interaction], tuple[str, PairArguments]] = {}
-NATIVE_FIXES: dict[type[Interaction], FixCommand] = {}
+NATIVE_PAIRS: dict[type[BaseInteraction], tuple[str, PairArguments]] = {}
+NATIVE_FIXES: dict[type[BaseInteraction], FixCommand] = {}
 
 
-def _native[T](table: dict[type[Interaction], T], interaction: Interaction) -> T | None:
+def _native[T](table: dict[type[BaseInteraction], T], interaction: BaseInteraction) -> T | None:
     """Return the native translation of an interaction from the nearest registered class, or `None`."""
     return next((table[cls] for cls in type(interaction).__mro__ if cls in table), None)
 
 
-def _is_native(interaction: Interaction) -> bool:
+def _is_native(interaction: BaseInteraction) -> bool:
     """Check whether LAMMPS runs an interaction natively, as a pair style or a fix."""
-    return isinstance(interaction, PairPotential) or _native(NATIVE_FIXES, interaction) is not None
+    return isinstance(interaction, PairPotentialInteraction) or _native(NATIVE_FIXES, interaction) is not None
 
 
 def _state_indices(problem: Problem, name: str) -> npt.NDArray[np.intp]:
@@ -137,7 +137,7 @@ def _check_elements(problem: Problem) -> list[str]:
     unsupported = []
     for element in problem.elements:
         element_type = element.element.element if element.members is not None else type(element.element)
-        if not issubclass(element_type, Particle):
+        if not issubclass(element_type, ParticleComponent):
             unsupported.append(f'element {element.path} of type {element_type.__name__}, which is not a Particle')
             continue
         n_dim = problem.states.entry(element.states['x']).columns
@@ -155,7 +155,7 @@ def _box(problem: Problem) -> ContinuousSpace | None:
     return space if isinstance(space, ContinuousSpace) and space.boundary != 'open' else None
 
 
-def register_lammps_pair(interaction: type[PairPotential], style: str, arguments: PairArguments) -> None:
+def register_lammps_pair(interaction: type[PairPotentialInteraction], style: str, arguments: PairArguments) -> None:
     """Register the native LAMMPS pair style of a pair potential, which the backend uses instead of Lepton.
 
     Args:
@@ -170,18 +170,18 @@ def register_lammps_pair(interaction: type[PairPotential], style: str, arguments
             which the backend appends.
 
     Examples:
-        >>> from skcomplex.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
-        >>> class Flat(PairPotential):
+        >>> from skcomplex.formalisms.particles import NATIVE_PAIRS, PairPotentialInteraction, register_lammps_pair
+        >>> class FlatInteraction(PairPotentialInteraction):
         ...     def pair_energy(self, s, r):
         ...         return 0 * r
-        >>> register_lammps_pair(Flat, 'zero', lambda value: '')
-        >>> NATIVE_PAIRS[Flat][0]
+        >>> register_lammps_pair(FlatInteraction, 'zero', lambda value: '')
+        >>> NATIVE_PAIRS[FlatInteraction][0]
         'zero'
     """
     NATIVE_PAIRS[interaction] = (style, arguments)
 
 
-def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> None:
+def register_lammps_fix(interaction: type[BaseInteraction], command: FixCommand) -> None:
     """Register the native LAMMPS fix of an interaction, which the backend uses instead of `fix external`.
 
     Args:
@@ -193,11 +193,11 @@ def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> 
 
     Examples:
         >>> from skcomplex.formalisms.particles import NATIVE_FIXES, register_lammps_fix
-        >>> from skcomplex.core.interactions import Interaction
-        >>> class Push(Interaction):
+        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> class PushInteraction(BaseInteraction):
         ...     pass
-        >>> register_lammps_fix(Push, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
-        >>> Push in NATIVE_FIXES
+        >>> register_lammps_fix(PushInteraction, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
+        >>> PushInteraction in NATIVE_FIXES
         True
     """
     NATIVE_FIXES[interaction] = command
@@ -231,7 +231,7 @@ class LammpsFix:
     seed: Callable[[], int]
 
 
-class LammpsBackend(ExternalBackend):
+class LammpsSolver(ExternalSolver):
     """Solver that runs particle systems in LAMMPS, with LAMMPS velocity Verlet integration.
 
     Particle groups become atom types, and boxes become LAMMPS boundaries and `fix wall/reflect`. A pair potential
@@ -250,17 +250,17 @@ class LammpsBackend(ExternalBackend):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.formalisms.particles import LammpsBackend, Particle
+        >>> from skcomplex.formalisms.particles import LammpsSolver, ParticleComponent
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.particles import LennardJones
+        >>> from skcomplex.models.physics.realizations.particles import LennardJonesInteraction
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
-        ...     interactions=[LennardJones('lj', first='gas', second='gas', cutoff=2.5)],
+        ...     components=[ParticleComponent.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
+        ...     interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
-        >>> positions = Simulation(system, solver=LammpsBackend(dt=0.005), dt=0.1).run(until=0.5).trajectory_['gas.x']
+        >>> positions = Simulation(system, solver=LammpsSolver(dt=0.005), dt=0.1).run(until=0.5).trajectory_['gas.x']
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True
     """
@@ -297,7 +297,7 @@ class LammpsBackend(ExternalBackend):
         if unsupported:
             return unsupported + [f'interaction {item.path}' for item in problem.interactions]
         for item in problem.interactions:
-            if isinstance(item.interaction, PairPotential):
+            if isinstance(item.interaction, PairPotentialInteraction):
                 unsupported += self._check_pair(problem, item)
         external = self._external_paths(problem)
         if external:
@@ -343,7 +343,7 @@ class LammpsBackend(ExternalBackend):
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
         roles = {role: Symbols(m=float(_parameter(problem, p, _role_path(item, role), 'm')[0])) for role in item.roles}
-        distance = symbol('r', Domain.POSITIVE)
+        distance = symbol('r', NumericDomain.POSITIVE)
         energy = interaction.pair_energy(Symbols(**values, **roles), distance)
         return lepton_expression(energy, distance)
 
@@ -359,7 +359,7 @@ class LammpsBackend(ExternalBackend):
             cutoffs = [
                 float(_parameter(problem, problem.initial_parameters, item.path, 'cutoff')[0])
                 for item in problem.interactions
-                if isinstance(item.interaction, PairPotential)
+                if isinstance(item.interaction, PairPotentialInteraction)
             ]
             margin = max(cutoffs, default=0.0) + 1.0
             low, high = positions.min(axis=0) - margin, positions.max(axis=0) + margin
@@ -380,7 +380,7 @@ class LammpsBackend(ExternalBackend):
 
     def _pair_commands(self, problem: Problem, p: Vector) -> list[str]:
         """Return the commands of the pair style and of the coefficients of every pair interaction."""
-        pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotential)]
+        pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotentialInteraction)]
         styles, coefficients = [], []
         counts: defaultdict[str, int] = defaultdict(int)
         largest = 1.0
@@ -605,4 +605,4 @@ class LammpsBackend(ExternalBackend):
         return state
 
 
-SOLVERS.register((Form.SDE, 'lammps'), LammpsBackend)
+SOLVERS.register((Form.SDE, 'lammps'), LammpsSolver)

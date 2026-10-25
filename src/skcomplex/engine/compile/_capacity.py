@@ -81,7 +81,7 @@ class CapacityRows:
         if not free.size:
             error_msg = (
                 f'The group {self.path} holds {self.active.rows} members, its capacity, and a topology request adds '
-                'another. Give the group a larger capacity, `Group(..., variable=True, capacity=n)`.'
+                'another. Give the group a larger capacity, `GroupComponent(..., variable=True, capacity=n)`.'
             )
             raise CapacityError(error_msg)
         return int(free[0])

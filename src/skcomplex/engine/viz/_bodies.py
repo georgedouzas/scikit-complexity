@@ -17,7 +17,7 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
@@ -98,7 +98,7 @@ def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
     )
 
 
-class BodiesVisual(Visual):
+class BodiesVisual(BaseVisual):
     """Visual that draws bodies at positions computed from the states of an element, with rods, trails, and outlines.
 
     The bodies are logged as points under `<path>/bodies`, the rods from the pivot through the bodies in order as one

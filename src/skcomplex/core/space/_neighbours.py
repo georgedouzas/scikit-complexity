@@ -9,10 +9,10 @@ from typing import ClassVar
 
 from ..base import Requires, SpaceKind, ValidationError
 from ._networks import NetworkSpace
-from ._spaces import SiteSpace, Space
+from ._spaces import BaseSpace, SiteSpace
 
 
-def neighbor_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
+def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
     """Return the pairs of neighbouring members of a space of sites, such as a lattice, or of a network, each pair once.
 
     Args:

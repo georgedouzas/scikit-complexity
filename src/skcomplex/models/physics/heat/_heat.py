@@ -9,21 +9,21 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, IMEXEuler, Mesh, laplacian
+from ....formalisms.fields import FieldComponent, IMEXEulerSolver, MeshSpace, laplacian
 
 type Array = npt.NDArray[np.float64]
 
-Heat = Element.define(
-    'Heat',
+HeatComponent = ElementComponent.define(
+    'HeatComponent',
     states={'u': 0.0},
-    parameters={'D': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u))],
+    parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
 )
 
 
@@ -70,7 +70,9 @@ def heat_diffusion(
     u[middle] = 1.0
     condition = ('fixed', 0.0) if boundary == 'fixed' else boundary
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[Field('plate', Heat, space, boundary={'u': condition}, values={'u': u, 'D': D})])
+    return System(
+        components=[FieldComponent('plate', HeatComponent, space, boundary={'u': condition}, values={'u': u, 'D': D})],
+    )
 
 
 def harmonic(x: Array, y: Array) -> Array:
@@ -99,7 +101,7 @@ def harmonic(x: Array, y: Array) -> Array:
     field='physics/heat',
     tags=('field', 'diffusion', 'finite element', 'mesh', 'pde'),
     references=('Strang and Fix 1973', 'Gustafsson and McBain 2020'),
-    defaults={'until': 2.0, 'dt': 0.1, 'solver': IMEXEuler(dt=0.05)},
+    defaults={'until': 2.0, 'dt': 0.1, 'solver': IMEXEulerSolver(dt=0.05)},
 )
 def heat_l_shape(
     refine: int = 3,
@@ -131,12 +133,12 @@ def heat_l_shape(
         >>> heat_l_shape(1).elements[0].size
         21
     """
-    mesh = Mesh.l_shape(refine)
+    mesh = MeshSpace.l_shape(refine)
     return System(
         components=[
-            Field(
+            FieldComponent(
                 'plate',
-                Heat,
+                HeatComponent,
                 mesh,
                 boundary={'u': ('fixed', temperature)},
                 values={'D': D},

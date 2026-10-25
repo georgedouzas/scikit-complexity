@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models.engineering.robotics import light_seeking_robots, swarmtaxis
 
 
@@ -12,7 +12,7 @@ def test_light_seeking_robots_avoid_light_with_delay():
     intensities = []
     for delay in (0.0, 5.0):
         system = light_seeking_robots(40, delay=delay)
-        trajectory = Simulation(system, dt=0.5, solver=EulerMaruyama(dt=0.01), random_state=1).run(until=150)
+        trajectory = Simulation(system, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=150)
         x, y = trajectory.trajectory_['robots.x'], trajectory.trajectory_['robots.y']
         intensities.append(np.exp(-(x**2 + y**2))[trajectory.trajectory_.times > 50].mean())
     assert intensities[1] < 0.9 * intensities[0]

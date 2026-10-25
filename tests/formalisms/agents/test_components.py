@@ -3,13 +3,13 @@
 import pytest
 
 from skcomplex.core.base import state
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import Rule, memory
+from skcomplex.formalisms.agents import RuleLaw, memory
 
 
-class Saver(Element):
+class SaverComponent(ElementComponent):
     """Test helper Saver."""
 
     remembers = {'money': 3}  # noqa: RUF012
@@ -18,7 +18,7 @@ class Saver(Element):
 
     def laws(self, s):
         """Test helper laws."""
-        return [Rule(self.save)]
+        return [RuleLaw(self.save)]
 
     def save(self, agent, model):
         """Test helper save."""
@@ -28,18 +28,20 @@ class Saver(Element):
 
 def test_memory_window():
     """Agents remember the last values of the states their type lists."""
-    trajectory = Simulation(System(components=[Saver.group('savers', 2)]), random_state=0).run(until=5).trajectory_
+    trajectory = (
+        Simulation(System(components=[SaverComponent.group('savers', 2)]), random_state=0).run(until=5).trajectory_
+    )
     assert trajectory.agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]
 
 
 def test_memory_of_unremembered_state_raises():
     """Reading the memory of a state the type does not remember raises an error."""
 
-    class Forgetful(Element):
+    class ForgetfulComponent(ElementComponent):
         money: float = state(0.0)
 
         def laws(self, s):
-            return [Rule(lambda agent, model: memory(agent, 'money'))]
+            return [RuleLaw(lambda agent, model: memory(agent, 'money'))]
 
     with pytest.raises(KeyError, match='remember'):
-        Simulation(System(components=[Forgetful.group('agents', 1)])).run(until=1)
+        Simulation(System(components=[ForgetfulComponent.group('agents', 1)])).run(until=1)

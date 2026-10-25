@@ -6,12 +6,12 @@
 import numpy as np
 
 from ....core.base import VisualSpec
-from ....core.interactions import Interaction
+from ....core.interactions import BaseInteraction
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import Particle
-from ..realizations.particles import LangevinThermostat, LennardJones
+from ....formalisms.particles import ParticleComponent
+from ..realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 
 @register_model(
@@ -64,13 +64,13 @@ def ideal_gas(
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ideal_gas
         >>> ideal_gas(1000, random_state=0).elements[0]
-        Group('gas', element=Particle, size=1000)
+        GroupComponent('gas', element=ParticleComponent, size=1000)
     """
     rng = np.random.default_rng(random_state)
     velocities = rng.normal(0.0, np.sqrt(kT / mass), size=(n_molecules, n_dim))
     velocities -= velocities.mean(axis=0)
     visual = VisualSpec('points', {'position': 'x', 'radius': size / 200, 'color_by': 'v', 'states': ()})
-    molecules = Particle.group(
+    molecules = ParticleComponent.group(
         label,
         n_molecules,
         x=rng.uniform(0.0, size, size=(n_molecules, n_dim)),
@@ -134,13 +134,13 @@ def lennard_jones_fluid(
     positions = np.mod((grid + 0.5) * spacing + rng.normal(0, 0.02 * spacing, (n_particles, 2)), size)
     velocities = rng.normal(0, np.sqrt(temperature or 1.0), (n_particles, 2))
     velocities -= velocities.mean(axis=0)
-    interactions: list[Interaction] = [
-        LennardJones('lj', first='fluid', second='fluid', cutoff=cutoff, period=size),
+    interactions: list[BaseInteraction] = [
+        LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=cutoff, period=size),
     ]
     if temperature is not None:
-        interactions.append(LangevinThermostat('thermostat', target='fluid', temperature=temperature))
+        interactions.append(LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature))
     return System(
-        components=[Particle.group('fluid', n_particles, x=positions, v=velocities)],
+        components=[ParticleComponent.group('fluid', n_particles, x=positions, v=velocities)],
         interactions=interactions,
         space=ContinuousSpace(size, size, boundary='periodic'),
     )

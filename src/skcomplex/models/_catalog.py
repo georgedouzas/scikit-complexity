@@ -124,6 +124,13 @@ def _registered_listing(entry: ModelEntry) -> 'ModelListing':
     )
 
 
+def _load(key: object) -> None:
+    """Import the module of a listed model, so that resolving its name in the model registry finds it."""
+    listing = _listings().get(key) if isinstance(key, str) else None
+    if listing is not None:
+        importlib.import_module(listing.module)
+
+
 def _imported(name: str) -> str:
     """Import the module of a listed model, so it registers, and return the name; raise an error for unknown names."""
     listing = _listings().get(name)
@@ -329,3 +336,6 @@ class ModelListing:
     tags: tuple[str, ...]
     references: tuple[str, ...]
     module: str
+
+
+MODELS.register_loader(_load)

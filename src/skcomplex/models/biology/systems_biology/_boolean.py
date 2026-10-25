@@ -10,10 +10,10 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, where
+from ....core.base import Expression, NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -41,7 +41,7 @@ def _pattern(inputs: Sequence[Expression], index: int) -> Expression:
     return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
 
-class BooleanNode(Element):
+class BooleanNodeComponent(ElementComponent):
     """Node of a Boolean network, a gene or protein that is on or off.
 
     Args:
@@ -52,15 +52,15 @@ class BooleanNode(Element):
             The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import BooleanNode
-        >>> BooleanNode('Sic1', x=1).x
+        >>> from skcomplex.models.biology.systems_biology import BooleanNodeComponent
+        >>> BooleanNodeComponent('Sic1', x=1).x
         1
     """
 
-    x: float = state(default=0, domain=Domain.BOOLEAN)
+    x: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
 
-class BooleanFunction(Interaction):
+class BooleanFunctionInteraction(BaseInteraction):
     """Synchronous update of a node by a truth table of any number of input nodes.
 
     A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
@@ -84,8 +84,8 @@ class BooleanFunction(Interaction):
                 The paths of the input nodes, in the order of the bits of the table.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import BooleanFunction
-        >>> BooleanFunction('and', target='c', inputs=['a', 'b'], table=(0, 0, 0, 1)).table
+        >>> from skcomplex.models.biology.systems_biology import BooleanFunctionInteraction
+        >>> BooleanFunctionInteraction('and', target='c', inputs=['a', 'b'], table=(0, 0, 0, 1)).table
         (0, 0, 0, 1)
     """
 
@@ -102,7 +102,7 @@ class BooleanFunction(Interaction):
         super().__init__(label, **values)
         self.table = table
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the update of the target by the truth table.
 
         Args:
@@ -125,10 +125,10 @@ class BooleanFunction(Interaction):
             raise ValidationError(error_msg)
         inputs = [item.x for item in s.inputs]
         terms = [_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
-        return [Update(s.target.x, sum(terms, start=SR(0)))]
+        return [UpdateLaw(s.target.x, sum(terms, start=SR(0)))]
 
 
-class ThresholdFunction(Interaction):
+class ThresholdFunctionInteraction(BaseInteraction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
 
     The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
@@ -154,8 +154,8 @@ class ThresholdFunction(Interaction):
                 The weight of every input, positive for activation and negative for inhibition.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import ThresholdFunction
-        >>> ThresholdFunction('sic1', target='Sic1', inputs=['Swi5', 'Cln1_2'], weights=[1.0, -1.0]).weights
+        >>> from skcomplex.models.biology.systems_biology import ThresholdFunctionInteraction
+        >>> ThresholdFunctionInteraction('sic1', target='Sic1', inputs=['Swi5', 'Cln1_2'], weights=[1.0, -1.0]).weights
         [1.0, -1.0]
     """
 
@@ -173,7 +173,7 @@ class ThresholdFunction(Interaction):
         super().__init__(label, **values)
         self.decays = decays
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the threshold update of the target.
 
         Args:
@@ -186,7 +186,7 @@ class ThresholdFunction(Interaction):
         """
         total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
         unchanged = 0 if self.decays else s.target.x
-        return [Update(s.target.x, where(total > 0, 1, where(total < 0, 0, unchanged)))]
+        return [UpdateLaw(s.target.x, where(total > 0, 1, where(total < 0, 0, unchanged)))]
 
 
 @register_model(
@@ -238,9 +238,9 @@ def random_boolean_network(
         error_msg = f'k = {k} inputs per node must be between 1 and the number of nodes, n_nodes = {n_nodes}.'
         raise ValidationError(error_msg)
     rng = np.random.default_rng(random_state)
-    nodes = [BooleanNode(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
+    nodes = [BooleanNodeComponent(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
     functions = [
-        BooleanFunction(
+        BooleanFunctionInteraction(
             f'function_{index}',
             target=f'node_{index}',
             inputs=[f'node_{source}' for source in rng.choice(n_nodes, size=k, replace=False)],
@@ -278,9 +278,9 @@ def yeast_cell_cycle(active: Sequence[str] = YEAST_START) -> System:
         >>> [node.label for node in yeast_cell_cycle().elements if node.x]
         ['Cln3', 'Cdh1', 'Sic1']
     """
-    nodes = [BooleanNode(name, x=int(name in active)) for name in YEAST_NODES]
+    nodes = [BooleanNodeComponent(name, x=int(name in active)) for name in YEAST_NODES]
     functions = [
-        ThresholdFunction(
+        ThresholdFunctionInteraction(
             f'regulation_{name}',
             target=name,
             inputs=[source for source, _ in YEAST_INPUTS[name]],

@@ -11,12 +11,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import Expression
-from ...core.laws import Law, Rate, Symbols
+from ...core.laws import BaseLaw, RateLaw, Symbols
 from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
-    Surrogate,
+    BaseSurrogate,
     SurrogateData,
     relative_error,
     samples_of,
@@ -39,17 +39,17 @@ def _sparse_laws(
     names: Sequence[str],
     coefficients: Array,
     powers: npt.NDArray[np.int_],
-) -> Callable[[Symbols], list[Law]]:
+) -> Callable[[Symbols], list[BaseLaw]]:
     """Return the function that gives one rate law per state, a sum of the monomials with nonzero coefficients."""
 
-    def laws(s: Symbols) -> list[Law]:
+    def laws(s: Symbols) -> list[BaseLaw]:
         """Return the sparse rate laws."""
         symbols = symbols_of(s, names)
         terms = [_term(symbols, row) for row in powers]
         rates = [
             sum(float(value) * term for value, term in zip(row, terms, strict=True) if value) for row in coefficients
         ]
-        return [Rate(item, rate) for item, rate in zip(symbols, rates, strict=True)]
+        return [RateLaw(item, rate) for item, rate in zip(symbols, rates, strict=True)]
 
     return laws
 
@@ -63,7 +63,7 @@ def _derivatives(model: Any, parts: list[Array], dt: float) -> tuple[list[Array]
 
 
 @dataclass(frozen=True)
-class SparseModel(Surrogate):
+class SparseSurrogate(BaseSurrogate):
     """Sparse symbolic surrogate fitted by sparse identification of nonlinear dynamics.
 
     Args:
@@ -107,7 +107,7 @@ def fit_sindy(
     alpha: float = 0.05,
     validation: float = 0.2,
     label: str = 'surrogate',
-) -> SparseModel:
+) -> SparseSurrogate:
     """Return the sparse symbolic surrogate that SINDy fits to series, computed with PySINDy.
 
     SINDy writes the derivative of every variable as a sparse sum of the monomials of the variables up to a degree. It
@@ -165,7 +165,7 @@ def fit_sindy(
         _sparse_laws(states, coefficients, powers),
         ContinuousTime(),
     )
-    return SparseModel(
+    return SparseSurrogate(
         system,
         samples.labels,
         states,

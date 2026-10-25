@@ -6,32 +6,32 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.base import Domain, RoleError, ValidationError, parameter, state, symbol
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate, mean, total
+from skcomplex.core.base import NumericDomain, RoleError, ValidationError, parameter, state, symbol
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw, mean, total
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.agents import Rule
-from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
 
-Oscillator = Element.define(
-    'Oscillator',
-    states={'theta': state(0.0, domain=Domain.ANGLE)},
+OscillatorComponent = ElementComponent.define(
+    'OscillatorComponent',
+    states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'omega': parameter(1.0)},
-    laws=lambda s: [Rate(s.theta, s.omega)],
+    laws=lambda s: [RateLaw(s.theta, s.omega)],
 )
 
 
-class Saver(Element):
+class SaverComponent(ElementComponent):
     """Agent whose wealth grows by one every step."""
 
     wealth: float = state(1.0)
 
     def laws(self, s):
         """Return the saving rule."""
-        return [Rule(self.save)]
+        return [RuleLaw(self.save)]
 
     def save(self, agent, model):
         """Add one to the wealth."""
@@ -39,7 +39,11 @@ class Saver(Element):
         agent.wealth += 1
 
 
-Inflow = Interaction.define('Inflow', roles=['target', 'source'], laws=lambda s: [Rate(s.target.n, s.source.value)])
+InflowInteraction = BaseInteraction.define(
+    'InflowInteraction',
+    roles=['target', 'source'],
+    laws=lambda s: [RateLaw(s.target.n, s.source.value)],
+)
 
 
 class LoggedPaths:
@@ -94,7 +98,7 @@ ORDER = [Observable('z', _phase_vector, group='osc'), Observable('order', _modul
 def _oscillators():
     """Return oscillators whose order parameter `ORDER` builds from a complex mean."""
     return System(
-        components=[Oscillator.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
+        components=[OscillatorComponent.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
     )
 
 
@@ -111,8 +115,8 @@ def test_order_parameter_every_frame():
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     system = System(
-        components=[Population('a', n=2.0), Population('b', n=6.0)],
-        interactions=[ExponentialGrowth('g', target='a', r=1.0)],
+        components=[PopulationComponent('a', n=2.0), PopulationComponent('b', n=6.0)],
+        interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     observables = [Observable('total', _total), Observable('share', _share)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_
@@ -124,7 +128,7 @@ def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = System(
         components=[
-            System('market', components=[Population('a', n=3.0)]),
+            System('market', components=[PopulationComponent('a', n=3.0)]),
         ],
     )
     simulation = Simulation(system, dt=1, observables=[Observable('market/volume', _volume)])
@@ -135,10 +139,10 @@ def test_agent_reduction_read_by_other_partition():
     """Test that the mean wealth of agents is recorded and read by an ODE in another partition."""
     system = System(
         components=[
-            System('village', components=[Saver.group('savers', 4)]),
-            System('land', components=[Population('soil', n=0.0)]),
+            System('village', components=[SaverComponent.group('savers', 4)]),
+            System('land', components=[PopulationComponent('soil', n=0.0)]),
         ],
-        interactions=[Inflow('inflow', target='land/soil', source='village/mean_wealth')],
+        interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
     observables = [Observable('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = Simulation(system, dt=1, observables=observables).run(until=2).trajectory_
@@ -149,8 +153,8 @@ def test_agent_reduction_read_by_other_partition():
 def test_observable_read_in_one_form_is_lowered():
     """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
     system = System(
-        components=[Population.group('herd', 3, n=[1.0, 2.0, 6.0]), Population('soil')],
-        interactions=[Inflow('inflow', target='soil', source='mean_n')],
+        components=[PopulationComponent.group('herd', 3, n=[1.0, 2.0, 6.0]), PopulationComponent('soil')],
+        interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
     observables = [Observable('mean_n', group='herd', variable='n')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=1).trajectory_
@@ -159,7 +163,7 @@ def test_observable_read_in_one_form_is_lowered():
 
 def test_unknown_symbol_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
-    system = System(components=[Population.group('herd', 3)])
+    system = System(components=[PopulationComponent.group('herd', 3)])
     with pytest.raises(AttributeError, match='herd'):
         Simulation(system, observables=[Observable('bad', _herd)]).run(until=1)
 
@@ -179,8 +183,8 @@ def test_observable_lambda_reduction_is_rejected():
 def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     system = System(
-        components=[Population('a', n=2.0), Population('b', n=6.0)],
-        interactions=[ExponentialGrowth('g', target='a', r=1.0)],
+        components=[PopulationComponent('a', n=2.0), PopulationComponent('b', n=6.0)],
+        interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     observables = [Observable('total', _total)]
     restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
@@ -211,7 +215,7 @@ def _member_timed(member):
 def test_observables_read_time():
     """Test that system observables and member expressions of reductions read the time as `s.t`."""
     system = System(
-        components=[Population('a', n=2.0), Population.group('herd', 2, n=[1.0, 3.0])],
+        components=[PopulationComponent('a', n=2.0), PopulationComponent.group('herd', 2, n=[1.0, 3.0])],
     )
     observables = [Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=2).trajectory_
@@ -220,7 +224,7 @@ def test_observables_read_time():
 
 
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
-Decaying = Element.define('Decaying', states={'x': 1.0}, laws=lambda s: [Rate(s.x, -s.x)])
+DecayingComponent = ElementComponent.define('DecayingComponent', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)])
 
 
 def _local_field_energy(member):
@@ -240,7 +244,7 @@ def _deviation_from_other(member):
 
 def _decaying_group(*observables):
     """Return a simulation of a decaying group of 4 members with observables."""
-    system = System(components=[Decaying.group('u', 4, x=np.arange(1.0, 5.0))])
+    system = System(components=[DecayingComponent.group('u', 4, x=np.arange(1.0, 5.0))])
     return Simulation(system, dt=0.5, observables=list(observables))
 
 

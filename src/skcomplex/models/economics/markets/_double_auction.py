@@ -7,15 +7,15 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
-from ..realizations._markets import CallAuction, Market, OrderBook, Trade
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
+from ..realizations._markets import CallAuction, MarketInteraction, OrderBook, Trade
 
 PROTOCOLS = ('order_book', 'call_auction')
 
@@ -52,7 +52,7 @@ def _book_profit(trade: Trade, model: ModelView) -> None:
     trade.seller.profit += trade.quantity * (trade.price - trade.seller.value)
 
 
-class ZeroIntelligenceBuyer(Element):
+class ZeroIntelligenceBuyerComponent(ElementComponent):
     """Buyer of one unit per trading period who bids a random price, below its value under the budget constraint.
 
     In every round of a trading period, a buyer that has not bought yet bids a price drawn uniformly from 0 to its
@@ -81,19 +81,19 @@ class ZeroIntelligenceBuyer(Element):
             One when the buyer never bids above its value, zero otherwise.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ZeroIntelligenceBuyer
-        >>> ZeroIntelligenceBuyer.group('buyers', 5, value=100.0).size
+        >>> from skcomplex.models.economics.markets import ZeroIntelligenceBuyerComponent
+        >>> ZeroIntelligenceBuyerComponent.group('buyers', 5, value=100.0).size
         5
     """
 
-    value: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    bid: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    demand: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    profit: float = state(default=0.0, domain=Domain.REAL)
-    ceiling: float = parameter(default=200.0, domain=Domain.POSITIVE)
-    constrained: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    value: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    demand: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    profit: float = state(default=0.0, domain=NumericDomain.REAL)
+    ceiling: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
+    constrained: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the bidding rule of the trading rounds.
 
         Args:
@@ -104,7 +104,7 @@ class ZeroIntelligenceBuyer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.quote, phase='trade')]
+        return [RuleLaw(self.quote, phase='trade')]
 
     def quote(self, agent: AgentView, model: ModelView) -> None:
         """Bid a random price.
@@ -120,7 +120,7 @@ class ZeroIntelligenceBuyer(Element):
         agent.bid = float(model.rng.uniform(0.0, top))
 
 
-class ZeroIntelligenceSeller(Element):
+class ZeroIntelligenceSellerComponent(ElementComponent):
     """Seller of one unit per trading period who asks a random price, above its cost under the budget constraint.
 
     In every round of a trading period, a seller that has not sold yet asks a price drawn uniformly from its cost, or
@@ -149,19 +149,19 @@ class ZeroIntelligenceSeller(Element):
             One when the seller never asks below its cost, zero otherwise.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ZeroIntelligenceSeller
-        >>> ZeroIntelligenceSeller.group('sellers', 5, value=50.0).size
+        >>> from skcomplex.models.economics.markets import ZeroIntelligenceSellerComponent
+        >>> ZeroIntelligenceSellerComponent.group('sellers', 5, value=50.0).size
         5
     """
 
-    value: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    ask: float = state(default=200.0, domain=Domain.NONNEGATIVE)
-    supply: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    profit: float = state(default=0.0, domain=Domain.REAL)
-    ceiling: float = parameter(default=200.0, domain=Domain.POSITIVE)
-    constrained: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    value: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    ask: float = state(default=200.0, domain=NumericDomain.NONNEGATIVE)
+    supply: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    profit: float = state(default=0.0, domain=NumericDomain.REAL)
+    ceiling: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
+    constrained: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the asking rule of the trading rounds.
 
         Args:
@@ -172,7 +172,7 @@ class ZeroIntelligenceSeller(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.quote, phase='trade')]
+        return [RuleLaw(self.quote, phase='trade')]
 
     def quote(self, agent: AgentView, model: ModelView) -> None:
         """Ask a random price.
@@ -188,7 +188,7 @@ class ZeroIntelligenceSeller(Element):
         agent.ask = float(model.rng.uniform(bottom, max(bottom, model.parameter('ceiling'))))
 
 
-class AuctionLedger(Institution):
+class AuctionLedgerInteraction(InstitutionInteraction):
     """Ledger that closes every trading period: it measures its surplus and gives every trader a new unit.
 
     The realised surplus is the value of the units bought minus the cost of the units sold, and the allocative
@@ -202,8 +202,8 @@ class AuctionLedger(Institution):
             The phase the ledger acts in.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import AuctionLedger
-        >>> AuctionLedger('ledger', phase='close').reports
+        >>> from skcomplex.models.economics.markets import AuctionLedgerInteraction
+        >>> AuctionLedgerInteraction('ledger', phase='close').reports
         ('surplus', 'efficiency')
     """
 
@@ -297,9 +297,15 @@ def double_auction(
     values = rng.uniform(0.25 * ceiling, ceiling, n_buyers)
     costs = rng.uniform(0.0, 0.75 * ceiling, n_sellers)
     limit = float(constrained)
-    buyers = ZeroIntelligenceBuyer.group('buyers', n_buyers, value=values, ceiling=ceiling, constrained=limit)
-    sellers = ZeroIntelligenceSeller.group('sellers', n_sellers, value=costs, ceiling=ceiling, constrained=limit)
-    market = Market(
+    buyers = ZeroIntelligenceBuyerComponent.group('buyers', n_buyers, value=values, ceiling=ceiling, constrained=limit)
+    sellers = ZeroIntelligenceSellerComponent.group(
+        'sellers',
+        n_sellers,
+        value=costs,
+        ceiling=ceiling,
+        constrained=limit,
+    )
+    market = MarketInteraction(
         'auction',
         buyers='buyers',
         sellers='sellers',
@@ -311,6 +317,6 @@ def double_auction(
     )
     return System(
         components=[buyers, sellers],
-        interactions=[market, AuctionLedger('ledger', phase='close')],
-        time=DiscreteTime(schedule=Phases([Phase('trade', repeat=rounds), Phase('close')])),
+        interactions=[market, AuctionLedgerInteraction('ledger', phase='close')],
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('trade', repeat=rounds), Phase('close')])),
     )

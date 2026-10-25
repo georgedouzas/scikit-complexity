@@ -10,8 +10,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import Expression, ValidationError, VisualSpec, state, vector
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, categorical, where
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, categorical, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -35,7 +35,7 @@ PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
 }
 
 
-class ChaosPoint(Element):
+class ChaosPointComponent(ElementComponent):
     """Point of the plane moved at every step by one affine map of an iterated function system, drawn at random.
 
     Map `k` takes `(x, y)` to `(a x + b y + e, c x + d y + f)` for its coefficients `(a, b, c, d, e, f)`, and is drawn
@@ -58,8 +58,8 @@ class ChaosPoint(Element):
                 The initial position.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import ChaosPoint
-        >>> len(ChaosPoint('point').maps)
+        >>> from skcomplex.models.mathematics.fractals import ChaosPointComponent
+        >>> len(ChaosPointComponent('point').maps)
         3
     """
 
@@ -78,7 +78,7 @@ class ChaosPoint(Element):
         self.maps = maps
         self.weights = weights
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the move by the drawn map.
 
         Args:
@@ -98,7 +98,7 @@ class ChaosPoint(Element):
         for index in range(len(images) - 2, -1, -1):
             new_x = where(chosen == index, images[index][0], new_x)
             new_y = where(chosen == index, images[index][1], new_y)
-        return [Update(s.p, vector([new_x, new_y]))]
+        return [UpdateLaw(s.p, vector([new_x, new_y]))]
 
 
 def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: int, random_state: object) -> System:
@@ -110,7 +110,13 @@ def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: in
         )
         raise ValidationError(error_msg)
     starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type,unused-ignore]
-    points = ChaosPoint.group('points', n_points, p=starts, maps=tuple(map(tuple, maps)), weights=tuple(weights))
+    points = ChaosPointComponent.group(
+        'points',
+        n_points,
+        p=starts,
+        maps=tuple(map(tuple, maps)),
+        weights=tuple(weights),
+    )
     return System(components=[points], space=ContinuousSpace(n_dim=2))
 
 

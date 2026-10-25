@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +23,7 @@ MODEL = 'annealed_transient_time_motion'
 
 system = create(MODEL, n_walkers=500, sigma=0.5, gamma=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = EulerMaruyama(dt=0.5)
+solver = EulerMaruyamaSolver(dt=0.5)
 simulation = Simulation(system, solver=solver, dt=2.5, observers=[observer], random_state=0).run(until=500)
 
 # %%

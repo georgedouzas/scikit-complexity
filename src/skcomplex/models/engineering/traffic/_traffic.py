@@ -8,18 +8,18 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
 
-class Road(Element):
+class RoadComponent(ElementComponent):
     """Cell of the Nagel-Schreckenberg road: the velocity of the car on it, or -1 when it is empty.
 
     Every step, cars accelerate by one up to `vmax`, brake to the gap ahead, slow down by one with probability
@@ -42,13 +42,13 @@ class Road(Element):
                 The probability of random braking.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Road
-        >>> Road('cell').vmax
+        >>> from skcomplex.models.engineering.traffic import RoadComponent
+        >>> RoadComponent('cell').vmax
         5
     """
 
-    velocity: float = state(default=-1, domain=Domain.INTEGER)
-    slowdown: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    velocity: float = state(default=-1, domain=NumericDomain.INTEGER)
+    slowdown: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class Road(Element):
         super().__init__(label, **values)
         self.vmax = vmax
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the velocity update and the movement of cars.
 
         Args:
@@ -89,7 +89,7 @@ class Road(Element):
 
         ahead = Neighborhood(tuple((distance,) for distance in range(vmax + 1)))
         behind = Neighborhood(tuple((-distance,) for distance in range(vmax + 1)))
-        return [LocalRule(s.velocity, ahead, accelerate, stochastic=True), LocalRule(s.velocity, behind, move)]
+        return [LocalRuleLaw(s.velocity, ahead, accelerate, stochastic=True), LocalRuleLaw(s.velocity, behind, move)]
 
 
 @register_model(
@@ -136,5 +136,5 @@ def nagel_schreckenberg(
     rng = np.random.default_rng(random_state)
     velocity = np.full(length, -1.0)
     velocity[rng.choice(length, size=round(density * length), replace=False)] = 0.0
-    road = Road.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
+    road = RoadComponent.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
     return System(components=[road])

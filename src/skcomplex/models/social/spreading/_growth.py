@@ -7,16 +7,16 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 
-class Word(Element):
+class WordComponent(ElementComponent):
     """Distinct word of the Simon model, with the number of times it occurs in the text.
 
     Args:
@@ -33,16 +33,16 @@ class Word(Element):
             The probability that the next word of the text is new.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import Word
-        >>> Word.group('words', 1, count=1.0)
-        Group('words', element=Word, size=1)
+        >>> from skcomplex.models.social.spreading import WordComponent
+        >>> WordComponent.group('words', 1, count=1.0)
+        GroupComponent('words', element=WordComponent, size=1)
     """
 
-    count: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    innovation: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    count: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    innovation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
 
-class Writing(Interaction):
+class WritingInteraction(BaseInteraction):
     """Writing of the Simon model, a number of words per step.
 
     Every next word is new with probability `innovation`, and otherwise repeats a random earlier occurrence, so a word
@@ -62,8 +62,8 @@ class Writing(Interaction):
                 The path of the group of words.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import Writing
-        >>> Writing('writing', target='words').words_per_step
+        >>> from skcomplex.models.social.spreading import WritingInteraction
+        >>> WritingInteraction('writing', target='words').words_per_step
         100
     """
 
@@ -79,7 +79,7 @@ class Writing(Interaction):
         super().__init__(label, **values)
         self.words_per_step = words_per_step
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the writing rule.
 
         Args:
@@ -90,7 +90,7 @@ class Writing(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.write)]
+        return [RuleLaw(self.write)]
 
     def write(self, model: ModelView) -> None:
         """Write the words of one step.
@@ -145,5 +145,8 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         >>> simon_yule().elements[0].size
         1
     """
-    words = Word.group('words', 1, variable=True, count=1.0, innovation=innovation)
-    return System(components=[words], interactions=[Writing('writing', target='words', words_per_step=words_per_step)])
+    words = WordComponent.group('words', 1, variable=True, count=1.0, innovation=innovation)
+    return System(
+        components=[words],
+        interactions=[WritingInteraction('writing', target='words', words_per_step=words_per_step)],
+    )

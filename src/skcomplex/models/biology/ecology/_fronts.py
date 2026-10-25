@@ -5,19 +5,19 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
-FisherKPP = Element.define(
-    'FisherKPP',
-    states={'u': state(default=0.0, domain=Domain.NONNEGATIVE)},
-    parameters={'D': parameter(default=1.0, domain=Domain.NONNEGATIVE), 'r': 1.0},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))],
+FisherKPPComponent = ElementComponent.define(
+    'FisherKPPComponent',
+    states={'u': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
+    parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE), 'r': 1.0},
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))],
 )
 
 
@@ -65,5 +65,13 @@ def fisher_kpp(
     u = (np.arange(length) < front * length).astype(float)
     space = LatticeSpace(length, spacing=spacing)
     return System(
-        components=[Field('line', FisherKPP, space, boundary={'u': 'zero-flux'}, values={'u': u, 'D': D, 'r': r})],
+        components=[
+            FieldComponent(
+                'line',
+                FisherKPPComponent,
+                space,
+                boundary={'u': 'zero-flux'},
+                values={'u': u, 'D': D, 'r': r},
+            ),
+        ],
     )

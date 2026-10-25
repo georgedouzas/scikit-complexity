@@ -13,7 +13,7 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 
 
-class Visual:
+class BaseVisual:
     """Base class of visuals, which log the state of one element to a Rerun recording.
 
     Subclasses implement `log`, declare the Rerun views that show what they log with `views`, and are registered under a
@@ -56,10 +56,10 @@ class Visual:
         raise NotImplementedError
 
 
-VISUALS = Registry[type[Visual]]('visual')
+VISUALS = Registry[type[BaseVisual]]('visual')
 
 
-def register_visual(kind: str, visual: type[Visual]) -> None:
+def register_visual(kind: str, visual: type[BaseVisual]) -> None:
     """Register a visual class under the name element types refer to.
 
     Args:
@@ -72,7 +72,7 @@ def register_visual(kind: str, visual: type[Visual]) -> None:
     VISUALS.register(kind, visual)
 
 
-def resolve_visual(spec: VisualSpec) -> Visual:
+def resolve_visual(spec: VisualSpec) -> BaseVisual:
     """Build the visual a spec names.
 
     Args:

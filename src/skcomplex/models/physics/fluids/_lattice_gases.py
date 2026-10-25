@@ -8,13 +8,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -67,7 +67,7 @@ def _count(*channels: Array) -> Array:
     return np.sum(channels, axis=0)
 
 
-class FHPSite(Element):
+class FHPSiteComponent(ElementComponent):
     """Site of the FHP-I lattice gas, with one boolean channel per direction of the triangular lattice.
 
     Every step collides the particles at every site, head-on pairs turning by a sixth of a turn to either side with
@@ -101,20 +101,20 @@ class FHPSite(Element):
             The initial number of particles at the site.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import FHPSite
-        >>> FHPSite('site').n0
+        >>> from skcomplex.models.physics.fluids import FHPSiteComponent
+        >>> FHPSiteComponent('site').n0
         0
     """
 
-    n0: float = state(default=0, domain=Domain.BOOLEAN)
-    n1: float = state(default=0, domain=Domain.BOOLEAN)
-    n2: float = state(default=0, domain=Domain.BOOLEAN)
-    n3: float = state(default=0, domain=Domain.BOOLEAN)
-    n4: float = state(default=0, domain=Domain.BOOLEAN)
-    n5: float = state(default=0, domain=Domain.BOOLEAN)
-    density: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    n0: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    n1: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    n2: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    n3: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    n4: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    n5: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    density: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the collision, the propagation along the six directions, and the count of particles.
 
         Args:
@@ -127,9 +127,9 @@ class FHPSite(Element):
         """
         channels = tuple(getattr(s, name) for name in CHANNELS)
         return [
-            LocalRule(channels, SITE, _collide, stochastic=True),
-            LocalRule(channels, TRIANGULAR, _propagate),
-            LocalRule(s.density, SITE, _count, reads=channels),
+            LocalRuleLaw(channels, SITE, _collide, stochastic=True),
+            LocalRuleLaw(channels, TRIANGULAR, _propagate),
+            LocalRuleLaw(s.density, SITE, _count, reads=channels),
         ]
 
 
@@ -185,5 +185,5 @@ def fhp_lattice_gas(
     probability = np.where(inside, bump, density)[:, None]
     occupied = (np.random.default_rng(random_state).random((space.size, DIRECTIONS)) < probability).astype(float)
     channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-    gas = FHPSite.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
+    gas = FHPSiteComponent.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
     return System(components=[gas])

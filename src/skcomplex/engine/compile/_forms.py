@@ -7,15 +7,15 @@ from collections.abc import Iterable, Mapping
 from typing import cast
 
 from ...core.base import Form, IncompatibleLawsError, Registry, Trait
-from ...core.laws import Jump, Noise, Rate, Update, has_trait
+from ...core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw, has_trait
 
 CORE_FORMS: Mapping[frozenset[type], Form] = {
     frozenset(): Form.ODE,
-    frozenset({Rate}): Form.ODE,
-    frozenset({Noise}): Form.SDE,
-    frozenset({Rate, Noise}): Form.SDE,
-    frozenset({Jump}): Form.JUMP,
-    frozenset({Update}): Form.DISCRETE,
+    frozenset({RateLaw}): Form.ODE,
+    frozenset({NoiseLaw}): Form.SDE,
+    frozenset({RateLaw, NoiseLaw}): Form.SDE,
+    frozenset({JumpLaw}): Form.JUMP,
+    frozenset({UpdateLaw}): Form.DISCRETE,
 }
 
 FORMS = Registry[Form]('form')

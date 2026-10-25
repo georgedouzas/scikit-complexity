@@ -13,7 +13,7 @@ overtake them in the bone marrow, spill into the blood, and end up outnumbering 
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -21,7 +21,7 @@ MODEL = 'bone_marrow_blood_leukaemia'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=10.0, solver=ScipyODE(method='BDF'), observers=[observer]).run(until=3000)
+simulation = Simulation(system, dt=10.0, solver=ScipyODESolver(method='BDF'), observers=[observer]).run(until=3000)
 
 # %%
 # Blasts crowd out the normal cells

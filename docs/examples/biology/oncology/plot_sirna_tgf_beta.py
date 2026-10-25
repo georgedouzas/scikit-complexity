@@ -13,7 +13,7 @@ billion cells within weeks.
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=200)
 # infused at growing rates lowers the TGF-beta it makes. The tumour should fall as the dose grows, and the largest dose
 # should clear it.
 
-solver = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 arms = {
     'no TGF-beta': create(MODEL, rho4=0.0),
     'TGF-beta, no siRNA': system,

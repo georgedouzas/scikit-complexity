@@ -7,9 +7,9 @@ from collections.abc import Mapping
 from typing import ClassVar
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...core.laws import Boundary, Jump, Noise, Rate, Update
+from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ..compile._backends import (
-    Backend,
+    BaseBackend,
     Lowering,
     adding_function,
     assigning_function,
@@ -22,15 +22,15 @@ from ..compile._problem import Draws
 from ..compile._reductions import ReductionPass
 
 
-class NumpyBackend(Backend):
+class NumpyBackend(BaseBackend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.backends import NumpyBackend
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import Population
-        >>> compile_system(System(components=[Population('a')]), backend=NumpyBackend()).backend
+        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> compile_system(System(components=[PopulationComponent('a')]), backend=NumpyBackend()).backend
         'numpy'
     """
 
@@ -84,19 +84,19 @@ class NumpyBackend(Backend):
         """
         del draws
         lowering = Lowering()
-        if kernels.get(Boundary):
-            lowering.boundary = assigning_function(kernels[Boundary])
+        if kernels.get(BoundaryLaw):
+            lowering.boundary = assigning_function(kernels[BoundaryLaw])
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
-            lowering.drift = adding_function(kernels.get(Rate, []), size)
+            lowering.drift = adding_function(kernels.get(RateLaw, []), size)
         if form is Form.SDE:
-            lowering.diffusion = concatenating_function(kernels.get(Noise, []))
-            noise = lower_noise(kernels.get(Noise, []))
+            lowering.diffusion = concatenating_function(kernels.get(NoiseLaw, []))
+            noise = lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form is Form.JUMP:
-            lowering.propensities = concatenating_function(kernels.get(Jump, []))
-            lowering.jumps = jump_channels(kernels.get(Jump, []), changes)
+            lowering.propensities = concatenating_function(kernels.get(JumpLaw, []))
+            lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
         if form is Form.DISCRETE:
-            lowering.update = assigning_function(kernels.get(Update, []))
+            lowering.update = assigning_function(kernels.get(UpdateLaw, []))
         return with_reductions(lowering, reductions, kernels)
 
 

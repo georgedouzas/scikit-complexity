@@ -6,8 +6,8 @@ from typing import Any
 import numpy as np
 
 from skcomplex.core.system import System
-from skcomplex.engine.runtime import ConservationMonitor, Frame, Observer, Simulation, Trajectory
-from skcomplex.engine.solvers import Stepper
+from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
+from skcomplex.engine.solvers import Solver
 from skcomplex.models import create, describe
 
 
@@ -20,7 +20,7 @@ def _trajectory(
     name: str,
     until: float,
     dt: float,
-    solver: str | Stepper = 'auto',
+    solver: str | Solver = 'auto',
     **options: Any,  # noqa: ANN401
 ) -> Trajectory:
     """Return the trajectory of a model run with its standard observables."""
@@ -33,7 +33,7 @@ def _trajectory(
 
 def _run_monitored(system: System, dt: float, until: float) -> Trajectory:
     """Return the trajectory of a system under a conservation monitor, which raises on any leak."""
-    return Simulation(system, dt=dt, observers=[ConservationMonitor()]).run(until=until).trajectory_
+    return Simulation(system, dt=dt, observers=[ConservationObserver()]).run(until=until).trajectory_
 
 
 def _peak(trajectory: Trajectory, name: str) -> float:
@@ -53,7 +53,7 @@ def _run_seeded(system: System, until: float, dt: float) -> Trajectory:
     return Simulation(system, dt=dt, random_state=0).run(until=until).trajectory_
 
 
-class Events(Observer):
+class EventsObserver(BaseObserver):
     """Observer that keeps the events of every frame and checks a condition on the frames."""
 
     def __init__(self, check: Callable[[Frame], object] | None = None) -> None:

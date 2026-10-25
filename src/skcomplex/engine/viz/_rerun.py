@@ -16,12 +16,12 @@ from rerun import bindings
 from ...core.base import ValidationError
 from ...core.space import NetworkSpace
 from ..compile import CompiledElement, Problem, RenewalRecord
-from ..runtime import Frame, Observer
+from ..runtime import BaseObserver, Frame
 from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
 from ._utils import log_scalars
-from ._visuals import Visual, resolve_visual
+from ._visuals import BaseVisual, resolve_visual
 
 RENEWAL_MEMBERS = 20
 EXTRA = 'extra'
@@ -55,7 +55,7 @@ def _renewal_text(record: RenewalRecord) -> str:
     return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
 
 
-class RerunObserver(Observer):
+class RerunObserver(BaseObserver):
     """Observer that logs frames to Rerun, with entity paths that follow the system tree.
 
     Each logged frame sets the `sim_time` and `step` timelines, logs every element with the visual its type
@@ -98,10 +98,13 @@ class RerunObserver(Observer):
         >>> import tempfile
         >>> from pathlib import Path
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.viz import RerunObserver
-        >>> system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
+        >>> system = System(
+        ...     components=[PopulationComponent('a', n=1)],
+        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
+        ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
         >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).run(until=1)
         >>> path.exists()
@@ -159,7 +162,7 @@ class RerunObserver(Observer):
             rr.spawn(executable_path=_viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_)
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
-        self._visuals: list[tuple[CompiledElement, Visual]] = [
+        self._visuals: list[tuple[CompiledElement, BaseVisual]] = [
             (element, resolve_visual(element.visual)) for element in problem.elements
         ]
         self._agent_visuals: dict[str, AgentsVisual] = {}

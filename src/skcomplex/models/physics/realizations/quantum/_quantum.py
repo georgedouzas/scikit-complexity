@@ -12,15 +12,15 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from .....core.base import HilbertSpace, ValidationError, VisualSpec, state
-from .....core.components import Element
-from .....core.space import LatticeSpace, NetworkSpace, Space, neighbor_pairs
+from .....core.base import HilbertDomain, ValidationError, VisualSpec, state
+from .....core.components import ElementComponent
+from .....core.space import BaseSpace, LatticeSpace, NetworkSpace, neighbor_pairs
 from .....formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
 
 DIGEST_SIZE = 8
 
 
-def _spin_space(element: 'Spin') -> HilbertSpace:
+def _spin_space(element: 'SpinComponent') -> HilbertDomain:
     """Return the space of a spin of quantum number `j`, from `m = j` down to `m = -j`."""
     size = 2 * element.j + 1
     if not float(size).is_integer() or size < 2:  # noqa: PLR2004
@@ -33,10 +33,10 @@ def _spin_space(element: 'Spin') -> HilbertSpace:
         'plus': (qutip.jmat(element.j, '+'), False),
         'minus': (qutip.jmat(element.j, '-'), False),
     }
-    return HilbertSpace(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
+    return HilbertDomain(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
 
 
-QUBIT = HilbertSpace(
+QUBIT = HilbertDomain(
     2,
     {
         'x': (qutip.sigmax(), True),
@@ -49,7 +49,7 @@ QUBIT = HilbertSpace(
 )
 
 
-def _mode_space(element: 'Mode') -> HilbertSpace:
+def _mode_space(element: 'ModeComponent') -> HilbertDomain:
     """Return the space of a bosonic mode truncated at a number of quanta."""
     quanta = element.quanta
     if isinstance(quanta, bool) or not isinstance(quanta, int | np.integer) or quanta < 1:
@@ -61,10 +61,10 @@ def _mode_space(element: 'Mode') -> HilbertSpace:
         'create': (qutip.create(size), False),
         'number': (qutip.num(size), True),
     }
-    return HilbertSpace(size, operators, display='number')
+    return HilbertDomain(size, operators, display='number')
 
 
-def _site_space(element: 'Site') -> HilbertSpace:
+def _site_space(element: 'SiteComponent') -> HilbertDomain:
     """Return the space of a particle on the sites of a lattice or a network, with its Laplacian and adjacency."""
     space = element.space
     if isinstance(space, LatticeSpace):
@@ -78,10 +78,10 @@ def _site_space(element: 'Site') -> HilbertSpace:
     adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
     laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
     operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}
-    return HilbertSpace(size, operators, display=None)
+    return HilbertDomain(size, operators, display=None)
 
 
-class Spin(Element):
+class SpinComponent(ElementComponent):
     """Spin of quantum number `j`, with the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index.
@@ -101,13 +101,13 @@ class Spin(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import Spin
-        >>> QuantumView(Spin('s', j=1)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SpinComponent
+        >>> QuantumView(SpinComponent('s', j=1)).dimension
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state('up', domain=HilbertSpace.family(_spin_space))
+    initial: Any = state('up', domain=HilbertDomain.family(_spin_space))
 
     def __init__(
         self,
@@ -120,7 +120,7 @@ class Spin(Element):
         self.j = j
 
 
-class Qubit(Element):
+class QubitComponent(ElementComponent):
     """Two-level system with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The state `'up'`, also `'excited'`, is index 0 with `z = 1`, and `'down'`, also `'ground'`, is index 1.
@@ -134,8 +134,8 @@ class Qubit(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
-        >>> sorted(QuantumView(Qubit('q')).local_operators())
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> sorted(QuantumView(QubitComponent('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
     """
 
@@ -143,7 +143,7 @@ class Qubit(Element):
     initial: Any = state('up', domain=QUBIT)
 
 
-class Mode(Element):
+class ModeComponent(ElementComponent):
     """Bosonic mode truncated at a number of quanta, with `annihilate`, `create`, and `number`.
 
     Args:
@@ -161,13 +161,13 @@ class Mode(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import Mode
-        >>> QuantumView(Mode('cavity', quanta=4)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import ModeComponent
+        >>> QuantumView(ModeComponent('cavity', quanta=4)).dimension
         5
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state(0, domain=HilbertSpace.family(_mode_space))
+    initial: Any = state(0, domain=HilbertDomain.family(_mode_space))
 
     def __init__(
         self,
@@ -180,7 +180,7 @@ class Mode(Element):
         self.quanta = quanta
 
 
-class Site(Element):
+class SiteComponent(ElementComponent):
     """Single particle on the sites of a lattice or a network, whose basis state `k` is the particle at site `k`.
 
     Its namespace holds the Laplacian of the space, `laplacian`, spectral on a periodic lattice and of finite
@@ -204,19 +204,19 @@ class Site(Element):
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
         >>> from skcomplex.core.space import LatticeSpace
-        >>> from skcomplex.models.physics.realizations.quantum import Site
-        >>> QuantumView(Site('particle', space=LatticeSpace(16))).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SiteComponent
+        >>> QuantumView(SiteComponent('particle', space=LatticeSpace(16))).dimension
         16
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state(0, domain=HilbertSpace.family(_site_space))
+    initial: Any = state(0, domain=HilbertDomain.family(_site_space))
 
     def __init__(
         self,
         label: str,
         *,
-        space: Space | None = None,
+        space: BaseSpace | None = None,
         **values: Any,  # noqa: ANN401
     ) -> None:
         super().__init__(label, **values)

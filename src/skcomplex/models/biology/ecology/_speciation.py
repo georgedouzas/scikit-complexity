@@ -8,13 +8,13 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -24,7 +24,7 @@ def _richness(species: Array) -> float:
     return float(len(np.unique(species)))
 
 
-class Organism(Element):
+class OrganismComponent(ElementComponent):
     """Individual of a neutral community, labelled by its species.
 
     Args:
@@ -35,15 +35,15 @@ class Organism(Element):
             The label of the species.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Organism
-        >>> Organism.group('community', 10, species=0.0).size
+        >>> from skcomplex.models.biology.ecology import OrganismComponent
+        >>> OrganismComponent.group('community', 10, species=0.0).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'species'})
-    species: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    species: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the replacement moves every individual.
 
         Args:
@@ -57,7 +57,7 @@ class Organism(Element):
         return []
 
 
-class NeutralReplacement(Interaction):
+class NeutralReplacementInteraction(BaseInteraction):
     """Deaths of random individuals at unit rate, each replaced by the offspring of another, a new species at rate `nu`.
 
     One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the other `N - 1`
@@ -74,15 +74,15 @@ class NeutralReplacement(Interaction):
             The probability that an offspring founds a new species.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import NeutralReplacement
-        >>> NeutralReplacement('replacement', community='community', nu=0.01).nu
+        >>> from skcomplex.models.biology.ecology import NeutralReplacementInteraction
+        >>> NeutralReplacementInteraction('replacement', community='community', nu=0.01).nu
         0.01
     """
 
     community: str = role()
-    nu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    nu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the replacement rule.
 
         Args:
@@ -93,7 +93,7 @@ class NeutralReplacement(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.replace)]
+        return [RuleLaw(self.replace)]
 
     def replace(self, model: ModelView) -> None:
         """Run the deaths and replacements of one unit of time.
@@ -161,6 +161,6 @@ def neutral_biodiversity(
     """
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)
     return System(
-        components=[Organism.group('community', individuals, species=labels)],
-        interactions=[NeutralReplacement('replacement', community='community', nu=nu)],
+        components=[OrganismComponent.group('community', individuals, species=labels)],
+        interactions=[NeutralReplacementInteraction('replacement', community='community', nu=nu)],
     )

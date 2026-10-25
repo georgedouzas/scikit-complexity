@@ -1,12 +1,19 @@
 """Automata: elementary, life-like, noisy, and diffusive rules, turmites, an unbounded alphabet, and group automata."""
 
-from ._automata import AntCell, ElementaryCell, LifeCell, elementary_automaton, game_of_life, langtons_ant
+from ._automata import (
+    AntCellComponent,
+    ElementaryCellComponent,
+    LifeCellComponent,
+    elementary_automaton,
+    game_of_life,
+    langtons_ant,
+)
 from ._codes import Wolfram, life
 from ._group_automata import (
-    GoldenMeanCell,
-    LaplacianCell,
-    MajorityCell,
-    ParityCell,
+    GoldenMeanCellComponent,
+    LaplacianCellComponent,
+    MajorityCellComponent,
+    ParityCellComponent,
     baumslag_solitar_automaton,
     free_group_automaton,
     grigorchuk_automaton,
@@ -17,9 +24,9 @@ from ._group_automata import (
 )
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 from ._variants import (
-    DiffusionCell,
-    NoisyElementaryCell,
-    PascalCell,
+    DiffusionCellComponent,
+    NoisyElementaryCellComponent,
+    PascalCellComponent,
     diffusion_automaton,
     highlife,
     noisy_automata,
@@ -27,16 +34,16 @@ from ._variants import (
 )
 
 __all__: list[str] = [
-    'AntCell',
-    'DiffusionCell',
-    'ElementaryCell',
-    'GoldenMeanCell',
-    'LaplacianCell',
-    'LifeCell',
-    'MajorityCell',
-    'NoisyElementaryCell',
-    'ParityCell',
-    'PascalCell',
+    'AntCellComponent',
+    'DiffusionCellComponent',
+    'ElementaryCellComponent',
+    'GoldenMeanCellComponent',
+    'LaplacianCellComponent',
+    'LifeCellComponent',
+    'MajorityCellComponent',
+    'NoisyElementaryCellComponent',
+    'ParityCellComponent',
+    'PascalCellComponent',
     'Wolfram',
     'baumslag_solitar',
     'baumslag_solitar_automaton',

@@ -38,16 +38,18 @@ def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
     return np.where(inside, angles, np.pi - np.mod(np.pi - angles, 2 * np.pi))
 
 
-class Domain(Enum):
+class NumericDomain(Enum):
     """Set of values a variable can take.
 
     Examples:
-        >>> from skcomplex.core.base import Domain
-        >>> Domain.POSITIVE.contains(2.0)
+        >>> from skcomplex.core.base import NumericDomain
+        >>> NumericDomain.POSITIVE.contains(2.0)
         True
-        >>> Domain.NONNEGATIVE_INTEGER.contains(1.5)
+        >>> NumericDomain.NONNEGATIVE_INTEGER.contains(1.5)
         False
-        >>> Domain.COMPLEX.contains(1 + 2j), Domain.REAL.contains(1 + 2j), Domain.REAL.contains(3 + 0j)
+        >>> NumericDomain.COMPLEX.contains(1 + 2j), NumericDomain.REAL.contains(1 + 2j), NumericDomain.REAL.contains(
+        ...     3 + 0j
+        ... )
         (True, False, True)
     """
 
@@ -61,7 +63,7 @@ class Domain(Enum):
     COMPLEX = 'complex'
 
     @staticmethod
-    def categorical(*labels: Any) -> 'Categorical':  # noqa: ANN401
+    def categorical(*labels: Any) -> 'CategoricalDomain':  # noqa: ANN401
         """Return the domain of a finite alphabet, whose values are stored as the indices of its labels.
 
         Args:
@@ -73,25 +75,25 @@ class Domain(Enum):
                 The categorical domain.
 
         Examples:
-            >>> from skcomplex.core.base import Domain
-            >>> health = Domain.categorical('susceptible', 'infected', 'recovered')
+            >>> from skcomplex.core.base import NumericDomain
+            >>> health = NumericDomain.categorical('susceptible', 'infected', 'recovered')
             >>> health.encode(['infected', 'recovered']).tolist()
             [1.0, 2.0]
         """
-        return Categorical(tuple(labels))
+        return CategoricalDomain(tuple(labels))
 
     @property
     def sage_domain(self) -> str:
         """Sage domain of the symbols of the domain, which has no nonnegative domains."""
         return {
-            Domain.REAL: 'real',
-            Domain.POSITIVE: 'positive',
-            Domain.NONNEGATIVE: 'real',
-            Domain.INTEGER: 'integer',
-            Domain.NONNEGATIVE_INTEGER: 'integer',
-            Domain.BOOLEAN: 'integer',
-            Domain.ANGLE: 'real',
-            Domain.COMPLEX: 'complex',
+            NumericDomain.REAL: 'real',
+            NumericDomain.POSITIVE: 'positive',
+            NumericDomain.NONNEGATIVE: 'real',
+            NumericDomain.INTEGER: 'integer',
+            NumericDomain.NONNEGATIVE_INTEGER: 'integer',
+            NumericDomain.BOOLEAN: 'integer',
+            NumericDomain.ANGLE: 'real',
+            NumericDomain.COMPLEX: 'complex',
         }[self]
 
     def encode(self, value: object) -> npt.NDArray[Any]:
@@ -106,15 +108,15 @@ class Domain(Enum):
                 The float values, or the complex values of the complex domain.
 
         Examples:
-            >>> from skcomplex.core.base import Domain
-            >>> Domain.COMPLEX.encode([1, 2j]).tolist()
+            >>> from skcomplex.core.base import NumericDomain
+            >>> NumericDomain.COMPLEX.encode([1, 2j]).tolist()
             [(1+0j), 2j]
         """
         array = np.asarray(value)
-        if self is Domain.COMPLEX:
+        if self is NumericDomain.COMPLEX:
             return np.asarray(array, dtype=complex)
         array = np.asarray(array.real if np.iscomplexobj(array) else array, dtype=float)
-        return wrap_angle(array) if self is Domain.ANGLE else array
+        return wrap_angle(array) if self is NumericDomain.ANGLE else array
 
     def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
         """Return stored values in the domain's own type, booleans for the boolean domain and numbers otherwise.
@@ -127,7 +129,7 @@ class Domain(Enum):
             values:
                 The decoded values.
         """
-        return np.asarray(values) > 0.5 if self is Domain.BOOLEAN else np.asarray(values)  # noqa: PLR2004
+        return np.asarray(values) > 0.5 if self is NumericDomain.BOOLEAN else np.asarray(values)  # noqa: PLR2004
 
     def contains(self, value: object) -> bool:
         """Check that every component of a value belongs to the domain.
@@ -148,26 +150,26 @@ class Domain(Enum):
             return False
         if not np.all(np.isfinite(numbers)):
             return False
-        if self is Domain.COMPLEX:
+        if self is NumericDomain.COMPLEX:
             return True
         if np.any(numbers.imag != 0):
             return False
         array = numbers.real
         integral = bool(np.all(array == np.round(array)))
         checks = {
-            Domain.BOOLEAN: bool(np.all((array == 0) | (array == 1))),
-            Domain.ANGLE: True,
-            Domain.REAL: True,
-            Domain.POSITIVE: bool(np.all(array > 0)),
-            Domain.NONNEGATIVE: bool(np.all(array >= 0)),
-            Domain.INTEGER: integral,
-            Domain.NONNEGATIVE_INTEGER: integral and bool(np.all(array >= 0)),
+            NumericDomain.BOOLEAN: bool(np.all((array == 0) | (array == 1))),
+            NumericDomain.ANGLE: True,
+            NumericDomain.REAL: True,
+            NumericDomain.POSITIVE: bool(np.all(array > 0)),
+            NumericDomain.NONNEGATIVE: bool(np.all(array >= 0)),
+            NumericDomain.INTEGER: integral,
+            NumericDomain.NONNEGATIVE_INTEGER: integral and bool(np.all(array >= 0)),
         }
         return checks[self]
 
 
 @dataclass(frozen=True)
-class Categorical:
+class CategoricalDomain:
     """Domain of a finite alphabet, whose values are stored as the indices of its labels.
 
     Args:
@@ -175,8 +177,8 @@ class Categorical:
             The distinct labels of the alphabet, in order.
 
     Examples:
-        >>> from skcomplex.core.base import Domain
-        >>> Domain.categorical('low', 'high').contains(['high', 1])
+        >>> from skcomplex.core.base import NumericDomain
+        >>> NumericDomain.categorical('low', 'high').contains(['high', 1])
         True
     """
 
@@ -249,7 +251,7 @@ class Categorical:
 
 
 @dataclass(frozen=True)
-class HilbertSpace:
+class HilbertDomain:
     """Domain of a state that is a vector of a Hilbert space, with the local operators laws build Hamiltonians from.
 
     An element whose state lies in a Hilbert space is a quantum subsystem. Its laws read every local operator by name,
@@ -271,8 +273,8 @@ class HilbertSpace:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.base import HilbertSpace
-        >>> space = HilbertSpace(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
+        >>> from skcomplex.core.base import HilbertDomain
+        >>> space = HilbertDomain(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
         >>> space.index('down'), space.index(0)
         (1, 0)
     """
@@ -365,7 +367,7 @@ class HilbertSpace:
         raise ValueError(error_msg)
 
     @staticmethod
-    def family(function: Callable[[Any], 'HilbertSpace']) -> 'HilbertFamily':
+    def family(function: Callable[[Any], 'HilbertDomain']) -> 'HilbertFamilyDomain':
         """Return the Hilbert spaces of an element type that depend on the values of each element.
 
         Args:
@@ -377,11 +379,11 @@ class HilbertSpace:
             family:
                 The family, which a state declares as its domain.
         """
-        return HilbertFamily(function)
+        return HilbertFamilyDomain(function)
 
 
 @dataclass(frozen=True)
-class HilbertFamily:
+class HilbertFamilyDomain:
     """Hilbert spaces of the elements of a type, each given by a function of the element.
 
     Args:
@@ -389,7 +391,7 @@ class HilbertFamily:
             A function of an element that returns its Hilbert space.
     """
 
-    function: Callable[[Any], HilbertSpace]
+    function: Callable[[Any], HilbertDomain]
 
     @property
     def value(self) -> str:
@@ -445,7 +447,7 @@ class HilbertFamily:
         except (TypeError, ValueError):
             return False
 
-    def of(self, element: object) -> HilbertSpace:
+    def of(self, element: object) -> HilbertDomain:
         """Return the Hilbert space of one element.
 
         Args:
@@ -544,7 +546,7 @@ class Structure:
 
 
 @dataclass(frozen=True)
-class Tensor:
+class TensorDomain:
     """Domain of a state that is a tensor of a rank over the dimensions of the space, with a declared symmetry.
 
     Fields of tensors, such as the nematic order of active matter, are specified by `add-tensor-fields`.
@@ -557,8 +559,8 @@ class Tensor:
             `'symmetric'`, `'antisymmetric'`, `'traceless'` for symmetric and traceless, or `None` for none.
 
     Examples:
-        >>> from skcomplex.core.base import Tensor
-        >>> Tensor(2, 'traceless').value
+        >>> from skcomplex.core.base import TensorDomain
+        >>> TensorDomain(2, 'traceless').value
         'traceless tensor of rank 2'
     """
 
@@ -620,4 +622,4 @@ class Tensor:
         return bool(np.all(np.isfinite(numbers)) and np.all(numbers.imag == 0))
 
 
-type AnyDomain = Domain | Categorical | HilbertSpace | HilbertFamily | Structure | Tensor
+type AnyDomain = NumericDomain | CategoricalDomain | HilbertDomain | HilbertFamilyDomain | Structure | TensorDomain

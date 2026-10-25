@@ -14,8 +14,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ....core.base import (
-    Domain,
     Expression,
+    NumericDomain,
     RoleError,
     SymbolicVector,
     ValidationError,
@@ -26,15 +26,15 @@ from ....core.base import (
     vector,
 )
 from ....core.laws import (
-    Boundary,
+    BaseLaw,
+    BoundaryLaw,
     Call,
-    Jump,
-    Law,
+    JumpLaw,
     NeighborReduction,
-    Noise,
-    Rate,
+    NoiseLaw,
+    RateLaw,
     Reduction,
-    Update,
+    UpdateLaw,
     both,
     neighborhoods_in,
     reductions_in,
@@ -46,25 +46,25 @@ from .._declarations import Declarations
 from .._kernels import Reference, Source
 from .._layout import Entry
 from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead, default_neighborhood, neighbor_search
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._reads import Read
 from .._reductions import CompiledReduction, ReductionPass
 from .._specs import KernelSpec, activity_symbol, group_space
 from .._stochastic import DrawLowering
 
 
-def _lower_law(law: Law, spec: KernelSpec, reductions: _Reductions) -> Law:
+def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseLaw:
     """Return a law with every reduction in its values replaced by its placeholder."""
-    if isinstance(law, Jump):
-        return Jump(reductions.lower(law.rate, spec), law.changes)
-    if not isinstance(law, Rate | Noise | Update | Boundary):
+    if isinstance(law, JumpLaw):
+        return JumpLaw(reductions.lower(law.rate, spec), law.changes)
+    if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return law
     value = law.value
     if isinstance(value, Call):
         value = Call(value.function, *(reductions.lower(argument, spec) for argument in value.arguments))
     else:
         value = reductions.lower(value, spec)
-    if isinstance(law, Rate | Noise):
+    if isinstance(law, RateLaw | NoiseLaw):
         return replace(law, value=value)
     return type(law)(law.target, value)
 
@@ -270,7 +270,7 @@ class _Reductions:
             readers = weights.shape[0] if weights is not None else None
             shape = (readers,) if readers is not None else ()
             members_of = readers if readers is not None and not spec.sets else None
-            entry = Entry(f'__reduced_{index}', self.extent, shape, Domain.REAL, members_of)
+            entry = Entry(f'__reduced_{index}', self.extent, shape, NumericDomain.REAL, members_of)
             placeholder = symbol(f'_reduced_{index}')
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
@@ -410,7 +410,7 @@ class _Reductions:
             search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
-            entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), Domain.REAL, block.rows)
+            entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), NumericDomain.REAL, block.rows)
             compiled = CompiledNeighborhood(
                 symbol(f'_neighbours_{index}'),
                 reduction.kind,
@@ -431,7 +431,7 @@ class _Reductions:
         return compiled.symbol
 
 
-class ReductionsPass(Pass):
+class ReductionsPass(BasePass):
     """Pass that lowers the reductions of the laws, of the laws set apart, and of the events, in that order."""
 
     reads = ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')

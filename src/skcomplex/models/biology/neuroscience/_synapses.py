@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, mod, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class Adaptrode(Element):
+class AdaptrodeComponent(ElementComponent):
     """Adaptrode of Mobus, a synaptic weight with three levels of memory that learn on increasing time scales.
 
     At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the
@@ -65,27 +65,27 @@ class Adaptrode(Element):
             The step after which the input stays off.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import Adaptrode
-        >>> Adaptrode('synapse').w_max
+        >>> from skcomplex.models.biology.neuroscience import AdaptrodeComponent
+        >>> AdaptrodeComponent('synapse').w_max
         1.0
     """
 
-    w0: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    w1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    w2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    w_max: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    alpha0: float = parameter(default=0.25, domain=Domain.NONNEGATIVE)
-    alpha1: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    alpha2: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    delta0: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    delta1: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    delta2: float = parameter(default=0.002, domain=Domain.NONNEGATIVE)
-    amplitude: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    period: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    width: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
+    w0: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    w1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    w2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    w_max: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha0: float = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
+    alpha1: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    alpha2: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    delta0: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    delta1: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    delta2: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
+    amplitude: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    period: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    width: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
     stop: float = parameter(default=150.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the updates of the three weights driven by the pulse train.
 
         Args:
@@ -98,9 +98,9 @@ class Adaptrode(Element):
         """
         x = where(mod(s.t, s.period) < s.width, where(s.t < s.stop, s.amplitude, 0), 0)
         return [
-            Update(s.w0, s.w0 + s.alpha0 * x * (s.w_max - s.w0) - s.delta0 * (s.w0 - s.w1)),
-            Update(s.w1, s.w1 + s.alpha1 * (s.w0 - s.w1) - s.delta1 * (s.w1 - s.w2)),
-            Update(s.w2, s.w2 + s.alpha2 * (s.w1 - s.w2) - s.delta2 * s.w2),
+            UpdateLaw(s.w0, s.w0 + s.alpha0 * x * (s.w_max - s.w0) - s.delta0 * (s.w0 - s.w1)),
+            UpdateLaw(s.w1, s.w1 + s.alpha1 * (s.w0 - s.w1) - s.delta1 * (s.w1 - s.w2)),
+            UpdateLaw(s.w2, s.w2 + s.alpha2 * (s.w1 - s.w2) - s.delta2 * s.w2),
         ]
 
 
@@ -161,7 +161,7 @@ def adaptrode(
         >>> adaptrode(stop=50.0).elements[0].stop
         50.0
     """
-    synapse = Adaptrode(
+    synapse = AdaptrodeComponent(
         'synapse',
         alpha0=alpha0,
         alpha1=alpha1,

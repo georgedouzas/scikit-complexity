@@ -14,7 +14,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import autocorrelation, histogram
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -22,7 +22,7 @@ MODEL = 'hasselmann'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, solver=EulerMaruyama(dt=0.01), observers=[observer], random_state=0).run(
+simulation = Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0).run(
     until=100,
 )
 
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, solver=EulerMaruyama(dt=0.01), observers
 # its values should follow a normal distribution of variance `sigma^2 / (2 lam)`.
 
 lam, sigma = 0.5, 0.3
-run = Simulation(create(MODEL), dt=0.1, solver=EulerMaruyama(dt=0.01), random_state=1).run(until=2000).trajectory_
+run = Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=2000).trajectory_
 anomaly = run['ocean.T'][100:]
 lags = np.arange(80) * 0.1
 edges, density = histogram(anomaly, bins=40)

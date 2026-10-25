@@ -3,25 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Noise, Rate, delayed
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import NoiseLaw, RateLaw, delayed
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
+from ....engine.solvers import EulerMaruyamaSolver
 
-ClimateAnomaly = Element.define(
-    'ClimateAnomaly',
-    states={'T': state(default=0.0, domain=Domain.REAL)},
+ClimateAnomalyComponent = ElementComponent.define(
+    'ClimateAnomalyComponent',
+    states={'T': state(default=0.0, domain=NumericDomain.REAL)},
     parameters={'lam': 0.5, 'sigma': 0.3},
-    laws=lambda s: [Rate(s.T, -s.lam * s.T), Noise(s.T, s.sigma)],
+    laws=lambda s: [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)],
 )
 
-DelayedOscillator = Element.define(
-    'DelayedOscillator',
-    states={'T': state(default=0.1, domain=Domain.REAL)},
+DelayedOscillatorComponent = ElementComponent.define(
+    'DelayedOscillatorComponent',
+    states={'T': state(default=0.1, domain=NumericDomain.REAL)},
     parameters={'alpha': 0.75, 'delta': 6.0},
-    laws=lambda s: [Rate(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))],
+    laws=lambda s: [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))],
 )
 
 
@@ -29,7 +29,7 @@ DelayedOscillator = Element.define(
     field='earth/climate',
     tags=('sde', 'Ornstein-Uhlenbeck', 'red noise', 'stochastic climate'),
     references=('Hasselmann 1976', 'Ghil and Lucarini 2020'),
-    defaults={'until': 100.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 100.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> System:
     """Return Hasselmann's stochastic climate, where fast weather noise drives a slow, damped temperature anomaly.
@@ -56,7 +56,7 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         >>> hasselmann(lam=0.1).elements[0].lam
         0.1
     """
-    return System(components=[ClimateAnomaly('ocean', T=T, lam=lam, sigma=sigma)])
+    return System(components=[ClimateAnomalyComponent('ocean', T=T, lam=lam, sigma=sigma)])
 
 
 @register_model(
@@ -92,4 +92,4 @@ def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
         >>> enso(delta=4.0).elements[0].delta
         4.0
     """
-    return System(components=[DelayedOscillator('pacific', T=T, alpha=alpha, delta=delta)])
+    return System(components=[DelayedOscillatorComponent('pacific', T=T, alpha=alpha, delta=delta)])

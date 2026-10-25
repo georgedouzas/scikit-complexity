@@ -3,14 +3,16 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models.physics.criticality import directed_percolation_langevin
 
 
 def _stationary_density(energy):
     """Return the late mean activity of the directed percolation field at a fixed energy."""
     system = directed_percolation_langevin((16, 16), energy=energy)
-    trajectory = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=40).trajectory_
+    trajectory = (
+        Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
+    )
     return float(np.asarray(trajectory['neurons.rho'])[-10:].mean())
 
 

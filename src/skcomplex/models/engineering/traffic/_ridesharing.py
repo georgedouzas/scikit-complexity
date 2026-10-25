@@ -10,14 +10,14 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, transfer
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
@@ -100,7 +100,7 @@ class NearestCab:
         return pairs
 
 
-class Rider(Element):
+class RiderComponent(ElementComponent):
     """Rider who waits at a cell for a cab to a destination, and pays the fare when the cab picks it up.
 
     Args:
@@ -123,19 +123,19 @@ class Rider(Element):
             The money of the rider.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Rider
-        >>> Rider.group('riders', 2, money=50.0).size
+        >>> from skcomplex.models.engineering.traffic import RiderComponent
+        >>> RiderComponent.group('riders', 2, money=50.0).size
         2
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'waited'})
-    destination_x: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    destination_y: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    waited: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    assigned: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    money: float = state(default=100.0, domain=Domain.REAL)
+    destination_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    destination_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    waited: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    assigned: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    money: float = state(default=100.0, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the waiting rule of the phase of driving.
 
         Args:
@@ -146,7 +146,7 @@ class Rider(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.wait, phase='drive')]
+        return [RuleLaw(self.wait, phase='drive')]
 
     def wait(self, agent: AgentView, model: ModelView) -> None:
         """Wait one more step.
@@ -161,7 +161,7 @@ class Rider(Element):
         agent.waited += 1
 
 
-class Cab(Element):
+class CabComponent(ElementComponent):
     """Cab that drives one block a step to its rider, collects the fare, and drives the rider to its destination.
 
     The fare is a base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
@@ -198,23 +198,23 @@ class Cab(Element):
             The fare per block of a trip.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Cab
-        >>> Cab.group('cabs', 3).size
+        >>> from skcomplex.models.engineering.traffic import CabComponent
+        >>> CabComponent.group('cabs', 3).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)})
-    task: float = state(default=IDLE, domain=Domain.NONNEGATIVE_INTEGER)
-    target_x: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    target_y: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    destination_x: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    destination_y: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    rider: float = state(default=-1.0, domain=Domain.REAL)
-    money: float = state(default=0.0, domain=Domain.REAL)
-    base_fare: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    block_fare: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    task: float = state(default=IDLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    target_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    target_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    destination_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    destination_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    rider: float = state(default=-1.0, domain=NumericDomain.REAL)
+    money: float = state(default=0.0, domain=NumericDomain.REAL)
+    base_fare: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    block_fare: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the driving rule of the phase of driving.
 
         Args:
@@ -225,7 +225,7 @@ class Cab(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.drive, phase='drive')]
+        return [RuleLaw(self.drive, phase='drive')]
 
     def _pick_up(self, agent: AgentView, model: ModelView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
@@ -263,7 +263,7 @@ class Cab(Element):
             agent.task = IDLE
 
 
-class Dispatch(Interaction):
+class DispatchInteraction(BaseInteraction):
     """Dispatcher that admits new riders and sends the nearest idle cab to every waiting rider.
 
     Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations. The
@@ -293,15 +293,15 @@ class Dispatch(Interaction):
                 The mean number of new riders in a step.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Dispatch
-        >>> Dispatch('dispatch', riders='riders', cabs='cabs').reports
+        >>> from skcomplex.models.engineering.traffic import DispatchInteraction
+        >>> DispatchInteraction('dispatch', riders='riders', cabs='cabs').reports
         ('arrivals',)
     """
 
     reports: ClassVar[tuple[str, ...]] = ('arrivals',)
     riders: str = role()
     cabs: str = role()
-    demand: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    demand: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -327,9 +327,9 @@ class Dispatch(Interaction):
                 The laws of the component.
         """
         return [
-            Rule(self.admit, phase='arrival'),
-            Match('riders', 'cabs', pairing=NearestCab(), label='rides', phase='dispatch'),
-            Rule(self.dispatch, phase='dispatch'),
+            RuleLaw(self.admit, phase='arrival'),
+            MatchLaw('riders', 'cabs', pairing=NearestCab(), label='rides', phase='dispatch'),
+            RuleLaw(self.dispatch, phase='dispatch'),
         ]
 
     def admit(self, model: Any) -> None:  # noqa: ANN401
@@ -418,7 +418,7 @@ def ridesharing(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers((width, height), size=(n_cabs + 1, 2))
-    riders = Rider.group(
+    riders = RiderComponent.group(
         'riders',
         1,
         variable=True,
@@ -426,7 +426,7 @@ def ridesharing(
         destination_x=float(rng.integers(width)),
         destination_y=float(rng.integers(height)),
     )
-    cabs = Cab.group(
+    cabs = CabComponent.group(
         'cabs',
         n_cabs,
         location=[(int(x), int(y)) for x, y in cells[1:]],
@@ -435,7 +435,9 @@ def ridesharing(
     )
     return System(
         components=[riders, cabs],
-        interactions=[Dispatch('dispatch', riders='riders', cabs='cabs', demand=demand, width=width, height=height)],
+        interactions=[
+            DispatchInteraction('dispatch', riders='riders', cabs='cabs', demand=demand, width=width, height=height),
+        ],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=Phases([Phase('arrival'), Phase('dispatch'), Phase('drive')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('arrival'), Phase('dispatch'), Phase('drive')])),
     )

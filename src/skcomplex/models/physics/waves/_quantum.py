@@ -7,31 +7,31 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, ValidationError, parameter, role
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, Symbols
+from ....core.base import NumericDomain, ValidationError, parameter, role
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4, Field, laplacian
-from ....formalisms.quantum import Dissipator, Generator
-from ..realizations.quantum import Site
+from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
+from ....formalisms.quantum import DissipatorLaw, GeneratorLaw
+from ..realizations.quantum import SiteComponent
 
-WaveFunction = Element.define(
-    'WaveFunction',
+WaveFunctionComponent = ElementComponent.define(
+    'WaveFunctionComponent',
     states={'u': 0.0, 'w': 0.0},
-    parameters={'D': parameter(default=0.5, domain=Domain.POSITIVE), 'V': 0.0},
+    parameters={'D': parameter(default=0.5, domain=NumericDomain.POSITIVE), 'V': 0.0},
     laws=lambda s: [
-        Rate(s.u, -s.D * laplacian(s.w) + s.V * s.w),
-        Rate(s.w, s.D * laplacian(s.u) - s.V * s.u),
+        RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
+        RateLaw(s.w, s.D * laplacian(s.u) - s.V * s.u),
     ],
 )
 
 FORMULATIONS = ('fields', 'operators')
 
 
-class LatticeHamiltonian(Interaction):
+class LatticeHamiltonianInteraction(BaseInteraction):
     """Hamiltonian `-D laplacian + V` of a particle on the sites of a lattice.
 
     Args:
@@ -51,13 +51,13 @@ class LatticeHamiltonian(Interaction):
                 The coefficient of the Laplacian, `ħ / (2 m)`.
 
     Examples:
-        >>> from skcomplex.models.physics.waves import LatticeHamiltonian
-        >>> LatticeHamiltonian('kinetic', target='packet').D
+        >>> from skcomplex.models.physics.waves import LatticeHamiltonianInteraction
+        >>> LatticeHamiltonianInteraction('kinetic', target='packet').D
         0.5
     """
 
     target: str = role()
-    D: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    D: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -80,10 +80,10 @@ class LatticeHamiltonian(Interaction):
             laws:
                 The Hamiltonian.
         """
-        return [Generator(-s.D * s.target.laplacian + s.target.diagonal(self.potential))]
+        return [GeneratorLaw(-s.D * s.target.laplacian + s.target.diagonal(self.potential))]
 
 
-class PositionDephasing(Interaction):
+class PositionDephasingInteraction(BaseInteraction):
     """Dephasing of a particle in the position basis, one dissipator per site projector at the rate `gamma`.
 
     Args:
@@ -97,13 +97,13 @@ class PositionDephasing(Interaction):
             The dephasing rate.
 
     Examples:
-        >>> from skcomplex.models.physics.waves import PositionDephasing
-        >>> PositionDephasing('dephasing', target='packet', gamma=0.5).gamma
+        >>> from skcomplex.models.physics.waves import PositionDephasingInteraction
+        >>> PositionDephasingInteraction('dephasing', target='packet', gamma=0.5).gamma
         0.5
     """
 
     target: str = role()
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the dissipators of the site projectors.
@@ -116,14 +116,14 @@ class PositionDephasing(Interaction):
             laws:
                 The dissipators.
         """
-        return [Dissipator(s.target.projector(site), s.gamma) for site in s.target.sites]
+        return [DissipatorLaw(s.target.projector(site), s.gamma) for site in s.target.sites]
 
 
 @register_model(
     field='physics/waves',
     tags=('waves', 'field', 'pde', 'quantum', 'spectral'),
     references=('Schrödinger 1926', 'Schwichtenberg 2020'),
-    defaults={'until': 4.0, 'dt': 0.1, 'solver': ETDRK4(dt=0.01)},
+    defaults={'until': 4.0, 'dt': 0.1, 'solver': ETDRK4Solver(dt=0.01)},
 )
 def schrodinger(
     n_sites: int = 256,
@@ -201,17 +201,19 @@ def schrodinger(
         raise ValidationError(error_msg)
     if formulation == 'operators':
         amplitudes = psi / np.linalg.norm(psi)
-        interactions: list[Interaction] = [LatticeHamiltonian('kinetic', target='packet', D=D, potential=potential)]
+        interactions: list[BaseInteraction] = [
+            LatticeHamiltonianInteraction('kinetic', target='packet', D=D, potential=potential),
+        ]
         if gamma > 0:
-            interactions.append(PositionDephasing('dephasing', target='packet', gamma=gamma))
+            interactions.append(PositionDephasingInteraction('dephasing', target='packet', gamma=gamma))
         return System(
             'schrodinger',
-            components=[Site('packet', space=space, initial=amplitudes)],
+            components=[SiteComponent('packet', space=space, initial=amplitudes)],
             interactions=interactions,
         )
-    packet = Field(
+    packet = FieldComponent(
         'packet',
-        WaveFunction,
+        WaveFunctionComponent,
         space,
         values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
         discretization='spectral',

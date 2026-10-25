@@ -14,7 +14,7 @@ import numpy.typing as npt
 
 from ...core.system import System, replicate
 from ..compile import compile_system
-from ..experiments import Experiment, Grid, RandomDesign, Source, resolve_source
+from ..experiments import Experiment, GridDesign, RandomDesign, Source, resolve_source
 from ..runtime import Simulation, Trajectory
 
 RUN_SETTINGS = ('solver', 'backend')
@@ -150,7 +150,7 @@ def orbit_diagram(
         return OrbitDiagram(parameter, np.asarray(values, dtype=float), points)
     experiment = Experiment(
         source,
-        Grid(**{parameter: list(values)}),
+        GridDesign(**{parameter: list(values)}),
         until=transient + (keep - 1) * step,
         dt=dt,
         warmup=transient,

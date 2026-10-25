@@ -8,11 +8,11 @@ from typing import Any, cast
 import numpy as np
 
 from ....core.base import Form, VariableKind, VisualSpec, declarations_of
-from ....core.components import Group
+from ....core.components import GroupComponent
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._layout import Layout
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._problem import CompiledElement, CompiledInteraction, Problem, _MarkovMatrix
 from .._reductions import ReductionPass
 from .._specs import KernelSpec
@@ -127,13 +127,13 @@ def _problem_of(compilation: Compilation) -> Problem:
 
 def visual_of(node: Node) -> VisualSpec:
     """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
-    if isinstance(node.component, Group):
+    if isinstance(node.component, GroupComponent):
         return node.component.visual if node.component.visual is not None else node.component.default_visual()
     declared: VisualSpec = node.component_type.visual
     return declared
 
 
-class ProblemPass(Pass):
+class ProblemPass(BasePass):
     """Pass that assembles the problem of the general parts of a compilation."""
 
     reads = (

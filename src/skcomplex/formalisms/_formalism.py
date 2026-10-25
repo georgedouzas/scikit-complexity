@@ -7,15 +7,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from ..core.base import Form, Registry, RegistryError
-from ..core.components import Component
-from ..core.laws import Law, register_laws
-from ..core.space import Space
+from ..core.components import BaseComponent
+from ..core.laws import BaseLaw, register_laws
+from ..core.space import BaseSpace
 from ..engine.compile import (
-    Backend,
+    BaseBackend,
+    BasePass,
     Binding,
     Check,
     OwnerRule,
-    Pass,
     SystemPass,
     register_backend,
     register_binding,
@@ -25,8 +25,8 @@ from ..engine.compile import (
     register_owner,
     register_pass,
 )
-from ..engine.solvers import Stepper, register_solver
-from ..engine.viz import Visual, register_visual
+from ..engine.solvers import Solver, register_solver
+from ..engine.viz import BaseVisual, register_visual
 
 
 def _check_acyclic(formalism: 'Formalism') -> None:
@@ -196,15 +196,15 @@ class Formalism:
 
     name: str
     depends: tuple[str, ...] = ()
-    laws: tuple[type[Law], ...] = ()
-    components: tuple[type[Component], ...] = ()
-    spaces: tuple[type[Space], ...] = ()
-    passes: tuple[Pass | SystemPass, ...] = ()
+    laws: tuple[type[BaseLaw], ...] = ()
+    components: tuple[type[BaseComponent], ...] = ()
+    spaces: tuple[type[BaseSpace], ...] = ()
+    passes: tuple[BasePass | SystemPass, ...] = ()
     forms: tuple[Form, ...] = ()
-    solvers: Mapping[str, type[Stepper]] = field(default_factory=dict)
-    defaults: tuple[type[Stepper], ...] = ()
-    backends: tuple[type[Backend], ...] = ()
-    visuals: Mapping[str, type[Visual]] = field(default_factory=dict)
+    solvers: Mapping[str, type[Solver]] = field(default_factory=dict)
+    defaults: tuple[type[Solver], ...] = ()
+    backends: tuple[type[BaseBackend], ...] = ()
+    visuals: Mapping[str, type[BaseVisual]] = field(default_factory=dict)
     checks: tuple[Check, ...] = ()
     stepwise_forms: Mapping[frozenset[type], Form] = field(default_factory=dict)
     combined: Mapping[type, frozenset[type]] = field(default_factory=dict)

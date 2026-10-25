@@ -10,7 +10,7 @@ import numpy as np
 
 from ...core.base import Form
 from ...core.system import Observable, System
-from ._backends import Backend
+from ._backends import BaseBackend
 from ._compilation import Compilation
 from ._declarations import is_interaction
 from ._observables import _with_observables, check_held_reads
@@ -85,7 +85,7 @@ def _planned_problem(compilation: Compilation) -> Problem:
 
 def compile_system(
     system: System,
-    backend: str | Backend = 'auto',
+    backend: str | BaseBackend = 'auto',
     observables: Sequence[Observable] = (),
     *,
     solver: object = 'auto',
@@ -148,11 +148,11 @@ def compile_system(
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> problem = compile_system(
         ...     System(
-        ...         components=[Population('rabbits', n=10)],
-        ...         interactions=[ExponentialGrowth('growth', target='rabbits', r=0.5)],
+        ...         components=[PopulationComponent('rabbits', n=10)],
+        ...         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ...     ),
         ... )
         >>> problem.form.name
@@ -173,7 +173,7 @@ def compile_system(
     return with_initial_state(problem, initial)
 
 
-def partition_system(system: System, backend: str | Backend = 'auto') -> Problem:
+def partition_system(system: System, backend: str | BaseBackend = 'auto') -> Problem:
     """Compile a system as one partition per subsystem, also when the whole system fits one form.
 
     The elements of the root system form one partition and every child subsystem forms another, so a co-simulation
@@ -197,11 +197,19 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
     Examples:
         >>> from skcomplex.engine.compile import partition_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> system = System(
         ...     components=[
-        ...         System('a', components=[Population('x')], interactions=[ExponentialGrowth('g', target='x')]),
-        ...         System('b', components=[Population('y')], interactions=[ExponentialGrowth('g', target='y')]),
+        ...         System(
+        ...             'a',
+        ...             components=[PopulationComponent('x')],
+        ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
+        ...         ),
+        ...         System(
+        ...             'b',
+        ...             components=[PopulationComponent('y')],
+        ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
+        ...         ),
         ...     ],
         ... )
         >>> [partition.name for partition in partition_system(system).partitions]

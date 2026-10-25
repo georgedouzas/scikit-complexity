@@ -8,10 +8,10 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, Symbols, mean
+from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, Symbols, mean
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
@@ -25,21 +25,21 @@ def _stuart_landau_rates(s: Symbols) -> tuple[Expression, Expression]:
     return s.tau * (growth * s.x - s.omega * s.y), s.tau * (growth * s.y + s.omega * s.x)
 
 
-StuartLandau = Element.define(
-    'StuartLandau',
+StuartLandauComponent = ElementComponent.define(
+    'StuartLandauComponent',
     states={'x': 1.0, 'y': 0.0},
-    parameters={'beta': 1.0, 'omega': 0.0, 'tau': parameter(default=1.0, domain=Domain.POSITIVE)},
-    laws=lambda s: [Rate(s.x, _stuart_landau_rates(s)[0]), Rate(s.y, _stuart_landau_rates(s)[1])],
+    parameters={'beta': 1.0, 'omega': 0.0, 'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
+    laws=lambda s: [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])],
     visual=VisualSpec('points', {'position': 'x', 'states': ()}),
 )
 
-GlobalCoupling = Interaction.define(
-    'GlobalCoupling',
+GlobalCouplingInteraction = BaseInteraction.define(
+    'GlobalCouplingInteraction',
     roles=['target', 'source'],
-    parameters={'K': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
+    parameters={'K': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Rate(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
-        Rate(s.target.y, s.K * (mean(s.source.y) - s.target.y)),
+        RateLaw(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
+        RateLaw(s.target.y, s.K * (mean(s.source.y) - s.target.y)),
     ],
 )
 
@@ -152,10 +152,10 @@ def oscillator_death(
     """
     omegas = _frequency_quantiles(n_oscillators, width, distribution)
     x, y = _spread_on_circle(n_oscillators, random_state)
-    oscillators = StuartLandau.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
+    oscillators = StuartLandauComponent.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
     return System(
         components=[oscillators],
-        interactions=[GlobalCoupling('coupling', target='oscillators', source='oscillators', K=K)],
+        interactions=[GlobalCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)],
     )
 
 
@@ -223,8 +223,16 @@ def heterogeneous_global_coupling(
     taus = 1 + heterogeneity * (2 * (np.arange(n_systems) + 1 / 2) / n_systems - 1)
     x, y = _spread_on_circle(n_systems, random_state)
     radius = math.sqrt(abs(beta))
-    systems = StuartLandau.group('systems', n_systems, x=radius * x, y=radius * y, beta=beta, omega=gamma, tau=taus)
+    systems = StuartLandauComponent.group(
+        'systems',
+        n_systems,
+        x=radius * x,
+        y=radius * y,
+        beta=beta,
+        omega=gamma,
+        tau=taus,
+    )
     return System(
         components=[systems],
-        interactions=[GlobalCoupling('coupling', target='systems', source='systems', K=k)],
+        interactions=[GlobalCouplingInteraction('coupling', target='systems', source='systems', K=k)],
     )

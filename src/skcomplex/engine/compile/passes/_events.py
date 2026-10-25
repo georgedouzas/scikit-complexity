@@ -13,8 +13,17 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Domain, Expression, SymbolicVector, ValidationError, components_of, symbol, symbols_of, vector
-from ....core.laws import Boundary, Event, Jump, Law, Noise, Rate, Update, values_of
+from ....core.base import (
+    Expression,
+    NumericDomain,
+    SymbolicVector,
+    ValidationError,
+    components_of,
+    symbol,
+    symbols_of,
+    vector,
+)
+from ....core.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
 from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -22,7 +31,7 @@ from .._hybrid import CompiledEvent, _Breakpoints, _Delay
 from .._kernels import Reference, Source
 from .._layout import Entry
 from .._lowering import calls_of
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._printing import numpy_function
 from .._problem import VectorFunction
 from .._reductions import ReductionPass
@@ -195,7 +204,7 @@ def _substitute_delays(value: object, spec: KernelSpec, declarations: Declaratio
             f'__delayed_{index}',
             declarations.ends[False],
             (members,) if members is not None else (),
-            Domain.REAL,
+            NumericDomain.REAL,
             members,
         )
         declarations.parameters.append(hidden)
@@ -224,22 +233,27 @@ def _substitute_delays(value: object, spec: KernelSpec, declarations: Declaratio
     return value.subs(replacements) if replacements else value
 
 
-def _with_delays(spec: KernelSpec, laws: list[Law], declarations: Declarations, compilation: Compilation) -> list[Law]:
+def _with_delays(
+    spec: KernelSpec,
+    laws: list[BaseLaw],
+    declarations: Declarations,
+    compilation: Compilation,
+) -> list[BaseLaw]:
     """Return laws with delayed states read through hidden parameters, keeping events aside in the compilation."""
-    result: list[Law] = []
+    result: list[BaseLaw] = []
     for law in laws:
-        if isinstance(law, Event):
+        if isinstance(law, EventLaw):
             guard = _substitute_delays(SR(law.guard), spec, declarations, compilation)
             reset = {
                 target: _substitute_delays(SR(value), spec, declarations, compilation)
                 for target, value in (law.reset or {}).items()
             }
-            compilation.events.append((spec, Event(guard, reset, law.direction, law.terminal, law.label)))
-        elif isinstance(law, Jump):
-            result.append(Jump(_substitute_delays(law.rate, spec, declarations, compilation), law.changes))
-        elif isinstance(law, Rate | Noise):
+            compilation.events.append((spec, EventLaw(guard, reset, law.direction, law.terminal, law.label)))
+        elif isinstance(law, JumpLaw):
+            result.append(JumpLaw(_substitute_delays(law.rate, spec, declarations, compilation), law.changes))
+        elif isinstance(law, RateLaw | NoiseLaw):
             result.append(replace(law, value=_substitute_delays(law.value, spec, declarations, compilation)))
-        elif isinstance(law, Update | Boundary):
+        elif isinstance(law, UpdateLaw | BoundaryLaw):
             result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, compilation)))
         else:
             result.append(law)
@@ -255,7 +269,7 @@ def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
 
 def _reset_function(
     spec: KernelSpec,
-    event: Event,
+    event: EventLaw,
     time: Expression,
     reductions: ReductionPass,
 ) -> VectorFunction | None:
@@ -307,7 +321,7 @@ def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
 
 
 def compile_events(
-    events: list[tuple[KernelSpec, Event]],
+    events: list[tuple[KernelSpec, EventLaw]],
     time: Expression,
     reductions: ReductionPass,
 ) -> tuple[CompiledEvent, ...]:
@@ -348,7 +362,7 @@ def compile_events(
 
 
 def hidden_events(
-    specs: list[tuple[KernelSpec, list[Law]]],
+    specs: list[tuple[KernelSpec, list[BaseLaw]]],
     time: Expression,
     reductions: ReductionPass,
 ) -> tuple[CompiledEvent, ...]:
@@ -374,7 +388,7 @@ def hidden_events(
         values = [
             value
             for law in laws
-            if isinstance(law, Law) and not isinstance(law, Jump)
+            if isinstance(law, BaseLaw) and not isinstance(law, JumpLaw)
             for value in values_of(law, include=('value', 'lhs', 'rhs'))
             if isinstance(value, Expression)
         ]
@@ -421,8 +435,8 @@ def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Del
 
 
 def breakpoints_in(
-    specs: list[tuple[KernelSpec, list[Law]]],
-    events: list[tuple[KernelSpec, Event]],
+    specs: list[tuple[KernelSpec, list[BaseLaw]]],
+    events: list[tuple[KernelSpec, EventLaw]],
     time: Expression,
 ) -> _Breakpoints:
     """Return the breakpoints of the time-dependent inputs in every law and event guard.
@@ -444,7 +458,7 @@ def breakpoints_in(
     expressions: list[Any] = []
     for _, laws in specs:
         for law in laws:
-            value = law.rate if isinstance(law, Jump) else getattr(law, 'value', None)
+            value = law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None)
             expressions += (
                 [item for item in components_of(value) if isinstance(item, Expression)] if value is not None else []
             )
@@ -452,7 +466,7 @@ def breakpoints_in(
     return _breakpoints_of(expressions, time)
 
 
-class DelaysPass(Pass):
+class DelaysPass(BasePass):
     """Pass that reads delayed states through hidden parameters and takes the events of the laws aside."""
 
     reads = ('ordered', 'layout')

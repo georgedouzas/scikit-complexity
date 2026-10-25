@@ -20,7 +20,7 @@ class Schedule(BaseEstimator):
         return f'{type(self).__name__}()'
 
 
-class Time(BaseEstimator):
+class BaseTime(BaseEstimator):
     """Base class of the time of a system, which decides the laws the system may hold.
 
     Subclasses set the class variable `kind`.
@@ -33,7 +33,7 @@ class Time(BaseEstimator):
         return f'{type(self).__name__}()'
 
 
-class ContinuousTime(Time):
+class ContinuousTime(BaseTime):
     """Continuous time, in which rates, noise, implicit equations, jumps, and events change the states.
 
     Examples:
@@ -45,7 +45,7 @@ class ContinuousTime(Time):
     kind: ClassVar[TimeKind] = TimeKind.CONTINUOUS
 
 
-class DiscreteTime(Time):
+class DiscreteTime(BaseTime):
     """Discrete time, in which updates, rules, local rules, rewrites, and samples change the states every step.
 
     Args:
@@ -73,7 +73,7 @@ class DiscreteTime(Time):
         return f'DiscreteTime(schedule={self.schedule!r})'
 
 
-class StaticTime(Time):
+class StaticTime(BaseTime):
     """No time: the system holds only constraints and objectives, and a run solves it once.
 
     Examples:

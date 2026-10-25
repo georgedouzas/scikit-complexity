@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +23,7 @@ MODEL = 'flashing_ratchet'
 
 system = create(MODEL, n_particles=20, asymmetry=0.1, rate=1.0, duration=60.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, solver=EulerMaruyama(dt=0.004), observers=[observer], random_state=0)
+simulation = Simulation(system, dt=0.25, solver=EulerMaruyamaSolver(dt=0.004), observers=[observer], random_state=0)
 simulation.run(until=60)
 
 # %%
@@ -38,7 +38,7 @@ simulation.run(until=60)
 
 def measure_current(asymmetry, rate, duration):
     run = create(MODEL, n_particles=200, asymmetry=asymmetry, rate=rate, duration=duration, random_state=1)
-    positions = Simulation(run, dt=1.0, solver=EulerMaruyama(dt=0.004), random_state=2).run(until=duration)
+    positions = Simulation(run, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=2).run(until=duration)
     velocities = positions.trajectory_['particles.x'][-1, :, 0] / duration
     return velocities.mean(), 3 * velocities.std() / np.sqrt(velocities.size)
 

@@ -10,10 +10,10 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -40,7 +40,7 @@ def _check_shape(name: str, matrix: Sequence[Sequence[float]], rows: int, column
     raise ValidationError(error_msg)
 
 
-class PhosphorylationLoop(Element):
+class PhosphorylationLoopComponent(ElementComponent):
     """Three proteins, each phosphorylated and dephosphorylated by Michaelis-Menten kinetics, that regulate each other.
 
     The states are the unphosphorylated amounts, and each total is conserved. With `u_T = A_T - A`, and so on:
@@ -99,28 +99,28 @@ class PhosphorylationLoop(Element):
             The total amount of C.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import PhosphorylationLoop
-        >>> PhosphorylationLoop('loop', A=0.5).A
+        >>> from skcomplex.models.biology.systems_biology import PhosphorylationLoopComponent
+        >>> PhosphorylationLoopComponent('loop', A=0.5).A
         0.5
     """
 
-    A: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    B: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    C: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    kp1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    kd1: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    kp2: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    kd2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    kp3: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    kd3: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    K1: float = parameter(default=0.01, domain=Domain.POSITIVE)
-    K2: float = parameter(default=0.01, domain=Domain.POSITIVE)
-    K3: float = parameter(default=0.01, domain=Domain.POSITIVE)
-    A_T: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    B_T: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    C_T: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    A: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    B: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    C: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    kp1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    kd1: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    kp2: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    kd2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    kp3: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    kd3: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K1: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    K2: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    K3: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    A_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    B_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    C_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the Michaelis-Menten rates of the three proteins.
 
         Args:
@@ -133,13 +133,13 @@ class PhosphorylationLoop(Element):
         """
         A, B, C = s.A, s.B, s.C
         return [
-            Rate(A, s.kp1 * (s.A_T - A) / (s.K1 + s.A_T - A) - s.kd1 * C * A / (s.K1 + A)),
-            Rate(B, s.kp2 * A * (s.B_T - B) / (s.K2 + s.B_T - B) - s.kd2 * B / (s.K2 + B)),
-            Rate(C, s.kp3 * B * (s.C_T - C) / (s.K3 + s.C_T - C) - s.kd3 * C / (s.K3 + C)),
+            RateLaw(A, s.kp1 * (s.A_T - A) / (s.K1 + s.A_T - A) - s.kd1 * C * A / (s.K1 + A)),
+            RateLaw(B, s.kp2 * A * (s.B_T - B) / (s.K2 + s.B_T - B) - s.kd2 * B / (s.K2 + B)),
+            RateLaw(C, s.kp3 * B * (s.C_T - C) / (s.K3 + s.C_T - C) - s.kd3 * C / (s.K3 + C)),
         ]
 
 
-class Metabolite(Element):
+class MetaboliteComponent(ElementComponent):
     """Metabolite or other species of a biochemical system, with a positive concentration.
 
     Args:
@@ -150,15 +150,15 @@ class Metabolite(Element):
             The initial concentration.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import Metabolite
-        >>> Metabolite('X1', x=2.0).x
+        >>> from skcomplex.models.biology.systems_biology import MetaboliteComponent
+        >>> MetaboliteComponent('X1', x=2.0).x
         2.0
     """
 
-    x: float = state(default=1.0, domain=Domain.POSITIVE)
+    x: float = state(default=1.0, domain=NumericDomain.POSITIVE)
 
 
-class GeneralizedMassAction(Interaction):
+class GeneralizedMassActionInteraction(BaseInteraction):
     """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
 
     Flux `j` is the power law `v_j = gamma_j prod_k x_k^f_jk`, and species `i` changes as `dx_i/dt = sum_j s_ij v_j`.
@@ -184,8 +184,10 @@ class GeneralizedMassAction(Interaction):
                 The paths of the species, in the order of the rows of the stoichiometry.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GeneralizedMassAction
-        >>> v = GeneralizedMassAction('v', species=['X'], stoichiometry=((1, -1),), gamma=(1, 2), orders=((0,), (1,)))
+        >>> from skcomplex.models.biology.systems_biology import GeneralizedMassActionInteraction
+        >>> v = GeneralizedMassActionInteraction(
+        ...     'v', species=['X'], stoichiometry=((1, -1),), gamma=(1, 2), orders=((0,), (1,))
+        ... )
         >>> v.gamma
         (1, 2)
     """
@@ -206,7 +208,7 @@ class GeneralizedMassAction(Interaction):
         self.gamma = gamma
         self.orders = orders
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the sum of the power-law fluxes of every species.
 
         Args:
@@ -226,12 +228,12 @@ class GeneralizedMassAction(Interaction):
         _check_shape('orders', self.orders, len(self.gamma), len(values))
         fluxes = [rate * _power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
         return [
-            Rate(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
+            RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
             for value, row in zip(values, self.stoichiometry, strict=True)
         ]
 
 
-class SSystem(Interaction):
+class SSystemInteraction(BaseInteraction):
     """Rates of a biochemical system in the S-system form of biochemical systems theory.
 
     Every species has one aggregated production and one aggregated degradation, both power laws:
@@ -260,14 +262,14 @@ class SSystem(Interaction):
                 The rate constant of the degradation of every species.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import SSystem
-        >>> SSystem('rates', species=['X'], alpha=[1.0], beta=[1.0], g=((0.0,),), h=((1.0,),)).h
+        >>> from skcomplex.models.biology.systems_biology import SSystemInteraction
+        >>> SSystemInteraction('rates', species=['X'], alpha=[1.0], beta=[1.0], g=((0.0,),), h=((1.0,),)).h
         ((1.0,),)
     """
 
     species: list[str] = role(variadic=True)
-    alpha: list[float] = parameter(default=(), per='species', domain=Domain.NONNEGATIVE)
-    beta: list[float] = parameter(default=(), per='species', domain=Domain.NONNEGATIVE)
+    alpha: list[float] = parameter(default=(), per='species', domain=NumericDomain.NONNEGATIVE)
+    beta: list[float] = parameter(default=(), per='species', domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -281,7 +283,7 @@ class SSystem(Interaction):
         self.g = g
         self.h = h
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the production minus the degradation of every species.
 
         Args:
@@ -300,12 +302,12 @@ class SSystem(Interaction):
         _check_shape('g', self.g, len(values), len(values))
         _check_shape('h', self.h, len(values), len(values))
         return [
-            Rate(value, alpha * _power_product(values, g) - beta * _power_product(values, h))
+            RateLaw(value, alpha * _power_product(values, g) - beta * _power_product(values, h))
             for value, alpha, beta, g, h in zip(values, s.alpha, s.beta, self.g, self.h, strict=True)
         ]
 
 
-class GoodwinStage(Element):
+class GoodwinStageComponent(ElementComponent):
     """Stage of the Goodwin loop, an mRNA, an enzyme, or a product, which decays at a constant rate.
 
     Args:
@@ -319,15 +321,15 @@ class GoodwinStage(Element):
             The degradation rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GoodwinStage
-        >>> GoodwinStage('mRNA', x=0.1).x
+        >>> from skcomplex.models.biology.systems_biology import GoodwinStageComponent
+        >>> GoodwinStageComponent('mRNA', x=0.1).x
         0.1
     """
 
-    x: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the decay `-b x`.
 
         Args:
@@ -338,10 +340,10 @@ class GoodwinStage(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.x, -s.b * s.x)]
+        return [RateLaw(s.x, -s.b * s.x)]
 
 
-class HillRepression(Interaction):
+class HillRepressionInteraction(BaseInteraction):
     """Synthesis of a target repressed by a Hill function of a repressor, `a / (1 + (y / K)^n)`.
 
     Args:
@@ -364,18 +366,18 @@ class HillRepression(Interaction):
             The Hill coefficient.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import HillRepression
-        >>> HillRepression('repression', repressor='product', target='mRNA', n=12.0).n
+        >>> from skcomplex.models.biology.systems_biology import HillRepressionInteraction
+        >>> HillRepressionInteraction('repression', repressor='product', target='mRNA', n=12.0).n
         12.0
     """
 
     repressor: str = role()
     target: str = role()
-    a: float = parameter(default=100.0, domain=Domain.NONNEGATIVE)
-    K: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    n: float = parameter(default=12.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=12.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the repressed synthesis of the target.
 
         Args:
@@ -386,10 +388,10 @@ class HillRepression(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.x, s.a / (1 + (s.repressor.x / s.K) ** s.n))]
+        return [RateLaw(s.target.x, s.a / (1 + (s.repressor.x / s.K) ** s.n))]
 
 
-class Synthesis(Interaction):
+class SynthesisInteraction(BaseInteraction):
     """Synthesis of a target in proportion to a source, `k x`, such as translation or an enzymatic product.
 
     Args:
@@ -406,16 +408,16 @@ class Synthesis(Interaction):
             The synthesis rate per unit of source.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import Synthesis
-        >>> Synthesis('translation', source='mRNA', target='enzyme', k=2.0).k
+        >>> from skcomplex.models.biology.systems_biology import SynthesisInteraction
+        >>> SynthesisInteraction('translation', source='mRNA', target='enzyme', k=2.0).k
         2.0
     """
 
     source: str = role()
     target: str = role()
-    k: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the synthesis `k x` of the target.
 
         Args:
@@ -426,7 +428,7 @@ class Synthesis(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.x, s.k * s.source.x)]
+        return [RateLaw(s.target.x, s.k * s.source.x)]
 
 
 @register_model(
@@ -497,7 +499,7 @@ def phosphorylation_oscillator(
         >>> phosphorylation_oscillator(K=0.1).elements[0].K2
         0.1
     """
-    loop = PhosphorylationLoop(
+    loop = PhosphorylationLoopComponent(
         'loop',
         A=A,
         B=B,
@@ -583,10 +585,10 @@ def biochemical_systems_theory(
         >>> biochemical_systems_theory(form='gma').interactions[0].gamma
         (2.0, 1.0, 1.0, 1.0)
     """
-    species = [Metabolite(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
+    species = [MetaboliteComponent(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
     paths = [item.label for item in species]
     if form == 's-system':
-        rates: Interaction = SSystem(
+        rates: BaseInteraction = SSystemInteraction(
             'rates',
             species=paths,
             alpha=[float(value) for value in alpha],
@@ -595,7 +597,7 @@ def biochemical_systems_theory(
             h=tuple(tuple(row) for row in h),
         )
     elif form == 'gma':
-        rates = GeneralizedMassAction(
+        rates = GeneralizedMassActionInteraction(
             'rates',
             species=paths,
             stoichiometry=tuple(tuple(row) for row in stoichiometry),
@@ -674,10 +676,10 @@ def goodwin_oscillator(
         error_msg = f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {variables} stages.'
         raise ValidationError(error_msg)
     labels = [f'x{index}' for index in range(1, variables + 1)]
-    stages = [GoodwinStage(label, x=float(value), b=b) for label, value in zip(labels, initial, strict=True)]
-    repression = HillRepression('repression', repressor=labels[-1], target=labels[0], a=a, K=K, n=n)
+    stages = [GoodwinStageComponent(label, x=float(value), b=b) for label, value in zip(labels, initial, strict=True)]
+    repression = HillRepressionInteraction('repression', repressor=labels[-1], target=labels[0], a=a, K=K, n=n)
     syntheses = [
-        Synthesis(f'synthesis_{target}', source=source, target=target, k=k)
+        SynthesisInteraction(f'synthesis_{target}', source=source, target=target, k=k)
         for source, target in itertools.pairwise(labels)
     ]
     return System(components=stages, interactions=[repression, *syntheses])

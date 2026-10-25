@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ...engine.compile import Problem, Vector
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 from ._contractions import CompiledEncounter
 from ._passes import KineticProblem
 
@@ -29,7 +29,7 @@ def _densities(encounters: tuple[CompiledEncounter, ...]) -> list[Indices]:
     return list(found.values())
 
 
-class ParticleKinetics(Stepper):
+class KineticSolver(Solver):
     """Direct simulation Monte Carlo of encounter laws with finite particles on activity grids.
 
     Every density is held as counts of particles of one common mass, chosen so that the largest initial density has `n`
@@ -48,9 +48,9 @@ class ParticleKinetics(Stepper):
             The largest time step.
 
     Examples:
-        >>> from skcomplex.formalisms.kinetics import ParticleKinetics
+        >>> from skcomplex.formalisms.kinetics import KineticSolver
         >>> from skcomplex.core.base import LawKind
-        >>> ParticleKinetics(n=1000).supports.laws == {LawKind.ENCOUNTER}
+        >>> KineticSolver(n=1000).supports.laws == {LawKind.ENCOUNTER}
         True
     """
 
@@ -72,18 +72,18 @@ class ParticleKinetics(Stepper):
     def _check_problem(self, problem: Problem) -> None:
         """Raise an error when a problem has laws other than encounters, or no encounter."""
         if not isinstance(problem, KineticProblem) or not problem.encounters:
-            error_msg = 'ParticleKinetics samples encounter laws, but the problem has none. Use an ODE solver.'
+            error_msg = 'KineticSolver samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
         rates = any(not SR(value).is_zero() for value in problem.equations.values())
         if rates or problem.events or problem.delays or problem.renewals:
             error_msg = (
-                'ParticleKinetics samples encounter laws alone, but the problem also has rate laws, events, delays, '
-                'or renewals. Use ScipyODE or RK4, which run them together.'
+                'KineticSolver samples encounter laws alone, but the problem also has rate laws, events, delays, '
+                'or renewals. Use ScipyODESolver or RK4Solver, which run them together.'
             )
             raise SolverError(error_msg)
         if not (isinstance(self.n, int) and self.n > 0 and self.dt > 0):
             error_msg = (
-                f'ParticleKinetics needs a positive integer n and a positive dt, not n = {self.n!r} and '
+                f'KineticSolver needs a positive integer n and a positive dt, not n = {self.n!r} and '
                 f'dt = {self.dt!r}.'
             )
             raise SolverError(error_msg)
@@ -114,7 +114,7 @@ class ParticleKinetics(Stepper):
         """Draw the particle counts of every density from a state, with the mass that gives the largest one `n`."""
         totals = [float(np.sum(x[indices])) for indices in self.densities_]
         if min((float(np.min(x[indices])) for indices in self.densities_), default=0.0) < 0:
-            error_msg = 'ParticleKinetics samples nonnegative densities, but a density of the state is negative.'
+            error_msg = 'KineticSolver samples nonnegative densities, but a density of the state is negative.'
             raise SolverError(error_msg)
         self.mass_ = max(totals, default=0.0) / self.n or 1.0
         for indices, total in zip(self.densities_, totals, strict=True):

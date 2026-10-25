@@ -1,51 +1,51 @@
 """Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
 
 from ._boolean import (
-    BooleanFunction,
-    BooleanNode,
-    ThresholdFunction,
+    BooleanFunctionInteraction,
+    BooleanNodeComponent,
+    ThresholdFunctionInteraction,
     random_boolean_network,
     yeast_cell_cycle,
 )
 from ._boolean_models import boolean_repressilator, mammalian_cell_cycle, three_gene_boolean_network
-from ._cascades import Activation, CascadeStage, GProtein, hormone_cascade_amplifier
-from ._clocks import PerClock, circadian_clock
-from ._genes import Gene, Repression, negative_autoregulation, repressilator, toggle_switch
-from ._min_proteins import MinSkeleton, min_protein_skeleton
+from ._cascades import ActivationInteraction, CascadeStageComponent, GProteinComponent, hormone_cascade_amplifier
+from ._clocks import PerClockComponent, circadian_clock
+from ._genes import GeneComponent, RepressionInteraction, negative_autoregulation, repressilator, toggle_switch
+from ._min_proteins import MinSkeletonComponent, min_protein_skeleton
 from ._networks import (
-    GeneralizedMassAction,
-    GoodwinStage,
-    HillRepression,
-    Metabolite,
-    PhosphorylationLoop,
-    SSystem,
-    Synthesis,
+    GeneralizedMassActionInteraction,
+    GoodwinStageComponent,
+    HillRepressionInteraction,
+    MetaboliteComponent,
+    PhosphorylationLoopComponent,
+    SSystemInteraction,
+    SynthesisInteraction,
     biochemical_systems_theory,
     goodwin_oscillator,
     phosphorylation_oscillator,
 )
-from ._probabilistic import ProbabilisticFunction, ProbabilisticNode, probabilistic_boolean_network
+from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeComponent, probabilistic_boolean_network
 
 __all__: list[str] = [
-    'Activation',
-    'BooleanFunction',
-    'BooleanNode',
-    'CascadeStage',
-    'GProtein',
-    'Gene',
-    'GeneralizedMassAction',
-    'GoodwinStage',
-    'HillRepression',
-    'Metabolite',
-    'MinSkeleton',
-    'PerClock',
-    'PhosphorylationLoop',
-    'ProbabilisticFunction',
-    'ProbabilisticNode',
-    'Repression',
-    'SSystem',
-    'Synthesis',
-    'ThresholdFunction',
+    'ActivationInteraction',
+    'BooleanFunctionInteraction',
+    'BooleanNodeComponent',
+    'CascadeStageComponent',
+    'GProteinComponent',
+    'GeneComponent',
+    'GeneralizedMassActionInteraction',
+    'GoodwinStageComponent',
+    'HillRepressionInteraction',
+    'MetaboliteComponent',
+    'MinSkeletonComponent',
+    'PerClockComponent',
+    'PhosphorylationLoopComponent',
+    'ProbabilisticFunctionInteraction',
+    'ProbabilisticNodeComponent',
+    'RepressionInteraction',
+    'SSystemInteraction',
+    'SynthesisInteraction',
+    'ThresholdFunctionInteraction',
     'biochemical_systems_theory',
     'boolean_repressilator',
     'circadian_clock',

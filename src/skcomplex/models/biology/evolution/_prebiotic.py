@@ -9,10 +9,10 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, Update, total
+from ....core.base import Expression, NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -22,7 +22,7 @@ def _mean_fitness(master: Symbols) -> Expression:
     return master.x + (1 - master.sigma) * (1 - master.x)
 
 
-class GenotypeClass(Element):
+class GenotypeClassComponent(ElementComponent):
     """Share of a population whose genomes lie a given number of point mutations away from the master sequence.
 
     Args:
@@ -33,15 +33,15 @@ class GenotypeClass(Element):
             The initial share.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import GenotypeClass
-        >>> GenotypeClass('k1', x=0.1).x
+        >>> from skcomplex.models.biology.evolution import GenotypeClassComponent
+        >>> GenotypeClassComponent('k1', x=0.1).x
         0.1
     """
 
-    x: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class MasterSequence(GenotypeClass):
+class MasterSequenceComponent(GenotypeClassComponent):
     """Share of the population with the fittest genome, in a sharp-peak landscape where every other genome is less fit.
 
     The master sequence has fitness 1 and every other genome `1 - sigma`. A genome mutates at one locus with
@@ -61,15 +61,15 @@ class MasterSequence(GenotypeClass):
             The selective disadvantage of the other genomes.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import MasterSequence
-        >>> MasterSequence('master', u=0.2).u
+        >>> from skcomplex.models.biology.evolution import MasterSequenceComponent
+        >>> MasterSequenceComponent('master', u=0.2).u
         0.2
     """
 
-    u: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    sigma: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    u: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    sigma: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the replication of the master sequence without mutation, `x0' = x0 (1 - u) / <W>`.
 
         Args:
@@ -80,10 +80,10 @@ class MasterSequence(GenotypeClass):
             laws:
                 The laws of the component.
         """
-        return [Update(s.x, s.x * (1 - s.u) / _mean_fitness(s))]
+        return [UpdateLaw(s.x, s.x * (1 - s.u) / _mean_fitness(s))]
 
 
-class Mutation(Interaction):
+class MutationInteraction(BaseInteraction):
     """Replication of a class of mutants, which gains the mutants of the class before it and loses its own.
 
     With the mean fitness `<W>`, the share `k` steps from the master sequence follows
@@ -110,8 +110,8 @@ class Mutation(Interaction):
                 The path of the master sequence.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Mutation
-        >>> Mutation('mutation_k1', target='k1', source='master', master='master').last
+        >>> from skcomplex.models.biology.evolution import MutationInteraction
+        >>> MutationInteraction('mutation_k1', target='k1', source='master', master='master').last
         False
     """
 
@@ -129,7 +129,7 @@ class Mutation(Interaction):
         super().__init__(label, **values)
         self.last = last
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the next share of the class.
 
         Args:
@@ -144,17 +144,17 @@ class Mutation(Interaction):
         source_fitness = 1 if self.source == self.master else 1 - sigma
         kept = 1 if self.last else 1 - u
         gained = u * source_fitness * s.source.x + kept * (1 - sigma) * s.target.x
-        return [Update(s.target.x, gained / _mean_fitness(s.master))]
+        return [UpdateLaw(s.target.x, gained / _mean_fitness(s.master))]
 
 
-Molecule = Element.define(
-    'Molecule',
-    states={'x': state(default=0.5, domain=Domain.NONNEGATIVE)},
+MoleculeComponent = ElementComponent.define(
+    'MoleculeComponent',
+    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
     parameters={'growth': 0.0},
 )
 
 
-class Catalysis(Interaction):
+class CatalysisInteraction(BaseInteraction):
     """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
 
     Molecule `i` replicates at the rate `lambda_i + omega sum_j T_ij x_j`, with the 0 or 1 topology `T` of the
@@ -178,13 +178,13 @@ class Catalysis(Interaction):
                 The catalytic rate of a link.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Catalysis
-        >>> Catalysis('catalysis', molecules='soup', topology=((0, 1), (1, 0))).topology
+        >>> from skcomplex.models.biology.evolution import CatalysisInteraction
+        >>> CatalysisInteraction('catalysis', molecules='soup', topology=((0, 1), (1, 0))).topology
         ((0, 1), (1, 0))
     """
 
     molecules: str = role()
-    omega: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    omega: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -196,7 +196,7 @@ class Catalysis(Interaction):
         super().__init__(label, **values)
         self.topology = topology
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the catalysed replication and the common outflow.
 
         Args:
@@ -210,7 +210,7 @@ class Catalysis(Interaction):
         molecule = s.molecules
         rate = molecule.growth + s.omega * total(molecule.x, weights=np.asarray(self.topology, dtype=float))
         replication = molecule.x * rate
-        return [Rate(molecule.x, replication - molecule.x * total(replication))]
+        return [RateLaw(molecule.x, replication - molecule.x * total(replication))]
 
 
 @register_model(
@@ -246,9 +246,18 @@ def eigen_quasispecies(classes: int = 12, *, u: float = 0.3, sigma: float = 0.5)
         ['master', 'k1', 'k2']
     """
     labels = ['master', *(f'k{k}' for k in range(1, classes + 1))]
-    elements = [MasterSequence('master', x=1.0, u=u, sigma=sigma), *(GenotypeClass(label) for label in labels[1:])]
+    elements = [
+        MasterSequenceComponent('master', x=1.0, u=u, sigma=sigma),
+        *(GenotypeClassComponent(label) for label in labels[1:]),
+    ]
     interactions = [
-        Mutation(f'mutation_{target}', target=target, source=source, master='master', last=target == labels[-1])
+        MutationInteraction(
+            f'mutation_{target}',
+            target=target,
+            source=source,
+            master='master',
+            last=target == labels[-1],
+        )
         for source, target in itertools.pairwise(labels)
     ]
     return System(components=elements, interactions=interactions)
@@ -307,13 +316,13 @@ def hypercycles(
     else:
         error_msg = f'Unknown topology {topology!r}. Use cycle or complete.'
         raise ValidationError(error_msg)
-    soup = Molecule.group(
+    soup = MoleculeComponent.group(
         'soup',
         molecules,
         x=[1 / molecules] * molecules,
         growth=[float(alpha * index) for index in range(1, molecules + 1)],
     )
-    catalysis = Catalysis(
+    catalysis = CatalysisInteraction(
         'catalysis',
         molecules='soup',
         omega=omega,

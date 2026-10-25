@@ -5,12 +5,12 @@
 
 from sage.all__sagemath_symbolics import exp, log
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Objective, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Objective, RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.control import Collocation
+from ....formalisms.control import CollocationSolver
 
 MIN_CONSUMPTION = 0.05
 MAX_CONSUMPTION = 5.0
@@ -23,7 +23,7 @@ def _saving_rate(s: Symbols) -> Expression:
     return rate
 
 
-class RamseyEconomy(Element):
+class RamseyEconomyComponent(ElementComponent):
     """Economy that splits its output between consumption and capital, after Ramsey, Cass, and Koopmans.
 
     Capital follows `k' = A k^alpha - delta k - c` under the consumption `c`, a bounded control input. The planner
@@ -58,20 +58,20 @@ class RamseyEconomy(Element):
             The value per unit of capital left at the horizon.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import RamseyEconomy
-        >>> RamseyEconomy('economy', k=2.0).k
+        >>> from skcomplex.models.economics.macroeconomics import RamseyEconomyComponent
+        >>> RamseyEconomyComponent('economy', k=2.0).k
         2.0
     """
 
-    k: float = state(default=1.0, domain=Domain.POSITIVE)
+    k: float = state(default=1.0, domain=NumericDomain.POSITIVE)
     c: float = parameter(default=0.5, adaptive=True, bounds=(MIN_CONSUMPTION, MAX_CONSUMPTION))
-    A: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    alpha: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    delta: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    rho: float = parameter(default=0.03, domain=Domain.POSITIVE)
-    v: float = parameter(default=0.7, domain=Domain.NONNEGATIVE)
+    A: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    delta: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    rho: float = parameter(default=0.03, domain=NumericDomain.POSITIVE)
+    v: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the accumulation of capital and the discounted utility to maximise.
 
         Args:
@@ -84,7 +84,7 @@ class RamseyEconomy(Element):
         """
         discount = exp(-s.rho * s.t)
         return [
-            Rate(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c),
+            RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c),
             Objective(discount * log(s.c), terminal=discount * s.v * s.k, sense='max', label='utility'),
         ]
 
@@ -93,7 +93,7 @@ class RamseyEconomy(Element):
     field='economics/macroeconomics',
     tags=('optimal control', 'growth', 'capital', 'collocation', 'ode'),
     references=('Dilão 2023',),
-    defaults={'until': 40.0, 'dt': 0.5, 'solver': Collocation(nodes=81)},
+    defaults={'until': 40.0, 'dt': 0.5, 'solver': CollocationSolver(nodes=81)},
     observables=lambda system: [Observable('saving_rate', _saving_rate)],
 )
 def optimal_consumption(
@@ -139,4 +139,4 @@ def optimal_consumption(
         >>> optimal_consumption(rho=0.05).components[0].rho
         0.05
     """
-    return System(components=[RamseyEconomy('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])
+    return System(components=[RamseyEconomyComponent('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])

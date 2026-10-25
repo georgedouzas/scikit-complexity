@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import cast
 
 from ....core.base import Expression, Trait, ValidationError, components_of, symbols_of
-from ....core.laws import Boundary, Call, Jump, Law, Noise, Rate, Update, has_trait
+from ....core.laws import BaseLaw, BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, has_trait
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -15,10 +15,10 @@ from .._kernels import Kernel, Lowered, Output, Reference, Source
 from .._layout import Layout
 from .._lowering import symbolic_components
 from .._noise import noise_process, process_keys
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import KernelSpec, target_references
 
-ASSIGNED_KINDS = (Update, Boundary)
+ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
 
 
 def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> list[Output]:
@@ -45,7 +45,7 @@ def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> l
 
 def _check_assignments(
     spec: KernelSpec,
-    law: Law,
+    law: BaseLaw,
     targets: list[Reference],
     assigned: set[tuple[str, int]],
     *,
@@ -70,9 +70,9 @@ def _check_assignments(
         assigned.add(key)
 
 
-def _is_once(spec: KernelSpec, law: Law) -> bool:
+def _is_once(spec: KernelSpec, law: BaseLaw) -> bool:
     """Check whether a law of a group's interaction sets single elements from reductions alone, so it runs once."""
-    if spec.rows <= 1 or spec.pairs is not None or not isinstance(law, Rate | Noise | Update | Boundary):
+    if spec.rows <= 1 or spec.pairs is not None or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return False
     if not all(reference.source is Source.SINGLE for reference in target_references(law.target, spec)):
         return False
@@ -92,7 +92,7 @@ def _single_references(spec: KernelSpec) -> dict[Expression, Reference]:
 
 def _law_outputs(
     spec: KernelSpec,
-    law: Rate | Noise | Update | Boundary,
+    law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
     targets: list[Reference],
     declarations: Declarations,
     lowered: dict[int, list[Output]],
@@ -103,14 +103,14 @@ def _law_outputs(
     """
     if id(law) in lowered:
         return lowered[id(law)]
-    if isinstance(law, Noise) and law.conserved:
+    if isinstance(law, NoiseLaw) and law.conserved:
         error_msg = (
             f'A conserved noise law of {spec.owner} has no lowering. Declare its state on a `Field` of the fields '
             'formalism, or remove `conserved=True`.'
         )
         raise ValidationError(error_msg)
-    outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type]
-    if isinstance(law, Noise) and law.process is not None:
+    outputs = _outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')  # type: ignore[arg-type]
+    if isinstance(law, NoiseLaw) and law.process is not None:
         for item, key in zip(outputs, process_keys(spec, law, declarations), strict=True):
             item.process = noise_process(key, declarations.wieners)
     return outputs
@@ -126,16 +126,16 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
         for law in laws:
             if has_trait(law, Trait.KERNEL_FREE):
                 continue
-            if isinstance(law, Jump):
-                output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
+            if isinstance(law, JumpLaw):
+                output = _outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                 lowered.jump_changes[id(output)] = [
                     (target_references(target, spec)[0], float(increment)) for target, increment in law.changes.items()
                 ]
                 lowered.laws[id(output)] = (spec, law)
-                outputs[(Jump, False)].append(output)
+                outputs[(JumpLaw, False)].append(output)
                 continue
-            if not isinstance(law, Rate | Noise | Update | Boundary):
-                error_msg = f'A {type(law).__name__} law of {spec.owner} reached lowering before it was rewritten.'
+            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+                error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
                 raise ValidationError(error_msg)
             targets = target_references(law.target, spec)
             once = _is_once(spec, law)
@@ -160,7 +160,7 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
     return lowered
 
 
-class KernelsPass(Pass):
+class KernelsPass(BasePass):
     """Pass that lowers the reduced laws into the kernels of every law kind."""
 
     reads = ('reduced', 'layout', 'outputs')

@@ -5,13 +5,13 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, VariableKind, declarations_of, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VariableKind, declarations_of, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 WASH = 0
 VALET = 1
@@ -24,7 +24,7 @@ def _front(cars: list[AgentView], stage: int) -> AgentView | None:
     return min(waiting, key=lambda car: car.id) if waiting else None
 
 
-class Car(Element):
+class CarComponent(ElementComponent):
     """Car at the wash, waiting for or receiving a wash or a valet.
 
     Args:
@@ -41,16 +41,16 @@ class Car(Element):
             The number of workers on the car in the current second.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Car
-        >>> Car.group('cars', 1).size
+        >>> from skcomplex.models.economics.markets import CarComponent
+        >>> CarComponent.group('cars', 1).size
         1
     """
 
-    stage: float = state(default=WASH, domain=Domain.NONNEGATIVE_INTEGER)
-    work: float = state(default=525.0, domain=Domain.REAL)
-    crew: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    stage: float = state(default=WASH, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    work: float = state(default=525.0, domain=NumericDomain.REAL)
+    crew: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the workers and the till act on the cars.
 
         Args:
@@ -64,7 +64,7 @@ class Car(Element):
         return []
 
 
-class Washer(Element):
+class WasherComponent(ElementComponent):
     """Worker who joins the front car of the wash or of the valet while it has fewer than two workers.
 
     A worker who finds both areas staffed helps at a random one of them. One second of work removes one
@@ -75,14 +75,14 @@ class Washer(Element):
             The label of the agent or group.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Washer
-        >>> Washer.group('workers', 4).size
+        >>> from skcomplex.models.economics.markets import WasherComponent
+        >>> WasherComponent.group('workers', 4).size
         4
     """
 
     cars: ClassVar[str] = 'cars'
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the work rule.
 
         Args:
@@ -93,7 +93,7 @@ class Washer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.work)]
+        return [RuleLaw(self.work)]
 
     def work(self, agent: AgentView, model: ModelView) -> None:
         """Work one second on the front car of an area.
@@ -115,7 +115,7 @@ class Washer(Element):
         car.work -= 1.0
 
 
-class Till(Element):
+class TillComponent(ElementComponent):
     """Till of the car wash, which counts the revenue and the cars served and turned away.
 
     Args:
@@ -135,17 +135,17 @@ class Till(Element):
             The number of drivers who did not turn in because of the queue.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Till
-        >>> Till.group('till', 1).size
+        >>> from skcomplex.models.economics.markets import TillComponent
+        >>> TillComponent.group('till', 1).size
         1
     """
 
-    revenue: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    washes: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    valets: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    turned_away: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    revenue: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    washes: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    valets: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    turned_away: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the car wash books the payments.
 
         Args:
@@ -159,7 +159,7 @@ class Till(Element):
         return []
 
 
-class CarWashOperation(Interaction):
+class CarWashOperationInteraction(BaseInteraction):
     """Arrival of passing cars, completion of washes and valets, and payment, once every second.
 
     A passing car turns in with a probability, unless the wash queue holds `balk` cars or more. A washed car stays for
@@ -200,21 +200,21 @@ class CarWashOperation(Interaction):
             The length of the wash queue at which drivers no longer turn in.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import CarWashOperation
-        >>> CarWashOperation('wash', cars='cars', till='till', p_enter=0.01).p_enter
+        >>> from skcomplex.models.economics.markets import CarWashOperationInteraction
+        >>> CarWashOperationInteraction('wash', cars='cars', till='till', p_enter=0.01).p_enter
         0.01
     """
 
     cars: str = role()
     till: str = role()
-    p_pass: float = parameter(default=0.33, domain=Domain.NONNEGATIVE)
-    p_enter: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    p_valet: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    wash_work: float = parameter(default=525.0, domain=Domain.POSITIVE)
-    valet_work: float = parameter(default=1750.0, domain=Domain.POSITIVE)
-    wash_price: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
-    valet_price: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    balk: float = parameter(default=3.0, domain=Domain.POSITIVE)
+    p_pass: float = parameter(default=0.33, domain=NumericDomain.NONNEGATIVE)
+    p_enter: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    p_valet: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    wash_work: float = parameter(default=525.0, domain=NumericDomain.POSITIVE)
+    valet_work: float = parameter(default=1750.0, domain=NumericDomain.POSITIVE)
+    wash_price: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    valet_price: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    balk: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
 
     def _finish(self, car: AgentView, till: AgentView, model: ModelView, values: dict[str, float]) -> None:
         """Move a car whose work is done to the valet, or take its payment and let it leave."""
@@ -229,7 +229,7 @@ class CarWashOperation(Interaction):
             till.valets += 1
         car.remove()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of one second.
 
         Args:
@@ -240,7 +240,7 @@ class CarWashOperation(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.operate)]
+        return [RuleLaw(self.operate)]
 
     def operate(self, model: ModelView) -> None:
         """Finish the cars whose work is done, reset the crews, and let a passing car turn in or drive on.
@@ -328,7 +328,7 @@ def car_wash(
         >>> car_wash(5).elements[0].size
         5
     """
-    operation = CarWashOperation(
+    operation = CarWashOperationInteraction(
         'wash',
         cars='cars',
         till='till',
@@ -343,9 +343,9 @@ def car_wash(
     )
     return System(
         components=[
-            Washer.group('workers', n_workers, variable=True),
-            Car.group('cars', n_cars, variable=True, work=wash_work),
-            Till.group('till', 1, variable=True),
+            WasherComponent.group('workers', n_workers, variable=True),
+            CarComponent.group('cars', n_cars, variable=True, work=wash_work),
+            TillComponent.group('till', 1, variable=True),
         ],
         interactions=[operation],
     )

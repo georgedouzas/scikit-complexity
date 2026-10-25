@@ -5,28 +5,28 @@
 
 import numpy as np
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, both, where
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, both, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import RK4Solver
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-def _spring_block_laws(s: Symbols) -> list[Law]:
+def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
     """Return the sliding of a block under its springs and the stick-slip friction that weakens with speed."""
     sliding = where(s.v > 0, s.v, 0)
     force = s.k_c * laplacian(s.x) + s.k_p * (s.velocity * s.t - s.x)
     friction = s.F0 / (1 + sliding / s.v_c)
     stuck = both(s.v <= 0, force < s.F0)
-    return [Rate(s.x, sliding), Rate(s.v, where(stuck, 0, (force - friction) / s.m))]
+    return [RateLaw(s.x, sliding), RateLaw(s.v, where(stuck, 0, (force - friction) / s.m))]
 
 
-SpringBlock = Element.define(
-    'SpringBlock',
-    states={'x': state(default=0.0, domain=Domain.REAL), 'v': state(default=0.0, domain=Domain.REAL)},
+SpringBlockComponent = ElementComponent.define(
+    'SpringBlockComponent',
+    states={'x': state(default=0.0, domain=NumericDomain.REAL), 'v': state(default=0.0, domain=NumericDomain.REAL)},
     parameters={'m': 1.0, 'k_c': 2.5, 'k_p': 1.0, 'velocity': 0.01, 'F0': 1.0, 'v_c': 0.5},
     laws=_spring_block_laws,
 )
@@ -36,7 +36,7 @@ SpringBlock = Element.define(
     field='earth/seismology',
     tags=('field', 'stick-slip', 'earthquakes', 'friction'),
     references=('Burridge and Knopoff 1967', 'Carlson and Langer 1989', 'Charbonneau 2017'),
-    defaults={'until': 200.0, 'dt': 1.0, 'solver': RK4(dt=0.05)},
+    defaults={'until': 200.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.05)},
 )
 def burridge_knopoff(
     n_blocks: int = 20,
@@ -57,8 +57,8 @@ def burridge_knopoff(
 
     The drift switches whenever a block sticks or starts to slide, and these switches of single blocks give no events,
     so the adaptive default solver stalls on them: LSODA gives way to RK45 after its stall guard fires, and 2000 time
-    units take about 24 s. The registered solver is `RK4(dt=0.05)`, well inside the stability limit set by the highest
-    frequency `sqrt(k_p + 4 k_c)`, which runs the same span in about 3.5 s with the same statistics of slips.
+    units take about 24 s. The registered solver is `RK4Solver(dt=0.05)`, well inside the stability limit set by the
+    highest frequency `sqrt(k_p + 4 k_c)`, which runs the same span in about 3.5 s with the same statistics of slips.
 
     Args:
         n_blocks:
@@ -92,9 +92,9 @@ def burridge_knopoff(
         5
     """
     offsets = np.random.default_rng(random_state).uniform(-0.5, 0.5, n_blocks)
-    fault = Field(
+    fault = FieldComponent(
         'fault',
-        SpringBlock,
+        SpringBlockComponent,
         LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={'x': offsets, 'k_c': k_c, 'k_p': k_p, 'velocity': velocity, 'F0': F0, 'v_c': v_c},

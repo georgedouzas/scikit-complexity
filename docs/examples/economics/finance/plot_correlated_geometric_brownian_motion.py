@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -24,7 +24,7 @@ RHO = 0.7
 
 system = create(MODEL, rho=RHO)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-solver = EulerMaruyama(dt=0.001)
+solver = EulerMaruyamaSolver(dt=0.001)
 simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).run(until=3)
 
 # %%

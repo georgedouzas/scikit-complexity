@@ -6,13 +6,13 @@
 from typing import cast
 
 from ....core.base import Expression, ValidationError, VariableKind, components_of, declarations_of
-from ....core.interactions import Interaction
-from ....core.laws import Boundary, Law, Symbols, either, mod, where
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, BoundaryLaw, Symbols, either, mod, where
 from ....core.space import ContinuousSpace
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction
 from .._kernels import PairSearch, Source
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import KernelSpec, resolve_role
 from .._tree import Node
 
@@ -34,7 +34,7 @@ def _space_period(node: Node) -> float | None:
 def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> KernelSpec:
     """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
     node = block.node
-    interaction: Interaction = node.component
+    interaction: BaseInteraction = node.component
     first, second = resolve_role(node, 'first', elements), resolve_role(node, 'second', elements)
     position = getattr(type(interaction), 'position', 'x')
     for bound in (first, second):
@@ -55,7 +55,7 @@ def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
-def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[Law]:
+def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
     """Return the laws by which the boundary of a continuous space acts on the position states of a component.
 
     A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
@@ -66,7 +66,7 @@ def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[Law]:
     if is_interaction(block.node) or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
         return []
     declarations = declarations_of(block.node.component_type, VariableKind.STATE)
-    laws: list[Law] = []
+    laws: list[BaseLaw] = []
     for name, declaration in declarations.items():
         if not declaration.position:
             continue
@@ -78,16 +78,16 @@ def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[Law]:
         velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
         for position, velocity, side in zip(positions, velocities, space.extent, strict=True):
             if space.boundary == 'periodic':
-                laws.append(Boundary(position, mod(position, side)))
+                laws.append(BoundaryLaw(position, mod(position, side)))
                 continue
             below, above = position < 0, position > side
-            laws.append(Boundary(position, where(below, -position, where(above, 2 * side - position, position))))
+            laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
             if velocity is not None:
-                laws.append(Boundary(velocity, where(either(below, above), -velocity, velocity)))
+                laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
     return laws
 
 
-class BoundaryLawsPass(Pass):
+class BoundaryLawsPass(BasePass):
     """Pass that adds the laws by which the boundary of a continuous space acts on the positions of components."""
 
     reads = ('collected',)

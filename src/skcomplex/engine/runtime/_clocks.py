@@ -8,7 +8,7 @@ import time
 from sklearn.base import BaseEstimator
 
 
-class Clock(BaseEstimator):
+class BaseClock(BaseEstimator):
     """Base class of clocks, which decide how long to wait between frames."""
 
     def start(self) -> None:
@@ -25,18 +25,18 @@ class Clock(BaseEstimator):
         """
 
 
-class AsFastAsPossible(Clock):
+class AsFastAsPossibleClock(BaseClock):
     """Clock that never waits.
 
     Examples:
-        >>> from skcomplex.engine.runtime import AsFastAsPossible
-        >>> clock = AsFastAsPossible()
+        >>> from skcomplex.engine.runtime import AsFastAsPossibleClock
+        >>> clock = AsFastAsPossibleClock()
         >>> clock.start()
         >>> clock.wait(10.0)
     """
 
 
-class RealTime(Clock):
+class RealTimeClock(BaseClock):
     """Clock that advances simulated time at a fixed speed relative to wall time.
 
     The largest delay of a frame behind its due time is recorded in `max_lag_`.
@@ -46,8 +46,8 @@ class RealTime(Clock):
             The number of simulated time units per second of wall time.
 
     Examples:
-        >>> from skcomplex.engine.runtime import RealTime
-        >>> clock = RealTime(speed=100.0)
+        >>> from skcomplex.engine.runtime import RealTimeClock
+        >>> clock = RealTimeClock(speed=100.0)
         >>> clock.start()
         >>> clock.wait(1.0)
         >>> clock.max_lag_ < 0.1

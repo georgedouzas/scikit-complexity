@@ -50,7 +50,7 @@ def step_count(t: float, until: float, dt: float) -> int:
     return max(1, math.ceil((until - t) / dt - STEP_TOLERANCE))
 
 
-class Stepper(BaseEstimator):
+class Solver(BaseEstimator):
     """Base class of solvers that advance a problem of one form through time.
 
     Subclasses set the class variable `form` and implement `advance`. Every call to `advance` receives the current
@@ -75,20 +75,21 @@ class Stepper(BaseEstimator):
         if problem.objectives and LawKind.OBJECTIVE not in self.supports.laws:
             error_msg = (
                 f'{name} follows the laws of a system but does not optimise its objective laws. Use an optimal control '
-                'solver, Pontryagin or Collocation.'
+                'solver, PontryaginSolver or CollocationSolver.'
             )
             raise SolverError(error_msg)
         if problem.renewals and not self.renews:
             error_msg = (
-                f'{name} does not fire renewal laws. Use RK4 for rate laws, EulerMaruyama for noise laws, or '
-                'RenewalStepper for renewal laws alone.'
+                f'{name} does not fire renewal laws. Use RK4Solver for rate laws, EulerMaruyamaSolver for noise laws, '
+                'or '
+                'RenewalSolver for renewal laws alone.'
             )
             raise SolverError(error_msg)
         if problem.fractional and not self.fractional:
             laws = ', '.join(dict.fromkeys(rows.law for rows in problem.fractional))
             error_msg = (
                 f'{name} draws independent Wiener increments, but the {laws} needs correlated increments. Use the '
-                'fractional Euler-Maruyama stepper, FractionalEulerMaruyama.'
+                'fractional Euler-Maruyama stepper, FractionalEulerMaruyamaSolver.'
             )
             raise SolverError(error_msg)
 
@@ -158,8 +159,10 @@ class Stepper(BaseEstimator):
         if limit is not None and step is not None and step > limit and not self.implicit:
             warning_msg = (
                 f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
-                f"of the fields. Use dt <= {limit:.6g}, ScipyODE(method='BDF') or ScipyODE(method='Radau') for "
-                'finite-difference and finite element fields, or a split stepper such as ETDRK4 for spectral fields.'
+                f"of the fields. Use dt <= {limit:.6g}, ScipyODESolver(method='BDF') or ScipyODESolver(method='Radau') "
+                "for "
+                'finite-difference and finite element fields, or a split stepper such as ETDRK4Solver for spectral '
+                'fields.'
             )
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
@@ -255,7 +258,7 @@ class Stepper(BaseEstimator):
         return None
 
 
-def register_solver(name: str, stepper: type[Stepper], *, default: bool = False) -> None:
+def register_solver(name: str, stepper: type[Solver], *, default: bool = False) -> None:
     """Register a stepper class under a name for its form.
 
     Args:
@@ -273,7 +276,7 @@ def register_solver(name: str, stepper: type[Stepper], *, default: bool = False)
         SOLVERS.register((stepper.form, 'auto'), stepper)
 
 
-def resolve_solver(problem: Problem, solver: str | Stepper) -> Stepper:
+def resolve_solver(problem: Problem, solver: str | Solver) -> Solver:
     """Return a stepper for a problem from a registered name or an instance.
 
     Args:
@@ -291,7 +294,7 @@ def resolve_solver(problem: Problem, solver: str | Stepper) -> Stepper:
         SolverError:
             No stepper of the problem's form is registered under the name.
     """
-    if isinstance(solver, Stepper):
+    if isinstance(solver, Solver):
         return solver
     solver_registry()
     try:

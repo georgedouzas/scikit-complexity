@@ -7,13 +7,13 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 GROWN_SHARE = 0.5
 
@@ -34,7 +34,7 @@ def _live(agent: AgentView, model: ModelView, reproduction: float) -> None:
         agent.create(energy=agent.energy)
 
 
-class Grass(Element):
+class GrassComponent(ElementComponent):
     """Grass patch that regrows a fixed number of steps after it is eaten.
 
     Args:
@@ -51,17 +51,17 @@ class Grass(Element):
             The number of steps the grass takes to regrow.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Grass
-        >>> Grass.group('grass', 4, grown=1.0).size
+        >>> from skcomplex.models.biology.ecology import GrassComponent
+        >>> GrassComponent.group('grass', 4, grown=1.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5})
-    grown: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    countdown: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    regrowth: float = parameter(default=30.0, domain=Domain.POSITIVE)
+    grown: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    countdown: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    regrowth: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth rule.
 
         Args:
@@ -72,7 +72,7 @@ class Grass(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.regrow)]
+        return [RuleLaw(self.regrow)]
 
     def regrow(self, agent: AgentView, model: ModelView) -> None:
         """Count down eaten grass and grow it back when the countdown ends.
@@ -93,7 +93,7 @@ class Grass(Element):
             agent.countdown = agent.regrowth
 
 
-class Sheep(Element):
+class SheepComponent(ElementComponent):
     """Sheep that wanders, eats grown grass, reproduces, and dies without energy.
 
     Args:
@@ -110,17 +110,17 @@ class Sheep(Element):
             The probability of reproducing at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Sheep
-        >>> Sheep.group('sheep', 100).size
+        >>> from skcomplex.models.biology.ecology import SheepComponent
+        >>> SheepComponent.group('sheep', 100).size
         100
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.3})
     energy: float = state(default=8.0)
-    gain: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
-    reproduction: float = parameter(default=0.04, domain=Domain.NONNEGATIVE)
+    gain: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    reproduction: float = parameter(default=0.04, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -131,7 +131,7 @@ class Sheep(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.graze)]
+        return [RuleLaw(self.graze)]
 
     def graze(self, agent: AgentView, model: ModelView) -> None:
         """Wander, eat the grass of the new cell when it is grown, then reproduce or die.
@@ -152,7 +152,7 @@ class Sheep(Element):
         _live(agent, model, agent.reproduction)
 
 
-class Wolf(Element):
+class WolfComponent(ElementComponent):
     """Wolf that wanders, eats a sheep of its cell, reproduces, and dies without energy.
 
     Args:
@@ -169,17 +169,17 @@ class Wolf(Element):
             The probability of reproducing at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Wolf
-        >>> Wolf.group('wolves', 25).size
+        >>> from skcomplex.models.biology.ecology import WolfComponent
+        >>> WolfComponent.group('wolves', 25).size
         25
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.35})
     energy: float = state(default=20.0)
-    gain: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    reproduction: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    gain: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    reproduction: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -190,7 +190,7 @@ class Wolf(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.hunt)]
+        return [RuleLaw(self.hunt)]
 
     def hunt(self, agent: AgentView, model: ModelView) -> None:
         """Wander, eat one sheep of the new cell when there is one, then reproduce or die.
@@ -259,7 +259,7 @@ def wolf_sheep(
     cells = [(column, row) for column in range(width) for row in range(height)]
     grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
     countdown = np.where(grown > 0, regrowth, rng.uniform(0, regrowth, len(cells)))
-    grass = Grass.group(
+    grass = GrassComponent.group(
         'grass',
         len(cells),
         variable=True,
@@ -269,6 +269,10 @@ def wolf_sheep(
         regrowth=regrowth,
     )
     return System(
-        components=[grass, Sheep.group('sheep', sheep, variable=True), Wolf.group('wolves', wolves, variable=True)],
+        components=[
+            grass,
+            SheepComponent.group('sheep', sheep, variable=True),
+            WolfComponent.group('wolves', wolves, variable=True),
+        ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

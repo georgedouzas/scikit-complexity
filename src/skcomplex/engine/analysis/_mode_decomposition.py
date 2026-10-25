@@ -12,13 +12,13 @@ import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
 from ...core.base import vector
-from ...core.laws import Law, Rate, Symbols
+from ...core.laws import BaseLaw, RateLaw, Symbols
 from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
+    BaseSurrogate,
     Samples,
-    Surrogate,
     SurrogateData,
     relative_error,
     samples_of,
@@ -49,22 +49,22 @@ def _increments(decomposition: Any, parts: list[Array]) -> tuple[list[Array], li
     return predicted, [np.diff(values, axis=0) for values in parts]
 
 
-def _linear_laws(names: Sequence[str], generator: Array) -> Callable[[Symbols], list[Law]]:
+def _linear_laws(names: Sequence[str], generator: Array) -> Callable[[Symbols], list[BaseLaw]]:
     """Return the function that gives the rate law `dg/dt = L g` of the states named."""
 
-    def laws(s: Symbols) -> list[Law]:
+    def laws(s: Symbols) -> list[BaseLaw]:
         """Return the matrix rate law."""
         symbols = symbols_of(s, names)
         rows = [
             sum(float(value) * item for value, item in zip(row, symbols, strict=True) if value) for row in generator
         ]
-        return [Rate(vector(symbols), vector(rows))]
+        return [RateLaw(vector(symbols), vector(rows))]
 
     return laws
 
 
 @dataclass(frozen=True)
-class ModeDecomposition(Surrogate):
+class ModeDecompositionSurrogate(BaseSurrogate):
     """Linear surrogate fitted by dynamic mode decomposition, with its modes and continuous eigenvalues.
 
     Args:
@@ -136,7 +136,7 @@ def fit_dmd(
     dictionary: TransformerMixin | None = None,
     validation: float = 0.2,
     label: str = 'surrogate',
-) -> ModeDecomposition:
+) -> ModeDecompositionSurrogate:
     """Return the linear surrogate that dynamic mode decomposition fits to series, computed with PyDMD.
 
     The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the pairs of consecutive samples
@@ -198,7 +198,7 @@ def fit_dmd(
         _linear_laws(states, generator),
         ContinuousTime(),
     )
-    return ModeDecomposition(
+    return ModeDecompositionSurrogate(
         system,
         labels,
         states,

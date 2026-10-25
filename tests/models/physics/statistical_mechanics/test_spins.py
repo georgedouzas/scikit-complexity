@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.experiments import Experiment, Grid
+from skcomplex.engine.experiments import Experiment, GridDesign
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import ImageVisual, RerunObserver
 from skcomplex.models.physics.statistical_mechanics import ising, potts, xy
@@ -31,7 +31,7 @@ def test_ising_transition():
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
     result = Experiment(
         lambda temperature: ising(64, temperature=temperature, initial='up'),
-        Grid(temperature=temperatures),
+        GridDesign(temperature=temperatures),
         replicates=4,
         until=1000,
         dt=50,

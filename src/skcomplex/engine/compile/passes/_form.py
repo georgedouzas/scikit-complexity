@@ -7,10 +7,10 @@ from typing import cast
 
 from .._compilation import Compilation
 from .._forms import infer_form
-from .._pipeline import Pass
+from .._pipeline import BasePass
 
 
-class FormPass(Pass):
+class FormPass(BasePass):
     """Pass that infers the form of the problem from the law classes of its owners."""
 
     reads = ('kinds',)

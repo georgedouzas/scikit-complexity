@@ -6,12 +6,12 @@
 from typing import cast
 
 from .._compilation import BlockLaws, Compilation, Laws
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import settle_rows
 from .._stochastic import check_draw_placement
 
 
-class RowsPass(Pass):
+class RowsPass(BasePass):
     """Pass that checks the draws of the laws and settles the rows of every kernel spec, with its laws set apart."""
 
     reads = ('lowered', 'apart')

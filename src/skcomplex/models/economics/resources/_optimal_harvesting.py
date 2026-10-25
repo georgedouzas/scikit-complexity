@@ -5,12 +5,12 @@
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Objective, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Objective, RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.control import Collocation
+from ....formalisms.control import CollocationSolver
 
 MAX_EFFORT = 1.0
 
@@ -22,7 +22,7 @@ def _catch(s: Symbols) -> Expression:
     return catch
 
 
-class HarvestedResource(Element):
+class HarvestedResourceComponent(ElementComponent):
     """Logistic resource whose harvest effort is a bounded control input, after Clark.
 
     The stock follows `x' = r x (1 - x / K) - q E x` under the effort `E` between 0 and its largest value. The
@@ -60,21 +60,21 @@ class HarvestedResource(Element):
             The discount rate.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import HarvestedResource
-        >>> HarvestedResource('resource', x=0.5).x
+        >>> from skcomplex.models.economics.resources import HarvestedResourceComponent
+        >>> HarvestedResourceComponent('resource', x=0.5).x
         0.5
     """
 
-    x: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    x: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
     effort: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_EFFORT))
-    r: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    K: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    q: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    c: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    delta: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    r: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    q: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    c: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    delta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth less the catch, and the discounted profit to maximise.
 
         Args:
@@ -87,7 +87,7 @@ class HarvestedResource(Element):
         """
         profit = exp(-s.delta * s.t) * (s.p * s.q * s.x - s.c) * s.effort
         return [
-            Rate(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x),
+            RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x),
             Objective(profit, sense='max', label='profit'),
         ]
 
@@ -96,7 +96,7 @@ class HarvestedResource(Element):
     field='economics/resources',
     tags=('optimal control', 'harvesting', 'bang-bang', 'singular arc', 'ode'),
     references=('Clark 1990',),
-    defaults={'until': 20.0, 'dt': 0.2, 'solver': Collocation(nodes=101, scheme='trapezoidal')},
+    defaults={'until': 20.0, 'dt': 0.2, 'solver': CollocationSolver(nodes=101, scheme='trapezoidal')},
     observables=lambda system: [Observable('catch', _catch)],
 )
 def optimal_harvesting(
@@ -147,5 +147,5 @@ def optimal_harvesting(
         >>> optimal_harvesting(delta=0.05).components[0].delta
         0.05
     """
-    resource = HarvestedResource('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
+    resource = HarvestedResourceComponent('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
     return System(components=[resource])

@@ -1,13 +1,13 @@
 """Nonlinear oscillators: Duffing, Van der Pol, Stuart-Landau, Adler, billiards, and Hamiltonian chaos."""
 
-from ._billiards import MushroomBilliard, SinaiBilliard, billiards
+from ._billiards import MushroomBilliardComponent, SinaiBilliardComponent, billiards
 from ._oscillators import (
-    AdlerPhase,
-    Duffing,
-    ForcedVanDerPol,
-    HenonHeiles,
-    StuartLandau,
-    VanDerPol,
+    AdlerPhaseComponent,
+    DuffingComponent,
+    ForcedVanDerPolComponent,
+    HenonHeilesComponent,
+    StuartLandauComponent,
+    VanDerPolComponent,
     adler_equation,
     duffing,
     forced_van_der_pol,
@@ -17,14 +17,14 @@ from ._oscillators import (
 )
 
 __all__: list[str] = [
-    'AdlerPhase',
-    'Duffing',
-    'ForcedVanDerPol',
-    'HenonHeiles',
-    'MushroomBilliard',
-    'SinaiBilliard',
-    'StuartLandau',
-    'VanDerPol',
+    'AdlerPhaseComponent',
+    'DuffingComponent',
+    'ForcedVanDerPolComponent',
+    'HenonHeilesComponent',
+    'MushroomBilliardComponent',
+    'SinaiBilliardComponent',
+    'StuartLandauComponent',
+    'VanDerPolComponent',
     'adler_equation',
     'billiards',
     'duffing',

@@ -16,14 +16,14 @@ import numpy as np
 from skcomplex.engine.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRK
+from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'payne'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.01, solver=SSPRK(), observers=[observer]).run(until=1.0)
+simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observer]).run(until=1.0)
 
 # %%
 # Conservation and smoothing

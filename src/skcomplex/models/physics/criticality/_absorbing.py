@@ -8,24 +8,24 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components import Element
-from ....core.laws import Boundary, Noise, Rate
+from ....core.components import ElementComponent
+from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import EulerMaruyamaSolver
+from ....formalisms.fields import FieldComponent, laplacian
 
-ActiveField = Element.define(
-    'ActiveField',
+ActiveFieldComponent = ElementComponent.define(
+    'ActiveFieldComponent',
     states={'rho': 0.5, 'nu': 1.0},
     parameters={'a': -1.0, 'b': 1.0, 'c': 1.0, 'd': 1.0, 'e': 0.2, 'f': 0.0, 'g': 0.0},
     laws=lambda s: [
-        Rate(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
-        Noise(s.rho, s.e * sqrt(s.rho)),
-        Rate(s.nu, laplacian(s.nu) + s.f - s.g * s.rho),
-        Boundary(s.rho, (s.rho + abs(s.rho)) / 2),
-        Boundary(s.nu, (s.nu + abs(s.nu)) / 2),
+        RateLaw(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
+        NoiseLaw(s.rho, s.e * sqrt(s.rho)),
+        RateLaw(s.nu, laplacian(s.nu) + s.f - s.g * s.rho),
+        BoundaryLaw(s.rho, (s.rho + abs(s.rho)) / 2),
+        BoundaryLaw(s.nu, (s.nu + abs(s.nu)) / 2),
     ],
 )
 
@@ -34,7 +34,7 @@ ActiveField = Element.define(
     field='physics/criticality',
     tags=('field', 'absorbing state', 'directed percolation', 'multiplicative noise', 'spde'),
     references=('Tian et al. 2022', 'Henkel, Hinrichsen, and Lübeck 2008', 'Bonachela and Muñoz 2009'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def directed_percolation_langevin(
     shape: Sequence[int] = (64, 64),
@@ -116,4 +116,4 @@ def directed_percolation_langevin(
         'f': f,
         'g': g,
     }
-    return System(components=[Field('neurons', ActiveField, LatticeSpace(shape), values=values)])
+    return System(components=[FieldComponent('neurons', ActiveFieldComponent, LatticeSpace(shape), values=values)])

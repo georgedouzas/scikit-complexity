@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -34,17 +34,17 @@ def _stage(
     time: Expression,
     losses: list[tuple[Expression, str]],
     label: str,
-) -> list[Law]:
+) -> list[BaseLaw]:
     """Return the flows that drain a stage over its duration, a share to each loss and the rest to the next stage."""
     outflow = stock / time
     survival = 1 - sum((share for share, _ in losses), start=0)
     return [
-        Transfer(stock, following, survival * outflow, label=label),
-        *(Transfer(stock, Sink(sink), share * outflow, label=f'{label}_{sink}') for share, sink in losses),
+        TransferLaw(stock, following, survival * outflow, label=label),
+        *(TransferLaw(stock, Sink(sink), share * outflow, label=f'{label}_{sink}') for share, sink in losses),
     ]
 
 
-def _hilsa_laws(s: Symbols) -> list[Law]:
+def _hilsa_laws(s: Symbols) -> list[BaseLaw]:
     """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
     spawning = (1 - s.adult_harvest) * s.spawners / s.spawning_time
     nests = Auxiliary('nests', _smaller(s.female_fraction * spawning, s.max_nests))
@@ -54,7 +54,7 @@ def _hilsa_laws(s: Symbols) -> list[Law]:
         nests,
         adult_weight,
         juvenile_weight,
-        Transfer(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
+        TransferLaw(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
         *_stage(s.eggs, s.larvae, s.hatching_time, [(s.egg_loss, 'mortality')], 'hatching'),
         *_stage(s.larvae, s.juveniles, s.larval_time, [(s.larval_loss, 'mortality')], 'juvenile_entering'),
         *_stage(
@@ -67,8 +67,8 @@ def _hilsa_laws(s: Symbols) -> list[Law]:
         *_stage(s.yearlings, s.adults, s.ocean_time, [(s.first_year_loss, 'mortality')], 'maturation'),
         *_stage(s.adults, s.migrants, s.adult_ocean_time, [(s.second_year_loss, 'mortality')], 'adults_entering'),
         *_stage(s.migrants, s.spawners, s.migration_time, [(s.migration_loss, 'mortality')], 'adults_leaving'),
-        Transfer(s.spawners, Sink('spent'), spawning, label='spawning'),
-        Transfer(s.spawners, Sink('catch'), s.adult_harvest * s.spawners / s.spawning_time, label='adult_catch'),
+        TransferLaw(s.spawners, Sink('spent'), spawning, label='spawning'),
+        TransferLaw(s.spawners, Sink('catch'), s.adult_harvest * s.spawners / s.spawning_time, label='adult_catch'),
     ]
 
 
@@ -90,28 +90,28 @@ def _filled_stages(
     return {**stages, 'spawners': spawners}
 
 
-Hilsa = Element.define(
-    'Hilsa',
+HilsaComponent = ElementComponent.define(
+    'HilsaComponent',
     states={
-        'eggs': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'larvae': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'juveniles': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'yearlings': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'adults': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'migrants': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='fish'),
-        'spawners': state(default=375.0, domain=Domain.NONNEGATIVE, quantity='fish'),
+        'eggs': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'larvae': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'juveniles': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'yearlings': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'adults': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'migrants': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
+        'spawners': state(default=375.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
     },
     parameters={
-        'female_fraction': parameter(default=FEMALE_FRACTION, domain=Domain.NONNEGATIVE),
-        'eggs_per_nest': parameter(default=2e5, domain=Domain.NONNEGATIVE),
-        'max_nests': parameter(default=MAX_NESTS, domain=Domain.NONNEGATIVE),
-        'spawning_time': parameter(default=SPAWNING_TIME, domain=Domain.POSITIVE),
-        **{time: parameter(default=duration, domain=Domain.POSITIVE) for _, time, duration, _, _ in STAGES},
-        **{loss: parameter(default=fraction, domain=Domain.NONNEGATIVE) for _, _, _, loss, fraction in STAGES},
-        'juvenile_harvest': parameter(default=0.48, domain=Domain.NONNEGATIVE),
-        'adult_harvest': parameter(default=0.8, domain=Domain.NONNEGATIVE),
-        'weight_per_adult': parameter(default=0.82, domain=Domain.NONNEGATIVE),
-        'weight_per_juvenile': parameter(default=0.09, domain=Domain.NONNEGATIVE),
+        'female_fraction': parameter(default=FEMALE_FRACTION, domain=NumericDomain.NONNEGATIVE),
+        'eggs_per_nest': parameter(default=2e5, domain=NumericDomain.NONNEGATIVE),
+        'max_nests': parameter(default=MAX_NESTS, domain=NumericDomain.NONNEGATIVE),
+        'spawning_time': parameter(default=SPAWNING_TIME, domain=NumericDomain.POSITIVE),
+        **{time: parameter(default=duration, domain=NumericDomain.POSITIVE) for _, time, duration, _, _ in STAGES},
+        **{loss: parameter(default=fraction, domain=NumericDomain.NONNEGATIVE) for _, _, _, loss, fraction in STAGES},
+        'juvenile_harvest': parameter(default=0.48, domain=NumericDomain.NONNEGATIVE),
+        'adult_harvest': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
+        'weight_per_adult': parameter(default=0.82, domain=NumericDomain.NONNEGATIVE),
+        'weight_per_juvenile': parameter(default=0.09, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_hilsa_laws,
 )
@@ -172,7 +172,7 @@ def hilsa_fishery(
         >>> hilsa_fishery(adult_harvest=0.5).elements[0].adult_harvest
         0.5
     """
-    hilsa = Hilsa(
+    hilsa = HilsaComponent(
         'hilsa',
         eggs_per_nest=eggs_per_nest,
         juvenile_harvest=juvenile_harvest,

@@ -6,12 +6,12 @@
 from collections.abc import Callable
 from typing import Any
 
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
-from ....formalisms.agents import Rule
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
+from ....formalisms.agents import RuleLaw
 
 
-class Institution(Interaction):
+class InstitutionInteraction(BaseInteraction):
     """Single actor, such as a central bank, a regulator, or a quota board, that sets parameters from observables.
 
     Its rule runs once per round of its phase, after the agents of the phase. It reads observables with
@@ -34,8 +34,8 @@ class Institution(Interaction):
             The values of the declared variables, by name.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import Institution
-        >>> Institution('regulator', rule=lambda model: None).phase is None
+        >>> from skcomplex.models.economics.realizations import InstitutionInteraction
+        >>> InstitutionInteraction('regulator', rule=lambda model: None).phase is None
         True
     """
 
@@ -51,7 +51,7 @@ class Institution(Interaction):
         self.rule = rule
         self.phase = phase
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of the institution in its phase.
 
         Args:
@@ -62,7 +62,7 @@ class Institution(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.act, phase=self.phase)]
+        return [RuleLaw(self.act, phase=self.phase)]
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Read the model and set parameters.

@@ -9,13 +9,13 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -59,7 +59,7 @@ def _mutate(genome: int, length: int, probability: float, rng: np.random.Generat
     return int(genome ^ sum(1 << int(locus) for locus in flips))
 
 
-class Individual(Element):
+class IndividualComponent(ElementComponent):
     """Individual of a finite population, with an integer trait or genome.
 
     Args:
@@ -73,17 +73,17 @@ class Individual(Element):
             The fitness of the trait.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Individual
-        >>> Individual.group('population', 10, trait=0.0).size
+        >>> from skcomplex.models.biology.evolution import IndividualComponent
+        >>> IndividualComponent.group('population', 10, trait=0.0).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'trait'})
-    trait: float = state(default=0.0, domain=Domain.INTEGER)
-    fitness: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    trait: float = state(default=0.0, domain=NumericDomain.INTEGER)
+    fitness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class MoranStep(Interaction):
+class MoranStepInteraction(BaseInteraction):
     """One generation of the Moran process: as many birth and death events as there are individuals.
 
     At every event an individual reproduces with probability proportional to its fitness `(1 + selection)^trait`,
@@ -104,16 +104,16 @@ class MoranStep(Interaction):
             The probability that an offspring mutates.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import MoranStep
-        >>> MoranStep('moran', population='population', selection=0.1).selection
+        >>> from skcomplex.models.biology.evolution import MoranStepInteraction
+        >>> MoranStepInteraction('moran', population='population', selection=0.1).selection
         0.1
     """
 
     population: str = role()
-    selection: float = parameter(default=0.0, domain=Domain.REAL)
-    mutation: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    selection: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    mutation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -124,7 +124,7 @@ class MoranStep(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.generation)]
+        return [RuleLaw(self.generation)]
 
     def generation(self, model: ModelView) -> None:
         """Run one birth and death event per individual.
@@ -150,7 +150,7 @@ class MoranStep(Interaction):
             individual.fitness = (1 + selection) ** trait
 
 
-class TangledNatureStep(Interaction):
+class TangledNatureStepInteraction(BaseInteraction):
     """One generation of the Tangled Nature model, `N / p_kill` reproduction and killing attempts.
 
     At every attempt a random organism of type `S` reproduces with probability `1 / (1 + exp(-H(S)))`, where
@@ -187,16 +187,16 @@ class TangledNatureStep(Interaction):
                 The probability that a chosen organism dies.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import TangledNatureStep
-        >>> TangledNatureStep('evolution', organisms='organisms').length
+        >>> from skcomplex.models.biology.evolution import TangledNatureStepInteraction
+        >>> TangledNatureStepInteraction('evolution', organisms='organisms').length
         8
     """
 
     organisms: str = role()
-    k: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    mu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    p_mut: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    p_kill: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    mu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    p_mut: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    p_kill: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -227,7 +227,7 @@ class TangledNatureStep(Interaction):
             alive.append(model.create(self.organisms, trait=float(child)))
             counts[child] += 1
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -238,7 +238,7 @@ class TangledNatureStep(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.generation)]
+        return [RuleLaw(self.generation)]
 
     def generation(self, model: ModelView) -> None:
         """Run the reproduction and killing attempts of one generation.
@@ -260,7 +260,7 @@ class TangledNatureStep(Interaction):
                 alive.pop(victim).remove()
 
 
-class AdaptiveClimbing(Interaction):
+class AdaptiveClimbingInteraction(BaseInteraction):
     """One generation of a population that climbs a random fitness landscape as a whole, under strong selection.
 
     All individuals share one genome. Each mutates one random locus with probability `u`, to a genome of random fitness
@@ -287,13 +287,13 @@ class AdaptiveClimbing(Interaction):
                 The probability that an individual mutates in a generation.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import AdaptiveClimbing
-        >>> AdaptiveClimbing('climbing', population='population', u=0.1).u
+        >>> from skcomplex.models.biology.evolution import AdaptiveClimbingInteraction
+        >>> AdaptiveClimbingInteraction('climbing', population='population', u=0.1).u
         0.1
     """
 
     population: str = role()
-    u: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    u: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -307,7 +307,7 @@ class AdaptiveClimbing(Interaction):
         self.length = length
         self.seed = seed
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -318,7 +318,7 @@ class AdaptiveClimbing(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.generation)]
+        return [RuleLaw(self.generation)]
 
     def generation(self, model: ModelView) -> None:
         """Mutate, then move the population to a fitter mutant or let it escape.
@@ -343,7 +343,7 @@ class AdaptiveClimbing(Interaction):
             individual.fitness = _random_fitness(best, self.seed)
 
 
-class Climber(Element):
+class ClimberComponent(ElementComponent):
     """Agent that walks an NK fitness landscape, flipping one random bit of its genome when that raises its fitness.
 
     The fitness of a genome of `n` bits is the mean of the contributions of its bits, each a random function of the bit
@@ -369,19 +369,19 @@ class Climber(Element):
             The seed of the landscape.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Climber
-        >>> Climber.group('climbers', 10).size
+        >>> from skcomplex.models.biology.evolution import ClimberComponent
+        >>> ClimberComponent.group('climbers', 10).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)})
-    genome: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    fitness: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    n: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    k: float = parameter(default=2.0, domain=Domain.NONNEGATIVE_INTEGER)
-    seed: float = parameter(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    genome: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    n: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    k: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    seed: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the climbing rule.
 
         Args:
@@ -392,7 +392,7 @@ class Climber(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.climb)]
+        return [RuleLaw(self.climb)]
 
     def climb(self, agent: AgentView, model: ModelView) -> None:
         """Flip a random bit, and keep the flip when it raises the fitness.
@@ -458,9 +458,15 @@ def moran_process(
     traits[:mutants] = 1.0
     return System(
         components=[
-            Individual.group('population', size, variable=True, trait=traits, fitness=(1 + selection) ** traits),
+            IndividualComponent.group(
+                'population',
+                size,
+                variable=True,
+                trait=traits,
+                fitness=(1 + selection) ** traits,
+            ),
         ],
-        interactions=[MoranStep('moran', population='population', selection=selection, mutation=mutation)],
+        interactions=[MoranStepInteraction('moran', population='population', selection=selection, mutation=mutation)],
     )
 
 
@@ -522,7 +528,7 @@ def tangled_nature(
         20
     """
     genome = float(np.random.default_rng(random_state).integers(2**length))
-    step = TangledNatureStep(
+    step = TangledNatureStepInteraction(
         'evolution',
         organisms=ORGANISMS,
         k=k,
@@ -534,7 +540,7 @@ def tangled_nature(
     )
     visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
     return System(
-        components=[Individual.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
+        components=[IndividualComponent.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
         interactions=[step],
     )
 
@@ -583,7 +589,7 @@ def adaptive_climbing(
     fitness = _random_fitness(0, seed)
     return System(
         components=[
-            Individual.group(
+            IndividualComponent.group(
                 'population',
                 size,
                 variable=True,
@@ -592,7 +598,7 @@ def adaptive_climbing(
                 visual=VisualSpec('agents', {'color_by': 'fitness'}),
             ),
         ],
-        interactions=[AdaptiveClimbing('climbing', population='population', u=u, length=length, seed=seed)],
+        interactions=[AdaptiveClimbingInteraction('climbing', population='population', u=u, length=length, seed=seed)],
     )
 
 
@@ -642,7 +648,7 @@ def nk_landscape(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2**n, size=climbers)
     fitness = [_nk_fitness(int(genome), n, k, seed) for genome in genomes]
-    group = Climber.group(
+    group = ClimberComponent.group(
         'climbers',
         climbers,
         variable=True,

@@ -221,9 +221,9 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
         >>> from skcomplex.engine.analysis import entanglement_entropy
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.models.physics.realizations.quantum import Spin
+        >>> from skcomplex.models.physics.realizations.quantum import SpinComponent
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> system = System(components=[Spin.group('pair', 2)])
+        >>> system = System(components=[SpinComponent.group('pair', 2)])
         >>> trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
         >>> bool(np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2)))
         True
@@ -266,11 +266,13 @@ def hamiltonian_of(system: System | Problem) -> Any:  # noqa: ANN401
 
     Examples:
         >>> from skcomplex.engine.analysis import hamiltonian_of
-        >>> from skcomplex.formalisms.quantum import Generator
+        >>> from skcomplex.formalisms.quantum import GeneratorLaw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
-        >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])
-        >>> hamiltonian_of(System(components=[Driven('q')]))
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> DrivenComponent = QubitComponent.define(
+        ...     'DrivenComponent', parameters={'omega': 1.0}, laws=lambda s: [GeneratorLaw(s.omega / 2 * s.z)]
+        ... )
+        >>> hamiltonian_of(System(components=[DrivenComponent('q')]))
         1/2*omega_q*q.z
     """
     return _quantum_problem(system).hamiltonian_operator

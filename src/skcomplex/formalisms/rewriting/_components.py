@@ -15,7 +15,7 @@ from ...core.base import (
     declarations_of,
     state,
 )
-from ...core.components import Element
+from ...core.components import ElementComponent
 from ._geometry import WordGeometry
 from ._laws import Affine, Letters, Prototile
 
@@ -32,11 +32,11 @@ def structure_of(element_type: type) -> str | None:
             `'sequence'`, `'tiling'`, or `'graph'`, or `None` for a type without a structured state.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Word, structure_of
-        >>> structure_of(Word)
+        >>> from skcomplex.formalisms.rewriting import WordComponent, structure_of
+        >>> structure_of(WordComponent)
         'sequence'
     """
-    if not (isinstance(element_type, type) and issubclass(element_type, Element)):
+    if not (isinstance(element_type, type) and issubclass(element_type, ElementComponent)):
         return None
     for declaration in declarations_of(element_type, VariableKind.STATE).values():
         if isinstance(declaration.domain, Structure):
@@ -44,7 +44,7 @@ def structure_of(element_type: type) -> str | None:
     return None
 
 
-class Word(Element):
+class WordComponent(ElementComponent):
     """Element that holds a word of modules rewritten in parallel by string productions.
 
     Its states are the count of every symbol whose name is a word of letters, digits, and underscores, and the length
@@ -77,8 +77,8 @@ class Word(Element):
                 The word at generation 0.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Word
-        >>> Word('algae', axiom='A').axiom
+        >>> from skcomplex.formalisms.rewriting import WordComponent
+        >>> WordComponent('algae', axiom='A').axiom
         'A'
     """
 
@@ -104,7 +104,7 @@ class Word(Element):
         self.bounds = bounds
 
 
-class Patch(Element):
+class PatchComponent(ElementComponent):
     """Element that holds tiles, each a prototile under an affine placement, replaced in parallel by substitutions.
 
     Its states are the count of every prototile and the number `size` of tiles.
@@ -132,9 +132,9 @@ class Patch(Element):
                 Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Patch
+        >>> from skcomplex.formalisms.rewriting import PatchComponent
         >>> from skcomplex.formalisms.rewriting import Prototile
-        >>> Patch('cantor', prototiles=[Prototile('interval', [(0, 0), (1, 0)])]).filled
+        >>> PatchComponent('cantor', prototiles=[Prototile('interval', [(0, 0), (1, 0)])]).filled
         False
     """
 
@@ -158,7 +158,7 @@ class Patch(Element):
         self.bounds = bounds
 
 
-class HostGraph(Element):
+class HostGraphComponent(ElementComponent):
     """Element that holds a graph rewritten by double-pushout graph productions.
 
     Its states are the count of nodes of every `label` attribute that is a word, and the number `size` of nodes.
@@ -181,8 +181,8 @@ class HostGraph(Element):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.formalisms.rewriting import HostGraph
-        >>> HostGraph('ring', graph=nx.cycle_graph(4)).graph.number_of_nodes()
+        >>> from skcomplex.formalisms.rewriting import HostGraphComponent
+        >>> HostGraphComponent('ring', graph=nx.cycle_graph(4)).graph.number_of_nodes()
         4
     """
 

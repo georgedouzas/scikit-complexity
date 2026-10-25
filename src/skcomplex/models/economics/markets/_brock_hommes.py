@@ -7,20 +7,20 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics, logit_choice
 
 PREDICTORS = ('fundamentalist', 'trend')
 
 
-class Speculator(Element):
+class SpeculatorComponent(ElementComponent):
     """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
 
     The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
@@ -40,16 +40,16 @@ class Speculator(Element):
             The label of the pricing institution whose fitness reporters the trader reads.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Speculator
-        >>> Speculator.group('traders', 10, intensity=2.0).size
+        >>> from skcomplex.models.economics.markets import SpeculatorComponent
+        >>> SpeculatorComponent.group('traders', 10, intensity=2.0).size
         10
     """
 
     pricing: ClassVar[str] = 'pricing'
-    predictor: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    intensity: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    predictor: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the choice of heuristic in the phase of choice.
 
         Args:
@@ -60,7 +60,7 @@ class Speculator(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.choose, phase='choice')]
+        return [RuleLaw(self.choose, phase='choice')]
 
     def choose(self, agent: AgentView, model: ModelView) -> None:
         """Choose a heuristic with logit probabilities of the last realised fitnesses.
@@ -84,7 +84,7 @@ class Speculator(Element):
         return fitness
 
 
-class HeuristicPricing(Institution):
+class HeuristicPricingInteraction(InstitutionInteraction):
     """Market maker that clears the risky asset at the price where the mean forecast of the traders is met.
 
     The deviation `x` of the price from its fundamental value clears at `R x_t = sum_h n_h f_h + eps_t`, where `n_h`
@@ -125,19 +125,19 @@ class HeuristicPricing(Institution):
             The initial deviation of the price from its fundamental value.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import HeuristicPricing
-        >>> HeuristicPricing('pricing', traders='traders').reports
+        >>> from skcomplex.models.economics.markets import HeuristicPricingInteraction
+        >>> HeuristicPricingInteraction('pricing', traders='traders').reports
         ('deviation', 'trend_share', 'fitness_fundamentalist', 'fitness_trend')
     """
 
     reports: ClassVar[tuple[str, ...]] = ('deviation', 'trend_share', 'fitness_fundamentalist', 'fitness_trend')
     traders: str = role()
-    rate: float = parameter(default=1.1, domain=Domain.POSITIVE)
-    strength: float = parameter(default=1.2, domain=Domain.REAL)
-    cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    risk: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    noise: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    initial: float = parameter(default=0.1, domain=Domain.REAL)
+    rate: float = parameter(default=1.1, domain=NumericDomain.POSITIVE)
+    strength: float = parameter(default=1.2, domain=NumericDomain.REAL)
+    cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    risk: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    noise: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    initial: float = parameter(default=0.1, domain=NumericDomain.REAL)
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Clear the price from the forecasts of the traders' heuristics and report the fitnesses.
@@ -230,8 +230,8 @@ def brock_hommes(
         >>> brock_hommes(100).elements[0].size
         100
     """
-    traders = Speculator.group('traders', n_traders, intensity=intensity)
-    pricing = HeuristicPricing(
+    traders = SpeculatorComponent.group('traders', n_traders, intensity=intensity)
+    pricing = HeuristicPricingInteraction(
         'pricing',
         traders='traders',
         phase='pricing',
@@ -245,5 +245,5 @@ def brock_hommes(
     return System(
         components=[traders],
         interactions=[pricing],
-        time=DiscreteTime(schedule=Phases([Phase('choice'), Phase('pricing')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('choice'), Phase('pricing')])),
     )

@@ -4,14 +4,14 @@
 # License: MIT
 from typing import Any, ClassVar
 
-from ....core.base import Domain, ValidationError, parameter, role
-from ....core.interactions import Interaction
+from ....core.base import NumericDomain, ValidationError, parameter, role
+from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.quantum import Dissipator, Generator, Operator, expectation
-from ..realizations.quantum import Spin
+from ....formalisms.quantum import DissipatorLaw, GeneratorLaw, Operator, expectation
+from ..realizations.quantum import SpinComponent
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
@@ -54,7 +54,7 @@ def total_magnetization(s: Symbols) -> Operator:
     return sum((member.z for member in s.chain), start=Operator({}))
 
 
-class XXZExchange(Interaction):
+class XXZExchangeInteraction(BaseInteraction):
     """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
 
     Args:
@@ -71,16 +71,16 @@ class XXZExchange(Interaction):
             The anisotropy `Δ`, 1 for the isotropic chain and 0 for the XX chain.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import XXZExchange
-        >>> XXZExchange('exchange', target='chain', delta=0.5).delta
+        >>> from skcomplex.models.physics.statistical_mechanics import XXZExchangeInteraction
+        >>> XXZExchangeInteraction('exchange', target='chain', delta=0.5).delta
         0.5
     """
 
     over: ClassVar[str] = 'neighbors'
     target: str = role()
 
-    J: float = parameter(default=1.0, domain=Domain.REAL)
-    delta: float = parameter(default=1.0, domain=Domain.REAL)
+    J: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    delta: float = parameter(default=1.0, domain=NumericDomain.REAL)
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the exchange Hamiltonian of one bond.
@@ -94,10 +94,10 @@ class XXZExchange(Interaction):
                 The Hamiltonian of the bond.
         """
         first, second = s.first, s.second
-        return [Generator(s.J * (first.x * second.x + first.y * second.y + s.delta * first.z * second.z))]
+        return [GeneratorLaw(s.J * (first.x * second.x + first.y * second.y + s.delta * first.z * second.z))]
 
 
-class ZeemanField(Interaction):
+class ZeemanFieldInteraction(BaseInteraction):
     """Uniform field `-h Σ S^z_i` on the spins of a chain.
 
     Args:
@@ -111,13 +111,13 @@ class ZeemanField(Interaction):
             The field.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ZeemanField
-        >>> ZeemanField('field', target='chain', h=0.2).h
+        >>> from skcomplex.models.physics.statistical_mechanics import ZeemanFieldInteraction
+        >>> ZeemanFieldInteraction('field', target='chain', h=0.2).h
         0.2
     """
 
     target: str = role()
-    h: float = parameter(default=0.0, domain=Domain.REAL)
+    h: float = parameter(default=0.0, domain=NumericDomain.REAL)
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the Hamiltonian of the field.
@@ -130,10 +130,10 @@ class ZeemanField(Interaction):
             laws:
                 The field Hamiltonian.
         """
-        return [Generator(-s.h * sum((member.z for member in s.target), start=Operator({})))]
+        return [GeneratorLaw(-s.h * sum((member.z for member in s.target), start=Operator({})))]
 
 
-class Dephasing(Interaction):
+class DephasingInteraction(BaseInteraction):
     """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
 
     Args:
@@ -147,13 +147,13 @@ class Dephasing(Interaction):
             The dephasing rate.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Dephasing
-        >>> Dephasing('dephasing', target='chain', gamma=0.1).gamma
+        >>> from skcomplex.models.physics.statistical_mechanics import DephasingInteraction
+        >>> DephasingInteraction('dephasing', target='chain', gamma=0.1).gamma
         0.1
     """
 
     target: str = role()
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return one dissipator per spin.
@@ -166,7 +166,7 @@ class Dephasing(Interaction):
             laws:
                 The dissipators.
         """
-        return [Dissipator(member.z, s.gamma) for member in s.target]
+        return [DissipatorLaw(member.z, s.gamma) for member in s.target]
 
 
 @register_model(
@@ -243,11 +243,11 @@ def quantum_heisenberg(
         raise ValidationError(error_msg)
     space = LatticeSpace(n_sites, boundary=BOUNDARIES[boundary])
     labels = _initial_labels(n_sites, initial)
-    chain = Spin.lattice('chain', space, initial=labels)
-    interactions: list[Interaction] = [
-        XXZExchange('exchange', target='chain', J=J, delta=delta),
-        ZeemanField('field', target='chain', h=h),
+    chain = SpinComponent.lattice('chain', space, initial=labels)
+    interactions: list[BaseInteraction] = [
+        XXZExchangeInteraction('exchange', target='chain', J=J, delta=delta),
+        ZeemanFieldInteraction('field', target='chain', h=h),
     ]
     if gamma > 0:
-        interactions.append(Dephasing('dephasing', target='chain', gamma=gamma))
+        interactions.append(DephasingInteraction('dephasing', target='chain', gamma=gamma))
     return System('quantum_heisenberg', components=[chain], interactions=interactions)

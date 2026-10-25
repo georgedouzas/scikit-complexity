@@ -7,16 +7,16 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class Contender(Element):
+class ContenderComponent(ElementComponent):
     """Agent of the Bonabeau model, who wanders on a grid and fights the agents it runs into.
 
     Every step an agent's strength relaxes by the factor `1 - relaxation`, and the agent tries to step into a random
@@ -38,17 +38,17 @@ class Contender(Element):
             The fraction of its strength an agent loses every step.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Contender
-        >>> Contender.group('contenders', 10)
-        Group('contenders', element=Contender, size=10)
+        >>> from skcomplex.models.social.organizations import ContenderComponent
+        >>> ContenderComponent.group('contenders', 10)
+        GroupComponent('contenders', element=ContenderComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'strength'})
     strength: float = state(default=0.0)
-    eta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    relaxation: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    relaxation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the wander and fight rule.
 
         Args:
@@ -59,7 +59,7 @@ class Contender(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.wander)]
+        return [RuleLaw(self.wander)]
 
     def _fight(self, agent: AgentView, occupant: AgentView, model: ModelView) -> None:
         """Fight the occupant of a cell and take its place on a win."""
@@ -140,7 +140,7 @@ def bonabeau_hierarchies(
     """
     size = int(width * height * density)
     cells = np.random.default_rng(random_state).permutation(width * height)[:size]
-    contenders = Contender.group(
+    contenders = ContenderComponent.group(
         'contenders',
         size,
         location=[(int(cell % width), int(cell // width)) for cell in cells],

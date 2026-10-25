@@ -80,29 +80,29 @@ A predator and prey model assembles from ready-made interactions:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.biology.ecology import LogisticGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
 
 system = System(
-    components=[Population('rabbits', n=40), Population('foxes', n=9)],
+    components=[PopulationComponent('rabbits', n=40), PopulationComponent('foxes', n=9)],
     interactions=[
-        LogisticGrowth('growth', target='rabbits', r=1.1, K=1000),
-        Predation('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
-        Mortality('death', target='foxes', d=0.4),
+        LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000),
+        PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
+        MortalityInteraction('death', target='foxes', d=0.4),
     ],
 )
 ```
 
 A simulation runs it and records the trajectory. Adding a `RerunObserver` streams the run to the Rerun viewer, and a
-`RealTime` clock paces it against wall time:
+`RealTimeClock` paces it against wall time:
 
 ```python continuation
-from skcomplex.engine.runtime import RealTime, Simulation
+from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.viz import RerunObserver
 
 simulation = Simulation(
     system,
     dt=0.05,
-    clock=RealTime(speed=20.0),
+    clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('lotka-volterra', spawn=True)],
 )
 trajectory = simulation.run(until=30).trajectory_
@@ -112,9 +112,9 @@ print(trajectory['rabbits.n'].max())
 A simulation started with `start` runs in the background, and its parameters can change while it runs:
 
 ```python continuation
-from skcomplex.engine.runtime import RealTime, Simulation
+from skcomplex.engine.runtime import RealTimeClock, Simulation
 
-simulation = Simulation(system, dt=0.05, clock=RealTime(speed=20.0)).start(until=30)
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).start(until=30)
 simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
 ```
@@ -124,25 +124,25 @@ bound to its roles:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowth, Population
+from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
 
 from skcomplex.engine.analysis import equations_of
-from skcomplex.core.base import Domain, parameter, role
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.base import NumericDomain, parameter, role
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 
 
-class Harvest(Interaction):
+class HarvestInteraction(BaseInteraction):
     target: str = role()
-    h: float = parameter(0.1, domain=Domain.NONNEGATIVE)
+    h: float = parameter(0.1, domain=NumericDomain.NONNEGATIVE)
 
     def laws(self, s):
-        return [Rate(s.target.n, -s.h * s.target.n)]
+        return [RateLaw(s.target.n, -s.h * s.target.n)]
 
 
 harvested = System(
-    components=[Population('fish', n=500)],
-    interactions=[LogisticGrowth('growth', target='fish', r=0.5, K=1000), Harvest('fishing', target='fish', h=0.1)],
+    components=[PopulationComponent('fish', n=500)],
+    interactions=[LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000), HarvestInteraction('fishing', target='fish', h=0.1)],
 )
 print(equations_of(harvested)['fish.n'])
 ```

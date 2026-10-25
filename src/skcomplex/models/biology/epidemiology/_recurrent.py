@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, lag, where
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, lag, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -19,7 +19,7 @@ def _infected_or_immune(center: Symbols) -> Expression:
     return center.x + past
 
 
-class EpidemicCenter(Element):
+class EpidemicCenterComponent(ElementComponent):
     """City in a discrete-time SIRS epidemic, where an infection lasts one step and immunity `recovery` steps.
 
     The state keeps the infected fractions of the last 12 steps, so the recovery time is at most 12.
@@ -38,17 +38,17 @@ class EpidemicCenter(Element):
             The number of steps a recovered individual stays immune, at most 12.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import EpidemicCenter
-        >>> EpidemicCenter('city', x=0.01).recovery
+        >>> from skcomplex.models.biology.epidemiology import EpidemicCenterComponent
+        >>> EpidemicCenterComponent('city', x=0.01).recovery
         6
     """
 
-    x: float = state(default=0.0, domain=Domain.NONNEGATIVE, lags=MAX_RECOVERY, initial=(0.0,) * MAX_RECOVERY)
-    a: float = parameter(default=2.2, domain=Domain.NONNEGATIVE)
-    recovery: int = parameter(default=6, domain=Domain.NONNEGATIVE_INTEGER)
+    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE, lags=MAX_RECOVERY, initial=(0.0,) * MAX_RECOVERY)
+    a: float = parameter(default=2.2, domain=NumericDomain.NONNEGATIVE)
+    recovery: int = parameter(default=6, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class Visits(Interaction):
+class VisitsInteraction(BaseInteraction):
     """Infection of a center by its own infected and by a fraction of the infected of another center who visit it.
 
     The next infected fraction is `x' = a (x + e y) s`, where `y` is the infected fraction of the other center and
@@ -68,16 +68,16 @@ class Visits(Interaction):
             The fraction of the infected of the other center who visit.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Visits
-        >>> Visits('visits', home='first', away='second', e=0.01).e
+        >>> from skcomplex.models.biology.epidemiology import VisitsInteraction
+        >>> VisitsInteraction('visits', home='first', away='second', e=0.01).e
         0.01
     """
 
     home: str = role()
     away: str = role()
-    e: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
+    e: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the next infected fraction of the home center.
 
         Args:
@@ -90,7 +90,7 @@ class Visits(Interaction):
         """
         home = s.home
         susceptible = 1 - _infected_or_immune(home)
-        return [Update(home.x, home.a * (home.x + s.e * s.away.x) * susceptible)]
+        return [UpdateLaw(home.x, home.a * (home.x + s.e * s.away.x) * susceptible)]
 
 
 @register_model(
@@ -140,11 +140,11 @@ def delayed_sirs(
     """
     return System(
         components=[
-            EpidemicCenter('first', x=first, a=a, recovery=recovery),
-            EpidemicCenter('second', x=second, a=a, recovery=recovery),
+            EpidemicCenterComponent('first', x=first, a=a, recovery=recovery),
+            EpidemicCenterComponent('second', x=second, a=a, recovery=recovery),
         ],
         interactions=[
-            Visits('visits_first', home='first', away='second', e=e),
-            Visits('visits_second', home='second', away='first', e=e),
+            VisitsInteraction('visits_first', home='first', away='second', e=e),
+            VisitsInteraction('visits_second', home='second', away='first', e=e),
         ],
     )

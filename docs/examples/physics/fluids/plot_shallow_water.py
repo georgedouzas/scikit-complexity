@@ -20,14 +20,14 @@ from scipy.optimize import brentq
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import SSPRK
+from skcomplex.formalisms.fields import SSPRKSolver
 from skcomplex.models import create
 
 MODEL = 'shallow_water'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRK(), dt=0.005, observers=[observer]).run(until=0.6)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).run(until=0.6)
 
 # %%
 # Stoker's exact solution

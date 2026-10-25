@@ -16,11 +16,11 @@ from ._system_passes import SystemPass, register_system_pass
 
 type Check = Callable[[Compilation], list[Issue]]
 
-PASSES = Registry['Pass']('pass')
+PASSES = Registry['BasePass']('pass')
 CHECKS = Registry[Check]('check')
 
 
-def _roles(passes: Sequence['Pass']) -> dict[str, tuple[list[int], list[int], list[int]]]:
+def _roles(passes: Sequence['BasePass']) -> dict[str, tuple[list[int], list[int], list[int]]]:
     """Return the producers, refiners, and readers of every field by the positions of their passes.
 
     A producer writes a field without reading it, a refiner reads and writes it, and a reader only reads it.
@@ -36,7 +36,7 @@ def _roles(passes: Sequence['Pass']) -> dict[str, tuple[list[int], list[int], li
 
 
 def _check_inputs(
-    passes: Sequence['Pass'],
+    passes: Sequence['BasePass'],
     roles: dict[str, tuple[list[int], list[int], list[int]]],
     present: Collection[str],
 ) -> None:
@@ -68,13 +68,13 @@ def _edges(roles: dict[str, tuple[list[int], list[int], list[int]]]) -> dict[int
     return edges
 
 
-def _needed(passes: Sequence['Pass'], field: str) -> set['Pass']:
+def _needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
     """Return the passes that write a field and, in turn, the passes that write the fields they read."""
-    writers: dict[str, list[Pass]] = defaultdict(list)
+    writers: dict[str, list[BasePass]] = defaultdict(list)
     for item in passes:
         for name in item.writes:
             writers[name].append(item)
-    needed: set[Pass] = set()
+    needed: set[BasePass] = set()
     pending = [field]
     seen: set[str] = set()
     while pending:
@@ -88,12 +88,12 @@ def _needed(passes: Sequence['Pass'], field: str) -> set['Pass']:
     return needed
 
 
-def _registered_passes(passes: Iterable['Pass'] = ()) -> list['Pass']:
+def _registered_passes(passes: Iterable['BasePass'] = ()) -> list['BasePass']:
     """Return passes followed by the registered passes, in registration order."""
     return [*passes, *(PASSES.resolve(key) for key in PASSES)]
 
 
-def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> list['Pass']:
+def order_passes(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
     """Return passes in an order where every field is produced, then refined, then read.
 
     A pass that writes a field without reading it produces the field, and runs before the passes that refine it, which
@@ -117,17 +117,17 @@ def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> lis
             field, or the passes read each other's fields in a cycle.
 
     Examples:
-        >>> from skcomplex.engine.compile import Pass, order_passes
-        >>> class Lower(Pass):
+        >>> from skcomplex.engine.compile import BasePass, order_passes
+        >>> class LowerPass(BasePass):
         ...     reads, writes = ('layout',), ('lowered',)
         ...     def run(self, compilation):
         ...         pass
-        >>> class Declare(Pass):
+        >>> class DeclarePass(BasePass):
         ...     reads, writes = ('nodes',), ('layout',)
         ...     def run(self, compilation):
         ...         pass
-        >>> [type(item).__name__ for item in order_passes([Lower(), Declare()], present=['nodes'])]
-        ['Declare', 'Lower']
+        >>> [type(item).__name__ for item in order_passes([LowerPass(), DeclarePass()], present=['nodes'])]
+        ['DeclarePass', 'LowerPass']
     """
     roles = _roles(passes)
     _check_inputs(passes, roles, present)
@@ -153,7 +153,7 @@ def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> lis
     return [passes[index] for index in ordered]
 
 
-def run_passes(compilation: Compilation, passes: Sequence['Pass'], until: str = 'problem') -> Compilation:
+def run_passes(compilation: Compilation, passes: Sequence['BasePass'], until: str = 'problem') -> Compilation:
     """Run the passes a field needs that the compilation has not run yet, in the order of their fields.
 
     Args:
@@ -182,7 +182,7 @@ def run_passes(compilation: Compilation, passes: Sequence['Pass'], until: str = 
     return compilation
 
 
-def register_pass(item: 'Pass | SystemPass') -> None:
+def register_pass(item: 'BasePass | SystemPass') -> None:
     """Register a pass that every compilation runs, or a pass that compiles the whole systems it claims.
 
     Registering a pass again keeps it once, in its first place.
@@ -218,7 +218,7 @@ def registered_checks() -> list[Check]:
     return [CHECKS.resolve(key) for key in CHECKS]
 
 
-class Pass(ABC):
+class BasePass(ABC):
     """Step of a compilation that reads fields of the compilation state and writes others.
 
     A pass declares the fields it reads and writes as the class variables `reads` and `writes`, which order the passes

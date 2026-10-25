@@ -15,10 +15,10 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 
-class MeshVisual(Visual):
+class MeshVisual(BaseVisual):
     """Visual that logs every state of a finite element field as a triangle mesh colored by value.
 
     Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes as points.

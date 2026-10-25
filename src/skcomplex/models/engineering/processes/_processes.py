@@ -3,40 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, Sink, Source, Transfer, step, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, Sink, Source, TransferLaw, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 INFLOW_START = 5.0
 
-Tub = Element.define(
-    'Tub',
-    states={'water': state(default=50.0, domain=Domain.NONNEGATIVE, quantity='water')},
+TubComponent = ElementComponent.define(
+    'TubComponent',
+    states={'water': state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')},
     parameters={
-        'inflow': parameter(default=5.0, domain=Domain.NONNEGATIVE),
-        'outflow': parameter(default=5.0, domain=Domain.NONNEGATIVE),
+        'inflow': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
+        'outflow': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Transfer(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
-        Transfer(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
+        TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
+        TransferLaw(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
     ],
 )
 
-Stage = Element.define(
-    'Stage',
-    states={'m': state(default=0.0, domain=Domain.NONNEGATIVE)},
-    parameters={'feed': parameter(default=0.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.m, s.feed)],
+StageComponent = ElementComponent.define(
+    'StageComponent',
+    states={'m': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
+    parameters={'feed': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.m, s.feed)],
 )
 
-Passage = Interaction.define(
-    'Passage',
+PassageInteraction = BaseInteraction.define(
+    'PassageInteraction',
     roles=['source', 'target'],
-    parameters={'rate': parameter(default=0.5, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.source.m, -s.rate * s.source.m), Rate(s.target.m, s.rate * s.source.m)],
+    parameters={'rate': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.source.m, -s.rate * s.source.m), RateLaw(s.target.m, s.rate * s.source.m)],
 )
 
 
@@ -72,7 +72,7 @@ def bathtub(water: float = 50.0, *, inflow: float = 5.0, outflow: float = 5.0) -
         >>> bathtub(water=20.0).elements[0].water
         20.0
     """
-    return System(components=[Tub('tub', water=water, inflow=inflow, outflow=outflow)])
+    return System(components=[TubComponent('tub', water=water, inflow=inflow, outflow=outflow)])
 
 
 @register_model(
@@ -120,13 +120,15 @@ def cascade_classifier(
         8
     """
     entry = (n_stages + 1) // 2 if feed_stage is None else feed_stage
-    stages = [Stage(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)]
+    stages = [
+        StageComponent(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)
+    ]
     labels = ['fine', *(stage.label for stage in stages), 'coarse']
     interactions = [
-        Passage(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
+        PassageInteraction(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
         for index in range(1, n_stages + 1)
     ] + [
-        Passage(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
+        PassageInteraction(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
         for index in range(1, n_stages + 1)
     ]
-    return System(components=[Stage('fine'), *stages, Stage('coarse')], interactions=interactions)
+    return System(components=[StageComponent('fine'), *stages, StageComponent('coarse')], interactions=interactions)

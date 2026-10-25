@@ -3,21 +3,21 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, parameter
+from skcomplex.core.base import NumericDomain, parameter
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.particles import PairPotential, Particle
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
 
 CUTOFF = 2.5
 
 
-class SoftSphere(PairPotential):
+class SoftSphereInteraction(PairPotentialInteraction):
     """Repulsive pair potential `epsilon * (sigma / r) ** 12`."""
 
-    epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
-    sigma: float = parameter(1.0, domain=Domain.POSITIVE)
+    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s, r):
         """Return `epsilon * (sigma / r) ** 12`."""
@@ -43,8 +43,8 @@ def _accelerations(system, numba_backend):
 def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
     system = System(
-        components=[Particle.group('gas', 2, x=[[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3])],
-        interactions=[SoftSphere('soft', first='gas', second='gas', cutoff=CUTOFF)],
+        components=[ParticleComponent.group('gas', 2, x=[[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3])],
+        interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=3),
     )
     reference, compiled = _accelerations(system, numba_backend)
@@ -57,8 +57,10 @@ def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend
     """Test that periodic boxes of one, two, and three cells per side count every pair once on both backends."""
     rng = np.random.default_rng(0)
     system = System(
-        components=[Particle.group('gas', 30, x=rng.uniform(0, period, (30, 2)))],
-        interactions=[SoftSphere('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period)],
+        components=[ParticleComponent.group('gas', 30, x=rng.uniform(0, period, (30, 2)))],
+        interactions=[
+            SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period),
+        ],
         space=ContinuousSpace(period, period, boundary='periodic'),
     )
     reference, compiled = _accelerations(system, numba_backend)

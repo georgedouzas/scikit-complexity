@@ -9,9 +9,9 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, total, uniform, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, total, uniform, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
@@ -31,7 +31,7 @@ def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generat
     return scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size))
 
 
-class DilutedNeuron(Element):
+class DilutedNeuronComponent(ElementComponent):
     """Binary neuron of an asymmetric diluted Hopfield network, updated in parallel with the others at every step.
 
     The neuron takes the value `s = ±1` with probability `1 / (1 + exp(-2 s β h))`, where `h = Σ_j J_ij s_j` is its
@@ -57,14 +57,14 @@ class DilutedNeuron(Element):
                 The inverse temperature `β`.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuron
-        >>> DilutedNeuron('neuron').beta
+        >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuronComponent
+        >>> DilutedNeuronComponent('neuron').beta
         0.06
     """
 
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     pattern: float = parameter(default=1.0)
-    beta: float = parameter(default=0.06, domain=Domain.NONNEGATIVE)
+    beta: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class DilutedNeuron(Element):
         super().__init__(label, **values)
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the parallel stochastic update of the neuron.
 
         Args:
@@ -89,7 +89,7 @@ class DilutedNeuron(Element):
         """
         field = total(s.spin, weights=self.couplings)
         up = 1 / (1 + exp(-2 * s.beta * field))
-        return [Update(s.spin, where(uniform('u') < up, 1, -1))]
+        return [UpdateLaw(s.spin, where(uniform('u') < up, 1, -1))]
 
 
 @register_model(
@@ -148,7 +148,7 @@ def diluted_hopfield(
     n_patterns = max(1, round(load * connectivity))
     patterns = rng.choice([-1.0, 1.0], size=(n_patterns, n_neurons))
     spins = np.where(rng.random(n_neurons) < (1 + overlap) / 2, patterns[0], -patterns[0])
-    neurons = DilutedNeuron.group(
+    neurons = DilutedNeuronComponent.group(
         'neurons',
         n_neurons,
         spin=spins,

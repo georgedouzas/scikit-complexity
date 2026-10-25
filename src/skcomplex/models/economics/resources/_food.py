@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer, lookup
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, RateLaw, Sink, Source, Symbols, TransferLaw, lookup
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -14,7 +14,7 @@ LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
 TONNES_PER_KG = 1e-3
 
 
-def _rice_laws(s: Symbols) -> list[Law]:
+def _rice_laws(s: Symbols) -> list[BaseLaw]:
     """Return the development and loss of rice land, the population, and the factors of the rice productivity."""
     chemical = 1 - s.bio_fraction
     input_ratio = Auxiliary('input_ratio', s.bio_fraction + chemical * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs))
@@ -33,55 +33,55 @@ def _rice_laws(s: Symbols) -> list[Law]:
         production,
         requirement,
         Auxiliary('self_sufficiency', production.symbol / requirement.symbol),
-        Transfer(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
-        Transfer(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
-        Transfer(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
-        Rate(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
-        Rate(
+        TransferLaw(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
+        TransferLaw(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
+        TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
+        RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
+        RateLaw(
             s.soil_quality,
             (1 - s.soil_quality) / s.regeneration_time
             - s.degradation * chemical * input_ratio.symbol * s.cropping_intensity * s.soil_quality,
         ),
-        Rate(s.practice, lookup(s.training, LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
-        Rate(s.training, (s.training_target - s.training) / s.extension_time),
-        Rate(s.bio_fraction, (s.bio_target - s.bio_fraction) / s.transition_time),
-        Rate(s.cropping_intensity, (s.intensity_target - s.cropping_intensity) / s.implementation_time),
+        RateLaw(s.practice, lookup(s.training, LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
+        RateLaw(s.training, (s.training_target - s.training) / s.extension_time),
+        RateLaw(s.bio_fraction, (s.bio_target - s.bio_fraction) / s.transition_time),
+        RateLaw(s.cropping_intensity, (s.intensity_target - s.cropping_intensity) / s.implementation_time),
     ]
 
 
-RiceSector = Element.define(
-    'RiceSector',
+RiceSectorComponent = ElementComponent.define(
+    'RiceSectorComponent',
     states={
-        'available_land': state(default=0.088, domain=Domain.NONNEGATIVE, quantity='land'),
-        'rice_area': state(default=0.680647, domain=Domain.NONNEGATIVE, quantity='land'),
-        'population': state(default=18.1024, domain=Domain.NONNEGATIVE, quantity='people'),
-        'potential': state(default=6.0, domain=Domain.NONNEGATIVE),
-        'soil_quality': state(default=0.99, domain=Domain.NONNEGATIVE),
-        'practice': state(default=0.61, domain=Domain.NONNEGATIVE),
-        'training': state(default=0.0, domain=Domain.NONNEGATIVE),
-        'bio_fraction': state(default=0.0, domain=Domain.NONNEGATIVE),
-        'cropping_intensity': state(default=1.0, domain=Domain.NONNEGATIVE),
+        'available_land': state(default=0.088, domain=NumericDomain.NONNEGATIVE, quantity='land'),
+        'rice_area': state(default=0.680647, domain=NumericDomain.NONNEGATIVE, quantity='land'),
+        'population': state(default=18.1024, domain=NumericDomain.NONNEGATIVE, quantity='people'),
+        'potential': state(default=6.0, domain=NumericDomain.NONNEGATIVE),
+        'soil_quality': state(default=0.99, domain=NumericDomain.NONNEGATIVE),
+        'practice': state(default=0.61, domain=NumericDomain.NONNEGATIVE),
+        'training': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'bio_fraction': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'cropping_intensity': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={
-        'conversion_time': parameter(default=8.0, domain=Domain.POSITIVE),
-        'discard_rate': parameter(default=0.0085, domain=Domain.NONNEGATIVE),
-        'growth_rate': parameter(default=0.021, domain=Domain.REAL),
-        'consumption': parameter(default=80.0, domain=Domain.NONNEGATIVE),
-        'milling_rate': parameter(default=0.65, domain=Domain.NONNEGATIVE),
-        'subsidy': parameter(default=0.67, domain=Domain.NONNEGATIVE),
-        'farmer_inputs': parameter(default=0.3, domain=Domain.NONNEGATIVE),
-        'research': parameter(default=0.0, domain=Domain.NONNEGATIVE),
-        'potential_limit': parameter(default=10.0, domain=Domain.POSITIVE),
-        'research_time': parameter(default=20.0, domain=Domain.POSITIVE),
-        'regeneration_time': parameter(default=10.0, domain=Domain.POSITIVE),
-        'degradation': parameter(default=0.002, domain=Domain.NONNEGATIVE),
-        'learning_time': parameter(default=5.0, domain=Domain.POSITIVE),
-        'training_target': parameter(default=0.0, domain=Domain.NONNEGATIVE),
-        'extension_time': parameter(default=5.0, domain=Domain.POSITIVE),
-        'bio_target': parameter(default=0.0, domain=Domain.NONNEGATIVE),
-        'transition_time': parameter(default=10.0, domain=Domain.POSITIVE),
-        'intensity_target': parameter(default=1.0, domain=Domain.POSITIVE),
-        'implementation_time': parameter(default=10.0, domain=Domain.POSITIVE),
+        'conversion_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
+        'discard_rate': parameter(default=0.0085, domain=NumericDomain.NONNEGATIVE),
+        'growth_rate': parameter(default=0.021, domain=NumericDomain.REAL),
+        'consumption': parameter(default=80.0, domain=NumericDomain.NONNEGATIVE),
+        'milling_rate': parameter(default=0.65, domain=NumericDomain.NONNEGATIVE),
+        'subsidy': parameter(default=0.67, domain=NumericDomain.NONNEGATIVE),
+        'farmer_inputs': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
+        'research': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'potential_limit': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'research_time': parameter(default=20.0, domain=NumericDomain.POSITIVE),
+        'regeneration_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'degradation': parameter(default=0.002, domain=NumericDomain.NONNEGATIVE),
+        'learning_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
+        'training_target': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'extension_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
+        'bio_target': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'transition_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'intensity_target': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'implementation_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
     },
     laws=_rice_laws,
 )
@@ -146,7 +146,7 @@ def food_security(
         >>> food_security(subsidy=0.0).elements[0].subsidy
         0.0
     """
-    sector = RiceSector(
+    sector = RiceSectorComponent(
         'rice',
         subsidy=subsidy,
         bio_target=bio_target,

@@ -9,12 +9,12 @@ from typing import Any
 from ...core.base import (
     role,
 )
-from ...core.interactions import Interaction
+from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ._laws import RewritingLaw
 
 
-class Rewriting(Interaction):
+class Rewriting(BaseInteraction):
     """Base class of interactions that rewrite the word, patch, or host graph bound to their `target` role.
 
     Subclasses declare parameters with `parameter` and override `productions`, where `s.<parameter>` is a symbol that
@@ -30,15 +30,15 @@ class Rewriting(Interaction):
     Examples:
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.formalisms.rewriting import Rewriting
-        >>> from skcomplex.formalisms.rewriting import Module, Production
+        >>> from skcomplex.formalisms.rewriting import Module, ProductionLaw
         >>> from skcomplex.core.base import symbol
-        >>> class Halving(Rewriting):
+        >>> class HalvingInteraction(Rewriting):
         ...     ratio: float = parameter(0.5)
         ...
         ...     def productions(self, s):
         ...         x = symbol('x')
-        ...         return [Production(Module('A', x), [Module('F', x), Module('A', s.ratio * x)])]
-        >>> Halving('halving', target='plant').ratio
+        ...         return [ProductionLaw(Module('A', x), [Module('F', x), Module('A', s.ratio * x)])]
+        >>> HalvingInteraction('halving', target='plant').ratio
         0.5
     """
 
@@ -77,8 +77,8 @@ class Rewrite(Rewriting):
 
     Examples:
         >>> from skcomplex.formalisms.rewriting import Rewrite
-        >>> from skcomplex.formalisms.rewriting import Production
-        >>> Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')]).rules[1]
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw
+        >>> Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]).rules[1]
         B → A
     """
 

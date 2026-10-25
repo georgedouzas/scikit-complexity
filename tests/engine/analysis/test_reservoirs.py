@@ -8,7 +8,7 @@ from skcomplex.core.space import DiscreteTime
 from skcomplex.engine.analysis import Series, fit_reservoir
 from skcomplex.engine.compile import validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import create
 
 LYAPUNOV_TIME = 1 / 0.906
@@ -18,7 +18,7 @@ TRANSIENT = 5.0
 
 def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
-    solver = ScipyODE(method='DOP853', rtol=1e-9, atol=1e-9)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
     trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).run(until=until).trajectory_
     values = np.column_stack([trajectory[f'lorenz.{name}'] for name in 'xyz'])

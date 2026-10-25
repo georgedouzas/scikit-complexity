@@ -6,13 +6,13 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
 def _size_observables() -> list[Observable]:
@@ -23,7 +23,7 @@ def _size_observables() -> list[Observable]:
     ]
 
 
-class GibratFirm(Element):
+class GibratFirmComponent(ElementComponent):
     """Firm whose size is multiplied every step by an independent normal growth factor, `x = lambda x`.
 
     Args:
@@ -43,17 +43,17 @@ class GibratFirm(Element):
             The standard deviation of the growth factor.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import GibratFirm
-        >>> GibratFirm.group('firms', 10, mu=1.0).size
+        >>> from skcomplex.models.economics.finance import GibratFirmComponent
+        >>> GibratFirmComponent.group('firms', 10, mu=1.0).size
         10
     """
 
-    x: float = state(default=100.0, domain=Domain.REAL)
-    previous: float = state(default=100.0, domain=Domain.REAL)
-    mu: float = parameter(default=1.02, domain=Domain.REAL)
-    sigma: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    x: float = state(default=100.0, domain=NumericDomain.REAL)
+    previous: float = state(default=100.0, domain=NumericDomain.REAL)
+    mu: float = parameter(default=1.02, domain=NumericDomain.REAL)
+    sigma: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth rule.
 
         Args:
@@ -64,7 +64,7 @@ class GibratFirm(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.grow)]
+        return [RuleLaw(self.grow)]
 
     def grow(self, agent: AgentView, model: ModelView) -> None:
         """Keep the size and multiply it by a growth factor drawn from a normal distribution.
@@ -80,7 +80,7 @@ class GibratFirm(Element):
         agent.x = agent.x * float(model.rng.normal(agent.mu, agent.sigma))
 
 
-class KestenFirm(Element):
+class KestenFirmComponent(ElementComponent):
     """Firm whose size follows Kesten's process, `x = lambda x + b`, with uniform random `lambda` and `b`.
 
     Args:
@@ -103,18 +103,18 @@ class KestenFirm(Element):
             The upper bound of the additive term.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import KestenFirm
-        >>> KestenFirm.group('firms', 10, b_high=2.0).size
+        >>> from skcomplex.models.economics.finance import KestenFirmComponent
+        >>> KestenFirmComponent.group('firms', 10, b_high=2.0).size
         10
     """
 
-    x: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    lambda_low: float = parameter(default=0.48, domain=Domain.NONNEGATIVE)
-    lambda_high: float = parameter(default=1.48, domain=Domain.NONNEGATIVE)
-    b_low: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    b_high: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    x: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    lambda_low: float = parameter(default=0.48, domain=NumericDomain.NONNEGATIVE)
+    lambda_high: float = parameter(default=1.48, domain=NumericDomain.NONNEGATIVE)
+    b_low: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    b_high: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth rule.
 
         Args:
@@ -125,7 +125,7 @@ class KestenFirm(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.grow)]
+        return [RuleLaw(self.grow)]
 
     def grow(self, agent: AgentView, model: ModelView) -> None:
         """Multiply the size by a random factor and add a random term.
@@ -141,7 +141,7 @@ class KestenFirm(Element):
         agent.x = factor * agent.x + float(model.rng.uniform(agent.b_low, agent.b_high))
 
 
-class ReflectingFloor(Interaction):
+class ReflectingFloorInteraction(BaseInteraction):
     """Lower bound on the sizes of a group at a fraction of their mean before the step, `x = max(x, c <x_{t-1}>)`.
 
     Args:
@@ -155,15 +155,15 @@ class ReflectingFloor(Interaction):
             The fraction of the previous mean size below which no size falls.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import ReflectingFloor
-        >>> ReflectingFloor('floor', firms='firms', c=0.5).c
+        >>> from skcomplex.models.economics.finance import ReflectingFloorInteraction
+        >>> ReflectingFloorInteraction('floor', firms='firms', c=0.5).c
         0.5
     """
 
     firms: str = role()
-    c: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
+    c: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reflection rule.
 
         Args:
@@ -174,7 +174,7 @@ class ReflectingFloor(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.reflect)]
+        return [RuleLaw(self.reflect)]
 
     def reflect(self, model: ModelView) -> None:
         """Raise every size below the floor to the floor.
@@ -227,7 +227,7 @@ def gibrat_process(
         >>> gibrat_process(10).elements[0].size
         10
     """
-    firms = GibratFirm.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
+    firms = GibratFirmComponent.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
     return System(components=[firms])
 
 
@@ -276,10 +276,10 @@ def multiplicative_process(
         >>> multiplicative_process(c=0.5).interactions[0].c
         0.5
     """
-    firms = GibratFirm.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
+    firms = GibratFirmComponent.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
     return System(
         components=[firms],
-        interactions=[ReflectingFloor('floor', firms='firms', c=c)],
+        interactions=[ReflectingFloorInteraction('floor', firms='firms', c=c)],
     )
 
 
@@ -332,7 +332,7 @@ def kesten_process(
         >>> kesten_process(10).elements[0].size
         10
     """
-    firms = KestenFirm.group(
+    firms = KestenFirmComponent.group(
         'firms',
         n_firms,
         x=x,

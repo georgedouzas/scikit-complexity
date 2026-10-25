@@ -3,18 +3,18 @@
 import numpy as np
 
 from skcomplex.core.base import parameter, state
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import Phase, Phases, Rule
+from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 from skcomplex.models import run
 from skcomplex.models.economics.realizations import (
-    Institution,
+    InstitutionInteraction,
 )
 
 
-class Shop(Element):
+class ShopComponent(ElementComponent):
     """Shop whose price grows by a drift and noise, slowed by the interest rate."""
 
     price: float = state(1.0)
@@ -22,14 +22,14 @@ class Shop(Element):
 
     def laws(self, s):
         """Return the pricing rule."""
-        return [Rule(self.inflate)]
+        return [RuleLaw(self.inflate)]
 
     def inflate(self, agent, model):
         """Raise the price."""
         agent.price *= 1 + model.parameter('drift') + model.rng.normal(0, 0.02) - model.parameters['bank.rate']
 
 
-class CentralBank(Institution):
+class CentralBankInteraction(InstitutionInteraction):
     """Central bank that raises its rate whenever inflation of the price level exceeds the target."""
 
     reports = ('inflation',)
@@ -49,9 +49,9 @@ class CentralBank(Institution):
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
     system = System(
-        components=[Shop.group('shops', 20)],
-        interactions=[CentralBank('bank', phase='policy')],
-        time=DiscreteTime(schedule=Phases([Phase('policy')])),
+        components=[ShopComponent.group('shops', 20)],
+        interactions=[CentralBankInteraction('bank', phase='policy')],
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('policy')])),
     )
     observables = [Observable('price_level', group='shops', variable='price')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=40).trajectory_

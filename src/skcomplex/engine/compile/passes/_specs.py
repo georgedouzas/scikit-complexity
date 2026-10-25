@@ -8,12 +8,12 @@ from typing import cast
 from .._compilation import Compilation
 from .._declarations import Declarations, is_interaction
 from .._observables import Observer, lowerable_observables
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import specs_of
 from .._tree import Node
 
 
-class SpecsPass(Pass):
+class SpecsPass(BasePass):
     """Pass that builds the kernel specs of every component, one per element set entry of an interaction."""
 
     reads = ('layout', 'nodes')

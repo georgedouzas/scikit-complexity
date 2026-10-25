@@ -7,16 +7,16 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Event, Law, Rate, Symbols, pulse_train, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class RadiationCompetition(Element):
+class RadiationCompetitionComponent(ElementComponent):
     """Normal and tumour cells in Lotka-Volterra competition under periodic irradiation.
 
     The normal cells follow `dN/dt = r1 N (1 - b1 N) - c1 N A - epsilon N` and the tumour cells
@@ -67,21 +67,21 @@ class RadiationCompetition(Element):
                 The per capita rate at which the spilled radiation kills normal cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import RadiationCompetition
-        >>> RadiationCompetition('tissue', N=0.5, A=0.8).A
+        >>> from skcomplex.models.biology.oncology import RadiationCompetitionComponent
+        >>> RadiationCompetitionComponent('tissue', N=0.5, A=0.8).A
         0.8
     """
 
-    N: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    A: float = state(default=0.8, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.008, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.4, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    b2: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    c1: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
+    N: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    A: float = state(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.008, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    b2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    epsilon: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -95,7 +95,7 @@ class RadiationCompetition(Element):
         self.period = period
         self.width = width
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the competition of the normal and tumour cells and the kill of the radiation.
 
         Args:
@@ -108,12 +108,12 @@ class RadiationCompetition(Element):
         """
         irradiation = pulse_train(s.t, self.period, self.width)
         return [
-            Rate(s.N, s.r1 * s.N * (1 - s.b1 * s.N) - s.c1 * s.N * s.A - s.epsilon * s.N),
-            Rate(s.A, s.r2 * s.A * (1 - s.b2 * s.A) - s.c2 * s.N * s.A - s.a2 * irradiation * s.A),
+            RateLaw(s.N, s.r1 * s.N * (1 - s.b1 * s.N) - s.c1 * s.N * s.A - s.epsilon * s.N),
+            RateLaw(s.A, s.r2 * s.A * (1 - s.b2 * s.A) - s.c2 * s.N * s.A - s.a2 * irradiation * s.A),
         ]
 
 
-class IrradiatedTumour(Element):
+class IrradiatedTumourComponent(ElementComponent):
     """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
 
     The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`. A fraction of dose `d` at time `t_i` moves the
@@ -193,29 +193,29 @@ class IrradiatedTumour(Element):
                 The dose of a fraction.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import IrradiatedTumour
-        >>> IrradiatedTumour('tumour', fractions=10).fractions
+        >>> from skcomplex.models.biology.oncology import IrradiatedTumourComponent
+        >>> IrradiatedTumourComponent('tumour', fractions=10).fractions
         10
     """
 
-    A1: float = state(default=27.0, domain=Domain.NONNEGATIVE)
-    A2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    A3: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    A4: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    A5: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    A6: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Us: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    u_tot: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    k: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r: float = parameter(default=0.04, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=0.26, domain=Domain.NONNEGATIVE)
-    a_gamma: float = parameter(default=0.004, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.054, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.0054, domain=Domain.NONNEGATIVE)
-    ap: float = parameter(default=0.42, domain=Domain.NONNEGATIVE)
-    au: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    du: float = parameter(default=5.544, domain=Domain.NONNEGATIVE)
-    dose: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
+    A1: float = state(default=27.0, domain=NumericDomain.NONNEGATIVE)
+    A2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    A3: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    A4: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    A5: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    A6: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Us: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    u_tot: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    k: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r: float = parameter(default=0.04, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=0.26, domain=NumericDomain.NONNEGATIVE)
+    a_gamma: float = parameter(default=0.004, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.054, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.0054, domain=NumericDomain.NONNEGATIVE)
+    ap: float = parameter(default=0.42, domain=NumericDomain.NONNEGATIVE)
+    au: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    du: float = parameter(default=5.544, domain=NumericDomain.NONNEGATIVE)
+    dose: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -231,7 +231,7 @@ class IrradiatedTumour(Element):
         self.start = start
         self.fractions = fractions
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth and transit of the compartments and the fractions as events.
 
         Args:
@@ -252,14 +252,14 @@ class IrradiatedTumour(Element):
             s.k: s.k + 1,
         }
         return [
-            Rate(s.A1, s.r * s.A1 * exp(-s.a_gamma * s.u_tot)),
-            Rate(s.A2, s.m1 * (s.A5 + s.A6) - s.m1 * s.A2),
-            Rate(s.A3, s.m1 * (s.A2 - s.A3)),
-            Rate(s.A4, s.m1 * (s.A3 - s.A4)),
-            Rate(s.A5, -(s.r + s.m1) * s.A5),
-            Rate(s.A6, 2 * s.r * s.A5 - s.m1 * s.A6),
-            Rate(s.Us, -s.du * s.Us),
-            Event(guard, reset, direction=1, label='fraction'),
+            RateLaw(s.A1, s.r * s.A1 * exp(-s.a_gamma * s.u_tot)),
+            RateLaw(s.A2, s.m1 * (s.A5 + s.A6) - s.m1 * s.A2),
+            RateLaw(s.A3, s.m1 * (s.A2 - s.A3)),
+            RateLaw(s.A4, s.m1 * (s.A3 - s.A4)),
+            RateLaw(s.A5, -(s.r + s.m1) * s.A5),
+            RateLaw(s.A6, 2 * s.r * s.A5 - s.m1 * s.A6),
+            RateLaw(s.Us, -s.du * s.Us),
+            EventLaw(guard, reset, direction=1, label='fraction'),
         ]
 
 
@@ -332,7 +332,7 @@ def radiotherapy_competition(
         >>> radiotherapy_competition(a2=0.1).elements[0].a2
         0.1
     """
-    tissue = RadiationCompetition(
+    tissue = RadiationCompetitionComponent(
         'tissue',
         N=N,
         A=A,
@@ -437,7 +437,7 @@ def lq_radiosensitizer(
         >>> lq_radiosensitizer(Us=0.0).elements[0].Us
         0.0
     """
-    tumour = IrradiatedTumour(
+    tumour = IrradiatedTumourComponent(
         'tumour',
         A1=A1,
         Us=Us,

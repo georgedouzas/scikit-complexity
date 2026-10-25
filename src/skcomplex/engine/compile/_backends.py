@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ...core.base import BackendError, BackendWarning, Expression, Form, Registry, Supports, ValidationError
-from ...core.laws import Boundary, Jump, Law, Noise, Rate, Update
+from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ._arrays import Indices, Vector
 from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
@@ -23,11 +23,11 @@ from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
 FUNCTION_KINDS: dict[str, type] = {
-    'drift': Rate,
-    'diffusion': Noise,
-    'propensities': Jump,
-    'update': Update,
-    'boundary': Boundary,
+    'drift': RateLaw,
+    'diffusion': NoiseLaw,
+    'propensities': JumpLaw,
+    'update': UpdateLaw,
+    'boundary': BoundaryLaw,
 }
 
 
@@ -261,7 +261,7 @@ def report_fallbacks(
             The backend name for every law kind with kernels, `'python'` for those that run in Python.
     """
     kinds = [kind for kind, items in used.items() if items]
-    fallen = [str(cast('type[Law]', kind).law_kind) for kind in kinds if not compiled[kind]]
+    fallen = [str(cast('type[BaseLaw]', kind).law_kind) for kind in kinds if not compiled[kind]]
     if fallen:
         unprinted = _unprinted_reduction(reductions)
         reason = (
@@ -271,10 +271,10 @@ def report_fallbacks(
         )
         message = f'The {name} backend runs the {", ".join(fallen)} laws in Python, because {reason}.'
         warnings.warn(message, BackendWarning, stacklevel=3)
-    return {str(cast('type[Law]', kind).law_kind): name if compiled[kind] else 'python' for kind in kinds}
+    return {str(cast('type[BaseLaw]', kind).law_kind): name if compiled[kind] else 'python' for kind in kinds}
 
 
-class Backend(BaseEstimator):
+class BaseBackend(BaseEstimator):
     """Base class of backends, which turn kernels into the numeric functions of a form.
 
     Subclasses set the class variable `name` and implement `lower`.
@@ -328,7 +328,7 @@ class Backend(BaseEstimator):
         raise NotImplementedError
 
 
-def register_backend(backend: type[Backend]) -> None:
+def register_backend(backend: type[BaseBackend]) -> None:
     """Register a backend class under its name.
 
     Args:
@@ -338,10 +338,10 @@ def register_backend(backend: type[Backend]) -> None:
     BACKENDS.register(backend.name, backend)
 
 
-BACKENDS = Registry[type[Backend]]('backend')
+BACKENDS = Registry[type[BaseBackend]]('backend')
 
 
-def resolve_backend(backend: str | Backend, members: int) -> Backend:
+def resolve_backend(backend: str | BaseBackend, members: int) -> BaseBackend:
     """Return a backend from a registered name, `'auto'`, or an instance.
 
     `'auto'` picks `numba` when the groups of the system hold at least 1000 members in total, and `numpy` otherwise.
@@ -361,7 +361,7 @@ def resolve_backend(backend: str | Backend, members: int) -> Backend:
         BackendError:
             No backend is registered under the name.
     """
-    if isinstance(backend, Backend):
+    if isinstance(backend, BaseBackend):
         return backend
     _load_backends()
     name = ('numba' if members >= AUTO_MEMBERS else 'numpy') if backend == 'auto' else backend

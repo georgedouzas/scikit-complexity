@@ -13,13 +13,14 @@ from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
 from ._traits import TraitsVisual, agents_visual_of
 from ._utils import NODE_SPACING, UPWARD, log_scalars
-from ._visuals import Visual, register_visual, resolve_visual
+from ._visuals import BaseVisual, register_visual, resolve_visual
 
 __all__: list[str] = [
     'NODE_SPACING',
     'SPACE_TIME',
     'UPWARD',
     'AgentsVisual',
+    'BaseVisual',
     'BodiesVisual',
     'ImageVisual',
     'MeshVisual',
@@ -29,7 +30,6 @@ __all__: list[str] = [
     'ScalarsVisual',
     'SiteVisual',
     'TraitsVisual',
-    'Visual',
     'agents_visual_of',
     'colors_of',
     'default_blueprint',

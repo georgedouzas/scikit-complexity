@@ -5,13 +5,13 @@ import pytest
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Rate, count, maximum, mean, minimum, total, variance, where
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import RateLaw, count, maximum, mean, minimum, total, variance, where
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.fields import Field, Mesh, SplitOperator, laplacian, mesh_laplacian
-from skcomplex.models.biology.ecology import FisherKPP
+from skcomplex.formalisms.fields import FieldComponent, MeshSpace, SplitOperator, laplacian, mesh_laplacian
+from skcomplex.models.biology.ecology import FisherKPPComponent
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky
 from skcomplex.models.physics.heat import heat_diffusion, heat_l_shape
@@ -34,10 +34,10 @@ def _finite_differences(problem, x, p, step=1e-6):
 @pytest.mark.parametrize(
     'laws',
     [
-        lambda s: [Rate(s.x, -s.x + tanh(total(s.x)) + mean(s.x**2))],
+        lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)) + mean(s.x**2))],
         lambda s: [
-            Rate(s.x, s.x * (total(s.x, weights=PAYOFF) - total(s.x * total(s.x, weights=PAYOFF)))),
-            Rate(
+            RateLaw(s.x, s.x * (total(s.x, weights=PAYOFF) - total(s.x * total(s.x, weights=PAYOFF)))),
+            RateLaw(
                 s.y,
                 maximum(s.x * s.y)
                 + variance(s.y)
@@ -45,14 +45,14 @@ def _finite_differences(problem, x, p, step=1e-6):
                 + mean(s.y, where=s.x > 0) * count(where=s.y > 0),
             ),
         ],
-        lambda s: [Rate(s.x, where(s.x > 0, total(s.y**2), -s.x)), Rate(s.y, -s.y)],
+        lambda s: [RateLaw(s.x, where(s.x > 0, total(s.y**2), -s.x)), RateLaw(s.y, -s.y)],
     ],
     ids=['tanh of total', 'every kind', 'condition'],
 )
 def test_jacobian_against_finite_differences(laws):
     """Test that the exact Jacobian equals central finite differences and that its pattern covers every entry."""
-    Member = Element.define('Member', states={'x': 0.0, 'y': 0.0}, laws=laws)
-    system = System(components=[Member.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
+    MemberComponent = ElementComponent.define('MemberComponent', states={'x': 0.0, 'y': 0.0}, laws=laws)
+    system = System(components=[MemberComponent.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
     problem = compile_system(system)
     x, p = problem.initial_state, problem.initial_parameters
     exact = problem.jacobian(0.0, x, p).toarray()
@@ -71,25 +71,29 @@ def test_jacobian_of_pair_sums_is_not_derived():
 
 def test_pattern_is_omitted_above_the_limit():
     """Test that the pattern of a dense block above the size limit is omitted."""
-    Member = Element.define('Wide', states={'x': 0.0}, laws=lambda s: [Rate(s.x, total(s.x))])
-    problem = compile_system(System(components=[Member.group('group', 3000)]))
+    MemberComponent = ElementComponent.define(
+        'WideComponent',
+        states={'x': 0.0},
+        laws=lambda s: [RateLaw(s.x, total(s.x))],
+    )
+    problem = compile_system(System(components=[MemberComponent.group('group', 3000)]))
     assert problem.jacobian.pattern() is None
 
 
-ReactiveHeat = Element.define(
-    'ReactiveHeat',
+ReactiveHeatComponent = ElementComponent.define(
+    'ReactiveHeatComponent',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.0},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))],
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))],
 )
 
 
 def _reactive_mesh(refine=2):
     """Return heat with a cubic reaction on the L-shaped mesh with fixed boundary temperatures."""
-    plate = Field(
+    plate = FieldComponent(
         'plate',
-        ReactiveHeat,
-        Mesh.l_shape(refine),
+        ReactiveHeatComponent,
+        MeshSpace.l_shape(refine),
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
@@ -99,7 +103,7 @@ def _reactive_mesh(refine=2):
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(components=[Field('line', FisherKPP, space, boundary={'u': boundary})])
+    return System(components=[FieldComponent('line', FisherKPPComponent, space, boundary={'u': boundary})])
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -115,7 +119,7 @@ def test_mesh_pattern():
     """Test that the mesh pattern is the stiffness pattern with the diagonal on free nodes and empty fixed rows."""
     problem = compile_system(_reactive_mesh())
     pattern = problem.jacobian.pattern().toarray()
-    stiffness = mesh_laplacian(Mesh.l_shape(2)).toarray() != 0
+    stiffness = mesh_laplacian(MeshSpace.l_shape(2)).toarray() != 0
     free = np.setdiff1d(np.arange(problem.initial_state.size), problem.constrained)
     assert problem.constrained.size
     assert not pattern[problem.constrained].any()
@@ -184,8 +188,12 @@ def _callable_rate(t, values):
 
 def test_exact_jacobian_of_callable_law_raises():
     """Test that the exact Jacobian of a callable law raises an error naming the law and the automatic option."""
-    Decay = Element.define('Decay', states={'u': 0.0}, laws=lambda s: [Rate(s.u, _callable_rate)])
-    problem = compile_system(System(components=[Field('line', Decay, LatticeSpace(10))]))
+    DecayComponent = ElementComponent.define(
+        'DecayComponent',
+        states={'u': 0.0},
+        laws=lambda s: [RateLaw(s.u, _callable_rate)],
+    )
+    problem = compile_system(System(components=[FieldComponent('line', DecayComponent, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.validate()
     assert problem.jacobian.pattern().toarray().all()

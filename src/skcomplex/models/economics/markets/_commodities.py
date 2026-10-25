@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, lookup, step
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -13,7 +13,7 @@ PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0
 INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))
 
 
-def _commodity_laws(s: Symbols) -> list[Law]:
+def _commodity_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the commodity market."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
     coverage = Auxiliary('coverage', s.inventory / demand)
@@ -30,40 +30,40 @@ def _commodity_laws(s: Symbols) -> list[Law]:
         price,
         expected,
         starts,
-        Transfer(Source('producers'), s.inventory, production, label='production'),
-        Transfer(
+        TransferLaw(Source('producers'), s.inventory, production, label='production'),
+        TransferLaw(
             s.inventory,
             Sink('consumers'),
             demand * relative_price ** (-s.demand_elasticity),
             label='consumption',
         ),
-        Transfer(
+        TransferLaw(
             Source('construction'),
             s.capacity,
             distributed_delay(starts.symbol, order=3, time=s.construction_delay),
             label='completions',
         ),
-        Transfer(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
+        TransferLaw(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
     ]
 
 
-CommodityMarket = Element.define(
-    'CommodityMarket',
+CommodityMarketComponent = ElementComponent.define(
+    'CommodityMarketComponent',
     states={
-        'inventory': state(default=25.0, domain=Domain.NONNEGATIVE, quantity='commodity'),
-        'capacity': state(default=100.0, domain=Domain.NONNEGATIVE, quantity='capacity'),
+        'inventory': state(default=25.0, domain=NumericDomain.NONNEGATIVE, quantity='commodity'),
+        'capacity': state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='capacity'),
     },
     parameters={
-        'demand': parameter(default=100.0, domain=Domain.POSITIVE),
-        'demand_step': parameter(default=10.0, domain=Domain.REAL),
-        'step_time': parameter(default=2.0, domain=Domain.NONNEGATIVE),
-        'desired_coverage': parameter(default=0.25, domain=Domain.POSITIVE),
-        'reference_price': parameter(default=1.0, domain=Domain.POSITIVE),
-        'supply_elasticity': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'demand_elasticity': parameter(default=0.25, domain=Domain.NONNEGATIVE),
-        'expectation_time': parameter(default=1.0, domain=Domain.POSITIVE),
-        'construction_delay': parameter(default=3.0, domain=Domain.POSITIVE),
-        'lifetime': parameter(default=15.0, domain=Domain.POSITIVE),
+        'demand': parameter(default=100.0, domain=NumericDomain.POSITIVE),
+        'demand_step': parameter(default=10.0, domain=NumericDomain.REAL),
+        'step_time': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
+        'desired_coverage': parameter(default=0.25, domain=NumericDomain.POSITIVE),
+        'reference_price': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'supply_elasticity': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'demand_elasticity': parameter(default=0.25, domain=NumericDomain.NONNEGATIVE),
+        'expectation_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'construction_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'lifetime': parameter(default=15.0, domain=NumericDomain.POSITIVE),
     },
     laws=_commodity_laws,
 )
@@ -150,7 +150,7 @@ def commodity_cycle(
         >>> commodity_cycle(construction_delay=5.0).elements[0].construction_delay
         5.0
     """
-    market = CommodityMarket(
+    market = CommodityMarketComponent(
         'market',
         inventory=inventory,
         capacity=capacity,

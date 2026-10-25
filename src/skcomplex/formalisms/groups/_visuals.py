@@ -12,13 +12,13 @@ import rerun.blueprint as rrb
 
 from ...engine.compile import CompiledAgents, CompiledElement, Problem
 from ...engine.runtime import Frame
-from ...engine.viz import NODE_SPACING, UPWARD, Visual, palette_colors
-from ._spaces import GroupSpace
+from ...engine.viz import NODE_SPACING, UPWARD, BaseVisual, palette_colors
+from ._spaces import CayleySpace
 
 NODE_SHARE = 0.15
 
 
-class CayleyVisual(Visual):
+class CayleyVisual(BaseVisual):
     """Visual that logs every state of a lattice group on a group space as the nodes of its Cayley graph.
 
     Sites sit on rings by word length, with one ring per radius and the identity at the centre, colored by state.
@@ -62,7 +62,7 @@ class CayleyVisual(Visual):
         high = float(values.max()) if self.high is None else float(self.high)
         return palette_colors(values, low, high)
 
-    def _log_edges(self, recording: rr.RecordingStream, path: str, space: GroupSpace) -> None:
+    def _log_edges(self, recording: rr.RecordingStream, path: str, space: CayleySpace) -> None:
         """Log the edges of every generator once, as static data."""
         edges = [(str(site), str(neighbour)) for site, neighbour, _ in space.edges if site != neighbour]
         recording.log(path, rr.GraphEdges(edges), static=True)
@@ -82,7 +82,7 @@ class CayleyVisual(Visual):
                 The frame.
         """
         space = getattr(element.element, 'space', None)
-        if not isinstance(space, GroupSpace):
+        if not isinstance(space, CayleySpace):
             return
         positions = space.positions * NODE_SPACING * UPWARD
         nodes = [str(site) for site in range(space.size)]
@@ -117,7 +117,7 @@ class CayleyVisual(Visual):
                 One graph view per chosen state, with `<path>/<state>` as origin.
         """
         space = getattr(getattr(element, 'element', None), 'space', None)
-        if not isinstance(element, CompiledElement) or not isinstance(space, GroupSpace):
+        if not isinstance(element, CompiledElement) or not isinstance(space, CayleySpace):
             return []
         extent = (float(space.lengths.max(initial=0)) + 1.0) * NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(-extent, extent), y_range=(-extent, extent))

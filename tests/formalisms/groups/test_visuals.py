@@ -2,25 +2,25 @@
 
 import numpy as np
 
-from skcomplex.core.base import Domain, state
-from skcomplex.core.components import Element
+from skcomplex.core.base import NumericDomain, state
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import default_blueprint
-from skcomplex.formalisms.groups import CayleyVisual, GroupSpace, finitely_presented_group
-from skcomplex.formalisms.lattices import LocalRule
+from skcomplex.formalisms.groups import CayleySpace, CayleyVisual, finitely_presented_group
+from skcomplex.formalisms.lattices import LocalRuleLaw
 
 
-class Parity(Element):
+class ParityComponent(ElementComponent):
     """Cell that takes the parity of itself and the cells at its generators."""
 
-    alive: float = state(default=0, domain=Domain.BOOLEAN)
+    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
     def laws(self, s):
         """Return the parity rule."""
-        return [LocalRule(s.alive, Memory(('1', 'a', 'b')), Totalistic({1: 1, 3: 1}))]
+        return [LocalRuleLaw(s.alive, Memory(('1', 'a', 'b')), Totalistic({1: 1, 3: 1}))]
 
 
 class Logs:
@@ -37,10 +37,10 @@ class Logs:
 
 def _simulation():
     """Return a simulation of the parity rule on a ball of radius 3 of the free group of rank 2."""
-    space = GroupSpace(finitely_presented_group(['a', 'b']), ball=3)
+    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3)
     cells = np.zeros(space.size)
     cells[0] = 1.0
-    return Simulation(System(components=[Parity.lattice('cells', space, alive=cells)])).run(until=2)
+    return Simulation(System(components=[ParityComponent.lattice('cells', space, alive=cells)])).run(until=2)
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():

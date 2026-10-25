@@ -1,14 +1,27 @@
 """Opinion dynamics: voting, coevolving networks, persuasion, bounded confidence, conventions, and diffusion."""
 
-from ._axelrod import CultureCensus, Village, axelrod, cultural_traits, largest_region
-from ._bounded_confidence import Confident, Discussant, Encounters, deffuant, hegselmann_krause
-from ._coevolution import ClubMember, CoevolvingVoter, Separation, Tie, coevolving_voter, join_a_club
-from ._cognition import Conversations, Thinker, cognitive_consistency, settle
-from ._conventions import Namer, NamingGames, naming_game
-from ._diffusion import Adopter, Adoption, Believer, influentials, threshold_adoption
+from ._axelrod import CultureCensusInteraction, VillageComponent, axelrod, cultural_traits, largest_region
+from ._bounded_confidence import (
+    ConfidentComponent,
+    DiscussantComponent,
+    EncountersInteraction,
+    deffuant,
+    hegselmann_krause,
+)
+from ._coevolution import (
+    ClubMemberComponent,
+    CoevolvingVoterComponent,
+    SeparationInteraction,
+    TieComponent,
+    coevolving_voter,
+    join_a_club,
+)
+from ._cognition import ConversationsInteraction, ThinkerComponent, cognitive_consistency, settle
+from ._conventions import NamerComponent, NamingGamesInteraction, naming_game
+from ._diffusion import AdopterComponent, AdoptionInteraction, BelieverComponent, influentials, threshold_adoption
 from ._kinetic_opinion import (
-    OpinionEncounters,
-    OpinionLevel,
+    OpinionEncountersInteraction,
+    OpinionLevelComponent,
     kinetic_opinion,
     mean_opinion,
     opinion_grid,
@@ -17,47 +30,54 @@ from ._kinetic_opinion import (
     persuasion_table,
 )
 from ._persuasion import (
-    Citizen,
-    Discussions,
-    Influencee,
-    Persuader,
-    SocialImpact,
+    CitizenComponent,
+    DiscussionsInteraction,
+    InfluenceeComponent,
+    PersuaderComponent,
+    SocialImpactInteraction,
     galam_majority,
     social_impact,
     sznajd,
 )
-from ._standardization import ComplexAgent, Standardization, standardized_agents
-from ._voters import MajorityVoter, VariantVoter, Voter, majority_rule, voter_model, voter_variants
+from ._standardization import ComplexAgentComponent, StandardizationInteraction, standardized_agents
+from ._voters import (
+    MajorityVoterComponent,
+    VariantVoterComponent,
+    VoterComponent,
+    majority_rule,
+    voter_model,
+    voter_variants,
+)
 
 __all__: list[str] = [
-    'Adopter',
-    'Adoption',
-    'Believer',
-    'Citizen',
-    'ClubMember',
-    'CoevolvingVoter',
-    'ComplexAgent',
-    'Confident',
-    'Conversations',
-    'CultureCensus',
-    'Discussant',
-    'Discussions',
-    'Encounters',
-    'Influencee',
-    'MajorityVoter',
-    'Namer',
-    'NamingGames',
-    'OpinionEncounters',
-    'OpinionLevel',
-    'Persuader',
-    'Separation',
-    'SocialImpact',
-    'Standardization',
-    'Thinker',
-    'Tie',
-    'VariantVoter',
-    'Village',
-    'Voter',
+    'AdopterComponent',
+    'AdoptionInteraction',
+    'BelieverComponent',
+    'CitizenComponent',
+    'ClubMemberComponent',
+    'CoevolvingVoterComponent',
+    'ComplexAgentComponent',
+    'ConfidentComponent',
+    'ConversationsInteraction',
+    'CultureCensusInteraction',
+    'DiscussantComponent',
+    'DiscussionsInteraction',
+    'EncountersInteraction',
+    'InfluenceeComponent',
+    'MajorityVoterComponent',
+    'NamerComponent',
+    'NamingGamesInteraction',
+    'OpinionEncountersInteraction',
+    'OpinionLevelComponent',
+    'PersuaderComponent',
+    'SeparationInteraction',
+    'SocialImpactInteraction',
+    'StandardizationInteraction',
+    'ThinkerComponent',
+    'TieComponent',
+    'VariantVoterComponent',
+    'VillageComponent',
+    'VoterComponent',
     'axelrod',
     'coevolving_voter',
     'cognitive_consistency',

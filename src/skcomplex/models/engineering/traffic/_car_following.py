@@ -6,28 +6,28 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sqrt, tanh
 
-from ....core.base import Domain, Expression, parameter
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, delayed, mod, shift_member
+from ....core.base import Expression, NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, delayed, mod, shift_member
 from ....core.system import System
 from ....engine.runtime import register_model
 
-Car = Element.define(
-    'Car',
+CarComponent = ElementComponent.define(
+    'CarComponent',
     states={'x': 0.0, 'v': 0.0},
-    laws=lambda s: [Rate(s.x, s.v)],
+    laws=lambda s: [RateLaw(s.x, s.v)],
 )
 
-LeadCar = Element.define(
-    'LeadCar',
+LeadCarComponent = ElementComponent.define(
+    'LeadCarComponent',
     states={'x': 0.0, 'v': 1.0},
     parameters={
-        'u': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'amplitude': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'omega': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'u': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'amplitude': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'omega': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
-    laws=lambda s: [Rate(s.x, s.v), Rate(s.v, -s.u * s.amplitude * s.omega * cos(s.omega * s.t))],
+    laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -s.u * s.amplitude * s.omega * cos(s.omega * s.t))],
 )
 
 
@@ -36,38 +36,38 @@ def _headway(x: Expression, road_length: Expression) -> Expression:
     return mod(shift_member(x, 1) - x, road_length)
 
 
-OptimalVelocity = Interaction.define(
-    'OptimalVelocity',
+OptimalVelocityInteraction = BaseInteraction.define(
+    'OptimalVelocityInteraction',
     roles=['cars'],
     parameters={
-        'a': parameter(default=1.0, domain=Domain.POSITIVE),
-        'V0': parameter(default=1.0, domain=Domain.POSITIVE),
-        'hc': parameter(default=2.0, domain=Domain.POSITIVE),
-        'road_length': parameter(default=40.0, domain=Domain.POSITIVE),
+        'a': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'V0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'hc': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'road_length': parameter(default=40.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.cars.v,
             s.a * (s.V0 * (tanh(_headway(s.cars.x, s.road_length) - s.hc) + tanh(s.hc)) - s.cars.v),
         ),
     ],
 )
 
-IntelligentDriver = Interaction.define(
-    'IntelligentDriver',
+IntelligentDriverInteraction = BaseInteraction.define(
+    'IntelligentDriverInteraction',
     roles=['cars'],
     parameters={
-        'v0': parameter(default=30.0, domain=Domain.POSITIVE),
-        'T': parameter(default=1.5, domain=Domain.NONNEGATIVE),
-        'a': parameter(default=1.0, domain=Domain.POSITIVE),
-        'b': parameter(default=1.5, domain=Domain.POSITIVE),
-        's0': parameter(default=2.0, domain=Domain.NONNEGATIVE),
-        'delta': parameter(default=4.0, domain=Domain.POSITIVE),
-        'length': parameter(default=5.0, domain=Domain.NONNEGATIVE),
-        'road_length': parameter(default=500.0, domain=Domain.POSITIVE),
+        'v0': parameter(default=30.0, domain=NumericDomain.POSITIVE),
+        'T': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
+        'a': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'b': parameter(default=1.5, domain=NumericDomain.POSITIVE),
+        's0': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
+        'delta': parameter(default=4.0, domain=NumericDomain.POSITIVE),
+        'length': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
+        'road_length': parameter(default=500.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.cars.v,
             s.a
             * (
@@ -83,16 +83,16 @@ IntelligentDriver = Interaction.define(
     ],
 )
 
-DelayedFollowing = Interaction.define(
-    'DelayedFollowing',
+DelayedFollowingInteraction = BaseInteraction.define(
+    'DelayedFollowingInteraction',
     roles=['leader', 'follower'],
     parameters={
-        'reaction': parameter(default=1.0, domain=Domain.POSITIVE),
-        'T': parameter(default=1.0, domain=Domain.POSITIVE),
-        'power': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'reaction': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'T': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'power': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.follower.v,
             s.reaction
             * (delayed(s.leader.v, s.T) - delayed(s.follower.v, s.T))
@@ -162,8 +162,8 @@ def optimal_velocity(
     """
     headway = length / n_cars
     speed = V0 * (np.tanh(headway - hc) + np.tanh(hc))
-    cars = Car.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
-    following = OptimalVelocity('follow', cars='cars', a=a, V0=V0, hc=hc, road_length=length)
+    cars = CarComponent.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
+    following = OptimalVelocityInteraction('follow', cars='cars', a=a, V0=V0, hc=hc, road_length=length)
     return System(components=[cars], interactions=[following])
 
 
@@ -232,8 +232,8 @@ def intelligent_driver_model(
         >>> intelligent_driver_model(n_cars=4).interactions[0].road_length
         500.0
     """
-    cars = Car.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=0.0)
-    following = IntelligentDriver(
+    cars = CarComponent.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=0.0)
+    following = IntelligentDriverInteraction(
         'follow',
         cars='cars',
         v0=v0,
@@ -305,10 +305,10 @@ def delayed_car_following(
         >>> delayed_car_following(n_cars=3).elements[2].x
         -20.0
     """
-    lead = LeadCar('car_0', x=0.0, v=u, u=u, amplitude=amplitude, omega=omega)
-    followers = [Car(f'car_{index}', x=-index * spacing, v=u) for index in range(1, n_cars)]
+    lead = LeadCarComponent('car_0', x=0.0, v=u, u=u, amplitude=amplitude, omega=omega)
+    followers = [CarComponent(f'car_{index}', x=-index * spacing, v=u) for index in range(1, n_cars)]
     interactions = [
-        DelayedFollowing(
+        DelayedFollowingInteraction(
             f'follow_{index}',
             leader=f'car_{index - 1}',
             follower=f'car_{index}',

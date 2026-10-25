@@ -9,13 +9,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -27,7 +27,7 @@ def _advance_cyclically(level: Array, *around: Array, n: Any, threshold: Any) ->
     return np.where(successors >= threshold, following, level)
 
 
-class CyclicCell(Element):
+class CyclicCellComponent(ElementComponent):
     """Cell of Griffeath's cyclic cellular automaton, with `n` levels that follow each other in a cycle.
 
     A cell moves from level `k` to level `k + 1` modulo `n` when at least `threshold` of its neighbours hold that
@@ -47,16 +47,16 @@ class CyclicCell(Element):
             The number of neighbours at the following level that advance a cell.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import CyclicCell
-        >>> CyclicCell('cell').n
+        >>> from skcomplex.models.chemistry.kinetics import CyclicCellComponent
+        >>> CyclicCellComponent('cell').n
         14.0
     """
 
-    level: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    n: float = parameter(default=14.0, domain=Domain.POSITIVE)
-    threshold: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    level: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    n: float = parameter(default=14.0, domain=NumericDomain.POSITIVE)
+    threshold: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that advances a cell to the following level.
 
         Args:
@@ -67,7 +67,7 @@ class CyclicCell(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.level, Neighborhood.von_neumann(center=True), _advance_cyclically)]
+        return [LocalRuleLaw(s.level, Neighborhood.von_neumann(center=True), _advance_cyclically)]
 
 
 @register_model(
@@ -109,4 +109,4 @@ def cyclic_cellular_automaton(
     """
     levels = np.random.default_rng(random_state).integers(0, n, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[CyclicCell.lattice('cells', space, level=levels, n=n, threshold=threshold)])
+    return System(components=[CyclicCellComponent.lattice('cells', space, level=levels, n=n, threshold=threshold)])

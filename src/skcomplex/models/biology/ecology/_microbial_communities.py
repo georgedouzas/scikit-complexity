@@ -8,10 +8,10 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, total
+from ....core.base import NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, total
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -19,7 +19,7 @@ COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
 
 
-class Microbe(Element):
+class MicrobeComponent(ElementComponent):
     """Species of a microbial community, with an abundance and an intrinsic growth rate.
 
     Args:
@@ -33,16 +33,16 @@ class Microbe(Element):
             The intrinsic growth rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Microbe
-        >>> Microbe('species', x=0.1, b=0.8).b
+        >>> from skcomplex.models.biology.ecology import MicrobeComponent
+        >>> MicrobeComponent('species', x=0.1, b=0.8).b
         0.8
     """
 
-    x: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=Domain.REAL)
+    x: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1.0, domain=NumericDomain.REAL)
 
 
-class GeneralizedLotkaVolterra(Interaction):
+class GeneralizedLotkaVolterraInteraction(BaseInteraction):
     """Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`.
 
     The sum over the species is a total over the group weighted by row `i` of the matrix. The diagonal entries are the
@@ -62,8 +62,8 @@ class GeneralizedLotkaVolterra(Interaction):
                 The path of the group of species.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterra
-        >>> GeneralizedLotkaVolterra('glv', community='species', a=((-1.0, 0.5), (0.5, -1.0))).a
+        >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction
+        >>> GeneralizedLotkaVolterraInteraction('glv', community='species', a=((-1.0, 0.5), (0.5, -1.0))).a
         ((-1.0, 0.5), (0.5, -1.0))
     """
 
@@ -79,7 +79,7 @@ class GeneralizedLotkaVolterra(Interaction):
         super().__init__(label, **values)
         self.a = a
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the generalized Lotka-Volterra growth of every species.
 
         Args:
@@ -91,7 +91,7 @@ class GeneralizedLotkaVolterra(Interaction):
                 The laws of the component.
         """
         x = s.community.x
-        return [Rate(x, x * (s.community.b + total(x, weights=np.asarray(self.a, dtype=float))))]
+        return [RateLaw(x, x * (s.community.b + total(x, weights=np.asarray(self.a, dtype=float))))]
 
 
 @register_model(
@@ -142,6 +142,9 @@ def generalized_lotka_volterra(
     if len(abundances) != size or len(a) != size or any(len(row) != size for row in a):
         error_msg = f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
         raise ValidationError(error_msg)
-    species = Microbe.group('species', size, x=abundances, b=[float(value) for value in b])
+    species = MicrobeComponent.group('species', size, x=abundances, b=[float(value) for value in b])
     matrix = tuple(tuple(float(value) for value in row) for row in a)
-    return System(components=[species], interactions=[GeneralizedLotkaVolterra('glv', community='species', a=matrix)])
+    return System(
+        components=[species],
+        interactions=[GeneralizedLotkaVolterraInteraction('glv', community='species', a=matrix)],
+    )

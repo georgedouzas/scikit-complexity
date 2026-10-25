@@ -7,7 +7,7 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.biology.neuroscience import (
     polyhomeostatic_neuron,
     theta_neurons,
@@ -59,7 +59,7 @@ def test_theta_neurons_follow_the_ott_antonsen_reduction():
     A fixed RK4 step wraps the phases once per step, whereas an adaptive integrator restarts at every wrap.
     """
     system = theta_neurons(2000)
-    trajectory = Simulation(system, dt=1.0, solver=RK4(dt=0.02)).run(until=40).trajectory_
+    trajectory = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.02)).run(until=40).trajectory_
     assert trajectory.problem.states.names == ['neurons.theta']
     order = np.exp(1j * trajectory['neurons.theta']).mean(axis=1)
     reduced = _ott_antonsen(order[0], trajectory.times)

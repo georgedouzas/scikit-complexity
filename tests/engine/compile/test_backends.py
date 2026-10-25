@@ -8,30 +8,36 @@ import numba
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BackendError, BackendWarning, Domain, SolverError, parameter, role, vector
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
+from skcomplex.core.base import BackendError, BackendWarning, NumericDomain, SolverError, parameter, role, vector
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
-from skcomplex.formalisms.particles import PairPotential, Particle
+from skcomplex.engine.solvers import (
+    EulerMaruyamaSolver,
+    GillespieSolver,
+    IterationSolver,
+    RK4Solver,
+    VelocityVerletSolver,
+)
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import Population
-from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
-from skcomplex.models.physics.realizations.particles import HarmonicPotential
+from skcomplex.models.biology.ecology import PopulationComponent
+from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
 
 CUTOFF = 2.5
 
 
-class LennardJones(PairPotential):
+class LennardJonesInteraction(PairPotentialInteraction):
     """Lennard-Jones pair potential."""
 
-    epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
-    sigma: float = parameter(1.0, domain=Domain.POSITIVE)
+    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s, r):
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
@@ -44,7 +50,7 @@ def _logistic(t, n, r):
     return r * n * (1 - n / 100)
 
 
-class CompiledGrowth(Interaction):
+class CompiledGrowthInteraction(BaseInteraction):
     """Logistic growth computed by a Numba-compiled function."""
 
     target: str = role()
@@ -52,10 +58,10 @@ class CompiledGrowth(Interaction):
 
     def laws(self, s):
         """Return the compiled rate."""
-        return [Rate(s.target.n, Call(_logistic, s.target.n, s.r))]
+        return [RateLaw(s.target.n, Call(_logistic, s.target.n, s.r))]
 
 
-class PythonGrowth(Interaction):
+class PythonGrowthInteraction(BaseInteraction):
     """Logistic growth computed by a plain Python callable of the values."""
 
     target: str = role()
@@ -63,37 +69,37 @@ class PythonGrowth(Interaction):
     def laws(self, s):
         """Return the Python rate."""
         name = f'{self.target}.n'
-        return [Rate(s.target.n, lambda t, values: values[name] * (1 - values[name] / 100))]
+        return [RateLaw(s.target.n, lambda t, values: values[name] * (1 - values[name] / 100))]
 
 
-class Halving(Interaction):
+class HalvingInteraction(BaseInteraction):
     """Discrete halving of every member."""
 
     target: str = role()
 
     def laws(self, s):
         """Return the next value `n / 2`."""
-        return [Update(s.target.n, s.target.n / 2)]
+        return [UpdateLaw(s.target.n, s.target.n / 2)]
 
 
-class Volatility(Interaction):
+class VolatilityInteraction(BaseInteraction):
     """Noise proportional to every member."""
 
     target: str = role()
 
     def laws(self, s):
         """Return the noise amplitude."""
-        return [Rate(s.target.n, 0.1 * s.target.n), Noise(s.target.n, 0.2 * s.target.n)]
+        return [RateLaw(s.target.n, 0.1 * s.target.n), NoiseLaw(s.target.n, 0.2 * s.target.n)]
 
 
-class Decay(Interaction):
+class DecayInteraction(BaseInteraction):
     """Jump with a negative propensity, which is invalid."""
 
     target: str = role()
 
     def laws(self, s):
         """Return a jump with a negative rate."""
-        return [Jump(-s.target.n, {s.target.n: -1})]
+        return [JumpLaw(-s.target.n, {s.target.n: -1})]
 
 
 def _run_script(script):
@@ -115,9 +121,11 @@ def _lennard_jones_gas(n=400, period=None):
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2 + 0.5
     size = side * 1.2 + 1.0
     return System(
-        components=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
+        components=[
+            ParticleComponent.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2))),
+        ],
         interactions=[
-            LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=period),
+            LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=period),
         ],
         space=ContinuousSpace(size, size, boundary='reflecting'),
     )
@@ -125,16 +133,19 @@ def _lennard_jones_gas(n=400, period=None):
 
 def _herds(interaction, n=5):
     """Return a group of populations with one interaction."""
-    return System(components=[Population.group('herds', n, n=np.linspace(1.0, 50.0, n))], interactions=[interaction])
+    return System(
+        components=[PopulationComponent.group('herds', n, n=np.linspace(1.0, 50.0, n))],
+        interactions=[interaction],
+    )
 
 
 def _epidemic():
     """Return a stochastic epidemic over a group of towns."""
     return System(
-        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
-            Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
 
@@ -142,20 +153,20 @@ def _epidemic():
 def test_compile_unknown_backend_raises_error():
     """Test that an unknown backend names the registered ones."""
     with pytest.raises(BackendError, match='numba, numpy'):
-        compile_system(System(components=[Population('a')]), backend='gpu')
+        compile_system(System(components=[PopulationComponent('a')]), backend='gpu')
 
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(components=[Particle.group('gas', 1000)], space=ContinuousSpace(n_dim=2))
-    small = System(components=[Population('a'), Population('b')])
+    large = System(components=[ParticleComponent.group('gas', 1000)], space=ContinuousSpace(n_dim=2))
+    small = System(components=[PopulationComponent('a'), PopulationComponent('b')])
     assert compile_system(large).backend == 'numba'
     assert compile_system(small).backend == 'numpy'
 
 
 def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
-    simulation = Simulation(_herds(Halving('half', target='herds')), backend=numba_backend).run(until=2)
+    simulation = Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).run(until=2)
     assert simulation.problem_.backend == 'numba'
     assert np.allclose(simulation.trajectory_['herds.n'][-1], np.linspace(1.0, 50.0, 5) / 4)
 
@@ -176,10 +187,10 @@ def test_backends_agree_on_two_groups(numba_backend):
     rng = np.random.default_rng(1)
     system = System(
         components=[
-            Particle.group('a', 150, x=rng.uniform(0, 12, (150, 2))),
-            Particle.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
+            ParticleComponent.group('a', 150, x=rng.uniform(0, 12, (150, 2))),
+            ParticleComponent.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
         ],
-        interactions=[LennardJones('lj', first='a', second='b', cutoff=CUTOFF)],
+        interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
     reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
@@ -189,7 +200,7 @@ def test_backends_agree_on_two_groups(numba_backend):
 
 def test_backends_agree_on_discrete_update(numba_backend):
     """Test that the next state of a discrete map agrees between backends."""
-    system = _herds(Halving('half', target='herds'))
+    system = _herds(HalvingInteraction('half', target='herds'))
     reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.update(0.0, x, p), reference.update(0.0, x, p), rtol=1e-12)
@@ -199,7 +210,7 @@ def test_numba_pair_forces_conserve_momentum(numba_backend):
     """Test that compiled pair forces keep the total momentum of an isolated group."""
     system = System(
         components=[_lennard_jones_gas().elements[0]],
-        interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF)],
+        interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system, backend=numba_backend)
@@ -209,7 +220,7 @@ def test_numba_pair_forces_conserve_momentum(numba_backend):
 
 def test_compiled_call_runs_inside_kernels(numba_backend):
     """Test that a Numba-compiled law value runs in compiled kernels with the NumPy results."""
-    system = _herds(CompiledGrowth('growth', target='herds', r=0.5))
+    system = _herds(CompiledGrowthInteraction('growth', target='herds', r=0.5))
     reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.drift(0.0, x, p), reference.drift(0.0, x, p), rtol=1e-12)
@@ -224,19 +235,19 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         calls.append(t)
         return [-y, x]
 
-    Pair = Element.define(
-        'Pair',
+    PairComponent = ElementComponent.define(
+        'PairComponent',
         states={'x': 1.0, 'y': 0.0},
-        laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+        laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
     )
-    trajectory = Simulation(System(components=[Pair('pair')]), backend='numpy').run(until=4).trajectory_
+    trajectory = Simulation(System(components=[PairComponent('pair')]), backend='numpy').run(until=4).trajectory_
     assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
 
 def test_python_callable_runs_on_python_path(numba_backend):
     """Test that a plain Python callable compiles with the Numba backend through the Python path."""
-    system = _herds(PythonGrowth('growth', target='herds'))
+    system = _herds(PythonGrowthInteraction('growth', target='herds'))
     compiled = compile_system(system, backend=numba_backend)
     expected = np.linspace(1.0, 50.0, 5) * (1 - np.linspace(1.0, 50.0, 5) / 100)
     assert np.allclose(compiled.drift(0.0, compiled.initial_state, compiled.initial_parameters), expected)
@@ -319,20 +330,23 @@ def test_cached_kernels_are_keyed_on_the_compiled_helpers(tmp_path, monkeypatch)
 def test_rk4_matches_exponential(backend, numba_backend):
     """Test that RK4 with step 0.001 integrates exponential growth to 1e-10 relative error."""
 
-    class Growth(Interaction):
+    class GrowthInteraction(BaseInteraction):
         """Exponential growth of every member."""
 
         target: str = role()
 
         def laws(self, s):
             """Return the rate `n`."""
-            return [Rate(s.target.n, s.target.n)]
+            return [RateLaw(s.target.n, s.target.n)]
 
     problem = compile_system(
-        System(components=[Population.group('a', 2, n=1.0)], interactions=[Growth('g', target='a')]),
+        System(
+            components=[PopulationComponent.group('a', 2, n=1.0)],
+            interactions=[GrowthInteraction('g', target='a')],
+        ),
         backend=numba_backend if backend == 'numba' else backend,
     )
-    stepper = RK4(dt=0.001)
+    stepper = RK4Solver(dt=0.001)
     stepper.initialize(problem, np.random.default_rng(0))
     state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert np.allclose(state, np.e, rtol=1e-10)
@@ -341,7 +355,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
 def test_compiled_gillespie_is_reproducible(numba_backend):
     """Test that the compiled Gillespie loop gives equal trajectories for equal random states."""
     runs = [
-        Simulation(_epidemic(), solver=Gillespie(), backend=numba_backend, dt=1.0, random_state=0).run(until=30)
+        Simulation(_epidemic(), solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0).run(until=30)
         for _ in range(2)
     ]
     assert runs[0].problem_.accelerated is not None
@@ -352,15 +366,15 @@ def test_compiled_gillespie_is_reproducible(numba_backend):
 def test_compiled_gillespie_negative_propensity_raises_error(numba_backend):
     """Test that a negative propensity in the compiled loop raises a solver error."""
     with pytest.raises(SolverError, match='non-negative'):
-        Simulation(_herds(Decay('decay', target='herds')), backend=numba_backend, dt=1.0).run(until=1)
+        Simulation(_herds(DecayInteraction('decay', target='herds')), backend=numba_backend, dt=1.0).run(until=1)
 
 
 def test_compiled_euler_maruyama_is_reproducible(numba_backend):
     """Test that the compiled Euler-Maruyama loop is reproducible and keeps prices positive."""
     runs = [
         Simulation(
-            _herds(Volatility('vol', target='herds')),
-            solver=EulerMaruyama(dt=1e-3),
+            _herds(VolatilityInteraction('vol', target='herds')),
+            solver=EulerMaruyamaSolver(dt=1e-3),
             backend=numba_backend,
             dt=0.1,
             random_state=5,
@@ -374,7 +388,7 @@ def test_compiled_euler_maruyama_is_reproducible(numba_backend):
 def test_compiled_iteration_matches_numpy(numba_backend):
     """Test that the compiled discrete loop matches the NumPy loop."""
     results = [
-        Simulation(_herds(Halving('half', target='herds')), solver=Iteration(), backend=backend, dt=3)
+        Simulation(_herds(HalvingInteraction('half', target='herds')), solver=IterationSolver(), backend=backend, dt=3)
         .run(until=9)
         .trajectory_.states
         for backend in ('numpy', numba_backend)
@@ -386,13 +400,13 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = System(
-        components=[Particle.group('p', 1, x=[[1.0]], v=[[0.0]])],
-        interactions=[HarmonicPotential('trap', target='p')],
+        components=[ParticleComponent.group('p', 1, x=[[1.0]], v=[[0.0]])],
+        interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     simulation = Simulation(
         system,
-        solver=VelocityVerlet(dt=0.01),
+        solver=VelocityVerletSolver(dt=0.01),
         backend=numba_backend if backend == 'numba' else backend,
         dt=10.0,
     )
@@ -404,7 +418,9 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
 def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
     with pytest.raises(SolverError, match=r'herds\.n are neither'):
-        Simulation(_herds(CompiledGrowth('growth', target='herds')), solver=VelocityVerlet()).run(until=1)
+        Simulation(_herds(CompiledGrowthInteraction('growth', target='herds')), solver=VelocityVerletSolver()).run(
+            until=1,
+        )
 
 
 def test_backend_substituted_for_a_form_is_reported():
@@ -416,7 +432,7 @@ def test_backend_substituted_for_a_form_is_reported():
 
 def test_kernel_falling_back_to_python_is_reported(numba_backend):
     """Test that a kernel the Numba backend cannot compile warns once, naming the law kind, and records Python."""
-    system = _herds(PythonGrowth('growth', target='herds'))
+    system = _herds(PythonGrowthInteraction('growth', target='herds'))
     with pytest.warns(BackendWarning, match='runs the rate laws in Python') as found:
         problem = compile_system(system, backend=numba_backend)
     assert len([item for item in found if item.category is BackendWarning]) == 1

@@ -6,12 +6,12 @@
 from typing import Any
 
 from ..base import VariableKind, declarations_of, symbol
-from ..laws import Law, Symbols
-from ._component import Component
-from ._components import Group
+from ..laws import BaseLaw, Symbols
+from ._component import BaseComponent
+from ._components import GroupComponent
 
 
-def probe_laws(component: object) -> list[Law] | None:
+def probe_laws(component: object) -> list[BaseLaw] | None:
     """Return the laws of a component for a namespace of free symbols, before its states are declared.
 
     A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
@@ -26,25 +26,25 @@ def probe_laws(component: object) -> list[Law] | None:
             The laws, or `None` when they cannot be listed.
 
     Examples:
-        >>> from skcomplex.core.components import Element, probe_laws
-        >>> from skcomplex.core.laws import Rate
-        >>> Decay = Element.define('Decay', laws=lambda s: [Rate(s.x, -s.x)])
-        >>> [type(law).__name__ for law in probe_laws(Decay('decay'))]
-        ['Rate']
+        >>> from skcomplex.core.components import ElementComponent, probe_laws
+        >>> from skcomplex.core.laws import RateLaw
+        >>> DecayComponent = ElementComponent.define('DecayComponent', laws=lambda s: [RateLaw(s.x, -s.x)])
+        >>> [type(law).__name__ for law in probe_laws(DecayComponent('decay'))]
+        ['RateLaw']
     """
-    if isinstance(component, Group):
-        component_type: type[Component] = component.element
-    elif isinstance(component, Component):
+    if isinstance(component, GroupComponent):
+        component_type: type[BaseComponent] = component.element
+    elif isinstance(component, BaseComponent):
         component_type = type(component)
     else:
         return None
-    if component_type.laws is Component.laws:
+    if component_type.laws is BaseComponent.laws:
         return []
     roles = declarations_of(component_type, VariableKind.ROLE)
     try:
         member = (
             component.element(component.label, **(component.values or {}))
-            if isinstance(component, Group)
+            if isinstance(component, GroupComponent)
             else component
         )
         return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))

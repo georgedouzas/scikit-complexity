@@ -4,11 +4,11 @@
 # License: MIT
 
 from .._compilation import Compilation
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._tree import flatten_system
 
 
-class FlattenPass(Pass):
+class FlattenPass(BasePass):
     """Pass that flattens the system tree into its nodes."""
 
     reads = ('system',)

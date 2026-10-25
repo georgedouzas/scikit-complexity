@@ -8,10 +8,10 @@ import pytest
 import scipy.sparse
 from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 
-from skcomplex.core.base import Domain, RoleError, ValidationError, state
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Jump, Rate, Update, count, maximum, mean, minimum, total, variance
+from skcomplex.core.base import NumericDomain, RoleError, ValidationError, state
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, count, maximum, mean, minimum, total, variance
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -29,47 +29,51 @@ def _sine(member):
     return sin(member.theta)
 
 
-Unit = Element.define('Unit', states={'x': 0.0})
-Phase = Element.define(
-    'Phase',
-    states={'theta': state(0.0, domain=Domain.ANGLE)},
+UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0})
+PhaseComponent = ElementComponent.define(
+    'PhaseComponent',
+    states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'omega': 1.0},
-    laws=lambda s: [Rate(s.theta, s.omega)],
+    laws=lambda s: [RateLaw(s.theta, s.omega)],
 )
-Inhibitor = Element.define('Inhibitor', states={'z': 0.0}, parameters={'phi': 3.0})
-Drive = Interaction.define(
-    'Drive',
+InhibitorComponent = ElementComponent.define('InhibitorComponent', states={'z': 0.0}, parameters={'phi': 3.0})
+DriveInteraction = BaseInteraction.define(
+    'DriveInteraction',
     roles=['inhibitor', 'oscillators'],
     parameters={'theta_z': 0.5},
     laws=lambda s: [
-        Rate(s.inhibitor.z, s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z)),
+        RateLaw(s.inhibitor.z, s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z)),
     ],
 )
-MeanPulse = Interaction.define(
-    'MeanPulse',
+MeanPulseInteraction = BaseInteraction.define(
+    'MeanPulseInteraction',
     roles=['neurons'],
     parameters={'kappa': 1.5},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.neurons.theta,
             (1 + cos(s.neurons.theta)) * s.kappa * mean(2 / 3 * (1 - cos(s.neurons.theta)) ** 2),
         ),
     ],
 )
-MeanFieldCoupling = Interaction.define(
-    'MeanFieldCoupling',
+MeanFieldCouplingInteraction = BaseInteraction.define(
+    'MeanFieldCouplingInteraction',
     roles=['target', 'X', 'Y'],
     parameters={'K': 1.0},
     laws=lambda s: [
-        Rate(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
+        RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
     ],
 )
-Reader = Interaction.define('Reader', roles=['target', 'source'], laws=lambda s: [Rate(s.target.x, s.source.value)])
+ReaderInteraction = BaseInteraction.define(
+    'ReaderInteraction',
+    roles=['target', 'source'],
+    laws=lambda s: [RateLaw(s.target.x, s.source.value)],
+)
 
 
 def _group_of(laws, size=10, values=None):
     """Return a system of one group of units whose laws read reductions."""
-    unit = Element.define('Reducing', states={'x': 0.0}, laws=laws)
+    unit = ElementComponent.define('ReducingComponent', states={'x': 0.0}, laws=laws)
     values = RNG.normal(size=size) if values is None else np.asarray(values, dtype=float)
     return System(components=[unit.group('units', size, x=values)]), values
 
@@ -83,22 +87,22 @@ def _rates(system, backend='numpy'):
 def _kuramoto(size, *, observables=False):
     """Return a mean-field Kuramoto group, coupled through reductions or through observables."""
     theta, omega = RNG.uniform(0, 2 * math.pi, size), RNG.normal(size=size)
-    oscillators = Phase.group('oscillators', size, theta=theta, omega=omega)
+    oscillators = PhaseComponent.group('oscillators', size, theta=theta, omega=omega)
     if observables:
         return (
             System(
                 components=[oscillators],
-                interactions=[MeanFieldCoupling('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
+                interactions=[MeanFieldCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
             ),
             theta,
             omega,
         )
-    coupling = Interaction.define(
-        'Coupling',
+    coupling = BaseInteraction.define(
+        'CouplingInteraction',
         roles=['target'],
         parameters={'K': 1.0},
         laws=lambda s: [
-            Rate(
+            RateLaw(
                 s.target.theta,
                 s.K
                 * (mean(sin(s.target.theta)) * cos(s.target.theta) - mean(cos(s.target.theta)) * sin(s.target.theta)),
@@ -120,17 +124,20 @@ def _all_to_all(theta, omega, K=2.0):
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_nonlinear_function_of_total(backend):
     """Test that every member reads the hyperbolic tangent of the group total."""
-    system, x = _group_of(lambda s: [Rate(s.x, -s.x + tanh(total(s.x)))], size=50)
+    system, x = _group_of(lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))], size=50)
     np.testing.assert_allclose(_rates(system, backend), -x + np.tanh(x.sum()), atol=1e-12)
 
 
 def test_instantaneous_mean_in_interaction():
     """Test that theta neurons read the mean pulse of all neurons at the current state, with no other state."""
     theta = RNG.uniform(0, 2 * math.pi, 40)
-    Neuron = Element.define('Neuron', states={'theta': state(0.0, domain=Domain.ANGLE)})
+    NeuronComponent = ElementComponent.define(
+        'NeuronComponent',
+        states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
+    )
     system = System(
-        components=[Neuron.group('neurons', 40, theta=theta)],
-        interactions=[MeanPulse('pulses', neurons='neurons')],
+        components=[NeuronComponent.group('neurons', 40, theta=theta)],
+        interactions=[MeanPulseInteraction('pulses', neurons='neurons')],
     )
     problem = compile_system(system)
     expected = (1 + np.cos(theta)) * 1.5 * np.mean(2 / 3 * (1 - np.cos(theta)) ** 2)
@@ -147,8 +154,8 @@ def test_maximum_drives_single_element(largest, drive):
     """Test that the inhibitor is driven exactly when some oscillator exceeds the threshold."""
     values = np.linspace(-1.0, largest, 8)
     system = System(
-        components=[Unit.group('oscillators', 8, x=values), Inhibitor('inhibitor')],
-        interactions=[Drive('drive', inhibitor='inhibitor', oscillators='oscillators')],
+        components=[UnitComponent.group('oscillators', 8, x=values), InhibitorComponent('inhibitor')],
+        interactions=[DriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')],
     )
     problem = compile_system(system)
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -160,7 +167,7 @@ def test_count_and_mean_with_condition(backend):
     """Test that a count and a mean with a condition read the selected members."""
     values = [0.1, 0.2, 0.9, 0.3, 0.7, 0.0, 0.4, 0.6, 0.2, 0.1]
     system, x = _group_of(
-        lambda s: [Rate(s.x, count(where=s.x > 0.5) + 10 * mean(s.x, where=s.x > 0.5))],
+        lambda s: [RateLaw(s.x, count(where=s.x > 0.5) + 10 * mean(s.x, where=s.x > 0.5))],
         values=values,
     )
     np.testing.assert_allclose(_rates(system, backend), 3 + 10 * x[x > 0.5].mean(), atol=1e-12)
@@ -172,7 +179,7 @@ def test_no_selected_members(backend):
     selected = lambda s: s.x > 10  # noqa: E731
     system, _ = _group_of(
         lambda s: [
-            Rate(
+            RateLaw(
                 s.x,
                 total(s.x, where=selected(s))
                 + mean(s.x, where=selected(s))
@@ -192,13 +199,13 @@ def test_payoff_matrix(sparse, backend):
     """Test that a weighted total gives every member its row of the payoff matrix times the shares."""
     payoff = RNG.normal(size=(3, 3))
     weights = scipy.sparse.csr_matrix(payoff) if sparse else payoff
-    system, x = _group_of(lambda s: [Rate(s.x, total(s.x, weights=weights))], size=3)
+    system, x = _group_of(lambda s: [RateLaw(s.x, total(s.x, weights=weights))], size=3)
     np.testing.assert_allclose(_rates(system, backend), payoff @ x, atol=1e-12)
 
 
 def test_weights_of_wrong_shape():
     """Test that weights whose shape does not match the readers and the members are rejected."""
-    system, _ = _group_of(lambda s: [Rate(s.x, total(s.x, weights=np.ones((3, 4))))], size=3)
+    system, _ = _group_of(lambda s: [RateLaw(s.x, total(s.x, weights=np.ones((3, 4))))], size=3)
     with pytest.raises(ValidationError, match=r'total\(x_units, weights=.*units.*\(3, 4\).*\(3, 3\)'):
         compile_system(system)
 
@@ -212,7 +219,7 @@ def test_mean_fitness(backend):
 
     def replicator(s):
         fitness = total(s.x, weights=payoff)
-        return [Rate(s.x, s.x * (fitness - total(s.x * fitness)))]
+        return [RateLaw(s.x, s.x * (fitness - total(s.x * fitness)))]
 
     system, x = _group_of(replicator, values=shares, size=4)
     rates = _rates(system, backend)
@@ -222,14 +229,14 @@ def test_mean_fitness(backend):
 
 def test_two_groups_in_one_reduction():
     """Test that a reduction reading two groups names both and asks for one reduction per group."""
-    Predation = Interaction.define(
-        'Predation',
+    PredationInteraction = BaseInteraction.define(
+        'PredationInteraction',
         roles=['prey', 'predators', 'target'],
-        laws=lambda s: [Rate(s.target.x, total(s.prey.x * s.predators.x))],
+        laws=lambda s: [RateLaw(s.target.x, total(s.prey.x * s.predators.x))],
     )
     system = System(
-        components=[Unit.group('prey', 3), Unit.group('predators', 3), Unit('target')],
-        interactions=[Predation('predation', prey='prey', predators='predators', target='target')],
+        components=[UnitComponent.group('prey', 3), UnitComponent.group('predators', 3), UnitComponent('target')],
+        interactions=[PredationInteraction('predation', prey='prey', predators='predators', target='target')],
     )
     with pytest.raises(RoleError, match=r'total\(.*predators and prey.*one reduction per group'):
         compile_system(system)
@@ -237,15 +244,15 @@ def test_two_groups_in_one_reduction():
 
 def test_interaction_reads_second_group_through_reductions():
     """Test that an interaction acts on one group and reads another group through a mean."""
-    Coupling = Interaction.define(
-        'Coupling',
+    CouplingInteraction = BaseInteraction.define(
+        'CouplingInteraction',
         roles=['target', 'source'],
-        laws=lambda s: [Rate(s.target.x, mean(s.source.x) - s.target.x)],
+        laws=lambda s: [RateLaw(s.target.x, mean(s.source.x) - s.target.x)],
     )
     first, second = RNG.normal(size=4), RNG.normal(size=6)
     system = System(
-        components=[Unit.group('first', 4, x=first), Unit.group('second', 6, x=second)],
-        interactions=[Coupling('coupling', target='first', source='second')],
+        components=[UnitComponent.group('first', 4, x=first), UnitComponent.group('second', 6, x=second)],
+        interactions=[CouplingInteraction('coupling', target='first', source='second')],
     )
     for backend in ('numpy', 'numba'):
         np.testing.assert_allclose(_rates(system, backend), np.r_[second.mean() - first, np.zeros(6)], atol=1e-12)
@@ -265,8 +272,8 @@ def test_kuramoto_through_observables(backend):
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
     system = System(
-        components=[Unit.group('herd', 3), Unit('soil')],
-        interactions=[Reader('reader', target='soil', source='spread')],
+        components=[UnitComponent.group('herd', 3), UnitComponent('soil')],
+        interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
         compile_system(system, observables=[Observable('spread', group='herd', variable='x', reduce=np.ptp)])
@@ -274,15 +281,18 @@ def test_callable_observable_in_same_partition():
 
 def test_observable_read_in_its_own_partition():
     """Test that the value a law reads equals the recorded observable at every frame."""
-    Saver = Element.define(
-        'Saver',
+    SaverComponent = ElementComponent.define(
+        'SaverComponent',
         states={'W': 1.0},
         parameters={'r': 0.1},
-        laws=lambda s: [Rate(s.W, s.r * s.W)],
+        laws=lambda s: [RateLaw(s.W, s.r * s.W)],
     )
     system = System(
-        components=[Saver.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)), Unit('account')],
-        interactions=[Reader('reader', target='account', source='mean_wealth')],
+        components=[
+            SaverComponent.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)),
+            UnitComponent('account'),
+        ],
+        interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
     observables = [Observable('mean_wealth', group='savers', variable='W')]
     simulation = Simulation(system, dt=0.5, observables=observables).run(until=5)
@@ -299,7 +309,7 @@ def test_synchronous_map(backend):
     """Test that every member of coupled maps updates from the mean of the values at step n."""
     epsilon = 0.3
     system, x = _group_of(
-        lambda s: [Update(s.x, (1 - epsilon) * 4 * s.x * (1 - s.x) + epsilon * mean(4 * s.x * (1 - s.x)))],
+        lambda s: [UpdateLaw(s.x, (1 - epsilon) * 4 * s.x * (1 - s.x) + epsilon * mean(4 * s.x * (1 - s.x)))],
         values=RNG.uniform(size=10),
     )
     problem = compile_system(system, backend=backend)
@@ -315,8 +325,8 @@ def test_propensity_after_event(backend):
 
     def sis(s):
         return [
-            Jump(beta * (1 - s.x) * count(where=s.x > 0.5) / size, {s.x: 1}),
-            Jump(gamma * s.x, {s.x: -1}),
+            JumpLaw(beta * (1 - s.x) * count(where=s.x > 0.5) / size, {s.x: 1}),
+            JumpLaw(gamma * s.x, {s.x: -1}),
         ]
 
     system, _ = _group_of(sis, size=size, values=(RNG.uniform(size=size) < 0.3).astype(float))
@@ -358,10 +368,14 @@ def test_linear_cost():
 
 def test_element_set_reduction():
     """Test that a role bound to an element set applies to each element and reduces over the set."""
-    Total = Interaction.define('Total', roles=['units'], laws=lambda s: [Rate(s.units.x, total(s.units.x))])
+    TotalInteraction = BaseInteraction.define(
+        'TotalInteraction',
+        roles=['units'],
+        laws=lambda s: [RateLaw(s.units.x, total(s.units.x))],
+    )
     system = System(
-        components=[Unit(f'unit_{index}', x=float(index + 1)) for index in range(3)],
-        interactions=[Total('total', units=['unit_0', 'unit_1', 'unit_2'])],
+        components=[UnitComponent(f'unit_{index}', x=float(index + 1)) for index in range(3)],
+        interactions=[TotalInteraction('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
     problem = compile_system(system)
     assert problem.states.names == ['unit_0.x', 'unit_1.x', 'unit_2.x']
@@ -371,10 +385,14 @@ def test_element_set_reduction():
 
 def _shared(share, values):
     """Return a system of one group whose interaction gives every member a share of a reduction."""
-    Share = Interaction.define('Share', roles=['cells'], laws=lambda s: [Rate(s.cells.x, share(s))])
+    ShareInteraction = BaseInteraction.define(
+        'ShareInteraction',
+        roles=['cells'],
+        laws=lambda s: [RateLaw(s.cells.x, share(s))],
+    )
     return System(
-        components=[Unit.group('units', len(values), x=values)],
-        interactions=[Share('share', cells='units')],
+        components=[UnitComponent.group('units', len(values), x=values)],
+        interactions=[ShareInteraction('share', cells='units')],
     )
 
 
@@ -394,11 +412,15 @@ def test_compile_system_divides_by_weighted_total_in_interaction(backend):
 
 def test_element_set_of_mixed_types():
     """Test that a role bound to elements of two types names the role and both types."""
-    Other = Element.define('Other', states={'x': 0.0})
-    Total = Interaction.define('Total', roles=['units'], laws=lambda s: [Rate(s.units.x, total(s.units.x))])
-    system = System(
-        components=[Unit('a'), Other('b')],
-        interactions=[Total('total', units=['a', 'b'])],
+    OtherComponent = ElementComponent.define('OtherComponent', states={'x': 0.0})
+    TotalInteraction = BaseInteraction.define(
+        'TotalInteraction',
+        roles=['units'],
+        laws=lambda s: [RateLaw(s.units.x, total(s.units.x))],
     )
-    with pytest.raises(RoleError, match=r"'units'.*Unit and Other"):
+    system = System(
+        components=[UnitComponent('a'), OtherComponent('b')],
+        interactions=[TotalInteraction('total', units=['a', 'b'])],
+    )
+    with pytest.raises(RoleError, match=r"'units'.*UnitComponent and OtherComponent"):
         compile_system(system)

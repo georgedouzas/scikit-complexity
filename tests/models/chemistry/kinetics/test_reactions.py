@@ -6,11 +6,11 @@ import pytest
 from skcomplex.core.base import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models import describe
 from skcomplex.models.chemistry.kinetics import (
-    Binding,
-    Species,
+    BindingInteraction,
+    SpeciesComponent,
     chemical_langevin_equation,
     chemical_langevin_network,
     michaelis_menten,
@@ -67,16 +67,16 @@ def test_chemical_langevin_equation_switches_by_noise():
 def test_langevin_binding_conserves_difference():
     """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
     system = System(
-        components=[Species('A', n=200.0), Species('B', n=150.0), Species('C')],
-        interactions=[Binding('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
+        components=[SpeciesComponent('A', n=200.0), SpeciesComponent('B', n=150.0), SpeciesComponent('C')],
+        interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
     )
-    trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyama(dt=1e-3))
+    trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyamaSolver(dt=1e-3))
     difference = trajectory['A.n'] - trajectory['B.n']
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
         System(
-            components=[Species('A', n=200.0), Species('B', n=150.0), Species('C')],
-            interactions=[Binding('binding', first='A', second='B', product='C', k=0.001)],
+            components=[SpeciesComponent('A', n=200.0), SpeciesComponent('B', n=150.0), SpeciesComponent('C')],
+            interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001)],
         ),
         5.0,
         0.05,
@@ -87,8 +87,10 @@ def test_langevin_binding_conserves_difference():
 def test_langevin_and_stochastic_reaction_is_rejected():
     """Test that a reaction both stochastic and in Langevin mode raises an error that names it."""
     system = System(
-        components=[Species('A', n=10.0), Species('B', n=10.0), Species('C')],
-        interactions=[Binding('binding', first='A', second='B', product='C', stochastic=True, langevin=True)],
+        components=[SpeciesComponent('A', n=10.0), SpeciesComponent('B', n=10.0), SpeciesComponent('C')],
+        interactions=[
+            BindingInteraction('binding', first='A', second='B', product='C', stochastic=True, langevin=True),
+        ],
     )
     with pytest.raises(ValidationError, match='binding'):
         compile_system(system)

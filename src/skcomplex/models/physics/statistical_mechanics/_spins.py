@@ -9,18 +9,18 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, neighbors, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, neighbors, where
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, Move, Sample, Sampler
+from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 
 NEAREST = Neighborhood.von_neumann()
 
 
-class IsingSpin(Element):
+class IsingSpinComponent(ElementComponent):
     """Spin of the Ising model, up at 1 or down at -1, with local energy `-J s sum(neighbours) - h s`.
 
     Args:
@@ -46,15 +46,15 @@ class IsingSpin(Element):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import IsingSpin
-        >>> IsingSpin('spin').temperature
+        >>> from skcomplex.models.physics.statistical_mechanics import IsingSpinComponent
+        >>> IsingSpinComponent('spin').temperature
         2.0
     """
 
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
-    temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -66,7 +66,7 @@ class IsingSpin(Element):
         super().__init__(label, **values)
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the local energy, the spin flip, and the sampler.
 
         Args:
@@ -78,10 +78,10 @@ class IsingSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST, reduce='each')) - s.h * s.spin
-        return [Sample(Energy(energy, NEAREST), Move.flip(s.spin), Sampler(self.sampler, s.temperature))]
+        return [SampleLaw(Energy(energy, NEAREST), MoveLaw.flip(s.spin), SamplerLaw(self.sampler, s.temperature))]
 
 
-class PottsSpin(Element):
+class PottsSpinComponent(ElementComponent):
     """Spin of the q-state Potts model, with local energy `-J` times the number of neighbours in the same state.
 
     Args:
@@ -107,14 +107,14 @@ class PottsSpin(Element):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import PottsSpin
-        >>> PottsSpin('spin').q
+        >>> from skcomplex.models.physics.statistical_mechanics import PottsSpinComponent
+        >>> PottsSpinComponent('spin').q
         3
     """
 
-    color: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    color: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     J: float = parameter(default=1.0)
-    temperature: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -128,7 +128,7 @@ class PottsSpin(Element):
         self.q = q
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the local energy, the random value move, and the sampler.
 
         Args:
@@ -141,15 +141,15 @@ class PottsSpin(Element):
         """
         energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST, reduce='each'))
         return [
-            Sample(
+            SampleLaw(
                 Energy(energy, NEAREST),
-                Move.random_value(s.color, range(self.q)),
-                Sampler(self.sampler, s.temperature),
+                MoveLaw.random_value(s.color, range(self.q)),
+                SamplerLaw(self.sampler, s.temperature),
             ),
         ]
 
 
-class XYSpin(Element):
+class XYSpinComponent(ElementComponent):
     """Planar spin of the XY model, an angle with local energy `-J sum(cos(theta - neighbours))`.
 
     Args:
@@ -172,14 +172,14 @@ class XYSpin(Element):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import XYSpin
-        >>> XYSpin('spin').width
+        >>> from skcomplex.models.physics.statistical_mechanics import XYSpinComponent
+        >>> XYSpinComponent('spin').width
         1.0
     """
 
-    theta: float = state(default=0.0, domain=Domain.ANGLE)
+    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
     J: float = parameter(default=1.0)
-    temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -191,7 +191,7 @@ class XYSpin(Element):
         super().__init__(label, **values)
         self.width = width
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the local energy, the rotation, and the Metropolis sampler.
 
         Args:
@@ -203,7 +203,13 @@ class XYSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST, reduce='each'))
-        return [Sample(Energy(energy, NEAREST), Move.rotate(s.theta, self.width), Sampler('metropolis', s.temperature))]
+        return [
+            SampleLaw(
+                Energy(energy, NEAREST),
+                MoveLaw.rotate(s.theta, self.width),
+                SamplerLaw('metropolis', s.temperature),
+            ),
+        ]
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, ...]:
@@ -267,7 +273,7 @@ def ising(
     shape = _square(size)
     spins = np.ones(shape) if initial == 'up' else np.random.default_rng(random_state).choice([-1.0, 1.0], size=shape)
     space = LatticeSpace(shape)
-    group = IsingSpin.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
+    group = IsingSpinComponent.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
     return System(components=[group])
 
 
@@ -319,7 +325,7 @@ def potts(
     shape = _square(size)
     colors = np.random.default_rng(random_state).integers(0, q, size=shape).astype(float)
     space = LatticeSpace(shape)
-    group = PottsSpin.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
+    group = PottsSpinComponent.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
     return System(components=[group])
 
 
@@ -367,5 +373,5 @@ def xy(
     shape = _square(size)
     angles = np.random.default_rng(random_state).uniform(0, 2 * np.pi, size=shape)
     space = LatticeSpace(shape)
-    group = XYSpin.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
+    group = XYSpinComponent.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
     return System(components=[group])

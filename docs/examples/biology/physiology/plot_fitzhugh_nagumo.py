@@ -16,7 +16,7 @@ from scipy.signal import find_peaks
 
 from skcomplex.engine.analysis import fields_of
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -24,7 +24,7 @@ MODEL = 'fitzhugh_nagumo'
 
 system = create(MODEL, shape=(100, 100))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, solver=RK4(dt=0.05), observers=[observer]).run(until=300)
+simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05), observers=[observer]).run(until=300)
 
 # %%
 # A periodic rotation

@@ -5,14 +5,14 @@
 
 from typing import Any
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class PolyaUrn(Element):
+class PolyaUrnComponent(ElementComponent):
     """Urn of red and blue balls, from which a drawn ball returns with extra balls of its color.
 
     Draws happen at rate 1, and a draw picks a color with probability proportional to its number of balls, so the
@@ -35,13 +35,13 @@ class PolyaUrn(Element):
                 The initial number of blue balls.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrn
-        >>> PolyaUrn('urn', added=2).added
+        >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrnComponent
+        >>> PolyaUrnComponent('urn', added=2).added
         2
     """
 
-    red: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    blue: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
+    red: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    blue: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class PolyaUrn(Element):
         super().__init__(label, **values)
         self.added = added
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the draws of a red and of a blue ball.
 
         Args:
@@ -65,7 +65,7 @@ class PolyaUrn(Element):
                 The laws of the component.
         """
         total = s.red + s.blue
-        return [Jump(s.red / total, {s.red: self.added}), Jump(s.blue / total, {s.blue: self.added})]
+        return [JumpLaw(s.red / total, {s.red: self.added}), JumpLaw(s.blue / total, {s.blue: self.added})]
 
 
 @register_model(
@@ -101,4 +101,4 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
         >>> polya_urn(3).elements[0].size
         3
     """
-    return System(components=[PolyaUrn.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])
+    return System(components=[PolyaUrnComponent.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])

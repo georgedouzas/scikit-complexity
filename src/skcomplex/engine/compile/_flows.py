@@ -15,9 +15,9 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     ConservationError,
-    Domain,
     Expression,
     LabelError,
+    NumericDomain,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -26,17 +26,17 @@ from ...core.base import (
 )
 from ...core.laws import (
     Auxiliary,
-    Boundary,
-    Event,
+    BaseLaw,
+    BoundaryLaw,
+    EventLaw,
     Invariant,
-    Jump,
-    Law,
-    Noise,
+    JumpLaw,
+    NoiseLaw,
     Objective,
-    Rate,
+    RateLaw,
     Sink,
-    Transfer,
-    Update,
+    TransferLaw,
+    UpdateLaw,
 )
 from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
@@ -56,15 +56,15 @@ def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> obj
     return value.subs(mapping)
 
 
-def _with_auxiliaries(law: Law, mapping: Mapping[Expression, Expression]) -> Law:
+def _with_auxiliaries(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
     """Return a law with the symbols of auxiliaries replaced by their expressions."""
     if not mapping:
         return law
-    if isinstance(law, Rate | Noise | Update | Boundary):
+    if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return dataclasses.replace(law, value=_substituted(law.value, mapping))
-    if isinstance(law, Jump):
-        return Jump(_substituted(law.rate, mapping), law.changes)
-    if isinstance(law, Event):
+    if isinstance(law, JumpLaw):
+        return JumpLaw(_substituted(law.rate, mapping), law.changes)
+    if isinstance(law, EventLaw):
         reset = None if law.reset is None else {key: _substituted(item, mapping) for key, item in law.reset.items()}
         return dataclasses.replace(law, guard=_substituted(law.guard, mapping), reset=reset)
     return law
@@ -99,7 +99,7 @@ class _Declared(Protocol):
         self,
         name: str,
         initial: Vector,
-        domain: Domain,
+        domain: NumericDomain,
         shape: tuple[int, ...] = (),
         members: int | None = None,
     ) -> Entry:
@@ -142,14 +142,14 @@ def _delay_parts(kind: str) -> tuple[bool, int]:
     return parts
 
 
-def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[Law]:
+def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[BaseLaw]:
     """Return the rate laws of the hidden stocks of a delay or a smoothing."""
     each = time / len(stages)
     if _delay_parts(kind)[0]:
         inflows = [value, *(stage / each for stage in stages[:-1])]
-        return [Rate(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
+        return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
     inputs = [value, *stages[:-1]]
-    return [Rate(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
+    return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
 
 
 def _holder(
@@ -169,11 +169,11 @@ def _holder(
     return reference.entry.name, reference.entry.name
 
 
-def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[Law]]]) -> tuple[list[Law] | None, int]:
+def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -> tuple[list[BaseLaw] | None, int]:
     """Return the laws holding the update law of a state component and its index, or `None`."""
     for spec, laws in specs:
         for index, law in enumerate(laws):
-            if not isinstance(law, Update) or not isinstance(law.target, Expression):
+            if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression):
                 continue
             reference = spec.references.get(law.target)
             if reference is None:
@@ -268,11 +268,11 @@ class StockFlowPass:
     def _expand_flow(
         self,
         spec: _Spec,
-        flow: Transfer,
+        flow: TransferLaw,
         label: str,
         mapping: Mapping[Expression, Expression],
         names: dict[Expression, str],
-    ) -> list[Law]:
+    ) -> list[BaseLaw]:
         """Return the rate or jump laws of a flow, after recording it."""
         source, source_label = _holder(flow.source, spec.references, spec.owner)
         sink, sink_label = _holder(flow.sink, spec.references, spec.owner)
@@ -288,9 +288,11 @@ class StockFlowPass:
         amount = SR(_substituted(flow.amount, mapping))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         if flow.rate is not None:
-            laws: list[Law] = [Jump(_substituted(flow.rate, mapping), {item: sign * amount for item, sign in holders})]
+            laws: list[BaseLaw] = [
+                JumpLaw(_substituted(flow.rate, mapping), {item: sign * amount for item, sign in holders}),
+            ]
         else:
-            laws = [Rate(item, sign * amount) for item, sign in holders]
+            laws = [RateLaw(item, sign * amount) for item, sign in holders]
         sign = 1 if source is None else -1 if sink is None else 0
         born = _Born(spec, compiled, amount, sign)
         self._flows.append(born)
@@ -299,7 +301,7 @@ class StockFlowPass:
         self._terms.append((spec, 'flow', path, SR(flow.amount), names, source, sink))
         return laws
 
-    def expand(self, spec: _Spec, laws: list[Law]) -> list[Law]:
+    def expand(self, spec: _Spec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with flows and auxiliaries expanded into laws of the other kinds.
 
         Args:
@@ -323,12 +325,12 @@ class StockFlowPass:
         mapping: dict[Expression, Expression] = {}
         names: dict[Expression, str] = {}
         labels: set[str] = set()
-        expanded: list[Law] = []
+        expanded: list[BaseLaw] = []
         for index, law in enumerate(laws):
             if isinstance(law, Invariant) and law.is_member:
                 expanded.append(law)
                 continue
-            if isinstance(law, Auxiliary | Transfer | Invariant | Objective):
+            if isinstance(law, Auxiliary | TransferLaw | Invariant | Objective):
                 label = law.label or f'flow_{index}'
                 if label in labels:
                     error_msg = f'{spec.owner} declares two flows or auxiliaries labelled {label!r}. Rename one.'
@@ -348,25 +350,29 @@ class StockFlowPass:
                 self._records.append(_Record(path, value, spec))
                 self._terms.append((spec, 'auxiliary', path, SR(law.expression), names, None, None))
                 mapping[law.symbol], names[law.symbol] = value, path
-            elif isinstance(law, Transfer):
+            elif isinstance(law, TransferLaw):
                 expanded.extend(self._expand_flow(spec, law, label, mapping, names))
             else:
-                if isinstance(law, Rate) and isinstance(law.value, Expression) and isinstance(law.target, Expression):
+                if (
+                    isinstance(law, RateLaw)
+                    and isinstance(law.value, Expression)
+                    and isinstance(law.target, Expression)
+                ):
                     target, _ = self._quantity_of(law.target, spec)
                     self._terms.append((spec, 'rate', target, law.value, names, None, None))
                 expanded.append(_with_auxiliaries(law, mapping))
         return expanded
 
-    def _check_conserved(self, spec: _Spec, law: Law) -> None:
+    def _check_conserved(self, spec: _Spec, law: BaseLaw) -> None:
         """Raise an error for a law outside flows that changes a state tagged with a quantity."""
         if id(law) in self._born:
             return
         targets: list[tuple[object, object]] = []
-        if isinstance(law, Rate | Noise) and isinstance(law.target, Expression):
+        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.target, Expression):
             targets = [(law.target, law.value)]
-        elif isinstance(law, Jump):
+        elif isinstance(law, JumpLaw):
             targets = list(law.changes.items())
-        elif isinstance(law, Update) and isinstance(law.target, Expression):
+        elif isinstance(law, UpdateLaw) and isinstance(law.target, Expression):
             value = law.value
             if isinstance(value, Expression) and bool((value - law.target).is_trivial_zero()):
                 return
@@ -375,17 +381,17 @@ class StockFlowPass:
             name, quantity = self._quantity_of(target, spec)
             if quantity is not None:
                 error_msg = (
-                    f'A {type(law).__name__} law of {spec.owner} changes {name}, which holds the quantity '
+                    f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
                     f'{quantity!r}, by {value} outside any flow. Move the change into a Transfer between holders of '
                     f'{quantity!r} or with Source() or Sink().'
                 )
                 raise ConservationError(error_msg)
 
-    def _to_updates(self, specs: list[tuple[_Spec, list[Law]]]) -> None:
+    def _to_updates(self, specs: list[tuple[_Spec, list[BaseLaw]]]) -> None:
         """Rewrite the rate laws of flows of a discrete system as increments of the update laws of their states."""
         increments: dict[tuple[Any, ...], list[tuple[_Spec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
-            for law in [law for law in laws if id(law) in self._born and isinstance(law, Rate)]:
+            for law in [law for law in laws if id(law) in self._born and isinstance(law, RateLaw)]:
                 laws.remove(law)
                 target: Any = law.target
                 reference = spec.references[target]
@@ -400,7 +406,7 @@ class StockFlowPass:
                 host = next(laws for spec, laws in specs if spec is host_spec)
                 value: Expression = target
                 index = len(host)
-                host.append(Update(target, target))
+                host.append(UpdateLaw(target, target))
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found: Any = host[index]
@@ -408,11 +414,11 @@ class StockFlowPass:
             for spec, _, increment in items:
                 _merge_references(host_spec, spec, increment)
                 value += increment
-            host[index] = Update(target, value)
+            host[index] = UpdateLaw(target, value)
 
     def _accumulate(
         self,
-        specs: list[tuple[_Spec, list[Law]]],
+        specs: list[tuple[_Spec, list[BaseLaw]]],
         declarations: _Declared,
         discrete: bool,
     ) -> dict[str, str]:
@@ -427,7 +433,7 @@ class StockFlowPass:
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
             name = f'{BOUNDARY_PREFIX}.{quantity}'
-            entry = declarations.declare_state(name, np.zeros(1), Domain.REAL)
+            entry = declarations.declare_state(name, np.zeros(1), NumericDomain.REAL)
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
@@ -436,26 +442,26 @@ class StockFlowPass:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
                     _merge_references(items[0].spec, born.spec, born.amount)
-                laws_of[id(items[0].spec)].append(Update(accumulator, accumulator + total))
+                laws_of[id(items[0].spec)].append(UpdateLaw(accumulator, accumulator + total))
                 continue
             for born in items:
                 self._add_boundary(laws_of[id(born.spec)], born, accumulator)
         return names
 
-    def _add_boundary(self, laws: list[Law], born: _Born, accumulator: Expression) -> None:
+    def _add_boundary(self, laws: list[BaseLaw], born: _Born, accumulator: Expression) -> None:
         """Add the inflow of a boundary flow to the accumulator of its quantity, as a rate or a jump increment."""
         for index, law in enumerate(laws):
-            if isinstance(law, Jump) and self._born.get(id(law)) is born:
-                laws[index] = Jump(law.rate, {**law.changes, accumulator: born.sign * born.amount})
+            if isinstance(law, JumpLaw) and self._born.get(id(law)) is born:
+                laws[index] = JumpLaw(law.rate, {**law.changes, accumulator: born.sign * born.amount})
                 return
-        laws.append(Rate(accumulator, born.sign * born.amount))
+        laws.append(RateLaw(accumulator, born.sign * born.amount))
 
-    def _expand_delays(self, spec: _Spec, laws: list[Law], declarations: _Declared, discrete: bool) -> None:
+    def _expand_delays(self, spec: _Spec, laws: list[BaseLaw], declarations: _Declared, discrete: bool) -> None:
         """Replace the delays and smoothings in a spec's rate laws and records by hidden stocks with their own laws."""
         records = [record for record in self._records if record.spec is spec]
         counter = 0
         while True:
-            values = [law.value for law in laws if isinstance(law, Rate)] + [record.expression for record in records]
+            values = [law.value for law in laws if isinstance(law, RateLaw)] + [record.expression for record in records]
             calls = [call for value in values for call in _delay_calls(value)]
             if not calls:
                 return
@@ -476,7 +482,7 @@ class StockFlowPass:
             entry = declarations.declare_state(
                 f'{spec.owner}.{kind}_{counter}',
                 np.full(order, start * each),
-                Domain.REAL,
+                NumericDomain.REAL,
                 (order,),
             )
             for column, stage in enumerate(stages):
@@ -489,7 +495,7 @@ class StockFlowPass:
                 record.expression = SR(record.expression).subs(mapping)
             counter += 1
 
-    def lower(self, specs: list[tuple[_Spec, list[Law]]], declarations: _Declared) -> StockFlow:
+    def lower(self, specs: list[tuple[_Spec, list[BaseLaw]]], declarations: _Declared) -> StockFlow:
         """Check the conserved quantities and lower flows and delays into the laws of every spec, in place.
 
         Args:
@@ -513,7 +519,7 @@ class StockFlowPass:
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
-        discrete = any(isinstance(law, Update) and id(law) not in self._born for _, laws in specs for law in laws)
+        discrete = any(isinstance(law, UpdateLaw) and id(law) not in self._born for _, laws in specs for law in laws)
         if discrete:
             self._to_updates(specs)
         boundary = self._accumulate(specs, declarations, discrete)

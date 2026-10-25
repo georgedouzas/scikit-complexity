@@ -5,7 +5,7 @@
 
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BackendError, Domain, Expression, symbol, symbols_of
+from ...core.base import BackendError, Expression, NumericDomain, symbol, symbols_of
 from ...engine.compile import Dialect, print_expressions
 
 LEPTON = Dialect(
@@ -69,8 +69,8 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
 
     Examples:
         >>> from skcomplex.formalisms.particles._lepton import lepton_expression
-        >>> from skcomplex.core.base import Domain, symbol
-        >>> x = symbol('x', Domain.POSITIVE)
+        >>> from skcomplex.core.base import NumericDomain, symbol
+        >>> x = symbol('x', NumericDomain.POSITIVE)
         >>> lepton_expression(4 * (x**-12 - x**-6), x)
         '-4/r^6 + 4/r^12'
     """
@@ -80,7 +80,7 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
         names = ', '.join(sorted(map(str, others)))
         error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
         raise BackendError(error_msg)
-    return LeptonPrinter().doprint(expression.subs({distance: symbol('r', Domain.POSITIVE)}).expand())
+    return LeptonPrinter().doprint(expression.subs({distance: symbol('r', NumericDomain.POSITIVE)}).expand())
 
 
 class LeptonPrinter:

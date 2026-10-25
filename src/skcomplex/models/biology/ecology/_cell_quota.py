@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class QuotaPhytoplankton(Element):
+class QuotaPhytoplanktonComponent(ElementComponent):
     """Phytoplankton that grows on the nutrient stored in its cells, the Droop cell-quota model.
 
     The quota follows `dQ/dt = vmax R / (g + R) - r_inf (1 - q / Q) Q`, the Michaelis-Menten uptake from the
@@ -45,21 +45,21 @@ class QuotaPhytoplankton(Element):
             The death rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import QuotaPhytoplankton
-        >>> QuotaPhytoplankton('algae', R=2.0).R
+        >>> from skcomplex.models.biology.ecology import QuotaPhytoplanktonComponent
+        >>> QuotaPhytoplanktonComponent('algae', R=2.0).R
         2.0
     """
 
-    Q: float = state(default=1.5, domain=Domain.POSITIVE)
-    P: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    r_inf: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    q: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    vmax: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    g: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    R: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    Q: float = state(default=1.5, domain=NumericDomain.POSITIVE)
+    P: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r_inf: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    q: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    vmax: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    g: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    R: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the uptake and dilution of the quota and the growth and death of the biomass.
 
         Args:
@@ -72,8 +72,8 @@ class QuotaPhytoplankton(Element):
         """
         growth = s.r_inf * (1 - s.q / s.Q)
         return [
-            Rate(s.Q, s.vmax * s.R / (s.g + s.R) - growth * s.Q),
-            Rate(s.P, (growth - s.d) * s.P),
+            RateLaw(s.Q, s.vmax * s.R / (s.g + s.R) - growth * s.Q),
+            RateLaw(s.P, (growth - s.d) * s.P),
         ]
 
 
@@ -135,5 +135,5 @@ def droop_cell_quota(
         >>> droop_cell_quota(R=4.0).elements[0].R
         4.0
     """
-    algae = QuotaPhytoplankton('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
+    algae = QuotaPhytoplanktonComponent('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
     return System(components=[algae])

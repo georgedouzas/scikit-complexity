@@ -3,14 +3,14 @@
 import pytest
 
 from skcomplex.core.base import SolverError, parameter, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.control import Collocation, Pontryagin
+from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
 
 
-class Free(Element):
+class FreeComponent(ElementComponent):
     """State with an unbounded adaptive parameter and no objective."""
 
     x: float = state(1.0)
@@ -18,18 +18,18 @@ class Free(Element):
 
     def laws(self, s):
         """Return the rate of the state."""
-        return [Rate(s.x, s.u)]
+        return [RateLaw(s.x, s.u)]
 
 
 def test_optimal_control_needs_an_objective():
     """Test that a system without an objective law is rejected by the optimal control solvers."""
     with pytest.raises(SolverError, match='one objective law'):
-        Simulation(System(components=[Free('plant')]), solver=Pontryagin()).run(until=1.0)
+        Simulation(System(components=[FreeComponent('plant')]), solver=PontryaginSolver()).run(until=1.0)
 
 
 def test_optimal_control_stops_at_the_horizon(linear_quadratic):
     """Test that a run solved until a horizon cannot be extended beyond it."""
-    simulation = Simulation(linear_quadratic, solver=Collocation(nodes=11), dt=0.5).run(until=1.0)
+    simulation = Simulation(linear_quadratic, solver=CollocationSolver(nodes=11), dt=0.5).run(until=1.0)
     with pytest.raises(SolverError, match='horizon'):
         simulation.extend(until=2.0)
 
@@ -37,7 +37,7 @@ def test_optimal_control_stops_at_the_horizon(linear_quadratic):
 def test_optimal_control_needs_a_finite_horizon(linear_quadratic):
     """Test that a run without an end is rejected."""
     with pytest.raises(SolverError, match='finite horizon'):
-        Simulation(linear_quadratic, solver=Pontryagin()).start()
+        Simulation(linear_quadratic, solver=PontryaginSolver()).start()
 
 
 def test_default_solver_does_not_optimise_objectives(linear_quadratic):

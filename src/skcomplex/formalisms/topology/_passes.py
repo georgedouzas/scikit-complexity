@@ -9,9 +9,10 @@ from typing import Any, cast
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import ValidationError
-from ...core.laws import Jump, Law, Update
+from ...core.laws import BaseLaw, JumpLaw, UpdateLaw
 from ...core.space import NetworkSpace
 from ...engine.compile import (
+    BasePass,
     Block,
     BlockLaws,
     Compilation,
@@ -23,7 +24,6 @@ from ...engine.compile import (
     Layout,
     Lowered,
     Output,
-    Pass,
     Problem,
     ReductionPass,
     capacity_rows,
@@ -64,9 +64,9 @@ def _node_block(space: object, declarations: Declarations) -> Block:
     raise ValidationError(error_msg)
 
 
-def _toward_specs(specs: list[tuple[KernelSpec, list[Law]]], declarations: Declarations) -> list[Any]:
+def _toward_specs(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: Declarations) -> list[Any]:
     """Return the specs of the nodes of every request with a weight, each with the law of the weight to lower."""
-    towards: list[tuple[KernelSpec, list[Law]]] = []
+    towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
     for spec, laws in specs:
         for law in laws:
             request = request_of(law)
@@ -75,7 +75,7 @@ def _toward_specs(specs: list[tuple[KernelSpec, list[Law]]], declarations: Decla
             space, _ = _request_network(spec, declarations)
             nodes = _node_block(space, declarations)
             node_spec = member_spec(nodes, declarations.time)
-            towards.append((node_spec, [Update(_Weight(request), SR(request.toward(node_spec.namespace)))]))
+            towards.append((node_spec, [UpdateLaw(_Weight(request), SR(request.toward(node_spec.namespace)))]))
     return towards
 
 
@@ -138,7 +138,7 @@ def _compiled_request(
     if (request.on_edges or request.edges) and request.layer not in network.edges:
         error_msg = (
             f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
-            'layer has no variable edge group. Add `Group(..., on="edges", variable=True)` on the layer.'
+            'layer has no variable edge group. Add `GroupComponent(..., on="edges", variable=True)` on the layer.'
         )
         raise ValidationError(error_msg)
     needs = {'remove-edge': 'edge', 'rewire': 'edge', 'add-edge': 'node', 'remove-node': 'node'}.get(request.kind)
@@ -148,7 +148,7 @@ def _compiled_request(
     return CompiledRequest(request, spec.owner, network, rows, toward=weights.get(id(request)))
 
 
-def _request_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
+def _request_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the group a topology request of a law runs for, or `None` for a law that targets states."""
     del agents
     if request_of(law) is None:
@@ -156,19 +156,19 @@ def _request_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
     return spec.group or next(iter(spec.groups), spec.owner)
 
 
-def _split_requests(spec: KernelSpec, laws: list[Law]) -> tuple[list[Law], list[Law]]:
+def _split_requests(spec: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
     """Return the laws of a spec without its update laws that request topology changes, and those update laws."""
-    updates: list[Law] = [law for law in laws if isinstance(law, Update) and request_of(law) is not None]
+    updates: list[BaseLaw] = [law for law in laws if isinstance(law, UpdateLaw) and request_of(law) is not None]
     kept = [law for law in laws if not any(law is item for item in updates)]
     return kept, updates
 
 
-def _masked_requests(spec: KernelSpec, laws: list[Law], declarations: Declarations) -> list[Law]:
+def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
     """Return update laws that request topology changes, with probabilities that vanish on free rows."""
     mask = mask_of(spec, declarations)
     if mask is None:
         return laws
-    return [Update(law.target, masked_value(law.value, mask)) if isinstance(law, Update) else law for law in laws]
+    return [UpdateLaw(law.target, masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law for law in laws]
 
 
 def _set_request_jumps_apart(
@@ -178,20 +178,20 @@ def _set_request_jumps_apart(
     requests: dict[int, tuple[KernelSpec, TopologyRequest]] = {}
     result: Laws = []
     for spec, laws in specs:
-        kept: list[Law] = []
+        kept: list[BaseLaw] = []
         for law in laws:
-            request = request_of(law) if isinstance(law, Jump) else None
-            if not isinstance(law, Jump) or request is None:
+            request = request_of(law) if isinstance(law, JumpLaw) else None
+            if not isinstance(law, JumpLaw) or request is None:
                 kept.append(law)
                 continue
-            jump = Jump(law.rate, {})
+            jump = JumpLaw(law.rate, {})
             requests[id(jump)] = (spec, request)
             kept.append(jump)
         result.append((spec, kept))
     return result, requests
 
 
-def _is_weight(law: Law) -> bool:
+def _is_weight(law: BaseLaw) -> bool:
     """Check whether a law sets the weight of the candidate nodes of a request."""
     return isinstance(getattr(law, 'target', None), _Weight)
 
@@ -213,17 +213,17 @@ def _topology(
         id(law.target.request): _request_kernel(spec, law.value, declarations)
         for spec, laws in towards
         for law in laws
-        if isinstance(law, Update)
+        if isinstance(law, UpdateLaw)
     }
     requests = []
     for spec, laws in updates:
         for law in laws:
             request = cast('TopologyRequest', request_of(law))
             item = _compiled_request(spec, request, networks, weights, declarations)
-            requests.append(replace(item, condition=_request_kernel(spec, cast('Update', law).value, declarations)))
+            requests.append(replace(item, condition=_request_kernel(spec, cast('UpdateLaw', law).value, declarations)))
     channels = {}
     index = 0
-    for kernel in lowered.kernels[Jump]:
+    for kernel in lowered.kernels[JumpLaw]:
         for output in kernel.outputs:
             _, law = lowered.laws[id(output)]
             found = jumps.get(id(law))
@@ -240,7 +240,7 @@ class _Weight:
     request: TopologyRequest
 
 
-class SplitRequestsPass(Pass):
+class SplitRequestsPass(BasePass):
     """Pass that sets the update laws that request topology changes apart from the laws lowered into kernels."""
 
     reads = ('collected', 'apart')
@@ -263,7 +263,7 @@ class SplitRequestsPass(Pass):
         compilation.collected = collected
 
 
-class MaskRequestsPass(Pass):
+class MaskRequestsPass(BasePass):
     """Pass that makes the requests of update laws vanish on the free rows of capacity layouts."""
 
     reads = ('drawn_apart', 'layout')
@@ -282,7 +282,7 @@ class MaskRequestsPass(Pass):
         ]
 
 
-class TowardsPass(Pass):
+class TowardsPass(BasePass):
     """Pass that sets apart the weight of the candidate nodes of every request, read through reductions like laws."""
 
     reads = ('drawn_apart', 'drawn', 'layout')
@@ -300,7 +300,7 @@ class TowardsPass(Pass):
         compilation.drawn_apart = [*apart, *towards]
 
 
-class RequestJumpsPass(Pass):
+class RequestJumpsPass(BasePass):
     """Pass that turns the jumps that request topology changes into jumps of no state change, noting the requests."""
 
     reads = ('reduced',)
@@ -318,7 +318,7 @@ class RequestJumpsPass(Pass):
         )
 
 
-class TopologyFunctionsPass(Pass):
+class TopologyFunctionsPass(BasePass):
     """Pass that compiles the topology changes, leaving out the compiled stepper loops when laws request them."""
 
     reads = ('functions', 'kernels', 'reduced_apart', 'layout', 'reductions', 'request_jumps')
@@ -343,7 +343,7 @@ class TopologyFunctionsPass(Pass):
         compilation.facts['topology'] = topology
 
 
-class TopologyProblemPass(Pass):
+class TopologyProblemPass(BasePass):
     """Pass that adds the topology changes to the problem."""
 
     reads = ('problem', 'topology')

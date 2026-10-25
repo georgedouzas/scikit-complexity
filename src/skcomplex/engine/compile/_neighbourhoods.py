@@ -180,12 +180,14 @@ def cone_heading(cone: Cone, states: Mapping[str, Variable], n_dim: int) -> str:
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.components import ElementComponent
         >>> from skcomplex.engine.compile._neighbourhoods import cone_heading
         >>> from skcomplex.core.base import VariableKind, declarations_of
         >>> from skcomplex.core.space import Cone
-        >>> Boid = Element.define('Boid', states={'x': state(vector=True, position=True), 'theta': 0.0})
-        >>> cone_heading(Cone(1.0, 1.0, heading='theta'), declarations_of(Boid, VariableKind.STATE), 2)
+        >>> BoidComponent = ElementComponent.define(
+        ...     'BoidComponent', states={'x': state(vector=True, position=True), 'theta': 0.0}
+        ... )
+        >>> cone_heading(Cone(1.0, 1.0, heading='theta'), declarations_of(BoidComponent, VariableKind.STATE), 2)
         'theta'
     """
     if cone.heading is not None:

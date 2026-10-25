@@ -9,14 +9,14 @@ import numpy as np
 import numpy.typing as npt
 from scipy import ndimage
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Integers = npt.NDArray[np.int64]
 
@@ -82,7 +82,7 @@ def largest_region(locations: npt.ArrayLike, cultures: npt.ArrayLike, width: int
     return largest / (width * height)
 
 
-class Village(Element):
+class VillageComponent(ElementComponent):
     """Village of Axelrod's model, with a culture of `F` features of `q` traits each, stored as one integer.
 
     Every step the village picks a random neighbour and, with probability equal to the fraction of features they
@@ -102,17 +102,17 @@ class Village(Element):
             The number of traits `q` of every feature.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Village
-        >>> Village.group('villages', 4, culture=0, features=3, traits=5).size
+        >>> from skcomplex.models.social.opinion_dynamics import VillageComponent
+        >>> VillageComponent.group('villages', 4, culture=0, features=3, traits=5).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'culture'})
-    culture: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    features: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    traits: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    culture: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    features: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    traits: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the cultural interaction rule.
 
         Args:
@@ -123,7 +123,7 @@ class Village(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.interact)]
+        return [RuleLaw(self.interact)]
 
     def interact(self, agent: AgentView, model: ModelView) -> None:
         """Copy one differing trait of a random neighbour with probability equal to the cultural overlap.
@@ -148,7 +148,7 @@ class Village(Element):
             agent.culture += float((int(other[feature]) - int(own[feature])) * traits**feature)
 
 
-class CultureCensus(Interaction):
+class CultureCensusInteraction(BaseInteraction):
     """Census of the cultures of the villages, which reports the share of the largest cultural region.
 
     Args:
@@ -171,8 +171,8 @@ class CultureCensus(Interaction):
                 The path of the group of villages.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CultureCensus
-        >>> CultureCensus('census', villages='villages', width=5, height=5).width
+        >>> from skcomplex.models.social.opinion_dynamics import CultureCensusInteraction
+        >>> CultureCensusInteraction('census', villages='villages', width=5, height=5).width
         5
     """
 
@@ -193,7 +193,7 @@ class CultureCensus(Interaction):
         self.height = height
         self.phase = phase
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of the census in its phase.
 
         Args:
@@ -204,7 +204,7 @@ class CultureCensus(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.act, phase=self.phase)]
+        return [RuleLaw(self.act, phase=self.phase)]
 
     def act(self, model: ModelView) -> None:
         """Report the share of the largest region and the number of distinct cultures.
@@ -270,9 +270,16 @@ def axelrod(
     digits = rng.integers(traits, size=(size, features))
     cultures = (digits * traits ** np.arange(features)).sum(axis=1).astype(float)
     locations = [(x, y) for x in range(width) for y in range(height)]
-    villages = Village.group('villages', size, location=locations, culture=cultures, features=features, traits=traits)
+    villages = VillageComponent.group(
+        'villages',
+        size,
+        location=locations,
+        culture=cultures,
+        features=features,
+        traits=traits,
+    )
     return System(
         components=[villages],
-        interactions=[CultureCensus('census', villages='villages', width=width, height=height)],
+        interactions=[CultureCensusInteraction('census', villages='villages', width=width, height=height)],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann', capacity=1),
     )

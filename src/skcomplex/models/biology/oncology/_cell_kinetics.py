@@ -5,16 +5,16 @@
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, delayed
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, delayed
 from ....core.system import System
 from ....engine.runtime import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class CellCycle(Element):
+class CellCycleComponent(ElementComponent):
     """Tumour cells in three phases of the cell cycle under a killing and a blocking agent.
 
     The compartments hold the cells in G0 and G1 `A1`, in S `A2`, and in G2 and M `A3`, and follow
@@ -51,21 +51,21 @@ class CellCycle(Element):
             The fraction by which the blocking agent slows the transit through S.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CellCycle
-        >>> CellCycle('tumour').l2
+        >>> from skcomplex.models.biology.oncology import CellCycleComponent
+        >>> CellCycleComponent('tumour').l2
         0.395
     """
 
-    A1: float = state(default=15.0, domain=Domain.NONNEGATIVE)
-    A2: float = state(default=3.8, domain=Domain.NONNEGATIVE)
-    A3: float = state(default=0.8, domain=Domain.NONNEGATIVE)
-    l1: float = parameter(default=0.197, domain=Domain.POSITIVE)
-    l2: float = parameter(default=0.395, domain=Domain.POSITIVE)
-    l3: float = parameter(default=0.107, domain=Domain.POSITIVE)
-    u1: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    u2: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    A1: float = state(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    A2: float = state(default=3.8, domain=NumericDomain.NONNEGATIVE)
+    A3: float = state(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    l1: float = parameter(default=0.197, domain=NumericDomain.POSITIVE)
+    l2: float = parameter(default=0.395, domain=NumericDomain.POSITIVE)
+    l3: float = parameter(default=0.107, domain=NumericDomain.POSITIVE)
+    u1: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    u2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transits between the three compartments and the division with its kill.
 
         Args:
@@ -78,13 +78,13 @@ class CellCycle(Element):
         """
         exit_s = (1 - s.u2) * s.l2 * s.A2
         return [
-            Rate(s.A1, -s.l1 * s.A1 + 2 * (1 - s.u1) * s.l3 * s.A3),
-            Rate(s.A2, s.l1 * s.A1 - exit_s),
-            Rate(s.A3, exit_s - s.l3 * s.A3),
+            RateLaw(s.A1, -s.l1 * s.A1 + 2 * (1 - s.u1) * s.l3 * s.A3),
+            RateLaw(s.A2, s.l1 * s.A1 - exit_s),
+            RateLaw(s.A3, exit_s - s.l3 * s.A3),
         ]
 
 
-class DormantCellCycle(Element):
+class DormantCellCycleComponent(ElementComponent):
     """Tumour cells in a dormant phase and two cycling phases under a killing and a recruiting agent.
 
     The compartments hold the dormant cells in G0 `A0`, the cells in G1 and S `A1`, and the cells in G2 and M `A2`.
@@ -127,23 +127,23 @@ class DormantCellCycle(Element):
             The relative increase of the exit from G0 the recruiting agent causes.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import DormantCellCycle
-        >>> DormantCellCycle('tumour').b0
+        >>> from skcomplex.models.biology.oncology import DormantCellCycleComponent
+        >>> DormantCellCycleComponent('tumour').b0
         0.9
     """
 
-    A0: float = state(default=6.5, domain=Domain.NONNEGATIVE)
-    A1: float = state(default=0.2, domain=Domain.NONNEGATIVE)
-    A2: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    l0: float = parameter(default=0.05, domain=Domain.POSITIVE)
-    l1: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    l2: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    b0: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    u: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    v: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    A0: float = state(default=6.5, domain=NumericDomain.NONNEGATIVE)
+    A1: float = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    A2: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    l0: float = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    l1: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    l2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    b0: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    u: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    v: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the recruitment from G0, the transits, and the division with its kill.
 
         Args:
@@ -157,13 +157,13 @@ class DormantCellCycle(Element):
         recruited = s.l0 * (1 + s.v) * s.A0
         daughters = 2 * (1 - s.u) * s.l2 * s.A2
         return [
-            Rate(s.A0, -recruited + s.b0 * daughters),
-            Rate(s.A1, recruited - s.l1 * s.A1 + s.b1 * daughters),
-            Rate(s.A2, s.l1 * s.A1 - s.l2 * s.A2),
+            RateLaw(s.A0, -recruited + s.b0 * daughters),
+            RateLaw(s.A1, recruited - s.l1 * s.A1 + s.b1 * daughters),
+            RateLaw(s.A2, s.l1 * s.A1 - s.l2 * s.A2),
         ]
 
 
-class Erythropoiesis(Element):
+class ErythropoiesisComponent(ElementComponent):
     """Quiescent, proliferating, and mature red cells and their mean volume under a constant 6-mercaptopurine level.
 
     The drug sets the death rate of proliferating cells `a1 = a0 U` and the cell-cycle time
@@ -228,29 +228,29 @@ class Erythropoiesis(Element):
             The concentration of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Erythropoiesis
-        >>> Erythropoiesis('patient').lifespan
+        >>> from skcomplex.models.biology.oncology import ErythropoiesisComponent
+        >>> ErythropoiesisComponent('patient').lifespan
         120.0
     """
 
-    L: float = state(default=3.84, domain=Domain.NONNEGATIVE)
-    Q: float = state(default=19.6, domain=Domain.NONNEGATIVE)
-    P: float = state(default=2.16, domain=Domain.NONNEGATIVE)
-    MCV: float = state(default=85.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.00139, domain=Domain.POSITIVE)
-    d1: float = parameter(default=0.0071, domain=Domain.POSITIVE)
-    a0: float = parameter(default=0.00022, domain=Domain.NONNEGATIVE)
-    tau_h: float = parameter(default=0.68, domain=Domain.POSITIVE)
-    MCV_h: float = parameter(default=85.0, domain=Domain.POSITIVE)
-    MCV0: float = parameter(default=85.0, domain=Domain.POSITIVE)
-    g1: float = parameter(default=0.0317, domain=Domain.NONNEGATIVE)
-    m0: float = parameter(default=1.01, domain=Domain.POSITIVE)
-    Q50: float = parameter(default=0.027, domain=Domain.POSITIVE)
-    n: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    lifespan: float = parameter(default=120.0, domain=Domain.POSITIVE)
-    U: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    L: float = state(default=3.84, domain=NumericDomain.NONNEGATIVE)
+    Q: float = state(default=19.6, domain=NumericDomain.NONNEGATIVE)
+    P: float = state(default=2.16, domain=NumericDomain.NONNEGATIVE)
+    MCV: float = state(default=85.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.00139, domain=NumericDomain.POSITIVE)
+    d1: float = parameter(default=0.0071, domain=NumericDomain.POSITIVE)
+    a0: float = parameter(default=0.00022, domain=NumericDomain.NONNEGATIVE)
+    tau_h: float = parameter(default=0.68, domain=NumericDomain.POSITIVE)
+    MCV_h: float = parameter(default=85.0, domain=NumericDomain.POSITIVE)
+    MCV0: float = parameter(default=85.0, domain=NumericDomain.POSITIVE)
+    g1: float = parameter(default=0.0317, domain=NumericDomain.NONNEGATIVE)
+    m0: float = parameter(default=1.01, domain=NumericDomain.POSITIVE)
+    Q50: float = parameter(default=0.027, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    lifespan: float = parameter(default=120.0, domain=NumericDomain.POSITIVE)
+    U: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of quiescent, proliferating, and mature cells and of their mean volume.
 
         Args:
@@ -269,10 +269,10 @@ class Erythropoiesis(Element):
         old_L = delayed(L, s.lifespan)
         old_MCV = delayed(MCV, s.lifespan)
         return [
-            Rate(Q, -s.r1 * Q + (2 * survival - 1) * entry),
-            Rate(P, -a1 * P + (1 - survival) * entry),
-            Rate(L, s.r1 * Q - s.d1 * old_L),
-            Rate(MCV, (new_volume * s.r1 * Q - 0.85 * old_MCV * s.d1 * old_L - 0.15 * MCV * s.d1 * L) / L),
+            RateLaw(Q, -s.r1 * Q + (2 * survival - 1) * entry),
+            RateLaw(P, -a1 * P + (1 - survival) * entry),
+            RateLaw(L, s.r1 * Q - s.d1 * old_L),
+            RateLaw(MCV, (new_volume * s.r1 * Q - 0.85 * old_MCV * s.d1 * old_L - 0.15 * MCV * s.d1 * L) / L),
         ]
 
 
@@ -321,11 +321,11 @@ def cell_cycle_chemotherapy(
     Examples:
         >>> from skcomplex.models.biology.oncology import cell_cycle_chemotherapy
         >>> type(cell_cycle_chemotherapy(dormant=True).elements[0]).__name__
-        'DormantCellCycle'
+        'DormantCellCycleComponent'
     """
     if dormant:
-        return System(components=[DormantCellCycle('tumour', u=u1, v=v)])
-    return System(components=[CellCycle('tumour', u1=u1, u2=u2)])
+        return System(components=[DormantCellCycleComponent('tumour', u=u1, v=v)])
+    return System(components=[CellCycleComponent('tumour', u1=u1, u2=u2)])
 
 
 @register_model(
@@ -384,5 +384,16 @@ def erythropoiesis_mercaptopurine(
         85.0
     """
     Q = Q50 * (m0 / r1 - 1) ** (1 / n)
-    patient = Erythropoiesis('patient', L=r1 * Q / d1, Q=Q, P=0.71 / 6.43 * Q, r1=r1, d1=d1, m0=m0, Q50=Q50, n=n, U=U)
+    patient = ErythropoiesisComponent(
+        'patient',
+        L=r1 * Q / d1,
+        Q=Q,
+        P=0.71 / 6.43 * Q,
+        r1=r1,
+        d1=d1,
+        m0=m0,
+        Q50=Q50,
+        n=n,
+        U=U,
+    )
     return System(components=[patient])

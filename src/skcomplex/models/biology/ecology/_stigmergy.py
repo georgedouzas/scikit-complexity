@@ -8,14 +8,14 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.fields import Field
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.fields import FieldComponent
 
 MARKS = 'ground/marks'
 PLANTS = 'plants'
@@ -24,20 +24,20 @@ PREDATORS = 'predators'
 PREY_TRAITS: dict[str, Any] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
 PREDATOR_TRAITS: dict[str, Any] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
-EmotionMarks = Element.define(
-    'EmotionMarks',
+EmotionMarksComponent = ElementComponent.define(
+    'EmotionMarksComponent',
     states={
-        'prey_happiness': state(default=0.0, domain=Domain.NONNEGATIVE),
-        'prey_fear': state(default=0.0, domain=Domain.NONNEGATIVE),
-        'predator_happiness': state(default=0.0, domain=Domain.NONNEGATIVE),
-        'predator_anger': state(default=0.0, domain=Domain.NONNEGATIVE),
+        'prey_happiness': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'prey_fear': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'predator_happiness': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'predator_anger': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
-    parameters={'decay': parameter(default=0.2, domain=Domain.NONNEGATIVE)},
+    parameters={'decay': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Rate(s.prey_happiness, -s.decay * s.prey_happiness),
-        Rate(s.prey_fear, -s.decay * s.prey_fear),
-        Rate(s.predator_happiness, -s.decay * s.predator_happiness),
-        Rate(s.predator_anger, -s.decay * s.predator_anger),
+        RateLaw(s.prey_happiness, -s.decay * s.prey_happiness),
+        RateLaw(s.prey_fear, -s.decay * s.prey_fear),
+        RateLaw(s.predator_happiness, -s.decay * s.predator_happiness),
+        RateLaw(s.predator_anger, -s.decay * s.predator_anger),
     ],
 )
 
@@ -66,7 +66,7 @@ def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
         agent.age = 0.0
 
 
-class Plant(Element):
+class PlantComponent(ElementComponent):
     """Plant that spreads into an empty neighbouring cell whenever it reaches maturity.
 
     Args:
@@ -80,16 +80,16 @@ class Plant(Element):
             The age at which the plant spreads.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Plant
-        >>> Plant.group('plants', 100).size
+        >>> from skcomplex.models.biology.ecology import PlantComponent
+        >>> PlantComponent.group('plants', 100).size
         100
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.25})
-    age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    maturity: float = parameter(default=4.0, domain=Domain.POSITIVE)
+    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    maturity: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the spreading rule.
 
         Args:
@@ -100,7 +100,7 @@ class Plant(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.spread)]
+        return [RuleLaw(self.spread)]
 
     def spread(self, agent: AgentView, model: ModelView) -> None:
         """Age, and spread into an empty neighbouring cell at maturity.
@@ -117,7 +117,7 @@ class Plant(Element):
             _spawn(agent, model)
 
 
-class Forager(Element):
+class ForagerComponent(ElementComponent):
     """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
 
     Every step the animal ages and grows hungry, and starves when its hunger passes `starvation`. It moves to the
@@ -164,8 +164,8 @@ class Forager(Element):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPrey
-        >>> StigmergicPrey.group('prey', 10).size
+        >>> from skcomplex.models.biology.ecology import StigmergicPreyComponent
+        >>> StigmergicPreyComponent.group('prey', 10).size
         10
     """
 
@@ -173,16 +173,16 @@ class Forager(Element):
     food: ClassVar[str] = PLANTS
     happiness_mark: ClassVar[str] = 'prey_happiness'
     distress_mark: ClassVar[str] = 'prey_fear'
-    age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    hunger: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    happiness: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    distress: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    maturity: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    reproduction: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    starvation: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    memory: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    communication: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    emotions: float = parameter(default=1.0, domain=Domain.BOOLEAN)
+    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    hunger: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    happiness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    distress: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    maturity: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    reproduction: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    starvation: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    memory: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    communication: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    emotions: float = parameter(default=1.0, domain=NumericDomain.BOOLEAN)
 
     def _preference(self, agent: AgentView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
         """Return the preference of an animal for a neighbouring cell."""
@@ -224,7 +224,7 @@ class Forager(Element):
         model.deposit(f'{MARKS}.{self.happiness_mark}', agent.location, agent.happiness)
         model.deposit(f'{MARKS}.{self.distress_mark}', agent.location, agent.distress)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -235,7 +235,7 @@ class Forager(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def sense(self, agent: AgentView, occupants: dict[object, AgentView]) -> float:
         """Return the distress the animal experiences from its neighbours.
@@ -280,7 +280,7 @@ class Forager(Element):
             _spawn(agent, model, hunger=agent.hunger)
 
 
-class StigmergicPrey(Forager):
+class StigmergicPreyComponent(ForagerComponent):
     """Prey that eats plants and fears the predators around it.
 
     Args:
@@ -318,8 +318,8 @@ class StigmergicPrey(Forager):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPrey
-        >>> StigmergicPrey.food
+        >>> from skcomplex.models.biology.ecology import StigmergicPreyComponent
+        >>> StigmergicPreyComponent.food
         'plants'
     """
 
@@ -341,7 +341,7 @@ class StigmergicPrey(Forager):
         return float(sum(_kind(other) == PREDATORS for other in occupants.values()))
 
 
-class StigmergicPredator(Forager):
+class StigmergicPredatorComponent(ForagerComponent):
     """Predator that eats prey and grows angry with hunger.
 
     Args:
@@ -379,8 +379,8 @@ class StigmergicPredator(Forager):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPredator
-        >>> StigmergicPredator.food
+        >>> from skcomplex.models.biology.ecology import StigmergicPredatorComponent
+        >>> StigmergicPredatorComponent.food
         'prey'
     """
 
@@ -463,15 +463,15 @@ def stigmergic_predator_prey(
     life = System(
         'life',
         components=[
-            Plant.group(
+            PlantComponent.group(
                 PLANTS,
                 plants,
                 variable=True,
                 location=plant_cells,
                 age=rng.integers(0, 4, plants).astype(float),
             ),
-            StigmergicPrey.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
-            StigmergicPredator.group(
+            StigmergicPreyComponent.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
+            StigmergicPredatorComponent.group(
                 PREDATORS,
                 predators,
                 variable=True,
@@ -482,5 +482,5 @@ def stigmergic_predator_prey(
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )
-    marks = Field('marks', EmotionMarks, LatticeSpace((width, height)), values={'decay': decay})
+    marks = FieldComponent('marks', EmotionMarksComponent, LatticeSpace((width, height)), values={'decay': decay})
     return System(components=[life, System('ground', components=[marks])])

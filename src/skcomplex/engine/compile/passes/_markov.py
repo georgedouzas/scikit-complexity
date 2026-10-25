@@ -10,7 +10,7 @@ import numpy as np
 from ....core.base import ValidationError
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._problem import _MarkovMatrix
 from .._specs import KernelSpec
 from .._stochastic import MatrixLaw, compile_matrix, markov_laws
@@ -36,7 +36,7 @@ def _checked_matrices(
     return tuple(matrices)
 
 
-class MarkovPass(Pass):
+class MarkovPass(BasePass):
     """Pass that rewrites transition and emission laws into Markov matrices checked at the initial values."""
 
     reads = ('lowered', 'layout')

@@ -10,9 +10,9 @@ from typing import ClassVar
 
 import pytest
 
-from skcomplex.core.base import Domain, LawClass, LawKind, RegistryError, Requires, Trait, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Law, Symbols, is_registered, register_laws
+from skcomplex.core.base import LawClass, LawKind, NumericDomain, RegistryError, Requires, Trait, state
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import BaseLaw, Symbols, is_registered, register_laws
 from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
 from skcomplex.formalisms import Formalism, register
@@ -34,7 +34,7 @@ def _run(code: str) -> object:
 
 
 @dataclass(frozen=True)
-class Stray(Law):
+class StrayLaw(BaseLaw):
     """Law of a class that no formalism registers."""
 
     law_kind: ClassVar[LawKind] = LawKind.RATE
@@ -47,18 +47,18 @@ class Stray(Law):
 
 
 @dataclass(frozen=True)
-class Undeclared(Law):
+class UndeclaredLaw(BaseLaw):
     """Law class without a kind."""
 
 
-class Drifting(Element):
+class DriftingComponent(ElementComponent):
     """Element whose law is of an unregistered class."""
 
-    x: float = state(default=0.0, domain=Domain.REAL)
+    x: float = state(default=0.0, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return a stray law."""
-        return [Stray(s.x, 1)]
+        return [StrayLaw(s.x, 1)]
 
 
 def test_registered_formalisms_list_contributions():
@@ -87,8 +87,8 @@ def test_register_adds_contributions_to_their_registries():
         'from skcomplex.engine.compile import SOLVERS\n'
         'register(outside.FORMALISM)\n'
         'print(json.dumps({\n'
-        "    'law': outside.Decay in law_classes(),\n"
-        "    'solver': SOLVERS.resolve((outside.DECAYING, 'auto')) is outside.ExactDecay,\n"
+        "    'law': outside.DecayLaw in law_classes(),\n"
+        "    'solver': SOLVERS.resolve((outside.DECAYING, 'auto')) is outside.ExactDecaySolver,\n"
         "    'count': [item.name for item in registered_formalisms()].count('outside'),\n"
         '}))\n',
     )
@@ -115,16 +115,16 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     """Test that a law of an outside formalism validates, compiles with its pass, and simulates with its solver."""
     found = _run(
         'import json\n'
-        'from tests.formalisms.outside import DECAYING, ExactDecay, Nucleus\n'
+        'from tests.formalisms.outside import DECAYING, ExactDecaySolver, NucleusComponent\n'
         'from skcomplex.engine.compile import compile_system, validate\n'
         'from skcomplex.engine.runtime import Simulation\n'
         'from skcomplex.core.system import System\n'
-        "system = System(components=[Nucleus('a', n=2.0, k=0.5)])\n"
+        "system = System(components=[NucleusComponent('a', n=2.0, k=0.5)])\n"
         'simulation = Simulation(system, dt=0.5).run(until=2)\n'
         'print(json.dumps({\n'
         "    'valid': validate(system).ok,\n"
         "    'form': compile_system(system).form is DECAYING,\n"
-        "    'solver': type(simulation.stepper_) is ExactDecay,\n"
+        "    'solver': type(simulation.stepper_) is ExactDecaySolver,\n"
         "    'final': float(simulation.trajectory_['a.n'][-1]),\n"
         '}))\n',
     )
@@ -160,14 +160,14 @@ def test_register_laws_rejects_classes_without_declarations():
     with pytest.raises(RegistryError, match='not a law class'):
         register_laws(int)
     with pytest.raises(RegistryError, match='law_kind'):
-        register_laws(Undeclared)
-    assert not is_registered(Undeclared)
+        register_laws(UndeclaredLaw)
+    assert not is_registered(UndeclaredLaw)
 
 
 def test_validate_reports_unregistered_law():
     """Test that validation names a law class that no formalism registered and says a formalism must register it."""
-    report = validate(System(components=[Drifting('d')]))
+    report = validate(System(components=[DriftingComponent('d')]))
     (issue,) = [issue for issue in report.issues if issue.code == 'law-unregistered']
-    assert 'Stray' in issue.message
+    assert 'StrayLaw' in issue.message
     assert 'formalism must register' in issue.message
     assert issue.path == 'd'

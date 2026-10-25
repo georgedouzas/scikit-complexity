@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Symbols, shift_member, where
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, Symbols, shift_member, where
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -48,7 +48,7 @@ def _tree_layout(n_levels: int, branches: int) -> Array:
     return np.concatenate(rings)
 
 
-class ParticleSite(Element):
+class ParticleSiteComponent(ElementComponent):
     """Site of a lattice of particles, holding the number `n` of particles or quanta on it.
 
     Args:
@@ -59,15 +59,15 @@ class ParticleSite(Element):
             The initial number of particles.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ParticleSite
-        >>> ParticleSite('site', n=3.0).n
+        >>> from skcomplex.models.physics.statistical_mechanics import ParticleSiteComponent
+        >>> ParticleSiteComponent('site', n=3.0).n
         3.0
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class TreeNode(ParticleSite):
+class TreeNodeComponent(ParticleSiteComponent):
     """Node of a tree that holds a number `n` of energy quanta, drawn at a fixed position.
 
     Args:
@@ -81,8 +81,8 @@ class TreeNode(ParticleSite):
             The position of the node in the drawing of the tree.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import TreeNode
-        >>> TreeNode('root').n
+        >>> from skcomplex.models.physics.statistical_mechanics import TreeNodeComponent
+        >>> TreeNodeComponent('root').n
         0.0
     """
 
@@ -93,7 +93,7 @@ class TreeNode(ParticleSite):
     x: npt.ArrayLike = state(default=0.0, vector=True)
 
 
-class ZeroRangeHop(Interaction):
+class ZeroRangeHopInteraction(BaseInteraction):
     """Hop of one particle along a link, forward at rate `p u(n)` and backward at rate `q u(n')`.
 
     The rate depends only on the occupation of the departure site, through `u(n) = 1 + b / n`.
@@ -115,17 +115,17 @@ class ZeroRangeHop(Interaction):
             The strength of the decrease of `u(n)` with the occupation, 0 for a constant rate.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ZeroRangeHop
-        >>> ZeroRangeHop('hop', link=['sites[0]', 'sites[1]']).b
+        >>> from skcomplex.models.physics.statistical_mechanics import ZeroRangeHopInteraction
+        >>> ZeroRangeHopInteraction('hop', link=['sites[0]', 'sites[1]']).b
         4.0
     """
 
     link: list[str] = role(variadic=True)
-    p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
+    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the forward and the backward hop.
 
         Args:
@@ -138,12 +138,12 @@ class ZeroRangeHop(Interaction):
         """
         first, second = (site.n for site in s.link)
         return [
-            Jump(s.p * _departure_rate(first, s.b), {first: -1, second: 1}),
-            Jump(s.q * _departure_rate(second, s.b), {second: -1, first: 1}),
+            JumpLaw(s.p * _departure_rate(first, s.b), {first: -1, second: 1}),
+            JumpLaw(s.q * _departure_rate(second, s.b), {second: -1, first: 1}),
         ]
 
 
-class ZeroRangeHops(Interaction):
+class ZeroRangeHopsInteraction(BaseInteraction):
     """Hops of one particle from every site of a ring, to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
     The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`.
@@ -165,17 +165,17 @@ class ZeroRangeHops(Interaction):
             The strength of the decrease of `u(n)` with the occupation, 0 for a constant rate.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ZeroRangeHops
-        >>> ZeroRangeHops('hops', sites='sites').b
+        >>> from skcomplex.models.physics.statistical_mechanics import ZeroRangeHopsInteraction
+        >>> ZeroRangeHopsInteraction('hops', sites='sites').b
         4.0
     """
 
     sites: str = role()
-    p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
+    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the hops to the right and to the left.
 
         Args:
@@ -189,12 +189,12 @@ class ZeroRangeHops(Interaction):
         n = s.sites.n
         rate = _departure_rate(n, s.b)
         return [
-            Jump(s.p * rate, {n: -1, shift_member(n, 1): 1}),
-            Jump(s.q * rate, {n: -1, shift_member(n, -1): 1}),
+            JumpLaw(s.p * rate, {n: -1, shift_member(n, 1): 1}),
+            JumpLaw(s.q * rate, {n: -1, shift_member(n, -1): 1}),
         ]
 
 
-class ExclusionHops(Interaction):
+class ExclusionHopsInteraction(BaseInteraction):
     """Hops of a particle from every site of a line to an empty neighbour, to the right at rate `p` and left at `q`.
 
     No particle hops past the ends of the line.
@@ -213,16 +213,16 @@ class ExclusionHops(Interaction):
             The rate of hops to the left.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionHops
-        >>> ExclusionHops('hops', sites='lane').p
+        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionHopsInteraction
+        >>> ExclusionHopsInteraction('hops', sites='lane').p
         1.0
     """
 
     sites: str = role()
-    p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the hops to the right and to the left.
 
         Args:
@@ -236,12 +236,12 @@ class ExclusionHops(Interaction):
         n = s.sites.n
         right, left = (shift_member(n, step, boundary='fixed', fill=1.0) for step in (1, -1))
         return [
-            Jump(s.p * n * (1 - right), {n: -1, shift_member(n, 1, boundary='fixed'): 1}),
-            Jump(s.q * n * (1 - left), {n: -1, shift_member(n, -1, boundary='fixed'): 1}),
+            JumpLaw(s.p * n * (1 - right), {n: -1, shift_member(n, 1, boundary='fixed'): 1}),
+            JumpLaw(s.q * n * (1 - left), {n: -1, shift_member(n, -1, boundary='fixed'): 1}),
         ]
 
 
-class Reservoir(Interaction):
+class ReservoirInteraction(BaseInteraction):
     """Reservoir that adds one particle to each of its sites at rate `entry` and removes one at rate `exit`.
 
     A particle leaves only an occupied site. With exclusion a particle enters only an empty site.
@@ -266,14 +266,14 @@ class Reservoir(Interaction):
                 The rate at which a particle leaves an occupied site.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Reservoir
-        >>> Reservoir('bath', sites=['lane[0]'], entry=0.5).exit
+        >>> from skcomplex.models.physics.statistical_mechanics import ReservoirInteraction
+        >>> ReservoirInteraction('bath', sites=['lane[0]'], entry=0.5).exit
         0.0
     """
 
     sites: list[str] = role(variadic=True)
-    entry: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    exit: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    entry: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    exit: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -285,7 +285,7 @@ class Reservoir(Interaction):
         super().__init__(label, **values)
         self.exclusion = exclusion
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the entry and the exit of a particle at every site.
 
         Args:
@@ -296,10 +296,10 @@ class Reservoir(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Law] = []
+        laws: list[BaseLaw] = []
         for site in s.sites:
             room = 1 - site.n if self.exclusion else 1
-            laws += [Jump(s.entry * room, {site.n: 1}), Jump(s.exit * where(site.n > 0, 1, 0), {site.n: -1})]
+            laws += [JumpLaw(s.entry * room, {site.n: 1}), JumpLaw(s.exit * where(site.n > 0, 1, 0), {site.n: -1})]
         return laws
 
 
@@ -355,8 +355,8 @@ def zero_range_process(
         (20.0, 1)
     """
     occupations = _scatter(round(density * n_sites), n_sites, random_state)
-    sites = ParticleSite.lattice('sites', LatticeSpace(n_sites), n=occupations)
-    return System(components=[sites], interactions=[ZeroRangeHops('hops', sites='sites', p=p, q=q, b=b)])
+    sites = ParticleSiteComponent.lattice('sites', LatticeSpace(n_sites), n=occupations)
+    return System(components=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=p, q=q, b=b)])
 
 
 @register_model(
@@ -418,8 +418,8 @@ def dissipative_zero_range(
         (13, 14)
     """
     n_nodes = _level_start(n_levels + 1, branches)
-    nodes = TreeNode.group('nodes', n_nodes, x=_tree_layout(n_levels, branches))
-    interactions: list[Interaction] = []
+    nodes = TreeNodeComponent.group('nodes', n_nodes, x=_tree_layout(n_levels, branches))
+    interactions: list[BaseInteraction] = []
     for level in range(1, n_levels):
         rate = nu * float(branches ** (level - 1)) ** alpha
         start, below = _level_start(level, branches), _level_start(level + 1, branches)
@@ -427,11 +427,13 @@ def dissipative_zero_range(
             for branch in range(branches):
                 child = below + branches * index + branch
                 link = [f'nodes[{start + index}]', f'nodes[{child}]']
-                interactions.append(ZeroRangeHop(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0))
+                interactions.append(
+                    ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
+                )
     leaves = [f'nodes[{index}]' for index in range(_level_start(n_levels, branches), n_nodes)]
     interactions += [
-        Reservoir('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
-        Reservoir('dissipation', sites=leaves, exit=dissipation),
+        ReservoirInteraction('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
+        ReservoirInteraction('dissipation', sites=leaves, exit=dissipation),
     ]
     return System(components=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
@@ -492,10 +494,10 @@ def asep(
         3
     """
     occupied = (np.random.default_rng(random_state).random(n_sites) < density).astype(float)
-    lane = ParticleSite.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
+    lane = ParticleSiteComponent.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
     interactions = [
-        ExclusionHops('hops', sites='lane', p=p, q=q),
-        Reservoir('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
-        Reservoir('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
+        ExclusionHopsInteraction('hops', sites='lane', p=p, q=q),
+        ReservoirInteraction('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
+        ReservoirInteraction('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
     ]
     return System(components=[lane], interactions=interactions)

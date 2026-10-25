@@ -3,24 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-QuadraticSupplyMarket = Element.define(
-    'QuadraticSupplyMarket',
-    states={'P': state(default=1.0, domain=Domain.REAL)},
+QuadraticSupplyMarketComponent = ElementComponent.define(
+    'QuadraticSupplyMarketComponent',
+    states={'P': state(default=1.0, domain=NumericDomain.REAL)},
     parameters={
-        'k': parameter(default=1.0, domain=Domain.POSITIVE),
-        'beta': parameter(default=10.0, domain=Domain.POSITIVE),
-        'lam': parameter(default=1.0, domain=Domain.POSITIVE),
-        'delta': parameter(default=1.0, domain=Domain.POSITIVE),
-        'alpha': parameter(default=2.0, domain=Domain.POSITIVE),
-        'gamma': parameter(default=-0.1, domain=Domain.REAL),
+        'k': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'beta': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'lam': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'delta': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'alpha': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'gamma': parameter(default=-0.1, domain=NumericDomain.REAL),
     },
-    laws=lambda s: [Rate(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))],
+    laws=lambda s: [RateLaw(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))],
 )
 
 
@@ -77,5 +77,14 @@ def riccati_prices(
         >>> riccati_prices(gamma=-0.2).elements[0].gamma
         -0.2
     """
-    market = QuadraticSupplyMarket('market', P=price, k=k, beta=beta, lam=lam, delta=delta, alpha=alpha, gamma=gamma)
+    market = QuadraticSupplyMarketComponent(
+        'market',
+        P=price,
+        k=k,
+        beta=beta,
+        lam=lam,
+        delta=delta,
+        alpha=alpha,
+        gamma=gamma,
+    )
     return System(components=[market])

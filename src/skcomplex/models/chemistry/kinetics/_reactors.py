@@ -7,21 +7,21 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse_train
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CatalystPellet = Element.define(
-    'CatalystPellet',
-    states={'c': state(default=1.0, domain=Domain.NONNEGATIVE)},
+CatalystPelletComponent = ElementComponent.define(
+    'CatalystPelletComponent',
+    states={'c': state(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={'h': 0.1, 'k': 10.0, 'K': 20.0},
-    laws=lambda s: [Rate(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)],
+    laws=lambda s: [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)],
 )
 
 
-class PulsedElectrode(Element):
+class PulsedElectrodeComponent(ElementComponent):
     """Electrode of a stirred electrochemical reactor, charged by a train of current pulses.
 
     In units of the exchange current and of the thermal voltage, the overpotential follows
@@ -63,18 +63,18 @@ class PulsedElectrode(Element):
                 The current of a pulse.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import PulsedElectrode
-        >>> PulsedElectrode('electrode').period
+        >>> from skcomplex.models.chemistry.kinetics import PulsedElectrodeComponent
+        >>> PulsedElectrodeComponent('electrode').period
         10.0
     """
 
-    eta: float = state(default=0.0, domain=Domain.REAL)
-    c: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    C: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    alpha: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    tau: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    kappa: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    current: float = parameter(default=5.0, domain=Domain.REAL)
+    eta: float = state(default=0.0, domain=NumericDomain.REAL)
+    c: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    C: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    tau: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    kappa: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    current: float = parameter(default=5.0, domain=NumericDomain.REAL)
 
     def __init__(
         self,
@@ -88,7 +88,7 @@ class PulsedElectrode(Element):
         self.period = period
         self.width = width
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the charging of the double layer and the balance of the reactant.
 
         Args:
@@ -102,8 +102,8 @@ class PulsedElectrode(Element):
         faradaic = s.c * exp(s.alpha * s.eta) - exp(-(1 - s.alpha) * s.eta)
         applied = s.current * pulse_train(s.t, self.period, self.width)
         return [
-            Rate(s.eta, (applied - faradaic) / s.C),
-            Rate(s.c, (1 - s.c) / s.tau - s.kappa * faradaic),
+            RateLaw(s.eta, (applied - faradaic) / s.C),
+            RateLaw(s.c, (1 - s.c) / s.tau - s.kappa * faradaic),
         ]
 
 
@@ -142,7 +142,7 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         >>> catalyst_pellet(k=5.0).elements[0].k
         5.0
     """
-    return System(components=[CatalystPellet('pellet', c=c, h=h, k=k, K=K)])
+    return System(components=[CatalystPelletComponent('pellet', c=c, h=h, k=k, K=K)])
 
 
 @register_model(
@@ -205,7 +205,7 @@ def pulsed_electrochemical_reactor(
         >>> pulsed_electrochemical_reactor(width=1.0).elements[0].width
         1.0
     """
-    electrode = PulsedElectrode(
+    electrode = PulsedElectrodeComponent(
         'electrode',
         eta=eta,
         c=c,

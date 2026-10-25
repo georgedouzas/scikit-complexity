@@ -10,13 +10,13 @@ from ...core.base import (
     ComponentKind,
     VisualSpec,
 )
-from ...core.components import Element, Group
+from ...core.components import ElementComponent, GroupComponent
 from ...core.space import LatticeSpace, NetworkSpace
 from ._laws import FIELD_BOUNDARIES
-from ._spaces import Mesh
+from ._spaces import MeshSpace
 
 
-class Field(Group):
+class FieldComponent(GroupComponent):
     """Group of members of one element type at the sites of a lattice or the nodes of a network.
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
@@ -26,8 +26,8 @@ class Field(Group):
 
     The discretization turns the operators into numbers. `'finite-difference'` uses stencils on lattices and the graph
     Laplacian on networks. `'spectral'` multiplies Fourier modes on periodic lattices, with the two-thirds rule
-    removing aliasing. `'finite-volume'` updates cell averages by the differences of the `Flux` laws of the states.
-    `'finite-element'` assembles stiffness and mass matrices on a `Mesh`.
+    removing aliasing. `'finite-volume'` updates cell averages by the differences of the `FluxLaw`s of the states.
+    `'finite-element'` assembles stiffness and mass matrices on a `MeshSpace`.
 
     Args:
         label:
@@ -57,17 +57,17 @@ class Field(Group):
             or even about its middle, represents walls there, such as the free-slip walls of convection.
 
     Examples:
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.formalisms.fields import Field, laplacian
-        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.formalisms.fields import FieldComponent, laplacian
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.space import LatticeSpace
-        >>> Heat = Element.define(
-        ...     'Heat',
+        >>> HeatComponent = ElementComponent.define(
+        ...     'HeatComponent',
         ...     states={'u': 0.0},
         ...     parameters={'D': 1.0},
-        ...     laws=lambda s: [Rate(s.u, s.D * laplacian(s.u))],
+        ...     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
         ... )
-        >>> Field('plate', Heat, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).size
+        >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).size
         200
     """
 
@@ -76,8 +76,8 @@ class Field(Group):
     def __init__(
         self,
         label: str,
-        element: type[Element],
-        space: LatticeSpace | NetworkSpace | Mesh,
+        element: type[ElementComponent],
+        space: LatticeSpace | NetworkSpace | MeshSpace,
         *,
         boundary: Mapping[str, Any] | None = None,
         values: Mapping[str, Any] | None = None,
@@ -113,7 +113,7 @@ class Field(Group):
         """
         space = self.space
         default = {'periodic': 'periodic', 'reflecting': 'zero-flux', 'fixed': ('fixed', getattr(space, 'fill', 0.0))}
-        edges = 'reflecting' if isinstance(space, Mesh) else getattr(space, 'boundary', 'periodic')
+        edges = 'reflecting' if isinstance(space, MeshSpace) else getattr(space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
             kind, value = condition[0], condition[1] if callable(condition[1]) else float(condition[1])
@@ -138,16 +138,16 @@ class Field(Group):
                 The visual.
 
         Examples:
-            >>> from skcomplex.core.components import Element
-            >>> from skcomplex.formalisms.fields import Field
+            >>> from skcomplex.core.components import ElementComponent
+            >>> from skcomplex.formalisms.fields import FieldComponent
             >>> from skcomplex.core.space import LatticeSpace
-            >>> Heat = Element.define('Heat', states={'u': 0.0})
-            >>> Field('plate', Heat, LatticeSpace((4, 4))).default_visual().kind
+            >>> HeatComponent = ElementComponent.define('HeatComponent', states={'u': 0.0})
+            >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).default_visual().kind
             'image'
         """
         if isinstance(self.space, LatticeSpace):
             return VisualSpec('image')
-        if isinstance(self.space, Mesh):
+        if isinstance(self.space, MeshSpace):
             return VisualSpec('mesh')
         declared: VisualSpec = self.element.visual
         if isinstance(self.space, NetworkSpace) and declared == VisualSpec():

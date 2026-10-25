@@ -7,14 +7,14 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 MONTH = 30
 QUARTER = 90
@@ -26,7 +26,7 @@ def _cell(location: object) -> tuple[int, int]:
     return column, row
 
 
-class Premises(Element):
+class PremisesComponent(ElementComponent):
     """House or brothel of the brothel movement model, whose energy bills grow with the people inside.
 
     Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter
@@ -52,20 +52,20 @@ class Premises(Element):
             The number of days run.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Premises
-        >>> Premises.group('premises', 3, brothel=1.0)
-        Group('premises', element=Premises, size=3)
+        >>> from skcomplex.models.social.organizations import PremisesComponent
+        >>> PremisesComponent.group('premises', 3, brothel=1.0)
+        GroupComponent('premises', element=PremisesComponent, size=3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
-    brothel: float = state(default=0.0, domain=Domain.BOOLEAN)
-    bills: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    last_bills: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    brothel: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    bills: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    last_bills: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     efficiency: float = state(default=1.0)
-    day: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    day: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class Traveller(Element):
+class TravellerComponent(ElementComponent):
     """Woman of the brothel movement model: a trafficking victim, or a woman who travels freely.
 
     Args:
@@ -79,17 +79,17 @@ class Traveller(Element):
             The number of train trips between cities.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Traveller
-        >>> Traveller.group('women', 4, victim=1.0)
-        Group('women', element=Traveller, size=4)
+        >>> from skcomplex.models.social.organizations import TravellerComponent
+        >>> TravellerComponent.group('women', 4, victim=1.0)
+        GroupComponent('women', element=TravellerComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
-    victim: float = state(default=0.0, domain=Domain.BOOLEAN)
-    trips: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    victim: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    trips: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class DailyMovements(Interaction):
+class DailyMovementsInteraction(BaseInteraction):
     """Day of the brothel movement model.
 
     One random free woman moves to a random cell of a random city. Every month the traffickers move a random number
@@ -114,8 +114,8 @@ class DailyMovements(Interaction):
                 The path of the group of premises, which the rule reads and updates.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import DailyMovements
-        >>> DailyMovements('day', women='women', premises='premises').n_cities
+        >>> from skcomplex.models.social.organizations import DailyMovementsInteraction
+        >>> DailyMovementsInteraction('day', women='women', premises='premises').n_cities
         3
     """
 
@@ -132,7 +132,7 @@ class DailyMovements(Interaction):
         super().__init__(label, **values)
         self.n_cities = n_cities
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the daily rule.
 
         Args:
@@ -143,7 +143,7 @@ class DailyMovements(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.pass_day)]
+        return [RuleLaw(self.pass_day)]
 
     def _city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
@@ -257,7 +257,7 @@ def trafficking(
     cells = rng.permutation(width * height)[:n_places]
     places = [(int(cell % width), int(cell // width)) for cell in cells]
     brothel = (np.arange(n_places) >= n_houses).astype(float)
-    premises = Premises.group(
+    premises = PremisesComponent.group(
         'premises',
         n_places,
         location=places,
@@ -267,8 +267,8 @@ def trafficking(
     homes = [places[n_houses + index % n_brothels] for index in range(n_victims)]
     homes += [(int(rng.integers(width)), int(rng.integers(height))) for _ in range(n_free)]
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
-    women = Traveller.group('women', n_victims + n_free, location=homes, victim=victim)
-    day = DailyMovements('day', women='women', premises='premises', n_cities=n_cities)
+    women = TravellerComponent.group('women', n_victims + n_free, location=homes, victim=victim)
+    day = DailyMovementsInteraction('day', women='women', premises='premises', n_cities=n_cities)
     return System(
         components=[premises, women],
         interactions=[day],

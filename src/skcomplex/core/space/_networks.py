@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import Requires, SpaceError, SpaceKind, ValidationError
-from ._spaces import Space
+from ._spaces import BaseSpace
 
 type Seed = int | np.random.Generator | None
 type Indices = npt.NDArray[np.intp]
@@ -25,7 +25,7 @@ def _simple(graph: nx.Graph) -> nx.Graph:
     return simple
 
 
-def part_count(space: Space, on: str, label: str, layer: str | None = None) -> int:
+def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) -> int:
     """Return the number of parts of a space a group has one member on.
 
     Args:
@@ -123,7 +123,7 @@ class Layer:
         return f'Layer({self.label!r}, nodes={self.graph.number_of_nodes()}, edges={self.graph.number_of_edges()})'
 
 
-class NetworkSpace(Space):
+class NetworkSpace(BaseSpace):
     """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
 
     Lattice groups on a network hold one member per node, in the order of `graph.nodes`. The graph is the default

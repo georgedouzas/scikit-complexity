@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.experiments import Experiment, Grid
+from skcomplex.engine.experiments import Experiment, GridDesign
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -46,7 +46,7 @@ graph = nx.random_regular_graph(4, 1000, seed=0)
 temperatures = [1.0, 1.5, 2.0, 2.4, 2.7, 2.9, 3.1, 3.5, 4.5, 6.0]
 result = Experiment(
     lambda temperature: create(MODEL, graph=graph, temperature=temperature, initial='up'),
-    Grid(temperature=temperatures),
+    GridDesign(temperature=temperatures),
     replicates=4,
     until=300,
     dt=10,

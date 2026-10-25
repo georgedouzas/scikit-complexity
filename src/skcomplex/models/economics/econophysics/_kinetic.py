@@ -5,16 +5,16 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 
-class Saver(Element):
+class SaverComponent(ElementComponent):
     """Agent of the kinetic wealth exchange models, whose wealth changes only in pairwise trades.
 
     Args:
@@ -25,15 +25,15 @@ class Saver(Element):
             The initial wealth, negative down to the debt limit.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Saver
-        >>> Saver.group('savers', 10, wealth=2.0)
-        Group('savers', element=Saver, size=10)
+        >>> from skcomplex.models.economics.econophysics import SaverComponent
+        >>> SaverComponent.group('savers', 10, wealth=2.0)
+        GroupComponent('savers', element=SaverComponent, size=10)
     """
 
-    wealth: float = state(default=1.0, domain=Domain.REAL)
+    wealth: float = state(default=1.0, domain=NumericDomain.REAL)
 
 
-class SavingExchange(Interaction):
+class SavingExchangeInteraction(BaseInteraction):
     """Random pairwise trades of Chakraborti and Chakrabarti, where every agent saves a fraction of its wealth.
 
     A trade between agents `i` and `j` keeps total wealth and gives `w_i' = lambda w_i + eps (1 - lambda) (w_i + w_j)`
@@ -52,15 +52,15 @@ class SavingExchange(Interaction):
             The saving propensity `lambda`, the fraction of its wealth that an agent keeps out of a trade.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import SavingExchange
-        >>> SavingExchange('trades', traders='savers').saving
+        >>> from skcomplex.models.economics.econophysics import SavingExchangeInteraction
+        >>> SavingExchangeInteraction('trades', traders='savers').saving
         0.0
     """
 
     traders: str = role()
-    saving: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    saving: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the trading rule.
 
         Args:
@@ -71,7 +71,7 @@ class SavingExchange(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.trade)]
+        return [RuleLaw(self.trade)]
 
     def trade(self, model: ModelView) -> None:
         """Make one random trade per agent.
@@ -95,7 +95,7 @@ class SavingExchange(Interaction):
             agent.wealth = float(value)
 
 
-class DebtExchange(Interaction):
+class DebtExchangeInteraction(BaseInteraction):
     """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount, allowing debt down to a limit.
 
     In every trade a random agent pays a fixed amount to another random agent, unless its wealth would fall below
@@ -116,16 +116,16 @@ class DebtExchange(Interaction):
             The amount paid in every trade.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import DebtExchange
-        >>> DebtExchange('trades', traders='savers', debt=5.0).debt
+        >>> from skcomplex.models.economics.econophysics import DebtExchangeInteraction
+        >>> DebtExchangeInteraction('trades', traders='savers', debt=5.0).debt
         5.0
     """
 
     traders: str = role()
-    debt: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    amount: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    debt: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    amount: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the trading rule.
 
         Args:
@@ -136,7 +136,7 @@ class DebtExchange(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.trade)]
+        return [RuleLaw(self.trade)]
 
     def trade(self, model: ModelView) -> None:
         """Make one random trade per agent.
@@ -204,7 +204,7 @@ def kinetic_wealth_exchange(
     Examples:
         >>> from skcomplex.models.economics.econophysics import kinetic_wealth_exchange
         >>> type(kinetic_wealth_exchange(10, debt=2.0).interactions[0]).__name__
-        'DebtExchange'
+        'DebtExchangeInteraction'
     """
     if debt is not None and saving:
         error_msg = 'Give either a saving propensity or a debt limit, not both.'
@@ -213,11 +213,11 @@ def kinetic_wealth_exchange(
         error_msg = f'The saving propensity must lie in [0, 1), got {saving}.'
         raise ValueError(error_msg)
     trades = (
-        SavingExchange('trades', traders='traders', saving=saving)
+        SavingExchangeInteraction('trades', traders='traders', saving=saving)
         if debt is None
-        else DebtExchange('trades', traders='traders', debt=debt, amount=amount)
+        else DebtExchangeInteraction('trades', traders='traders', debt=debt, amount=amount)
     )
     return System(
-        components=[Saver.group('traders', n_agents, wealth=wealth)],
+        components=[SaverComponent.group('traders', n_agents, wealth=wealth)],
         interactions=[trades],
     )

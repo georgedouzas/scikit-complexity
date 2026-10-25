@@ -5,13 +5,13 @@ import math
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.experiments import (
     sensitivity,
 )
 
-Point = Element.define('Point', parameters={'x1': 0.0, 'x2': 0.0, 'x3': 0.0})
+PointComponent = ElementComponent.define('PointComponent', parameters={'x1': 0.0, 'x2': 0.0, 'x3': 0.0})
 
 
 def _ishigami(s):
@@ -22,7 +22,7 @@ def _ishigami(s):
 @pytest.mark.slow
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
-    system = System(components=[Point('p')])
+    system = System(components=[PointComponent('p')])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
     observables = [Observable('y', _ishigami)]
     result = sensitivity(system, bounds, 'y', method='sobol', n=2048, until=0, random_state=0, observables=observables)

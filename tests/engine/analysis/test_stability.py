@@ -5,9 +5,9 @@ import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate, total
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw, total
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import divergence, fixed_points, jacobian, nullclines, stability
 from skcomplex.models.biology.ecology import lotka_volterra
@@ -69,12 +69,12 @@ def test_jump_process_has_no_vector_field():
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
     """Return replicator dynamics of hawks and doves as the members of a group."""
     payoff = np.array([[(V - C) / 2, V], [0.0, V / 2]])
-    Strategy = Element.define('Strategy', states={'x': 0.5})
-    Replication = Interaction.define(
-        'Replication',
+    StrategyComponent = ElementComponent.define('StrategyComponent', states={'x': 0.5})
+    ReplicationInteraction = BaseInteraction.define(
+        'ReplicationInteraction',
         roles=['population'],
         laws=lambda s: [
-            Rate(
+            RateLaw(
                 s.population.x,
                 s.population.x
                 * (
@@ -85,8 +85,8 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
         ],
     )
     return System(
-        components=[Strategy.group('population', size, x=[1 / size] * size)],
-        interactions=[Replication('replication', population='population')],
+        components=[StrategyComponent.group('population', size, x=[1 / size] * size)],
+        interactions=[ReplicationInteraction('replication', population='population')],
     )
 
 
@@ -101,7 +101,11 @@ def test_hawks_and_doves_as_group():
 
 def test_group_above_limit():
     """Test that the Jacobian of a group of 1000 members that reads reductions states the limit of 64 members."""
-    Member = Element.define('Member', states={'x': 0.0}, laws=lambda s: [Rate(s.x, total(s.x) - s.x)])
-    system = System(components=[Member.group('group', 1000)])
+    MemberComponent = ElementComponent.define(
+        'MemberComponent',
+        states={'x': 0.0},
+        laws=lambda s: [RateLaw(s.x, total(s.x) - s.x)],
+    )
+    system = System(components=[MemberComponent.group('group', 1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         jacobian(system)

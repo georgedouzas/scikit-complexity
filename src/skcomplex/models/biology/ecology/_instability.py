@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import exp, sqrt
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, bernoulli, normal, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, bernoulli, normal, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -17,7 +17,7 @@ def _nonnegative(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-class UnstablePopulations(Element):
+class UnstablePopulationsComponent(ElementComponent):
     """Resident population `x` and invading population `y`, after equations (13.3) and (13.4) of Jensen.
 
     At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x sigma chi`, an Ornstein-Uhlenbeck step damped by the
@@ -57,22 +57,22 @@ class UnstablePopulations(Element):
             The amplitude `sigma` of the noise.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import UnstablePopulations
-        >>> UnstablePopulations('populations').p
+        >>> from skcomplex.models.biology.ecology import UnstablePopulationsComponent
+        >>> UnstablePopulationsComponent('populations').p
         0.001
     """
 
-    x: float = state(default=1.1, domain=Domain.NONNEGATIVE)
-    y: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    eta: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    mean: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    nu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    p: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    sigma: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    x: float = state(default=1.1, domain=NumericDomain.NONNEGATIVE)
+    y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    eta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    mean: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    nu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    p: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    sigma: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the steps of the two populations.
 
         Args:
@@ -86,7 +86,7 @@ class UnstablePopulations(Element):
         resident = (s.x - s.eta * (s.x - s.mean)) * exp(-s.alpha * s.y) + sqrt(s.x) * s.sigma * normal('chi_x')
         grown = s.y * (1 + s.beta) + sqrt(s.y) * s.sigma * normal('chi_y')
         invader = where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown)
-        return [Update(s.x, _nonnegative(resident)), Update(s.y, _nonnegative(invader))]
+        return [UpdateLaw(s.x, _nonnegative(resident)), UpdateLaw(s.y, _nonnegative(invader))]
 
 
 @register_model(
@@ -143,7 +143,7 @@ def intrinsic_instability(
         >>> intrinsic_instability().elements[0].beta
         0.01
     """
-    populations = UnstablePopulations(
+    populations = UnstablePopulationsComponent(
         'populations',
         x=x,
         eta=eta,

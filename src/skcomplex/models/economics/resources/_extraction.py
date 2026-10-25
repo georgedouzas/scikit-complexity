@@ -6,9 +6,9 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, lookup, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -31,7 +31,7 @@ def _investment(profit: Expression, goal: Expression) -> Expression:
     return where(capped > 0, capped, 0)
 
 
-class OilEconomy(Element):
+class OilEconomyComponent(ElementComponent):
     """Capital that extracts a nonrenewable resource and reinvests its profit up to a growth goal.
 
     Extraction is the capital times the yield per unit of capital, a table of the resource stock. The profit is the
@@ -70,17 +70,17 @@ class OilEconomy(Element):
                 The average lifetime of the capital.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import OilEconomy
-        >>> OilEconomy('oil', price=4.0).price
+        >>> from skcomplex.models.economics.resources import OilEconomyComponent
+        >>> OilEconomyComponent('oil', price=4.0).price
         4.0
     """
 
-    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='oil')
-    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE, quantity='capital')
-    price: float = parameter(default=3.0, domain=Domain.POSITIVE)
-    cost: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
+    resource: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='oil')
+    capital: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE, quantity='capital')
+    price: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    cost: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    growth_goal: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -94,7 +94,7 @@ class OilEconomy(Element):
         self.yield_table = yield_table
         self.price_table = price_table
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the extraction from the resource and the investment in and depreciation of the capital.
 
         Args:
@@ -115,13 +115,13 @@ class OilEconomy(Element):
         return [
             efficiency,
             profit,
-            Transfer(s.resource, Sink('market'), extraction, label='extraction'),
-            Transfer(Source('investors'), s.capital, investment, label='investment'),
-            Transfer(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
+            TransferLaw(s.resource, Sink('market'), extraction, label='extraction'),
+            TransferLaw(Source('investors'), s.capital, investment, label='investment'),
+            TransferLaw(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
 
-class Fishery(Element):
+class FisheryComponent(ElementComponent):
     """Capital that harvests a regenerating resource, with a price that rises as the yield falls.
 
     The resource regenerates at a rate per unit of stock that is a hump-shaped table of the stock, zero when it is
@@ -159,16 +159,16 @@ class Fishery(Element):
                 The average lifetime of the capital.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Fishery
-        >>> Fishery('fishery', lifetime=15.0).lifetime
+        >>> from skcomplex.models.economics.resources import FisheryComponent
+        >>> FisheryComponent('fishery', lifetime=15.0).lifetime
         15.0
     """
 
-    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='fish')
-    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE, quantity='capital')
-    cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
+    resource: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='fish')
+    capital: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE, quantity='capital')
+    cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    growth_goal: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -184,7 +184,7 @@ class Fishery(Element):
         self.regeneration_table = regeneration_table
         self.price_table = price_table
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regeneration and harvest of the resource and the investment in and depreciation of the capital.
 
         Args:
@@ -205,10 +205,10 @@ class Fishery(Element):
             efficiency,
             price,
             profit,
-            Transfer(Source('spawning'), s.resource, regeneration, label='regeneration'),
-            Transfer(s.resource, Sink('market'), harvest, label='harvest'),
-            Transfer(Source('investors'), s.capital, investment, label='investment'),
-            Transfer(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
+            TransferLaw(Source('spawning'), s.resource, regeneration, label='regeneration'),
+            TransferLaw(s.resource, Sink('market'), harvest, label='harvest'),
+            TransferLaw(Source('investors'), s.capital, investment, label='investment'),
+            TransferLaw(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
 
@@ -264,7 +264,7 @@ def oil_economy(
         >>> oil_economy(resource=2000.0).elements[0].resource
         2000.0
     """
-    economy = OilEconomy(
+    economy = OilEconomyComponent(
         'oil',
         resource=resource,
         capital=capital,
@@ -326,7 +326,7 @@ def fishery_capital(
         >>> fishery_capital(lifetime=10.0).elements[0].lifetime
         10.0
     """
-    fishery = Fishery(
+    fishery = FisheryComponent(
         'fishery',
         resource=resource,
         capital=capital,

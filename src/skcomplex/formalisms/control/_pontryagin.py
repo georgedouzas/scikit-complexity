@@ -52,7 +52,7 @@ def _stationary_controls(gradients: list[Expression], controls: list[Expression]
     if len(explicit) != 1:
         error_msg = (
             'The condition that the Hamiltonian is stationary in the controls has no unique explicit solution. Use '
-            'the Collocation solver, which needs no such solution.'
+            'the CollocationSolver solver, which needs no such solution.'
         )
         raise SolverError(error_msg)
     return [SR(explicit[0][control]) for control in controls]
@@ -65,7 +65,7 @@ def _converged(tolerance: float, pairs: list[tuple[npt.NDArray[np.float64], npt.
     )
 
 
-class Pontryagin(OptimalControlSolver):
+class PontryaginSolver(OptimalControlSolver):
     """Optimal control by Pontryagin's principle, with costates and the stationarity condition derived symbolically.
 
     The solver builds the Hamiltonian `H = L + λ · f` from the running cost `L` and the rates `f` of the states, and
@@ -99,18 +99,20 @@ class Pontryagin(OptimalControlSolver):
 
     Examples:
         >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Objective, Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import Objective, RateLaw
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.control import Pontryagin
+        >>> from skcomplex.formalisms.control import PontryaginSolver
         >>> from skcomplex.core.system import System
-        >>> Plant = Element.define(
-        ...     'Plant',
+        >>> PlantComponent = ElementComponent.define(
+        ...     'PlantComponent',
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-        ...     laws=lambda s: [Rate(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
+        ...     laws=lambda s: [RateLaw(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
         ... )
-        >>> simulation = Simulation(System(components=[Plant('plant')]), solver=Pontryagin()).run(until=1.0)
+        >>> simulation = Simulation(System(components=[PlantComponent('plant')]), solver=PontryaginSolver()).run(
+        ...     until=1.0
+        ... )
         >>> float(round(simulation.trajectory_['plant.u'][0], 3))
         -0.762
     """
@@ -224,7 +226,7 @@ class Pontryagin(OptimalControlSolver):
             if not (np.all(np.isfinite(new_states)) and np.all(np.isfinite(new_costates))):
                 error_msg = (
                     f'The forward-backward sweep diverged at sweep {iteration}, as it does near unstable saddle paths. '
-                    'Lower the relaxation, shorten the horizon, or use the Collocation solver.'
+                    'Lower the relaxation, shorten the horizon, or use the CollocationSolver solver.'
                 )
                 raise SolverError(error_msg)
             pairs = [(new_controls, controls), (new_states, states), (new_costates, costates)]
@@ -234,6 +236,6 @@ class Pontryagin(OptimalControlSolver):
                 return self._solution(x0, times, states, controls, p, iterations=iteration, costates=named)
         error_msg = (
             f'The forward-backward sweep did not converge in {self.max_iterations} sweeps. Lower the relaxation, raise '
-            'max_iterations, or use the Collocation solver.'
+            'max_iterations, or use the CollocationSolver solver.'
         )
         raise SolverError(error_msg)

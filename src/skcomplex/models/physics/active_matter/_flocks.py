@@ -8,9 +8,9 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
-from ....core.components import Element, Group
-from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.components import ElementComponent, GroupComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
@@ -58,16 +58,16 @@ def _orders(group: str) -> list[Observable]:
     ]
 
 
-def _step(s: Symbols) -> Law:
+def _step(s: Symbols) -> BaseLaw:
     """Return the move of a flocker by `v0` along its new heading."""
-    return Update(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)]))
+    return UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)]))
 
 
-def _vicsek_laws(s: Symbols) -> list[Law]:
+def _vicsek_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment with the mean heading within `r` plus angular noise, and the move."""
     within = Radius(1.0, center=True)
     turn = atan2(neighbors(sin(s.other.theta), over=within), neighbors(cos(s.other.theta), over=within))
-    return [Update(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
+    return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
 
 
 def _attraction(distance: Expression, s: Symbols) -> Expression:
@@ -75,7 +75,7 @@ def _attraction(distance: Expression, s: Symbols) -> Expression:
     return where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
 
 
-def _cohesive_laws(s: Symbols) -> list[Law]:
+def _cohesive_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment, the cohesion, and the vectorial noise of the Grégoire-Chaté model, and the move."""
     near, others = Radius(1.0, center=True), Radius(1.0)
     dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
@@ -93,59 +93,59 @@ def _cohesive_laws(s: Symbols) -> list[Law]:
         + s.beta * neighbors(force * dy / distance, over=others)
         + s.eta * count * sin(angle)
     )
-    return [Update(s.theta, atan2(along_y, along_x)), _step(s)]
+    return [UpdateLaw(s.theta, atan2(along_y, along_x)), _step(s)]
 
 
-def _nematic_laws(s: Symbols) -> list[Law]:
+def _nematic_laws(s: Symbols) -> list[BaseLaw]:
     """Return the alignment with the axes of the neighbours, each flipped to the near side, plus noise, and the move."""
     within = Radius(1.0, center=True)
     side = where(cos(s.other.theta - s.theta) >= 0, 1, -1)
     turn = atan2(neighbors(side * sin(s.other.theta), over=within), neighbors(side * cos(s.other.theta), over=within))
-    return [Update(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
+    return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
 
 
 FLOCKER_STATES = {
     'x': state(vector=True, position=True),
-    'theta': state(default=0.0, domain=Domain.ANGLE),
+    'theta': state(default=0.0, domain=NumericDomain.ANGLE),
 }
 
-VicsekParticle = Element.define(
-    'VicsekParticle',
+VicsekParticleComponent = ElementComponent.define(
+    'VicsekParticleComponent',
     states=FLOCKER_STATES,
     parameters={
-        'v0': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_vicsek_laws,
 )
 
-CohesiveParticle = Element.define(
-    'CohesiveParticle',
+CohesiveParticleComponent = ElementComponent.define(
+    'CohesiveParticleComponent',
     states=FLOCKER_STATES,
     parameters={
-        'v0': parameter(default=0.05, domain=Domain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'alpha': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'r_c': parameter(default=CLOSE, domain=Domain.POSITIVE),
-        'r_e': parameter(default=0.5, domain=Domain.POSITIVE),
-        'r_a': parameter(default=0.8, domain=Domain.POSITIVE),
+        'v0': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
+        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'alpha': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'r_c': parameter(default=CLOSE, domain=NumericDomain.POSITIVE),
+        'r_e': parameter(default=0.5, domain=NumericDomain.POSITIVE),
+        'r_a': parameter(default=0.8, domain=NumericDomain.POSITIVE),
     },
     laws=_cohesive_laws,
 )
 
-NematicParticle = Element.define(
-    'NematicParticle',
+NematicParticleComponent = ElementComponent.define(
+    'NematicParticleComponent',
     states=FLOCKER_STATES,
     parameters={
-        'v0': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'eta': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'eta': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_nematic_laws,
 )
 
 
-def _flock(element: type[Element], n_particles: int, size: float, seed: int, **values: float) -> System:
+def _flock(element: type[ElementComponent], n_particles: int, size: float, seed: int, **values: float) -> System:
     """Return flockers of a type at uniform positions and headings in a periodic box, under discrete time."""
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
@@ -153,7 +153,7 @@ def _flock(element: type[Element], n_particles: int, size: float, seed: int, **v
         'theta': rng.uniform(-math.pi, math.pi, n_particles),
         **values,
     }
-    flock = Group('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+    flock = GroupComponent('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(components=[flock], space=ContinuousSpace(size, size, boundary='periodic'), time=DiscreteTime())
 
 
@@ -206,7 +206,7 @@ def vicsek(
         >>> vicsek(10).components[0].size
         10
     """
-    return _flock(VicsekParticle, n_particles, size, seed, v0=v0, eta=eta)
+    return _flock(VicsekParticleComponent, n_particles, size, seed, v0=v0, eta=eta)
 
 
 @register_model(
@@ -267,7 +267,7 @@ def gregoire_chate(
         >>> gregoire_chate(10, beta=2.0).components[0].values['beta']
         2.0
     """
-    return _flock(CohesiveParticle, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
+    return _flock(CohesiveParticleComponent, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
 
 
 @register_model(
@@ -319,4 +319,4 @@ def ginelli_nematics(
         >>> ginelli_nematics(10).components[0].values['eta']
         0.08
     """
-    return _flock(NematicParticle, n_particles, size, seed, v0=v0, eta=eta)
+    return _flock(NematicParticleComponent, n_particles, size, seed, v0=v0, eta=eta)

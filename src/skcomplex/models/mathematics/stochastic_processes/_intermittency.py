@@ -5,18 +5,21 @@
 
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Noise, Rate
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import Heun
+from ....engine.solvers import HeunSolver
 
-IntermittentVariable = Element.define(
-    'IntermittentVariable',
-    states={'x': state(default=1.0, domain=Domain.POSITIVE)},
-    parameters={'epsilon': 0.0, 'D': parameter(default=0.5, domain=Domain.POSITIVE)},
-    laws=lambda s: [Rate(s.x, s.epsilon * s.x - s.x**3), Noise(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich')],
+IntermittentVariableComponent = ElementComponent.define(
+    'IntermittentVariableComponent',
+    states={'x': state(default=1.0, domain=NumericDomain.POSITIVE)},
+    parameters={'epsilon': 0.0, 'D': parameter(default=0.5, domain=NumericDomain.POSITIVE)},
+    laws=lambda s: [
+        RateLaw(s.x, s.epsilon * s.x - s.x**3),
+        NoiseLaw(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich'),
+    ],
 )
 
 
@@ -24,7 +27,7 @@ IntermittentVariable = Element.define(
     field='mathematics/stochastic_processes',
     tags=('noise', 'sde', 'multiplicative noise', 'intermittency', 'bifurcation'),
     references=('Bertin 2021', 'Platt, Spiegel, and Tresser 1993', 'Heagy, Platt, and Hammel 1994'),
-    defaults={'until': 500.0, 'dt': 0.1, 'solver': Heun(dt=0.01)},
+    defaults={'until': 500.0, 'dt': 0.1, 'solver': HeunSolver(dt=0.01)},
 )
 def on_off_intermittency(
     n_realizations: int = 20,
@@ -62,5 +65,5 @@ def on_off_intermittency(
         >>> on_off_intermittency(5).components[0].size
         5
     """
-    variables = IntermittentVariable.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
+    variables = IntermittentVariableComponent.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
     return System(components=[variables])

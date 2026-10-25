@@ -5,27 +5,27 @@
 
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Rate, derivative
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-GridNode = Element.define(
-    'GridNode',
+GridNodeComponent = ElementComponent.define(
+    'GridNodeComponent',
     states={'phi': state(default=0.0, order=2)},
-    parameters={'P': 1.0, 'gamma': parameter(default=0.1, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.phi, s.P - s.gamma * derivative(s.phi, 1))],
+    parameters={'P': 1.0, 'gamma': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))],
 )
 
-TransmissionLine = Interaction.define(
-    'TransmissionLine',
+TransmissionLineInteraction = BaseInteraction.define(
+    'TransmissionLineInteraction',
     roles=['first', 'second'],
-    parameters={'K': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
+    parameters={'K': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Rate(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),
-        Rate(s.second.phi, s.K * sin(s.first.phi - s.second.phi)),
+        RateLaw(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),
+        RateLaw(s.second.phi, s.K * sin(s.first.phi - s.second.phi)),
     ],
 )
 
@@ -82,13 +82,19 @@ def power_grid(
         9
     """
     elements = [
-        GridNode(f'node_{index}', phi=0.0, phi_d1=0.0, P=power if index < n_nodes // 2 else -power, gamma=gamma)
+        GridNodeComponent(
+            f'node_{index}',
+            phi=0.0,
+            phi_d1=0.0,
+            P=power if index < n_nodes // 2 else -power,
+            gamma=gamma,
+        )
         for index in range(n_nodes)
     ]
     pairs = [(index, (index + 1) % n_nodes) for index in range(n_nodes)]
     doubled = None if doubled_line is None else frozenset(doubled_line)
     interactions = [
-        TransmissionLine(
+        TransmissionLineInteraction(
             f'line_{first}_{second}',
             first=f'node_{first}',
             second=f'node_{second}',
@@ -99,6 +105,6 @@ def power_grid(
     if added_line is not None:
         first, second = added_line
         interactions.append(
-            TransmissionLine(f'line_{first}_{second}', first=f'node_{first}', second=f'node_{second}', K=K),
+            TransmissionLineInteraction(f'line_{first}_{second}', first=f'node_{first}', second=f'node_{second}', K=K),
         )
     return System(components=elements, interactions=interactions)

@@ -8,21 +8,21 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Update
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.experiments import (
     Experiment,
-    Grid,
+    GridDesign,
 )
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.biology.epidemiology import sir
 
-LogisticMap = Element.define(
-    'LogisticMap',
+LogisticMapComponent = ElementComponent.define(
+    'LogisticMapComponent',
     states={'x': state(default=0.2)},
     parameters={'r': 3.0},
-    laws=lambda s: [Update(s.x, s.r * s.x * (1 - s.x))],
+    laws=lambda s: [UpdateLaw(s.x, s.r * s.x * (1 - s.x))],
 )
 
 
@@ -41,15 +41,15 @@ orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2
 
 def test_factory_and_system_give_same_run():
     """Test that factory arguments and dotted paths of a built system give the same run."""
-    by_argument = Experiment(logistic_growth, Grid(r=[0.7]), until=10, outputs=['population.n']).run()
-    by_path = Experiment(logistic_growth(), Grid(**{'growth.r': [0.7]}), until=10, outputs=['population.n']).run()
+    by_argument = Experiment(logistic_growth, GridDesign(r=[0.7]), until=10, outputs=['population.n']).run()
+    by_path = Experiment(logistic_growth(), GridDesign(**{'growth.r': [0.7]}), until=10, outputs=['population.n']).run()
     assert np.array_equal(by_argument.series('population.n'), by_path.series('population.n'))
 
 
 @pytest.mark.slow
 def test_ensemble_is_reproducible_across_executors():
     """Test that 20 stochastic runs with seed 7 give identical results serially and on four processes."""
-    design = Grid(stochastic=[True])
+    design = GridDesign(stochastic=[True])
     serial = Experiment(sir, design, replicates=20, until=50, outputs=['I.n'], random_state=7).run()
     parallel = Experiment(
         sir,
@@ -65,15 +65,22 @@ def test_ensemble_is_reproducible_across_executors():
 
 def test_replicates_are_independent():
     """Test that no two of 20 stochastic replicates have identical trajectories."""
-    result = Experiment(sir, Grid(stochastic=[True]), replicates=20, until=50, outputs=['I.n'], random_state=7).run()
+    result = Experiment(
+        sir,
+        GridDesign(stochastic=[True]),
+        replicates=20,
+        until=50,
+        outputs=['I.n'],
+        random_state=7,
+    ).run()
     assert len({tuple(series) for series in result.series('I.n')}) == 20
 
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = System(components=[LogisticMap('map')])
+    system = System(components=[LogisticMapComponent('map')])
     rates = np.linspace(2.8, 4.0, 200)
-    result = Experiment(system, Grid(**{'map.r': rates}), until=400, warmup=301, outputs=['map.x']).run()
+    result = Experiment(system, GridDesign(**{'map.r': rates}), until=400, warmup=301, outputs=['map.x']).run()
     assert len(result.rows) == 200
     assert result.column('map.r').tolist() == rates.tolist()
     assert result.series('map.x').shape == (200, 100)
@@ -83,7 +90,7 @@ def test_summary_across_replicates():
     """Test that the summary gives the mean, standard deviation, and quantiles per design row and scenario."""
     result = Experiment(
         sir,
-        Grid(stochastic=[True], gamma=[0.1, 0.2]),
+        GridDesign(stochastic=[True], gamma=[0.1, 0.2]),
         replicates=5,
         until=30,
         outputs=[last_value],
@@ -102,7 +109,7 @@ def test_summary_across_replicates():
 def test_unknown_path_is_rejected():
     """Test that an override of a path that is neither a state nor a parameter names the available paths."""
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
-        Experiment('logistic_growth', Grid(**{'growth.rate': [1.0]}), until=1).run()
+        Experiment('logistic_growth', GridDesign(**{'growth.rate': [1.0]}), until=1).run()
 
 
 @pytest.mark.slow

@@ -7,16 +7,16 @@
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, total
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, total
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-class DegreeClass(Element):
+class DegreeClassComponent(ElementComponent):
     """Infected density of the nodes of one degree of a network, in heterogeneous mean field.
 
     A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
@@ -40,17 +40,17 @@ class DegreeClass(Element):
             The probability `P(k)` of the degree.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import DegreeClass
-        >>> DegreeClass.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).size
+        >>> from skcomplex.models.biology.epidemiology import DegreeClassComponent
+        >>> DegreeClassComponent.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).size
         2
     """
 
-    rho: float = state(default=0.01, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    P: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    rho: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    P: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the recovery and the infection along edges of the class.
 
         Args:
@@ -62,10 +62,10 @@ class DegreeClass(Element):
                 The laws of the component.
         """
         theta = total(s.k * s.P * s.rho) / total(s.k * s.P)
-        return [Rate(s.rho, -s.rho + s.lam * s.k * (1 - s.rho) * theta)]
+        return [RateLaw(s.rho, -s.rho + s.lam * s.k * (1 - s.rho) * theta)]
 
 
-class Subpopulation(Element):
+class SubpopulationComponent(ElementComponent):
     """Well-mixed SIR population at a node of a network, whose individuals hop along each edge at the rate `D`.
 
     Inside the node, `beta S I / N` individuals are infected and `gamma I` recover per unit time, with
@@ -94,19 +94,19 @@ class Subpopulation(Element):
             The rate at which an individual hops along one edge.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Subpopulation
-        >>> Subpopulation('city', S=1000.0).beta
+        >>> from skcomplex.models.biology.epidemiology import SubpopulationComponent
+        >>> SubpopulationComponent('city', S=1000.0).beta
         0.3
     """
 
-    S: float = state(default=1000.0, domain=Domain.NONNEGATIVE)
-    I: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    D: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    S: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    I: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    D: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the infections, recoveries, and hops of the node.
 
         Args:
@@ -120,9 +120,9 @@ class Subpopulation(Element):
         infections = s.beta * s.S * s.I / (s.S + s.I + s.R)
         recoveries = s.gamma * s.I
         return [
-            Rate(s.S, -infections + s.D * laplacian(s.S)),
-            Rate(s.I, infections - recoveries + s.D * laplacian(s.I)),
-            Rate(s.R, recoveries + s.D * laplacian(s.R)),
+            RateLaw(s.S, -infections + s.D * laplacian(s.S)),
+            RateLaw(s.I, infections - recoveries + s.D * laplacian(s.I)),
+            RateLaw(s.R, recoveries + s.D * laplacian(s.R)),
         ]
 
 
@@ -173,7 +173,7 @@ def heterogeneous_mean_field_sis(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = DegreeClass.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
+    classes = DegreeClassComponent.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
     return System(components=[classes])
 
 
@@ -238,4 +238,4 @@ def metapopulation(
         'gamma': gamma,
         'D': D,
     }
-    return System(components=[Field('cities', Subpopulation, NetworkSpace(graph), values=values)])
+    return System(components=[FieldComponent('cities', SubpopulationComponent, NetworkSpace(graph), values=values)])

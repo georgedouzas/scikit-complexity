@@ -3,12 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Objective, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Objective, RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.control import Pontryagin
+from ....formalisms.control import PontryaginSolver
 
 MAX_RATE = 0.9
 
@@ -20,7 +20,7 @@ def _vaccinated(s: Symbols) -> Expression:
     return vaccinated
 
 
-class VaccinatedPopulation(Element):
+class VaccinatedPopulationComponent(ElementComponent):
     """Susceptible, infected, and recovered fractions of a population vaccinated at a bounded rate.
 
     The fractions follow `S' = -beta S I - u S`, `I' = beta S I - gamma I`, and `R' = gamma I + u S`, where the
@@ -56,21 +56,21 @@ class VaccinatedPopulation(Element):
             The weight of the squared vaccination rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import VaccinatedPopulation
-        >>> VaccinatedPopulation('population', I=0.01).I
+        >>> from skcomplex.models.biology.epidemiology import VaccinatedPopulationComponent
+        >>> VaccinatedPopulationComponent('population', I=0.01).I
         0.01
     """
 
-    S: float = state(default=0.99, domain=Domain.NONNEGATIVE)
-    I: float = state(default=0.01, domain=Domain.NONNEGATIVE)
-    R: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    S: float = state(default=0.99, domain=NumericDomain.NONNEGATIVE)
+    I: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    R: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     u: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_RATE))
-    beta: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    beta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the flows between the fractions and the cost of the epidemic.
 
         Args:
@@ -83,9 +83,9 @@ class VaccinatedPopulation(Element):
         """
         infection, recovery, vaccination = s.beta * s.S * s.I, s.gamma * s.I, s.u * s.S
         return [
-            Rate(s.S, -infection - vaccination),
-            Rate(s.I, infection - recovery),
-            Rate(s.R, recovery + vaccination),
+            RateLaw(s.S, -infection - vaccination),
+            RateLaw(s.I, infection - recovery),
+            RateLaw(s.R, recovery + vaccination),
             Objective(s.a * s.I + s.b * s.u**2 / 2, label='cost'),
         ]
 
@@ -94,7 +94,7 @@ class VaccinatedPopulation(Element):
     field='biology/epidemiology',
     tags=('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode'),
     references=('Lenhart and Workman 2007',),
-    defaults={'until': 30.0, 'dt': 0.2, 'solver': Pontryagin()},
+    defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver()},
     observables=lambda system: [Observable('vaccinated', _vaccinated)],
 )
 def sir_vaccination(
@@ -141,5 +141,14 @@ def sir_vaccination(
         >>> sir_vaccination(beta=0.3).components[0].beta
         0.3
     """
-    population = VaccinatedPopulation('population', S=S, I=I, R=max(1 - S - I, 0.0), beta=beta, gamma=gamma, a=a, b=b)
+    population = VaccinatedPopulationComponent(
+        'population',
+        S=S,
+        I=I,
+        R=max(1 - S - I, 0.0),
+        beta=beta,
+        gamma=gamma,
+        a=a,
+        b=b,
+    )
     return System(components=[population])

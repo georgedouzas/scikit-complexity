@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class TcrGeneTherapy(Element):
+class TcrGeneTherapyComponent(ElementComponent):
     """Effector cells and tumour cells under a gene therapy that makes the T cells express a tumour receptor.
 
     The effector cells follow `dE/dt = s + alpha A - d1 E + r1 E / (E + g1)` and the tumour cells
@@ -57,24 +57,24 @@ class TcrGeneTherapy(Element):
             The half-saturation constant of the kill.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TcrGeneTherapy
-        >>> TcrGeneTherapy('site').r2
+        >>> from skcomplex.models.biology.oncology import TcrGeneTherapyComponent
+        >>> TcrGeneTherapyComponent('site').r2
         0.18
     """
 
-    E: float = state(default=1e3, domain=Domain.NONNEGATIVE)
-    A: float = state(default=1e3, domain=Domain.NONNEGATIVE)
-    s: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.03, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.1245, domain=Domain.NONNEGATIVE)
-    g1: float = parameter(default=1e-3, domain=Domain.POSITIVE)
-    r2: float = parameter(default=0.18, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1e-9, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    g2: float = parameter(default=1e5, domain=Domain.POSITIVE)
+    E: float = state(default=1e3, domain=NumericDomain.NONNEGATIVE)
+    A: float = state(default=1e3, domain=NumericDomain.NONNEGATIVE)
+    s: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.1245, domain=NumericDomain.NONNEGATIVE)
+    g1: float = parameter(default=1e-3, domain=NumericDomain.POSITIVE)
+    r2: float = parameter(default=0.18, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1e-9, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    g2: float = parameter(default=1e5, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the recruitment of effector cells and the logistic growth and immune kill of tumour cells.
 
         Args:
@@ -87,12 +87,12 @@ class TcrGeneTherapy(Element):
         """
         E, A = s.E, s.A
         return [
-            Rate(E, s.s + s.alpha * A - s.d1 * E + s.r1 * E / (E + s.g1)),
-            Rate(A, s.r2 * A * (1 - s.b * A) - s.a * E * A / (A + s.g2)),
+            RateLaw(E, s.s + s.alpha * A - s.d1 * E + s.r1 * E / (E + s.g1)),
+            RateLaw(A, s.r2 * A * (1 - s.b * A) - s.a * E * A / (A + s.g2)),
         ]
 
 
-class SirnaTgfBeta(Element):
+class SirnaTgfBetaComponent(ElementComponent):
     """Effector cells, tumour cells, IL-2, TGF-beta, and the siRNA that silences the production of TGF-beta.
 
     The model extends Kirschner and Panetta. TGF-beta lowers the recruitment and the IL-2 driven proliferation of
@@ -191,42 +191,42 @@ class SirnaTgfBeta(Element):
             The decay rate of siRNA.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import SirnaTgfBeta
-        >>> SirnaTgfBeta('site').rho4
+        >>> from skcomplex.models.biology.oncology import SirnaTgfBetaComponent
+        >>> SirnaTgfBetaComponent('site').rho4
         300000000.0
     """
 
-    E: float = state(default=1e3, domain=Domain.NONNEGATIVE)
-    A: float = state(default=1e3, domain=Domain.NONNEGATIVE)
-    C1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    C2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    G: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.035, domain=Domain.NONNEGATIVE)
-    gamma1: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.03, domain=Domain.NONNEGATIVE)
-    g1: float = parameter(default=2e7, domain=Domain.POSITIVE)
-    rho1: float = parameter(default=0.1245, domain=Domain.NONNEGATIVE)
-    rmax: float = parameter(default=0.1121, domain=Domain.NONNEGATIVE)
-    g2: float = parameter(default=2e6, domain=Domain.POSITIVE)
-    r1: float = parameter(default=0.18, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1e-9, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    g3: float = parameter(default=1e5, domain=Domain.POSITIVE)
-    rho2: float = parameter(default=0.27, domain=Domain.NONNEGATIVE)
-    g4: float = parameter(default=2e7, domain=Domain.POSITIVE)
-    rho3: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    g5: float = parameter(default=1e3, domain=Domain.POSITIVE)
-    gamma2: float = parameter(default=1e-3, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    rho4: float = parameter(default=3e8, domain=Domain.NONNEGATIVE)
-    mu: float = parameter(default=1e6, domain=Domain.POSITIVE)
-    psi: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    gamma3: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d3: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    u: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    du: float = parameter(default=0.66, domain=Domain.NONNEGATIVE)
+    E: float = state(default=1e3, domain=NumericDomain.NONNEGATIVE)
+    A: float = state(default=1e3, domain=NumericDomain.NONNEGATIVE)
+    C1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    C2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    G: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.035, domain=NumericDomain.NONNEGATIVE)
+    gamma1: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    g1: float = parameter(default=2e7, domain=NumericDomain.POSITIVE)
+    rho1: float = parameter(default=0.1245, domain=NumericDomain.NONNEGATIVE)
+    rmax: float = parameter(default=0.1121, domain=NumericDomain.NONNEGATIVE)
+    g2: float = parameter(default=2e6, domain=NumericDomain.POSITIVE)
+    r1: float = parameter(default=0.18, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1e-9, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    g3: float = parameter(default=1e5, domain=NumericDomain.POSITIVE)
+    rho2: float = parameter(default=0.27, domain=NumericDomain.NONNEGATIVE)
+    g4: float = parameter(default=2e7, domain=NumericDomain.POSITIVE)
+    rho3: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    g5: float = parameter(default=1e3, domain=NumericDomain.POSITIVE)
+    gamma2: float = parameter(default=1e-3, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    rho4: float = parameter(default=3e8, domain=NumericDomain.NONNEGATIVE)
+    mu: float = parameter(default=1e6, domain=NumericDomain.POSITIVE)
+    psi: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    gamma3: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d3: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    u: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    du: float = parameter(default=0.66, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of the effector cells, the tumour, the two cytokines, and the siRNA.
 
         Args:
@@ -241,15 +241,15 @@ class SirnaTgfBeta(Element):
         proliferation = E * C1 / (s.g1 + C1) * (s.rho1 - s.rmax * C2 / (s.g2 + C2))
         silencing = 1 + s.psi * G**s.gamma3
         return [
-            Rate(E, s.alpha * A / (1 + s.gamma1 * C2) - s.d1 * E + proliferation),
-            Rate(A, s.r1 * A * (1 - s.b * A) - s.a1 * E * A / (s.g3 + A) + s.rho2 * C2 * A / (s.g4 + C2)),
-            Rate(C1, s.rho3 * E * A / ((s.g5 + A) * (1 + s.gamma2 * C2)) - s.d2 * C1),
-            Rate(C2, s.rho4 * A**2 / (s.mu**2 + silencing * A**2) - s.d3 * C2),
-            Rate(G, s.u - s.du * G),
+            RateLaw(E, s.alpha * A / (1 + s.gamma1 * C2) - s.d1 * E + proliferation),
+            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.a1 * E * A / (s.g3 + A) + s.rho2 * C2 * A / (s.g4 + C2)),
+            RateLaw(C1, s.rho3 * E * A / ((s.g5 + A) * (1 + s.gamma2 * C2)) - s.d2 * C1),
+            RateLaw(C2, s.rho4 * A**2 / (s.mu**2 + silencing * A**2) - s.d3 * C2),
+            RateLaw(G, s.u - s.du * G),
         ]
 
 
-class OncolyticVirus(Element):
+class OncolyticVirusComponent(ElementComponent):
     """Uninfected and infected tumour cells that share a carrying capacity, with infection by mass action.
 
     In units of the carrying capacity and of the growth time of uninfected cells, the uninfected cells follow
@@ -275,18 +275,18 @@ class OncolyticVirus(Element):
             The death rate of infected cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OncolyticVirus
-        >>> OncolyticVirus('tumour').alpha
+        >>> from skcomplex.models.biology.oncology import OncolyticVirusComponent
+        >>> OncolyticVirusComponent('tumour').alpha
         1.0
     """
 
-    AU: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    AV: float = state(default=1e-4, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    r: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    d: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    AU: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    AV: float = state(default=1e-4, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    d: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the shared logistic growth and the infection of the tumour cells.
 
         Args:
@@ -300,10 +300,10 @@ class OncolyticVirus(Element):
         AU, AV = s.AU, s.AV
         room = 1 - AU - AV
         infection = s.alpha * AU * AV
-        return [Rate(AU, AU * room - infection), Rate(AV, s.r * AV * room + infection - s.d * AV)]
+        return [RateLaw(AU, AU * room - infection), RateLaw(AV, s.r * AV * room + infection - s.d * AV)]
 
 
-class OncolyticVirusDendritic(Element):
+class OncolyticVirusDendriticComponent(ElementComponent):
     """Tumour cells, an oncolytic adenovirus, activated and naive T cells, and injected dendritic cells.
 
     The uninfected cells grow at the rate `r1` and the virus infects them at the rate `alpha AU V / Atot`, where
@@ -382,35 +382,35 @@ class OncolyticVirusDendritic(Element):
             The injection rate of dendritic cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OncolyticVirusDendritic
-        >>> OncolyticVirusDendritic('site').r2
+        >>> from skcomplex.models.biology.oncology import OncolyticVirusDendriticComponent
+        >>> OncolyticVirusDendriticComponent('site').r2
         3500.0
     """
 
-    AU: float = state(default=60.0, domain=Domain.NONNEGATIVE)
-    AV: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    V: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    E: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    EN: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    D: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.3198, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.00100854, domain=Domain.NONNEGATIVE)
-    a0: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=5.954e-7, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=3500.0, domain=Domain.NONNEGATIVE)
-    du1: float = parameter(default=2.3, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=1.6984, domain=Domain.NONNEGATIVE)
-    m: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    a4: float = parameter(default=4.6754, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.35, domain=Domain.NONNEGATIVE)
-    a5: float = parameter(default=0.22, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.35, domain=Domain.NONNEGATIVE)
-    du2: float = parameter(default=0.35, domain=Domain.NONNEGATIVE)
-    uv: float = parameter(default=2.5e9, domain=Domain.NONNEGATIVE)
-    ud: float = parameter(default=1e6, domain=Domain.NONNEGATIVE)
+    AU: float = state(default=60.0, domain=NumericDomain.NONNEGATIVE)
+    AV: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    V: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    E: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    EN: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    D: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.3198, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.00100854, domain=NumericDomain.NONNEGATIVE)
+    a0: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=5.954e-7, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=3500.0, domain=NumericDomain.NONNEGATIVE)
+    du1: float = parameter(default=2.3, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=1.6984, domain=NumericDomain.NONNEGATIVE)
+    m: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    a4: float = parameter(default=4.6754, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.35, domain=NumericDomain.NONNEGATIVE)
+    a5: float = parameter(default=0.22, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.35, domain=NumericDomain.NONNEGATIVE)
+    du2: float = parameter(default=0.35, domain=NumericDomain.NONNEGATIVE)
+    uv: float = parameter(default=2.5e9, domain=NumericDomain.NONNEGATIVE)
+    ud: float = parameter(default=1e6, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the infection, the immune kill, the virus, and the three immune populations.
 
         Args:
@@ -426,12 +426,12 @@ class OncolyticVirusDendritic(Element):
         infection = s.alpha * AU * V / total
         kill = (s.a0 + s.a1 * AV) * E / total
         return [
-            Rate(AU, s.r1 * AU - infection - kill * AU),
-            Rate(AV, infection - s.a2 * AV - kill * AV),
-            Rate(V, s.uv + s.r2 * s.a2 * AV - s.du1 * V),
-            Rate(E, s.a3 * AV + s.m * EN + s.a4 * D - s.d1 * E),
-            Rate(EN, s.a5 * AV - s.d2 * EN),
-            Rate(D, s.ud - s.du2 * D),
+            RateLaw(AU, s.r1 * AU - infection - kill * AU),
+            RateLaw(AV, infection - s.a2 * AV - kill * AV),
+            RateLaw(V, s.uv + s.r2 * s.a2 * AV - s.du1 * V),
+            RateLaw(E, s.a3 * AV + s.m * EN + s.a4 * D - s.d1 * E),
+            RateLaw(EN, s.a5 * AV - s.d2 * EN),
+            RateLaw(D, s.ud - s.du2 * D),
         ]
 
 
@@ -505,7 +505,7 @@ def tcr_gene_therapy(
         >>> tcr_gene_therapy().elements[0].g2
         100000.0
     """
-    site = TcrGeneTherapy('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
+    site = TcrGeneTherapyComponent('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
     return System(components=[site])
 
 
@@ -571,7 +571,7 @@ def sirna_tgf_beta(
         >>> sirna_tgf_beta(u=1e6).elements[0].u
         1000000.0
     """
-    site = SirnaTgfBeta('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
+    site = SirnaTgfBetaComponent('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
     return System(components=[site])
 
 
@@ -615,14 +615,14 @@ def oncolytic_virus(AU: float = 0.1, AV: float = 1e-4, *, alpha: float = 1.0, r:
         >>> oncolytic_virus(alpha=1.5).elements[0].alpha
         1.5
     """
-    return System(components=[OncolyticVirus('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
+    return System(components=[OncolyticVirusComponent('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
 
 
 @register_model(
     field='biology/oncology',
     tags=('virotherapy', 'immunotherapy', 'dendritic cells', 'ode'),
     references=(BOOK, 'Wares et al. 2015'),
-    defaults={'until': 30.0, 'dt': 0.1, 'solver': ScipyODE(method='LSODA')},
+    defaults={'until': 30.0, 'dt': 0.1, 'solver': ScipyODESolver(method='LSODA')},
 )
 def oncolytic_virus_dendritic(
     AU: float = 60.0,
@@ -672,4 +672,4 @@ def oncolytic_virus_dendritic(
         >>> oncolytic_virus_dendritic(ud=0.0).elements[0].ud
         0.0
     """
-    return System(components=[OncolyticVirusDendritic('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])
+    return System(components=[OncolyticVirusDendriticComponent('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])

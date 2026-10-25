@@ -6,10 +6,10 @@ from skcomplex.core.base import SimulationError
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.realizations import (
-    Institution,
+    InstitutionInteraction,
 )
 
-from .conftest import Trader
+from .conftest import TraderComponent
 
 
 def _report_total(model):
@@ -19,7 +19,10 @@ def _report_total(model):
 
 def test_undeclared_report_raises():
     """Reporting a name the owner does not declare raises an error."""
-    system = System(components=[Trader.group('traders', 1)], interactions=[Institution('reader', rule=_report_total)])
+    system = System(
+        components=[TraderComponent.group('traders', 1)],
+        interactions=[InstitutionInteraction('reader', rule=_report_total)],
+    )
     with pytest.raises(SimulationError, match='declare'):
         Simulation(system).run(until=1)
 
@@ -27,7 +30,7 @@ def test_undeclared_report_raises():
 def test_observable_and_set_parameter_by_view():
     """Institutions read observables and reject unknown parameters."""
 
-    class Reader(Institution):
+    class ReaderInteraction(InstitutionInteraction):
         reports = ('total',)
 
         def act(self, model):
@@ -36,8 +39,8 @@ def test_observable_and_set_parameter_by_view():
                 model.set_parameter('missing', 1.0)
 
     system = System(
-        components=[Trader.group('traders', 4, money=2.0)],
-        interactions=[Reader('reader')],
+        components=[TraderComponent.group('traders', 4, money=2.0)],
+        interactions=[ReaderInteraction('reader')],
     )
     observables = [Observable('wealth', group='traders', variable='money', reduce='sum')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=2).trajectory_

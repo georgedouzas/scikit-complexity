@@ -6,17 +6,17 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import role, state
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import Match, Phase, Phases, Rule, matches
+from skcomplex.formalisms.agents import MatchLaw, Phase, PhasesSchedule, RuleLaw, matches
 from skcomplex.models.economics.realizations import (
     BilateralSearch,
     CallAuction,
     DeferredAcceptance,
-    Market,
+    MarketInteraction,
     Order,
     OrderBook,
     RationedQueue,
@@ -24,7 +24,7 @@ from skcomplex.models.economics.realizations import (
     Walrasian,
 )
 
-from .conftest import Trader
+from .conftest import TraderComponent
 
 
 def _orders(limits, budgets=None):
@@ -54,32 +54,32 @@ def _zero_intelligence(n_traders, rng):
     values = rng.uniform(50, 200, n_traders)
     costs = rng.uniform(0, 150, n_traders)
 
-    class Buyer(Trader):
+    class BuyerComponent(TraderComponent):
         def laws(self, s):
-            return [Rule(self.quote, phase='quote')]
+            return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
             agent.bid = model.rng.uniform(0, agent.value) if agent.demand > 0 else 0.0
 
-    class Seller(Trader):
+    class SellerComponent(TraderComponent):
         def laws(self, s):
-            return [Rule(self.quote, phase='quote')]
+            return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
             agent.ask = model.rng.uniform(agent.value, 200) if agent.supply > 0 else 200.0
 
-    buyers = Buyer.group('buyers', n_traders, value=values, demand=1.0, money=values)
-    sellers = Seller.group('sellers', n_traders, value=costs, supply=1.0)
-    market = Market('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='clear')
+    buyers = BuyerComponent.group('buyers', n_traders, value=values, demand=1.0, money=values)
+    sellers = SellerComponent.group('sellers', n_traders, value=costs, supply=1.0)
+    market = MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='clear')
     system = System(
         components=[buyers, sellers],
         interactions=[market],
-        time=DiscreteTime(schedule=Phases([Phase('quote'), Phase('clear')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('quote'), Phase('clear')])),
     )
     return values, costs, system
 
 
-class LimitTrader(Element):
+class LimitTraderComponent(ElementComponent):
     """Trader with a limit price on both sides of the book."""
 
     bid: float = state(0.0)
@@ -90,7 +90,7 @@ class LimitTrader(Element):
         return []
 
 
-class Book(Interaction):
+class BookInteraction(BaseInteraction):
     """Interaction that pairs buyers with sellers by an order book and records the pairs."""
 
     buyers: str = role()
@@ -98,7 +98,10 @@ class Book(Interaction):
 
     def laws(self, s):
         """Return the matching and the rule that records it."""
-        return [Match('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'), Rule(self.record)]
+        return [
+            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'),
+            RuleLaw(self.record),
+        ]
 
     def record(self, model):
         """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
@@ -215,8 +218,11 @@ def test_order_book_is_a_pairing_of_the_matching_law():
     PAIRS.clear()
     EARLIEST.clear()
     system = System(
-        components=[LimitTrader.group('buyers', 1, bid=10.0), LimitTrader.group('sellers', 2, ask=10.0)],
-        interactions=[Book('book', buyers='buyers', sellers='sellers')],
+        components=[
+            LimitTraderComponent.group('buyers', 1, bid=10.0),
+            LimitTraderComponent.group('sellers', 2, ask=10.0),
+        ],
+        interactions=[BookInteraction('book', buyers='buyers', sellers='sellers')],
     )
     Simulation(system).run(1)
     assert len(PAIRS) == 1

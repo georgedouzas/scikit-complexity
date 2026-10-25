@@ -7,18 +7,18 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-class Diner(Element):
+class DinerComponent(ElementComponent):
     """Diner of the Kolkata Paise Restaurant problem, who picks a restaurant at random every evening.
 
     Args:
@@ -38,17 +38,17 @@ class Diner(Element):
             The number of restaurants.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Diner
-        >>> Diner.group('diners', 10, restaurants=10.0).size
+        >>> from skcomplex.models.economics.econophysics import DinerComponent
+        >>> DinerComponent.group('diners', 10, restaurants=10.0).size
         10
     """
 
-    restaurant: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    crowd: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    served: float = state(default=0.0, domain=Domain.BOOLEAN)
-    restaurants: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    restaurant: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    crowd: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    served: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    restaurants: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the choice rule.
 
         Args:
@@ -59,7 +59,7 @@ class Diner(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.choose)]
+        return [RuleLaw(self.choose)]
 
     def choose(self, agent: AgentView, model: ModelView) -> None:
         """Choose a restaurant uniformly at random.
@@ -74,7 +74,7 @@ class Diner(Element):
         agent.restaurant = float(model.rng.integers(int(agent.restaurants)))
 
 
-class CrowdAvoidingDiner(Diner):
+class CrowdAvoidingDinerComponent(DinerComponent):
     """Diner of the stochastic crowd avoiding strategy, who leaves crowded restaurants.
 
     A diner returns to last evening's restaurant with probability `1 / n`, with `n` the crowd it found there, and
@@ -97,8 +97,8 @@ class CrowdAvoidingDiner(Diner):
             The number of restaurants.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDiner
-        >>> CrowdAvoidingDiner.group('diners', 10, restaurants=10.0).size
+        >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDinerComponent
+        >>> CrowdAvoidingDinerComponent.group('diners', 10, restaurants=10.0).size
         10
     """
 
@@ -119,7 +119,7 @@ class CrowdAvoidingDiner(Diner):
             agent.restaurant = float(other + (other >= agent.restaurant))
 
 
-class Restaurants(Interaction):
+class RestaurantsInteraction(BaseInteraction):
     """Restaurants that each serve one of the diners who come, chosen at random, every evening.
 
     Args:
@@ -136,8 +136,8 @@ class Restaurants(Interaction):
                 The path of the group of diners.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Restaurants
-        >>> Restaurants('restaurants', diners='diners', n_restaurants=5).n_restaurants
+        >>> from skcomplex.models.economics.econophysics import RestaurantsInteraction
+        >>> RestaurantsInteraction('restaurants', diners='diners', n_restaurants=5).n_restaurants
         5
     """
 
@@ -154,7 +154,7 @@ class Restaurants(Interaction):
         super().__init__(label, **values)
         self.n_restaurants = n_restaurants
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the serving rule.
 
         Args:
@@ -165,7 +165,7 @@ class Restaurants(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.serve)]
+        return [RuleLaw(self.serve)]
 
     def serve(self, model: ModelView) -> None:
         """Serve one random diner per visited restaurant and report the fraction of restaurants that serve.
@@ -229,14 +229,14 @@ def kolkata_restaurant(
     Examples:
         >>> from skcomplex.models.economics.econophysics import kolkata_restaurant
         >>> kolkata_restaurant(10, strategy='crowd_avoiding').elements[0].element.__name__
-        'CrowdAvoidingDiner'
+        'CrowdAvoidingDinerComponent'
     """
     if strategy not in STRATEGIES:
         error_msg = f'Unknown strategy {strategy!r}. Use one of {STRATEGIES}.'
         raise ValueError(error_msg)
     n_restaurants = n_agents if n_restaurants is None else n_restaurants
-    diner = CrowdAvoidingDiner if strategy == 'crowd_avoiding' else Diner
+    diner = CrowdAvoidingDinerComponent if strategy == 'crowd_avoiding' else DinerComponent
     choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
     diners = diner.group('diners', n_agents, restaurant=choices, restaurants=float(n_restaurants))
-    restaurants = Restaurants('restaurants', diners='diners', n_restaurants=n_restaurants)
+    restaurants = RestaurantsInteraction('restaurants', diners='diners', n_restaurants=n_restaurants)
     return System(components=[diners], interactions=[restaurants])

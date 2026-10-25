@@ -254,10 +254,10 @@ def equations_of(system: System) -> dict[str, Expression]:
     Examples:
         >>> from skcomplex.engine.analysis import equations_of
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
         >>> system = System(
-        ...     components=[Population('rabbits', n=10)],
-        ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+        ...     components=[PopulationComponent('rabbits', n=10)],
+        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> equations_of(system)['rabbits.n']
         diff(n_rabbits(t), t) == -r_growth*(n_rabbits(t)/K_growth - 1)*n_rabbits(t)
@@ -297,10 +297,10 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
     Examples:
         >>> from skcomplex.engine.analysis import solve_symbolically
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> system = System(
-        ...     components=[Population('a', n=2)],
-        ...     interactions=[ExponentialGrowth('g', target='a', r=0.5)],
+        ...     components=[PopulationComponent('a', n=2)],
+        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
         ... )
         >>> solve_symbolically(system, use_initial_state=True)['a.n']
         n_a(t) == 2*e^(r_g*t)

@@ -9,7 +9,7 @@ from skcomplex.core.base import ValidationError
 from skcomplex.engine.analysis import purity, spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
-from skcomplex.formalisms.quantum import ExpectationVisual, LindbladEvolution
+from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver
 from skcomplex.models import create, run
 
 
@@ -41,7 +41,7 @@ def test_quantum_heisenberg_run_by_name_records_states_and_observables():
 def test_quantum_heisenberg_dephasing_destroys_coherence():
     """Test that dephasing uses the Lindblad solver, lowers the purity, and conserves the magnetisation."""
     simulation = run('quantum_heisenberg', n_sites=6, initial='neel', gamma=0.1, settings={'until': 4.0, 'dt': 0.2})
-    assert isinstance(simulation.stepper_, LindbladEvolution)
+    assert isinstance(simulation.stepper_, LindbladSolver)
     values = purity(simulation.trajectory_)
     assert np.all(np.diff(values) <= 1e-10)
     assert values[-1] < 1

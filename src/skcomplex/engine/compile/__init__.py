@@ -1,7 +1,7 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._arrays import Vector
-from ._backends import BACKENDS, Backend, Lowering, reads_reductions, register_backend, resolve_backend
+from ._backends import BACKENDS, BaseBackend, Lowering, reads_reductions, register_backend, resolve_backend
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
@@ -24,7 +24,7 @@ from ._kernels import (
 )
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of
-from ._pipeline import Check, Pass, order_passes, register_check, register_pass, run_passes
+from ._pipeline import BasePass, Check, order_passes, register_check, register_pass, run_passes
 from ._planner import SOLVERS, solver_classes, solver_registry
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
@@ -70,7 +70,8 @@ __all__: list[str] = [
     'SCALAR_DIALECT',
     'SOLVERS',
     'Accelerated',
-    'Backend',
+    'BaseBackend',
+    'BasePass',
     'Binding',
     'Block',
     'BlockLaws',
@@ -107,7 +108,6 @@ __all__: list[str] = [
     'Output',
     'OwnerRule',
     'Partition',
-    'Pass',
     'Problem',
     'Record',
     'ReductionPass',

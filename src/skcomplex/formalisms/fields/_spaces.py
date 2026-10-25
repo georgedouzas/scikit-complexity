@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import SpaceKind
-from ...core.space import Space
+from ...core.space import BaseSpace
 
 
 def _skfem() -> Any:  # noqa: ANN401
@@ -20,7 +20,7 @@ def _skfem() -> Any:  # noqa: ANN401
     return skfem
 
 
-class Mesh(Space):
+class MeshSpace(BaseSpace):
     """Unstructured mesh of triangles or tetrahedra, whose nodes hold the members of finite element fields.
 
     Args:
@@ -31,8 +31,8 @@ class Mesh(Space):
             The node indices of every triangle or tetrahedron, one column per cell.
 
     Examples:
-        >>> from skcomplex.formalisms.fields import Mesh
-        >>> mesh = Mesh.rectangle(4, 3)
+        >>> from skcomplex.formalisms.fields import MeshSpace
+        >>> mesh = MeshSpace.rectangle(4, 3)
         >>> mesh.size, mesh.n_dim
         (20, 2)
     """
@@ -79,12 +79,12 @@ class Mesh(Space):
         return np.asarray(self.skfem_mesh().boundary_nodes(), dtype=np.intp)
 
     @classmethod
-    def _of(cls, mesh: Any) -> 'Mesh':  # noqa: ANN401
+    def _of(cls, mesh: Any) -> 'MeshSpace':  # noqa: ANN401
         """Return the mesh of a scikit-fem mesh."""
         return cls(np.asarray(mesh.p, dtype=float), np.asarray(mesh.t, dtype=np.int64))
 
     @classmethod
-    def rectangle(cls, nx: int, ny: int, *, width: float = 1.0, height: float = 1.0) -> 'Mesh':
+    def rectangle(cls, nx: int, ny: int, *, width: float = 1.0, height: float = 1.0) -> 'MeshSpace':
         """Return a rectangle split into triangles on a grid of cells.
 
         Args:
@@ -108,7 +108,7 @@ class Mesh(Space):
         return cls._of(skfem.MeshTri.init_tensor(np.linspace(0, width, nx + 1), np.linspace(0, height, ny + 1)))
 
     @classmethod
-    def l_shape(cls, refine: int = 3) -> 'Mesh':
+    def l_shape(cls, refine: int = 3) -> 'MeshSpace':
         """Return the L-shaped domain `[-1, 1]^2` without its quarter `[0, 1] x [-1, 0]`, refined uniformly.
 
         Args:
@@ -122,7 +122,7 @@ class Mesh(Space):
         return cls._of(_skfem().MeshTri.init_lshaped().refined(refine))
 
     @classmethod
-    def disk(cls, refine: int = 3) -> 'Mesh':
+    def disk(cls, refine: int = 3) -> 'MeshSpace':
         """Return the unit disk, refined uniformly.
 
         Args:
@@ -136,7 +136,7 @@ class Mesh(Space):
         return cls._of(_skfem().MeshTri.init_circle(refine))
 
     @classmethod
-    def load(cls, path: str | Path) -> 'Mesh':
+    def load(cls, path: str | Path) -> 'MeshSpace':
         """Return a mesh read from a file in any format that meshio reads, such as Gmsh.
 
         Args:

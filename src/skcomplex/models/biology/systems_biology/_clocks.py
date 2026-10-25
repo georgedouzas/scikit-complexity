@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -15,7 +15,7 @@ def _saturating(rate: Expression, constant: Expression, amount: Expression) -> E
     return rate * amount / (constant + amount)
 
 
-class PerClock(Element):
+class PerClockComponent(ElementComponent):
     """PER protein clock of Drosophila, after Goldbeter: per mRNA, three phosphorylation forms, and nuclear PER.
 
     The mRNA `M` is transcribed under repression by nuclear PER and degraded. Cytosolic PER is translated as `P0`,
@@ -87,33 +87,33 @@ class PerClock(Element):
             The Michaelis constant of the phosphorylations and dephosphorylations.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import PerClock
-        >>> PerClock('clock').v_s
+        >>> from skcomplex.models.biology.systems_biology import PerClockComponent
+        >>> PerClockComponent('clock').v_s
         0.76
     """
 
-    M: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    P0: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    P1: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    P2: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    PN: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    v_s: float = parameter(default=0.76, domain=Domain.POSITIVE)
-    v_m: float = parameter(default=0.65, domain=Domain.POSITIVE)
-    K_m: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    k_s: float = parameter(default=0.38, domain=Domain.POSITIVE)
-    v_d: float = parameter(default=0.95, domain=Domain.POSITIVE)
-    K_d: float = parameter(default=0.2, domain=Domain.POSITIVE)
-    k1: float = parameter(default=1.9, domain=Domain.POSITIVE)
-    k2: float = parameter(default=1.3, domain=Domain.POSITIVE)
-    K_I: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    n: float = parameter(default=4.0, domain=Domain.POSITIVE)
-    V1: float = parameter(default=3.2, domain=Domain.POSITIVE)
-    V2: float = parameter(default=1.58, domain=Domain.POSITIVE)
-    V3: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    V4: float = parameter(default=2.5, domain=Domain.POSITIVE)
-    K: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    M: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    P0: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    P1: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    P2: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    PN: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    v_s: float = parameter(default=0.76, domain=NumericDomain.POSITIVE)
+    v_m: float = parameter(default=0.65, domain=NumericDomain.POSITIVE)
+    K_m: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    k_s: float = parameter(default=0.38, domain=NumericDomain.POSITIVE)
+    v_d: float = parameter(default=0.95, domain=NumericDomain.POSITIVE)
+    K_d: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
+    k1: float = parameter(default=1.9, domain=NumericDomain.POSITIVE)
+    k2: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
+    K_I: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    V1: float = parameter(default=3.2, domain=NumericDomain.POSITIVE)
+    V2: float = parameter(default=1.58, domain=NumericDomain.POSITIVE)
+    V3: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    V4: float = parameter(default=2.5, domain=NumericDomain.POSITIVE)
+    K: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return transcription, translation, phosphorylation, degradation, and nuclear transport.
 
         Args:
@@ -128,11 +128,11 @@ class PerClock(Element):
         second = _saturating(s.V3, s.K, s.P1) - _saturating(s.V4, s.K, s.P2)
         transport = s.k1 * s.P2 - s.k2 * s.PN
         return [
-            Rate(s.M, s.v_s * s.K_I**s.n / (s.K_I**s.n + s.PN**s.n) - _saturating(s.v_m, s.K_m, s.M)),
-            Rate(s.P0, s.k_s * s.M - first),
-            Rate(s.P1, first - second),
-            Rate(s.P2, second - transport - _saturating(s.v_d, s.K_d, s.P2)),
-            Rate(s.PN, transport),
+            RateLaw(s.M, s.v_s * s.K_I**s.n / (s.K_I**s.n + s.PN**s.n) - _saturating(s.v_m, s.K_m, s.M)),
+            RateLaw(s.P0, s.k_s * s.M - first),
+            RateLaw(s.P1, first - second),
+            RateLaw(s.P2, second - transport - _saturating(s.v_d, s.K_d, s.P2)),
+            RateLaw(s.PN, transport),
         ]
 
 
@@ -177,4 +177,4 @@ def circadian_clock(
         >>> circadian_clock(v_d=1.2).elements[0].v_d
         1.2
     """
-    return System(components=[PerClock('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])
+    return System(components=[PerClockComponent('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])

@@ -9,15 +9,15 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, transfer
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
-from ..realizations._institutions import Institution
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
+from ..realizations._institutions import InstitutionInteraction
 
 UNLIMITED = 1e9
 
@@ -84,7 +84,7 @@ class RichestPasture:
         return pairs
 
 
-class Pasture(Element):
+class PastureComponent(ElementComponent):
     """Cell of the meadow whose grass grows back logistically, from a seed bank when it is grazed bare.
 
     Args:
@@ -104,18 +104,18 @@ class Pasture(Element):
             The share of the capacity that grows back as if it stood on a bare cell.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Pasture
-        >>> Pasture.group('meadow', 4, capacity=2.0).size
+        >>> from skcomplex.models.economics.resources import PastureComponent
+        >>> PastureComponent.group('meadow', 4, capacity=2.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)})
-    grass: float = state(default=2.0, domain=Domain.NONNEGATIVE)
-    capacity: float = state(default=2.0, domain=Domain.POSITIVE)
-    regrowth: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    seed: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    grass: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    capacity: float = state(default=2.0, domain=NumericDomain.POSITIVE)
+    regrowth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    seed: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth rule of the phase of growth.
 
         Args:
@@ -126,7 +126,7 @@ class Pasture(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.grow, phase='growth')]
+        return [RuleLaw(self.grow, phase='growth')]
 
     def grow(self, agent: AgentView, model: ModelView) -> None:
         """Grow the grass logistically up to the capacity.
@@ -143,7 +143,7 @@ class Pasture(Element):
         agent.grass = min(agent.capacity, agent.grass + growth)
 
 
-class Cow(Element):
+class CowComponent(ElementComponent):
     """Cow of a herder that gains the energy of the grass it eats, burns its metabolism, and starves without food.
 
     Args:
@@ -157,16 +157,16 @@ class Cow(Element):
             The energy of the cow.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Cow
-        >>> Cow.group('cows', 3, energy=4.0).size
+        >>> from skcomplex.models.economics.resources import CowComponent
+        >>> CowComponent.group('cows', 3, energy=4.0).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'energy'})
-    owner: float = state(default=-1.0, domain=Domain.REAL)
-    energy: float = state(default=4.0, domain=Domain.REAL)
+    owner: float = state(default=-1.0, domain=NumericDomain.REAL)
+    energy: float = state(default=4.0, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the grazing moves the cows and their energy.
 
         Args:
@@ -180,7 +180,7 @@ class Cow(Element):
         return []
 
 
-class Herder(Element):
+class HerderComponent(ElementComponent):
     """Herder who adds a cow whenever a cow earned more than its upkeep, and sells one when the herd exceeds its quota.
 
     Args:
@@ -206,19 +206,19 @@ class Herder(Element):
             The largest herd of a herder, an adaptive parameter that a regulator may change.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Herder
-        >>> Herder.group('herders', 5).size
+        >>> from skcomplex.models.economics.resources import HerderComponent
+        >>> HerderComponent.group('herders', 5).size
         5
     """
 
-    number: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    income: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    herd: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    upkeep: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    newborn: float = parameter(default=4.0, domain=Domain.POSITIVE)
-    quota: float = parameter(default=UNLIMITED, domain=Domain.POSITIVE, adaptive=True)
+    number: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    income: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    herd: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    upkeep: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    newborn: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    quota: float = parameter(default=UNLIMITED, domain=NumericDomain.POSITIVE, adaptive=True)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that grows the herd in the phase of herding.
 
         Args:
@@ -229,7 +229,7 @@ class Herder(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.invest, phase='herding')]
+        return [RuleLaw(self.invest, phase='herding')]
 
     def invest(self, agent: AgentView, model: ModelView) -> None:
         """Add a cow while a cow earns more than its upkeep below the quota, and sell a cow above the quota.
@@ -250,7 +250,7 @@ class Herder(Element):
         agent.herd = 0.0
 
 
-class Grazing(Interaction):
+class GrazingInteraction(BaseInteraction):
     """Grazing of the meadow, where every cow moves to the richest pasture it can reach and eats its fill.
 
     The matching law pairs every cow with the free pasture of most grass in its cell or the cells around it, the cow
@@ -280,17 +280,17 @@ class Grazing(Interaction):
             The income of a herder per unit of grass its cows eat.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Grazing
-        >>> Grazing('grazing', cows='cows', meadow='meadow', herders='herders').appetite
+        >>> from skcomplex.models.economics.resources import GrazingInteraction
+        >>> GrazingInteraction('grazing', cows='cows', meadow='meadow', herders='herders').appetite
         1.0
     """
 
     cows: str = role()
     meadow: str = role()
     herders: str = role()
-    appetite: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    metabolism: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    milk: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    appetite: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    metabolism: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    milk: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the matching of cows with pastures and the grazing rule.
@@ -304,8 +304,8 @@ class Grazing(Interaction):
                 The laws of the component.
         """
         return [
-            Match('cows', 'meadow', pairing=RichestPasture(), label='grazing', phase='grazing'),
-            Rule(self.graze, phase='grazing'),
+            MatchLaw('cows', 'meadow', pairing=RichestPasture(), label='grazing', phase='grazing'),
+            RuleLaw(self.graze, phase='grazing'),
         ]
 
     def graze(self, model: Any) -> None:  # noqa: ANN401
@@ -328,7 +328,7 @@ class Grazing(Interaction):
                 cow.remove()
 
 
-class Regulator(Institution):
+class RegulatorInteraction(InstitutionInteraction):
     """Regulator that halves the quota of cows per herder when the grass runs short and raises it when it recovers.
 
     The quota is the adaptive parameter `quota` of every herder. It halves, down to one cow, when the grass falls below
@@ -355,14 +355,14 @@ class Regulator(Institution):
             The share of the capacity of the meadow above which the quota rises by one cow.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import Regulator
-        >>> Regulator('regulator', regulated=1.0).regulated
+        >>> from skcomplex.models.economics.resources import RegulatorInteraction
+        >>> RegulatorInteraction('regulator', regulated=1.0).regulated
         1.0
     """
 
-    regulated: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    low: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    high: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
+    regulated: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    low: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    high: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Change the quota with the share of grass left on the meadow.
@@ -450,8 +450,15 @@ def tragedy_of_the_commons(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    meadow = Pasture.group('meadow', len(cells), location=cells, grass=capacity, capacity=capacity, regrowth=regrowth)
-    herders = Herder.group(
+    meadow = PastureComponent.group(
+        'meadow',
+        len(cells),
+        location=cells,
+        grass=capacity,
+        capacity=capacity,
+        regrowth=regrowth,
+    )
+    herders = HerderComponent.group(
         'herders',
         n_herders,
         location=[cells[0]] * n_herders,
@@ -460,18 +467,18 @@ def tragedy_of_the_commons(
         quota=UNLIMITED if quota is None else quota,
     )
     n_cows = n_herders * cows
-    herd = Cow.group(
+    herd = CowComponent.group(
         'cows',
         n_cows,
         variable=True,
         location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
         owner=np.repeat(np.arange(n_herders, dtype=float), cows),
     )
-    regulator = Regulator('regulator', phase='herding', regulated=float(quota is not None))
-    grazing = Grazing('grazing', cows='cows', meadow='meadow', herders='herders')
+    regulator = RegulatorInteraction('regulator', phase='herding', regulated=float(quota is not None))
+    grazing = GrazingInteraction('grazing', cows='cows', meadow='meadow', herders='herders')
     return System(
         components=[meadow, herd, herders],
         interactions=[grazing, regulator],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(schedule=Phases([Phase('grazing'), Phase('growth'), Phase('herding')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('grazing'), Phase('growth'), Phase('herding')])),
     )

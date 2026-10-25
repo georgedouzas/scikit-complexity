@@ -20,11 +20,11 @@ type Toward = Callable[[Any], object] | None
 class TopologyRequest:
     """Change of the topology of a network that a law requests for every member or edge it runs for.
 
-    A request is the target of an `Update` law, whose value is the probability that it fires at every step for the
-    member or edge the law runs for, or of a `Jump` law, as `Jump(rate, {request: 1})`, which fires it at the rate. The
-    stepper applies the requests that fire after the step, in the order of the members and edges. A request on edges
-    adds or removes members of the variable group on the edges of its layer, and a request on nodes adds or removes
-    members of every variable group on the nodes of the network.
+    A request is the target of an `UpdateLaw`, whose value is the probability that it fires at every step for the
+    member or edge the law runs for, or of a `JumpLaw`, as `JumpLaw(rate, {request: 1})`, which fires it at the
+    rate. The stepper applies the requests that fire after the step, in the order of the members and edges. A request on
+    edges adds or removes members of the variable group on the edges of its layer, and a request on nodes adds or
+    removes members of every variable group on the nodes of the network.
 
     Args:
         kind:
@@ -230,9 +230,9 @@ def request_of(law: object) -> TopologyRequest | None:
             A jump changes states and requests a topology change at once, or fires a request more than once.
 
     Examples:
-        >>> from skcomplex.core.laws import Update
+        >>> from skcomplex.core.laws import UpdateLaw
         >>> from skcomplex.formalisms.topology import remove_node, request_of
-        >>> request_of(Update(remove_node(), 0.1)).kind
+        >>> request_of(UpdateLaw(remove_node(), 0.1)).kind
         'remove-node'
     """
     target = getattr(law, 'target', None)
@@ -245,7 +245,7 @@ def request_of(law: object) -> TopologyRequest | None:
     if len(changes) > 1 or float(changes[requests[0]]) != 1:
         error_msg = (
             f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
-            'changes the topology fires one request, `Jump(rate, {request: 1})`.'
+            'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
         )
         raise ValidationError(error_msg)
     return requests[0]

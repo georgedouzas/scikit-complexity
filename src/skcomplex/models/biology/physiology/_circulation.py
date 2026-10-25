@@ -8,10 +8,10 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, mod, where
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -23,7 +23,7 @@ def _pressure(chamber: Symbols, t: Expression) -> Expression:
     return (chamber.E_min + (chamber.E_max - chamber.E_min) * activation) * (chamber.V - chamber.V0)
 
 
-class Chamber(Element):
+class ChamberComponent(ElementComponent):
     """Elastic compartment of blood, a heart chamber or a vascular bed, whose pressure is elastance times volume.
 
     The pressure is `E(t) (V - V0)`. The elastance of a heart chamber rises from `E_min` to `E_max` and back as a half
@@ -53,20 +53,20 @@ class Chamber(Element):
             The duration of the contraction.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import Chamber
-        >>> Chamber('arteries', V=150.0, E_min=0.8, E_max=0.8).E_max
+        >>> from skcomplex.models.biology.physiology import ChamberComponent
+        >>> ChamberComponent('arteries', V=150.0, E_min=0.8, E_max=0.8).E_max
         0.8
     """
 
-    V: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    V0: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    E_min: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    E_max: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float = parameter(default=0.8, domain=Domain.POSITIVE)
-    systole: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    V: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    V0: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    E_min: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    E_max: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    period: float = parameter(default=0.8, domain=NumericDomain.POSITIVE)
+    systole: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
 
 
-class Transfer(Interaction):
+class TransferInteraction(BaseInteraction):
     """Transfer of blood from one chamber to another through a resistance, `Q = (P_up - P_down) / R`.
 
     A valve lets blood pass forward only, so the flow is zero when the downstream pressure is higher.
@@ -91,14 +91,14 @@ class Transfer(Interaction):
                 The resistance in mmHg s/ml.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import Transfer
-        >>> Transfer('aortic_valve', upstream='ventricle', downstream='arteries', valve=True).valve
+        >>> from skcomplex.models.biology.physiology import TransferInteraction
+        >>> TransferInteraction('aortic_valve', upstream='ventricle', downstream='arteries', valve=True).valve
         True
     """
 
     upstream: str = role()
     downstream: str = role()
-    R: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    R: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -110,7 +110,7 @@ class Transfer(Interaction):
         super().__init__(label, **values)
         self.valve = valve
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transfer of volume from the upstream to the downstream chamber.
 
         Args:
@@ -123,7 +123,7 @@ class Transfer(Interaction):
         """
         drop = _pressure(s.upstream, s.t) - _pressure(s.downstream, s.t)
         flow = where(drop > 0, drop / s.R, 0) if self.valve else drop / s.R
-        return [Rate(s.upstream.V, -flow), Rate(s.downstream.V, flow)]
+        return [RateLaw(s.upstream.V, -flow), RateLaw(s.downstream.V, flow)]
 
 
 @register_model(
@@ -178,8 +178,16 @@ def cardiovascular(
     """
     period = 60.0 / heart_rate
     systole = 0.375 * period
-    ventricle = Chamber('ventricle', V=0.1 * volume, V0=10.0, E_min=0.08, E_max=E_max, period=period, systole=systole)
-    arteries = Chamber(
+    ventricle = ChamberComponent(
+        'ventricle',
+        V=0.1 * volume,
+        V0=10.0,
+        E_min=0.08,
+        E_max=E_max,
+        period=period,
+        systole=systole,
+    )
+    arteries = ChamberComponent(
         'arteries',
         V=0.3 * volume,
         V0=250.0,
@@ -188,7 +196,7 @@ def cardiovascular(
         period=period,
         systole=systole,
     )
-    veins = Chamber(
+    veins = ChamberComponent(
         'veins',
         V=0.6 * volume,
         V0=500.0,
@@ -198,8 +206,8 @@ def cardiovascular(
         systole=systole,
     )
     flows = [
-        Transfer('aortic_valve', upstream='ventricle', downstream='arteries', R=0.02, valve=True),
-        Transfer('systemic', upstream='arteries', downstream='veins', R=R_systemic),
-        Transfer('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
+        TransferInteraction('aortic_valve', upstream='ventricle', downstream='arteries', R=0.02, valve=True),
+        TransferInteraction('systemic', upstream='arteries', downstream='veins', R=R_systemic),
+        TransferInteraction('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
     ]
     return System(components=[ventricle, arteries, veins], interactions=flows)

@@ -9,9 +9,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols, count, mean, total, where
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols, count, mean, total, where
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
@@ -33,7 +33,7 @@ def _magnetization() -> Observable:
     return Observable('magnetization', group='spins', variable='spin')
 
 
-class FullyConnectedSpin(Element):
+class FullyConnectedSpinComponent(ElementComponent):
     """Ising spin coupled to every other spin, flipped at the Glauber rate `1 / (1 + exp(2 s h / T))`.
 
     The local field is `h = J (sum_{j != i} s_j) / N + h_ext` of the Curie-Weiss energy `-(J / N) sum_{i<j} s_i s_j`,
@@ -63,15 +63,15 @@ class FullyConnectedSpin(Element):
                 The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpin
-        >>> FullyConnectedSpin('spin').temperature
+        >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpinComponent
+        >>> FullyConnectedSpinComponent('spin').temperature
         0.5
     """
 
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
-    temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class FullyConnectedSpin(Element):
             return s.J * (mean(s.spin) - s.spin / count()) + s.h
         return s.J * total(s.spin, weights=np.asarray(self.couplings, dtype=float)) + s.h
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the flips of up spins and of down spins at the Glauber rate.
 
         Args:
@@ -101,7 +101,7 @@ class FullyConnectedSpin(Element):
                 The laws of the component.
         """
         rate = 1 / (1 + exp(2 * s.spin * self._field(s) / s.temperature))
-        return [Jump(where(s.spin > 0, rate, 0), {s.spin: -2}), Jump(where(s.spin < 0, rate, 0), {s.spin: 2})]
+        return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
 
 
 @register_model(
@@ -155,7 +155,7 @@ def curie_weiss(
         10
     """
     spins = _initial_spins(n_spins, initial, random_state)
-    group = FullyConnectedSpin.lattice(
+    group = FullyConnectedSpinComponent.lattice(
         'spins',
         LatticeSpace(n_spins),
         visual=SPIN_IMAGE,
@@ -218,7 +218,7 @@ def sherrington_kirkpatrick(
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_spins), (n_spins, n_spins)), 1)
     spins = _initial_spins(n_spins, 'random', rng)
-    group = FullyConnectedSpin.lattice(
+    group = FullyConnectedSpinComponent.lattice(
         'spins',
         LatticeSpace(n_spins),
         visual=SPIN_IMAGE,

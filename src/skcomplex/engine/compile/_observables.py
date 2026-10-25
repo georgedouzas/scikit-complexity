@@ -14,9 +14,9 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ...core.base import (
-    Domain,
     Expression,
     Form,
+    NumericDomain,
     RoleError,
     SymbolicVector,
     ValidationError,
@@ -389,7 +389,7 @@ class _MemberReductions:
         index = len(self.found)
         shape = (self.size,) if weights is not None else ()
         members = self.size if weights is not None else None
-        entry = Entry(f'__observed_{index}', self.extent, shape, Domain.REAL, members)
+        entry = Entry(f'__observed_{index}', self.extent, shape, NumericDomain.REAL, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
         self.found[key] = CompiledReduction(
@@ -431,8 +431,8 @@ class ObservableEvaluator:
     Examples:
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.system import Observable, System
-        >>> from skcomplex.models.biology.ecology import Population
-        >>> system = System(components=[Population.group('herd', 2, n=[2.0, 6.0])])
+        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> system = System(components=[PopulationComponent.group('herd', 2, n=[2.0, 6.0])])
         >>> total = Observable('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
         >>> ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)

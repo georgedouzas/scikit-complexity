@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, neighbors, uniform
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, uniform
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
@@ -41,7 +41,7 @@ def _heading_b(member: Symbols) -> Expression:
     return 2 * member.species * exp(I * member.theta)
 
 
-class NonreciprocalMover(Element):
+class NonreciprocalMoverComponent(ElementComponent):
     """Vicsek mover of species A (0) or B (1), which aligns with the neighbours within `radius` by species couplings.
 
     Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
@@ -87,17 +87,17 @@ class NonreciprocalMover(Element):
                 The alignment of B with B.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import NonreciprocalMover
-        >>> NonreciprocalMover('mover', J_ba=-1.0).J_ba
+        >>> from skcomplex.models.physics.active_matter import NonreciprocalMoverComponent
+        >>> NonreciprocalMoverComponent('mover', J_ba=-1.0).J_ba
         -1.0
     """
 
     visual: ClassVar[VisualSpec] = SPECIES
     x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=Domain.ANGLE)
-    species: float = state(default=0.0, domain=Domain.BOOLEAN)
-    v0: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    eta: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
+    species: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    v0: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    eta: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
     J_aa: float = parameter(default=1.0)
     J_ab: float = parameter(default=1.0)
     J_ba: float = parameter(default=1.0)
@@ -113,7 +113,7 @@ class NonreciprocalMover(Element):
         super().__init__(label, **values)
         self.radius = radius
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the alignment of the heading with the species-weighted neighbours and the step along it.
 
         Args:
@@ -131,8 +131,8 @@ class NonreciprocalMover(Element):
             neighbors(weight * cos(s.other.theta), over=over),
         )
         return [
-            Update(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2)),
-            Update(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
+            UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2)),
+            UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
         ]
 
 
@@ -192,7 +192,7 @@ def nonreciprocal_vicsek(
     """
     rng = np.random.default_rng(random_state)
     species = (np.arange(n_movers) % 2).astype(float)
-    movers = NonreciprocalMover.group(
+    movers = NonreciprocalMoverComponent.group(
         'movers',
         n_movers,
         x=rng.uniform(0, size, (n_movers, 2)),

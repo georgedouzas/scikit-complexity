@@ -7,10 +7,10 @@ import re
 from typing import Any, ClassVar
 
 from ..base import Expression, Requires, SymbolicVector, TimeKind, symbol, vector
-from ._components import Element
+from ._components import ElementComponent
 
 
-class Wiener(Element):
+class Wiener(ElementComponent):
     """Set of Wiener processes whose increments over a step `h` have the covariance `h C`.
 
     The element has no states. An interaction binds it to a role, and its noise laws name its processes through the

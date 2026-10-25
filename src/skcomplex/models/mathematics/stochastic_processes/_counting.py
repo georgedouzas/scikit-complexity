@@ -5,22 +5,22 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
-PoissonCounter = Element.define(
-    'PoissonCounter',
-    states={'count': state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)},
-    parameters={'rate': parameter(1.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Jump(s.rate, {s.count: 1})],
+PoissonCounterComponent = ElementComponent.define(
+    'PoissonCounterComponent',
+    states={'count': state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)},
+    parameters={'rate': parameter(1.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [JumpLaw(s.rate, {s.count: 1})],
 )
 
 
-class BernoulliTrial(Element):
+class BernoulliTrialComponent(ElementComponent):
     """Sequence of independent trials, each a success with the same probability.
 
     Args:
@@ -37,17 +37,17 @@ class BernoulliTrial(Element):
             The probability of a success.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrial
-        >>> BernoulliTrial.group('trials', 4, p=0.2)
-        Group('trials', element=BernoulliTrial, size=4)
+        >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrialComponent
+        >>> BernoulliTrialComponent.group('trials', 4, p=0.2)
+        GroupComponent('trials', element=BernoulliTrialComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'successes'})
-    outcome: float = state(default=0.0, domain=Domain.BOOLEAN)
-    successes: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    p: float = parameter(0.5, domain=Domain.NONNEGATIVE)
+    outcome: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    successes: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    p: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the trial rule.
 
         Args:
@@ -58,7 +58,7 @@ class BernoulliTrial(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.draw)]
+        return [RuleLaw(self.draw)]
 
     def draw(self, agent: AgentView, model: ModelView) -> None:
         """Draw the next outcome and count it.
@@ -99,7 +99,7 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
         >>> bernoulli_process(3).elements[0].size
         3
     """
-    return System(components=[BernoulliTrial.group('trials', n_sequences, p=p)])
+    return System(components=[BernoulliTrialComponent.group('trials', n_sequences, p=p)])
 
 
 @register_model(
@@ -127,4 +127,4 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
         >>> poisson_process(5).elements[0].size
         5
     """
-    return System(components=[PoissonCounter.group('counters', n_processes, rate=rate)])
+    return System(components=[PoissonCounterComponent.group('counters', n_processes, rate=rate)])

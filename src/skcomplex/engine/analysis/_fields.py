@@ -13,8 +13,8 @@ from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
 from ...core.base import AnalysisError, VariableKind, declarations_of, symbol
-from ...core.components import Element
-from ...core.laws import Rate, Symbols
+from ...core.components import ElementComponent
+from ...core.laws import RateLaw, Symbols
 from ...core.space import LatticeSpace
 from ...core.system import System
 from ._kinds import DataKind, analysis
@@ -157,7 +157,7 @@ def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], 
     rates: dict[str, Any] = {}
     for law in member.laws(Symbols(**names, **parameters, t=symbol('t'))):
         target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
-        if not isinstance(law, Rate) or target is None:
+        if not isinstance(law, RateLaw) or target is None:
             error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
             raise AnalysisError(error_msg)
         rates[target] = SR(rates.get(target, 0) + _with_eigenvalue(SR(law.value), EIGENVALUE))
@@ -614,7 +614,7 @@ class _Field(Protocol):
     """Group of members at the sites of a space whose differential operators a discretization evaluates."""
 
     label: str
-    element: type[Element]
+    element: type[ElementComponent]
     space: object
     values: Mapping[str, Any] | None
     discretization: str

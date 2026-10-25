@@ -28,11 +28,11 @@ from ...core.base import (
     Supports,
     TimeKind,
 )
-from ...core.laws import Boundary, Jump, Noise, Rate, Update
+from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ..compile._arrays import Vector
 from ..compile._backends import (
     AUTO_MEMBERS,
-    Backend,
+    BaseBackend,
     Lowering,
     adding_function,
     assigning_function,
@@ -55,11 +55,11 @@ from ._numba_source import _Source
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
-    Form.ODE: [Rate],
-    Form.FRACTIONAL: [Rate],
-    Form.SDE: [Rate, Noise],
-    Form.JUMP: [Jump],
-    Form.DISCRETE: [Update],
+    Form.ODE: [RateLaw],
+    Form.FRACTIONAL: [RateLaw],
+    Form.SDE: [RateLaw, NoiseLaw],
+    Form.JUMP: [JumpLaw],
+    Form.DISCRETE: [UpdateLaw],
 }
 EVENT_FORMS = (Form.JUMP, Form.DISCRETE)
 HEADER = """import math
@@ -160,7 +160,7 @@ def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionPass
 HELPERS_FINGERPRINT = _helpers_fingerprint()
 
 
-class NumbaBackend(Backend):
+class NumbaBackend(BaseBackend):
     """Backend that generates fused Numba kernels and compiled stepper loops, cached on disk.
 
     Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and the problem then has no
@@ -177,10 +177,10 @@ class NumbaBackend(Backend):
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
         >>> system = System(
-        ...     components=[Population.group('herds', 2, n=[1.0, 2.0])],
-        ...     interactions=[ExponentialGrowth('growth', target='herds', r=3.0)],
+        ...     components=[PopulationComponent.group('herds', 2, n=[1.0, 2.0])],
+        ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
         >>> problem = compile_system(system, backend='numba')
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
@@ -278,11 +278,11 @@ class NumbaBackend(Backend):
                 The numeric functions.
         """
         used = {
-            Boundary: kernels.get(Boundary, []),
-            Rate: kernels.get(Rate, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
-            Noise: kernels.get(Noise, []) if form is Form.SDE else [],
-            Jump: kernels.get(Jump, []) if form is Form.JUMP else [],
-            Update: kernels.get(Update, []) if form is Form.DISCRETE else [],
+            BoundaryLaw: kernels.get(BoundaryLaw, []),
+            RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
+            NoiseLaw: kernels.get(NoiseLaw, []) if form is Form.SDE else [],
+            JumpLaw: kernels.get(JumpLaw, []) if form is Form.JUMP else [],
+            UpdateLaw: kernels.get(UpdateLaw, []) if form is Form.DISCRETE else [],
         }
         reductions = reductions or ReductionPass()
         reduced = bool(reductions.steps)
@@ -293,15 +293,15 @@ class NumbaBackend(Backend):
         if reduced and fused:
             _reduce_function(source, reductions, self.parallel and form not in EVENT_FORMS)
         plan: dict[type, tuple[str, str]] = {
-            Rate: ('drift', 'add'),
-            Noise: ('diffusion', 'concatenate'),
-            Jump: ('propensities', 'concatenate'),
-            Update: ('update', 'assign'),
-            Boundary: ('boundary', 'assign'),
+            RateLaw: ('drift', 'add'),
+            NoiseLaw: ('diffusion', 'concatenate'),
+            JumpLaw: ('propensities', 'concatenate'),
+            UpdateLaw: ('update', 'assign'),
+            BoundaryLaw: ('boundary', 'assign'),
         }
         needed = list(FORM_KINDS[form])
-        if kernels.get(Boundary):
-            needed = [*needed, Boundary]
+        if kernels.get(BoundaryLaw):
+            needed = [*needed, BoundaryLaw]
         for kind in needed:
             if compiled[kind]:
                 self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced and reads_reductions(used[kind]))
@@ -312,7 +312,7 @@ class NumbaBackend(Backend):
             Form.DISCRETE: 'iterate' if draws is None else 'iterate_random',
         }.get(form, '')
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
-        bounded = 'HAS_BOUNDARY = True\n' if Boundary in needed else NO_BOUNDARY
+        bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
         loops = (
             [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form is Form.ODE else ''] if has_loop else []
         )
@@ -360,13 +360,19 @@ class NumbaBackend(Backend):
             return lambda t, x, p: function(t, x, p, layout)
 
         numpy = {
-            Rate: lambda: adding_function(used[Rate], size),
-            Noise: lambda: concatenating_function(used[Noise]),
-            Jump: lambda: concatenating_function(used[Jump]),
-            Update: lambda: assigning_function(used[Update]),
-            Boundary: lambda: assigning_function(used[Boundary]),
+            RateLaw: lambda: adding_function(used[RateLaw], size),
+            NoiseLaw: lambda: concatenating_function(used[NoiseLaw]),
+            JumpLaw: lambda: concatenating_function(used[JumpLaw]),
+            UpdateLaw: lambda: assigning_function(used[UpdateLaw]),
+            BoundaryLaw: lambda: assigning_function(used[BoundaryLaw]),
         }
-        names = {Rate: 'drift', Noise: 'diffusion', Jump: 'propensities', Update: 'update', Boundary: 'boundary'}
+        names = {
+            RateLaw: 'drift',
+            NoiseLaw: 'diffusion',
+            JumpLaw: 'propensities',
+            UpdateLaw: 'update',
+            BoundaryLaw: 'boundary',
+        }
         functions: dict[type, Any] = {
             kind: (
                 bind(names[kind])
@@ -375,18 +381,18 @@ class NumbaBackend(Backend):
             )
             for kind in needed
         }
-        lowering = Lowering(boundary=functions.get(Boundary))
+        lowering = Lowering(boundary=functions.get(BoundaryLaw))
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
-            lowering.drift = functions[Rate]
+            lowering.drift = functions[RateLaw]
         if form is Form.SDE:
-            lowering.diffusion = functions.get(Noise, concatenating_function([]))
-            noise = lower_noise(used[Noise])
+            lowering.diffusion = functions.get(NoiseLaw, concatenating_function([]))
+            noise = lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form is Form.JUMP:
-            lowering.propensities = functions.get(Jump, concatenating_function([]))
-            lowering.jumps = jump_channels(used[Jump], changes)
+            lowering.propensities = functions.get(JumpLaw, concatenating_function([]))
+            lowering.jumps = jump_channels(used[JumpLaw], changes)
         if form is Form.DISCRETE:
-            lowering.update = functions[Update]
+            lowering.update = functions[UpdateLaw]
         if loop is not None:
             lowering.accelerated = self._accelerated(loop, module, layout, lowering, draws)
         return lowering

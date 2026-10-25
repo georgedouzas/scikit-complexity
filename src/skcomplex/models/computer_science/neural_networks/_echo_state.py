@@ -9,9 +9,9 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import sin, tanh
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, total
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -34,7 +34,7 @@ def _recurrent_weights(
     return scipy.sparse.csr_array(weights * (spectral_radius / radius))
 
 
-class ReservoirUnit(Element):
+class ReservoirUnitComponent(ElementComponent):
     """Leaky tanh unit of an echo state network, driven by the other units and by a sine input.
 
     The unit follows `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input `u(t) = A sin(f t)`.
@@ -65,14 +65,14 @@ class ReservoirUnit(Element):
                 The angular frequency `f` of the input, per step.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnit
-        >>> ReservoirUnit('unit').leak
+        >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnitComponent
+        >>> ReservoirUnitComponent('unit').leak
         0.3
     """
 
     r: float = state(default=0.0)
     w_in: float = parameter(default=1.0)
-    leak: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    leak: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
     amplitude: float = parameter(default=1.0)
     frequency: float = parameter(default=0.2)
 
@@ -86,7 +86,7 @@ class ReservoirUnit(Element):
         super().__init__(label, **values)
         self.weights = weights
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the leaky update of the activity.
 
         Args:
@@ -98,7 +98,7 @@ class ReservoirUnit(Element):
                 The laws of the component.
         """
         drive = total(s.r, weights=self.weights) + s.w_in * s.amplitude * sin(s.frequency * s.t)
-        return [Update(s.r, (1 - s.leak) * s.r + s.leak * tanh(drive))]
+        return [UpdateLaw(s.r, (1 - s.leak) * s.r + s.leak * tanh(drive))]
 
 
 @register_model(
@@ -161,7 +161,7 @@ def echo_state_network(
     """
     rng = np.random.default_rng(random_state)
     weights = _recurrent_weights(n_units, connectivity, spectral_radius, rng)
-    units = ReservoirUnit.group(
+    units = ReservoirUnitComponent.group(
         'units',
         n_units,
         r=rng.uniform(-1.0, 1.0, n_units),

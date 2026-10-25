@@ -13,23 +13,27 @@ from skcomplex.core.base import (
     parameter,
     state,
 )
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import (
-    Rate,
+    RateLaw,
 )
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import flow_matrix
-from skcomplex.engine.runtime import ConservationMonitor, Observer, RealTime, Simulation
-from skcomplex.engine.solvers import Gillespie
-from skcomplex.formalisms.agents import Rule
-from skcomplex.formalisms.particles import Particle
+from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
+from skcomplex.engine.solvers import GillespieSolver
+from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.formalisms.particles import ParticleComponent
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population
-from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.biology.ecology import (
+    ExponentialGrowthInteraction,
+    LogisticGrowthInteraction,
+    PopulationComponent,
+)
+from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import geometric_brownian_motion
-from skcomplex.models.economics.markets import Cobweb, Market
-from skcomplex.models.physics.realizations.particles import ConstantForce
+from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 from ...conftest import _correlated, _summed
@@ -38,13 +42,13 @@ from ...conftest import _correlated, _summed
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return System(
-        components=[Particle.group('gas', n)],
-        interactions=[ConstantForce('push', target='gas', F=[1.0, 0.0])],
+        components=[ParticleComponent.group('gas', n)],
+        interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
     )
 
 
-class FrameCounter(Observer):
+class FrameCounterObserver(BaseObserver):
     """Observer that keeps the times of the frames it receives."""
 
     def __init__(self):
@@ -63,16 +67,19 @@ class FrameCounter(Observer):
 
 def _growth(r=1.0):
     """Return a system of exponential growth."""
-    return System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=r)])
+    return System(
+        components=[PopulationComponent('a', n=1)],
+        interactions=[ExponentialGrowthInteraction('g', target='a', r=r)],
+    )
 
 
 def _epidemic():
     """Return a stochastic SIR system."""
     return System(
-        components=[Compartment('S', n=95), Compartment('I', n=5), Compartment('R')],
+        components=[CompartmentComponent('S', n=95), CompartmentComponent('I', n=5), CompartmentComponent('R')],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
-            Recovery('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
         ],
     )
 
@@ -80,12 +87,12 @@ def _epidemic():
 def _logistic():
     """Return a logistic population."""
     return System(
-        components=[Population('rabbits', n=10)],
-        interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+        components=[PopulationComponent('rabbits', n=10)],
+        interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
     )
 
 
-class Saver(Element):
+class SaverComponent(ElementComponent):
     """Agent that adds its group's rate to its savings every step."""
 
     savings: float = state(0.0)
@@ -93,7 +100,7 @@ class Saver(Element):
 
     def laws(self, s):
         """Return the saving rule."""
-        return [Rule(self.save)]
+        return [RuleLaw(self.save)]
 
     def save(self, agent, model):
         """Add the rate to the savings."""
@@ -101,11 +108,11 @@ class Saver(Element):
         agent.savings += agent.rate
 
 
-Heater = Element.define(
-    'Heater',
+HeaterComponent = ElementComponent.define(
+    'HeaterComponent',
     states={'T': 0.0},
     parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
-    laws=lambda s: [Rate(s.T, s.power - s.T)],
+    laws=lambda s: [RateLaw(s.T, s.power - s.T)],
 )
 
 
@@ -137,7 +144,7 @@ def test_simulation_updates_one_per_entry_weight_live():
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
     """Test that total money changes by lending minus repayment, and every transaction-flow row sums to zero."""
     trajectory = (
-        Simulation(create('stock_flow_consistent_economy'), dt=1, observers=[ConservationMonitor()])
+        Simulation(create('stock_flow_consistent_economy'), dt=1, observers=[ConservationObserver()])
         .run(100)
         .trajectory_
     )
@@ -157,7 +164,7 @@ def test_trajectory_returns_group_arrays():
 
 def test_group_parameter_changes_while_running():
     """Test that setting the mass of every member applies to the frames after the change."""
-    simulation = Simulation(_pushed_gas(), dt=0.01, clock=RealTime(speed=1.0)).start(until=0.4)
+    simulation = Simulation(_pushed_gas(), dt=0.01, clock=RealTimeClock(speed=1.0)).start(until=0.4)
     time.sleep(0.15)
     simulation.update_parameters({'gas.m': 2.0})
     simulation.wait()
@@ -193,14 +200,14 @@ def test_reflecting_box_keeps_members_inside_ode_run():
 @pytest.mark.benchmark
 def test_ideal_gas_runs_in_real_time():
     """Test that an ideal gas of 10000 molecules keeps a real-time clock within 0.1 seconds."""
-    simulation = Simulation(ideal_gas(10_000, random_state=0), dt=0.01, clock=RealTime(speed=1.0), record=False)
+    simulation = Simulation(ideal_gas(10_000, random_state=0), dt=0.01, clock=RealTimeClock(speed=1.0), record=False)
     simulation.run(until=5)
     assert simulation.clock_.max_lag_ <= 0.1
 
 
 def test_simulation_hands_frames_to_observers():
     """Test that observers receive one frame per dt and the end of the run."""
-    counter = FrameCounter()
+    counter = FrameCounterObserver()
     Simulation(_growth(), dt=0.1, observers=[counter]).run(until=1)
     assert np.allclose(counter.times, np.linspace(0, 1, 11))
     assert counter.stopped
@@ -208,27 +215,27 @@ def test_simulation_hands_frames_to_observers():
 
 def test_simulation_discrete_frames_are_integer_times():
     """Test that discrete maps produce frames at integer times."""
-    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[MarketComponent('m')], interactions=[CobwebInteraction('c', target='m')])
     trajectory = Simulation(system).run(until=10).trajectory_
     assert trajectory.times.tolist() == list(map(float, range(11)))
 
 
 def test_simulation_discrete_noninteger_dt_raises_error():
     """Test that a discrete map needs an integer dt."""
-    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[MarketComponent('m')], interactions=[CobwebInteraction('c', target='m')])
     with pytest.raises(ValidationError, match='positive integer'):
         Simulation(system, dt=0.5).run(until=1)
 
 
 def test_simulation_wrong_solver_raises_error():
     """Test that a solver of another form is rejected."""
-    with pytest.raises(SolverError, match='Gillespie'):
-        Simulation(_growth(), solver=Gillespie()).run(until=1)
+    with pytest.raises(SolverError, match='GillespieSolver'):
+        Simulation(_growth(), solver=GillespieSolver()).run(until=1)
 
 
 def test_simulation_real_time_paces_frames():
     """Test that a real-time run takes at least its simulated duration."""
-    clock = RealTime(speed=1.0)
+    clock = RealTimeClock(speed=1.0)
     start = time.perf_counter()
     Simulation(_growth(), dt=0.1, clock=clock).run(until=0.5)
     assert time.perf_counter() - start >= 0.5
@@ -237,7 +244,7 @@ def test_simulation_real_time_paces_frames():
 
 def test_simulation_update_parameters_while_running():
     """Test that a live parameter change stops the growth of a background run."""
-    simulation = Simulation(_growth(), dt=0.01, clock=RealTime(speed=1.0)).start(until=0.6)
+    simulation = Simulation(_growth(), dt=0.01, clock=RealTimeClock(speed=1.0)).start(until=0.6)
     time.sleep(0.2)
     simulation.update_parameters({'g.r': 0.0})
     simulation.wait()
@@ -257,7 +264,7 @@ def test_simulation_update_unknown_parameter_raises_error():
 
 def test_simulation_update_invalid_value_raises_error():
     """Test that parameter values are checked against their domain."""
-    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[MarketComponent('m')], interactions=[CobwebInteraction('c', target='m')])
     simulation = Simulation(system).run(until=1)
     with pytest.raises(ValidationError, match='positive'):
         simulation.update_parameters({'c.b': -1.0})
@@ -272,7 +279,7 @@ def test_simulation_update_after_run_applies_immediately():
 
 def test_simulation_stop_background_run():
     """Test that an unbounded background run stops and keeps its frames."""
-    simulation = Simulation(_growth(r=0.0), dt=0.01, clock=RealTime(speed=1.0)).start()
+    simulation = Simulation(_growth(r=0.0), dt=0.01, clock=RealTimeClock(speed=1.0)).start()
     time.sleep(0.1)
     simulation.pause()
     simulation.resume()
@@ -284,7 +291,7 @@ def test_simulation_stop_background_run():
 def test_simulation_background_error_raised_on_wait():
     """Test that an error in the background thread is raised by wait."""
 
-    class Failing(Observer):
+    class FailingObserver(BaseObserver):
         """Observer that fails on the second frame."""
 
         def on_frame(self, frame):
@@ -293,7 +300,7 @@ def test_simulation_background_error_raised_on_wait():
                 error_msg = 'failure'
                 raise RuntimeError(error_msg)
 
-    simulation = Simulation(_growth(), observers=[Failing()]).start(until=1)
+    simulation = Simulation(_growth(), observers=[FailingObserver()]).start(until=1)
     with pytest.raises(RuntimeError, match='failure'):
         simulation.wait()
 
@@ -336,7 +343,7 @@ def test_simulation_parameters_carry_over_runs():
 
 def test_simulation_agent_parameters_carry_over_runs():
     """Test that an agent group parameter set between runs is read by the rules of the next run."""
-    simulation = Simulation(System(components=[Saver.group('savers', 3)])).run(until=0)
+    simulation = Simulation(System(components=[SaverComponent.group('savers', 3)])).run(until=0)
     simulation.update_parameters({'savers.rate': 5.0})
     trajectory = simulation.run(until=2).trajectory_
     assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
@@ -369,7 +376,7 @@ def test_simulation_extend_before_run_raises_error():
 @pytest.mark.parametrize(('until', 'frames', 'dt'), [(1, 101, 0.01), (1000, 1001, 1.0), (15, 751, 0.02)])
 def test_simulation_default_frames(until, frames, dt):
     """Test that default frames are 0.01 apart for short runs and grow in 1, 2, 5 steps to at most 1000 frames."""
-    counter = FrameCounter()
+    counter = FrameCounterObserver()
     simulation = Simulation(_growth(r=0.0), observers=[counter]).run(until=until)
     assert len(counter.times) == frames
     assert simulation.dt_ == dt
@@ -394,8 +401,8 @@ def test_trajectory_gives_agent_locations_over_frames():
 def test_initial_state_replaces_the_values_of_components():
     """Test that a simulation starts from given initial values by state name and rejects unknown names."""
     system = System(
-        components=[Population('rabbits', n=10)],
-        interactions=[ExponentialGrowth('growth', target='rabbits', r=0.0)],
+        components=[PopulationComponent('rabbits', n=10)],
+        interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
     trajectory = Simulation(system, dt=1.0, initial_state={'rabbits.n': 20.0}).run(until=1.0).trajectory_
     assert trajectory['rabbits.n'][0] == pytest.approx(20.0)
@@ -406,7 +413,9 @@ def test_initial_state_replaces_the_values_of_components():
 def test_simulation_schedules_a_bounded_control():
     """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
     schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-    trajectory = Simulation(System(components=[Heater('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
+    trajectory = (
+        Simulation(System(components=[HeaterComponent('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
+    )
     np.testing.assert_array_equal(trajectory['heater.power'], [0, 0, 1, 1, 1, 1, 1])
     assert trajectory['heater.T'][2] == pytest.approx(0.0)
     assert trajectory['heater.T'][-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)

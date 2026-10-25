@@ -9,9 +9,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, declarations_of
-from ...core.components import Element, Group
-from ...core.laws import Law, Symbols
+from ...core.base import HilbertDomain, HilbertFamilyDomain, ValidationError, VariableKind, declarations_of
+from ...core.components import ElementComponent, GroupComponent
+from ...core.laws import BaseLaw, Symbols
 from ._laws import LocalOperator, Operator, sparse_matrix
 
 NORM_TOLERANCE = 1e-8
@@ -35,7 +35,7 @@ def hilbert_state(element_type: type) -> str | None:
             The name of the state.
     """
     for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
-        if isinstance(declaration.domain, HilbertSpace | HilbertFamily):
+        if isinstance(declaration.domain, HilbertDomain | HilbertFamilyDomain):
             return name
     return None
 
@@ -52,7 +52,9 @@ def is_quantum(element_type: type) -> bool:
             Whether a state of the type lies in a Hilbert space.
     """
     return (
-        isinstance(element_type, type) and issubclass(element_type, Element) and hilbert_state(element_type) is not None
+        isinstance(element_type, type)
+        and issubclass(element_type, ElementComponent)
+        and hilbert_state(element_type) is not None
     )
 
 
@@ -66,12 +68,12 @@ class QuantumView:
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
-        >>> QuantumView(Qubit('q', initial='down')).initial_vector().tolist()
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> QuantumView(QubitComponent('q', initial='down')).initial_vector().tolist()
         [0j, (1+0j)]
     """
 
-    element: Element
+    element: ElementComponent
 
     @property
     def state(self) -> str:
@@ -83,11 +85,11 @@ class QuantumView:
         return name
 
     @property
-    def space(self) -> HilbertSpace:
+    def space(self) -> HilbertDomain:
         """Hilbert space of the element."""
         domain = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain
-        space = domain.of(self.element) if isinstance(domain, HilbertFamily) else domain
-        if not isinstance(space, HilbertSpace):
+        space = domain.of(self.element) if isinstance(domain, HilbertFamilyDomain) else domain
+        if not isinstance(space, HilbertDomain):
             error_msg = f'The state {self.state} of {self.label!r} lies in {space.value}, not in a Hilbert space.'
             raise ValidationError(error_msg)
         return space
@@ -181,7 +183,7 @@ class QuantumView:
         additional = getattr(self.element, 'operator_namespace', None)
         return {**names, **(additional(key, self) if additional is not None else {})}
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the laws of the element for a namespace of its operators.
 
         Args:
@@ -195,7 +197,7 @@ class QuantumView:
         return self.element.laws(s)
 
 
-def view_of(component: Element | Group) -> QuantumView:
+def view_of(component: ElementComponent | GroupComponent) -> QuantumView:
     """Return the quantum view of an element, or of the first member of a group.
 
     Args:
@@ -206,7 +208,7 @@ def view_of(component: Element | Group) -> QuantumView:
         view:
             The view, from whose space the display and the local operators of the component are read.
     """
-    if not isinstance(component, Group):
+    if not isinstance(component, GroupComponent):
         return QuantumView(component)
     values = {
         name: value if isinstance(value, str) or np.ndim(value) == 0 or len(value) != component.size else value[0]

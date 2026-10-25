@@ -7,17 +7,17 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, vector
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
-from ....formalisms.particles import PairPotential, Particle
+from ....engine.solvers import RK4Solver
+from ....formalisms.particles import PairPotentialInteraction, ParticleComponent
 
 
-class Motivation(Interaction):
+class MotivationInteraction(BaseInteraction):
     """Driving force of the social force model, which relaxes a walker's velocity to its desired velocity.
 
     The force per unit mass is `(speed * direction - v) / tau`.
@@ -39,17 +39,17 @@ class Motivation(Interaction):
             The relaxation time.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Motivation
-        >>> Motivation('drive', target='walkers', direction=[1.0, 0.0]).speed
+        >>> from skcomplex.models.social.crowds import MotivationInteraction
+        >>> MotivationInteraction('drive', target='walkers', direction=[1.0, 0.0]).speed
         1.34
     """
 
     target: str = role()
-    speed: float = parameter(default=1.34, domain=Domain.NONNEGATIVE)
+    speed: float = parameter(default=1.34, domain=NumericDomain.NONNEGATIVE)
     direction: npt.ArrayLike = parameter(default=0.0, vector=True)
-    tau: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    tau: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the relaxation of the velocity to the desired velocity.
 
         Args:
@@ -60,10 +60,10 @@ class Motivation(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.v, (s.speed * s.direction - s.target.v) / s.tau)]
+        return [RateLaw(s.target.v, (s.speed * s.direction - s.target.v) / s.tau)]
 
 
-class Walls(Interaction):
+class WallsInteraction(BaseInteraction):
     """Repulsion of walkers by two walls of a corridor at `y = 0` and `y = width`.
 
     The force per unit mass from a wall at distance `d` is `strength * exp((radius - d) / range)`, pointing away from
@@ -89,18 +89,18 @@ class Walls(Interaction):
             The radius of a walker.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Walls
-        >>> Walls('walls', target='walkers', width=5.0).width
+        >>> from skcomplex.models.social.crowds import WallsInteraction
+        >>> WallsInteraction('walls', target='walkers', width=5.0).width
         5.0
     """
 
     target: str = role()
-    width: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    strength: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    range: float = parameter(default=0.2, domain=Domain.POSITIVE)
-    radius: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    width: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    strength: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    range: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
+    radius: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the repulsion of both walls.
 
         Args:
@@ -113,10 +113,10 @@ class Walls(Interaction):
         """
         y = s.target.x[1]
         push = s.strength * (exp((s.radius - y) / s.range) - exp((s.radius - s.width + y) / s.range))
-        return [Rate(s.target.v, vector([0, push]))]
+        return [RateLaw(s.target.v, vector([0, push]))]
 
 
-class SocialRepulsion(PairPotential):
+class SocialRepulsionInteraction(PairPotentialInteraction):
     """Repulsion between two walkers, the force `strength * exp((2 * radius - r) / range)` of the social force model.
 
     It derives from the pair energy `strength * range * exp((2 * radius - r) / range)`.
@@ -147,14 +147,14 @@ class SocialRepulsion(PairPotential):
             The radius of a walker.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import SocialRepulsion
-        >>> SocialRepulsion('repulsion', first='walkers', second='walkers').strength
+        >>> from skcomplex.models.social.crowds import SocialRepulsionInteraction
+        >>> SocialRepulsionInteraction('repulsion', first='walkers', second='walkers').strength
         2.0
     """
 
-    strength: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    range: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    radius: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    strength: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    range: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    radius: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return the pair energy `strength * range * exp((2 * radius - r) / range)`.
@@ -177,7 +177,7 @@ class SocialRepulsion(PairPotential):
     field='social/crowds',
     tags=('pedestrians', 'particles', 'lanes', 'self-organization'),
     references=('Helbing and Molnár 1995', 'Helbing 2001'),
-    defaults={'until': 20.0, 'dt': 0.2, 'solver': RK4(dt=0.05)},
+    defaults={'until': 20.0, 'dt': 0.2, 'solver': RK4Solver(dt=0.05)},
 )
 def social_force(
     n_walkers: int = 20,
@@ -213,18 +213,18 @@ def social_force(
     rng = np.random.default_rng(random_state)
     cutoff = 2.0
     walkers = [
-        Particle.group(label, n_walkers, x=rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2)))
+        ParticleComponent.group(label, n_walkers, x=rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2)))
         for label in ('rightward', 'leftward')
     ]
-    interactions: list[Interaction] = []
+    interactions: list[BaseInteraction] = []
     for label, sign in (('rightward', 1.0), ('leftward', -1.0)):
         interactions += [
-            Motivation(f'{label}_drive', target=label, speed=speed, direction=[sign, 0.0]),
-            Walls(f'{label}_walls', target=label, width=length),
+            MotivationInteraction(f'{label}_drive', target=label, speed=speed, direction=[sign, 0.0]),
+            WallsInteraction(f'{label}_walls', target=label, width=length),
         ]
     pairs = (('rightward', 'rightward'), ('leftward', 'leftward'), ('rightward', 'leftward'))
     interactions += [
-        SocialRepulsion(f'{first}_{second}', first=first, second=second, cutoff=cutoff, period=length)
+        SocialRepulsionInteraction(f'{first}_{second}', first=first, second=second, cutoff=cutoff, period=length)
         for first, second in pairs
     ]
     return System(

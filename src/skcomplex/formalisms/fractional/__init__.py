@@ -2,33 +2,33 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._laws import FractionalNoise
-from ._noise import FractionalEulerMaruyama, fractional_gaussian_noise
+from ._laws import FractionalNoiseLaw
+from ._noise import FractionalEulerMaruyamaSolver, fractional_gaussian_noise
 from ._passes import CheckFractionalNoisePass, FractionalFormPass, FractionalProblemPass, order_issues
-from ._solvers import FractionalABM, GrunwaldLetnikov, L1Scheme
+from ._solvers import FractionalABMSolver, GrunwaldLetnikovSolver, L1Solver
 
 __all__: list[str] = [
-    'FractionalABM',
-    'FractionalEulerMaruyama',
-    'FractionalNoise',
-    'GrunwaldLetnikov',
-    'L1Scheme',
+    'FractionalABMSolver',
+    'FractionalEulerMaruyamaSolver',
+    'FractionalNoiseLaw',
+    'GrunwaldLetnikovSolver',
+    'L1Solver',
     'fractional_gaussian_noise',
 ]
 
 register(
     Formalism(
         'fractional',
-        laws=(FractionalNoise,),
+        laws=(FractionalNoiseLaw,),
         passes=(CheckFractionalNoisePass(), FractionalFormPass(), FractionalProblemPass()),
         forms=(Form.FRACTIONAL,),
         solvers={
-            'grunwald-letnikov': GrunwaldLetnikov,
-            'l1': L1Scheme,
-            'fractional-abm': FractionalABM,
-            'fractional-euler-maruyama': FractionalEulerMaruyama,
+            'grunwald-letnikov': GrunwaldLetnikovSolver,
+            'l1': L1Solver,
+            'fractional-abm': FractionalABMSolver,
+            'fractional-euler-maruyama': FractionalEulerMaruyamaSolver,
         },
-        defaults=(FractionalABM,),
+        defaults=(FractionalABMSolver,),
         checks=(order_issues,),
     ),
 )

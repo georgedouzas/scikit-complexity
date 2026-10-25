@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -24,7 +24,7 @@ MODEL = 'levy_walk'
 
 system = create(MODEL, n_walkers=500, sigma=1.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=RK4(dt=0.5), dt=2.5, observers=[observer], random_state=0).run(until=500)
+simulation = Simulation(system, solver=RK4Solver(dt=0.5), dt=2.5, observers=[observer], random_state=0).run(until=500)
 
 # %%
 # Superdiffusion and ballistic flights

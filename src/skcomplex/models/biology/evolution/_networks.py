@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, both, minimum, mod, neighbors, normal, total, uniform, where
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -25,7 +25,7 @@ def _initial_stream(seed: int | None) -> np.random.Generator:
     return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
 
 
-class Taxon(Element):
+class TaxonComponent(ElementComponent):
     """Species of an ecosystem that survives while the sum of the influences of the species it depends on is positive.
 
     The field `h` of the species is the sum of the couplings of its edges to the species it depends on. A species whose
@@ -48,13 +48,13 @@ class Taxon(Element):
                 The number of steps since the species appeared.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Taxon
-        >>> Taxon('species').k
+        >>> from skcomplex.models.biology.evolution import TaxonComponent
+        >>> TaxonComponent('species').k
         5
     """
 
-    h: float = state(default=1.0, domain=Domain.REAL)
-    age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    h: float = state(default=1.0, domain=NumericDomain.REAL)
+    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -66,7 +66,7 @@ class Taxon(Element):
         super().__init__(label, **values)
         self.k = k
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the ageing, and the extinction and replacement of a species whose field is negative.
 
         Args:
@@ -78,10 +78,14 @@ class Taxon(Element):
                 The laws of the component.
         """
         extinct = where(s.h < 0, 1, 0)
-        return [Update(s.age, s.age + 1), Update(add_node(edges=self.k), extinct), Update(remove_node(), extinct)]
+        return [
+            UpdateLaw(s.age, s.age + 1),
+            UpdateLaw(add_node(edges=self.k), extinct),
+            UpdateLaw(remove_node(), extinct),
+        ]
 
 
-class Coupling(Element):
+class CouplingComponent(ElementComponent):
     """Edge from a species to a species it depends on, with the coupling `J` between them.
 
     A new edge, marked `fresh`, draws its coupling uniformly from `[-1, 1]` at its first step.
@@ -97,16 +101,16 @@ class Coupling(Element):
             Whether the edge has not drawn its coupling yet.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Coupling
-        >>> Coupling('edge').fresh
+        >>> from skcomplex.models.biology.evolution import CouplingComponent
+        >>> CouplingComponent('edge').fresh
         1.0
     """
 
-    J: float = state(default=0.0, domain=Domain.REAL)
-    fresh: float = state(default=1.0, domain=Domain.BOOLEAN)
+    J: float = state(default=0.0, domain=NumericDomain.REAL)
+    fresh: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
 
 
-class CouplingDrift(Interaction):
+class CouplingDriftInteraction(BaseInteraction):
     """Random drift of the couplings of an ecosystem, and the first coupling of every new edge.
 
     Args:
@@ -123,17 +127,17 @@ class CouplingDrift(Interaction):
             The standard deviation of the change of every coupling at a step.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CouplingDrift
-        >>> CouplingDrift('drift', species='species', couplings='couplings').noise
+        >>> from skcomplex.models.biology.evolution import CouplingDriftInteraction
+        >>> CouplingDriftInteraction('drift', species='species', couplings='couplings').noise
         0.05
     """
 
     over: ClassVar[str] = 'neighbors'
     species: str = role()
     couplings: str = role()
-    noise: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    noise: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drift of the coupling of an edge, or its first draw.
 
         Args:
@@ -146,12 +150,12 @@ class CouplingDrift(Interaction):
         """
         drifted = s.edge.J + s.noise * normal('drift')
         return [
-            Update(s.edge.J, where(s.edge.fresh > 1 / 2, uniform('coupling', -1, 1), drifted)),
-            Update(s.edge.fresh, 0),
+            UpdateLaw(s.edge.J, where(s.edge.fresh > 1 / 2, uniform('coupling', -1, 1), drifted)),
+            UpdateLaw(s.edge.fresh, 0),
         ]
 
 
-class DependencyField(Interaction):
+class DependencyFieldInteraction(BaseInteraction):
     """Field of every species, the sum of the couplings of its edges to the species it depends on.
 
     Args:
@@ -165,15 +169,15 @@ class DependencyField(Interaction):
             The path of the variable group on the edges.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import DependencyField
-        >>> DependencyField('field', species='species', couplings='couplings').couplings
+        >>> from skcomplex.models.biology.evolution import DependencyFieldInteraction
+        >>> DependencyFieldInteraction('field', species='species', couplings='couplings').couplings
         'couplings'
     """
 
     species: str = role()
     couplings: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the field of every species.
 
         Args:
@@ -184,10 +188,10 @@ class DependencyField(Interaction):
             laws:
                 The update of the field.
         """
-        return [Update(s.species.h, neighbors(1, weight=s.couplings.J))]
+        return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.J))]
 
 
-class Chemical(Element):
+class ChemicalComponent(ElementComponent):
     """Molecular species of a pool whose relative population grows with the populations of its catalysts.
 
     The populations follow the catalytic network: every species gains `h` times the populations of the species that
@@ -224,17 +228,17 @@ class Chemical(Element):
                 The number of steps between two graph updates.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Chemical
-        >>> Chemical('species').period
+        >>> from skcomplex.models.biology.evolution import ChemicalComponent
+        >>> ChemicalComponent('species').period
         10.0
     """
 
-    x: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    tie: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    fresh: float = state(default=1.0, domain=Domain.BOOLEAN)
-    h: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    p: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    period: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    tie: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    fresh: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    h: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    p: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    period: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -246,7 +250,7 @@ class Chemical(Element):
         super().__init__(label, **values)
         self.k = k
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the catalytic growth, and the replacement of the least populated species at every graph update.
 
         Args:
@@ -268,16 +272,16 @@ class Chemical(Element):
             return node.fresh
 
         return [
-            Update(s.x, grown / total(grown)),
-            Update(s.tie, uniform('tie')),
-            Update(s.fresh, 0),
-            Update(add_node(edges=self.k), least),
-            Update(remove_node(), least),
-            Update(add_edge(toward=fresh), s.p * newcomer),
+            UpdateLaw(s.x, grown / total(grown)),
+            UpdateLaw(s.tie, uniform('tie')),
+            UpdateLaw(s.fresh, 0),
+            UpdateLaw(add_node(edges=self.k), least),
+            UpdateLaw(remove_node(), least),
+            UpdateLaw(add_edge(toward=fresh), s.p * newcomer),
         ]
 
 
-class CatalyticLink(Element):
+class CatalyticLinkComponent(ElementComponent):
     """Catalytic link from a species to a species that catalyses it, which carries no state of its own.
 
     Args:
@@ -285,8 +289,8 @@ class CatalyticLink(Element):
             The label of the link or of the group of links.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CatalyticLink
-        >>> CatalyticLink('link').label
+        >>> from skcomplex.models.biology.evolution import CatalyticLinkComponent
+        >>> CatalyticLinkComponent('link').label
         'link'
     """
 
@@ -345,9 +349,9 @@ def sole_manrubia(
     couplings = rng.uniform(-1, 1, edges)
     sources, _ = space.list_edges()
     fields = np.bincount(sources, weights=couplings, minlength=n)
-    species = Group(
+    species = GroupComponent(
         'species',
-        element=Taxon,
+        element=TaxonComponent,
         space=space,
         on='sites',
         variable=True,
@@ -355,9 +359,9 @@ def sole_manrubia(
         values={'h': fields, 'k': k},
         visual=VisualSpec('sites', {'states': ['age']}),
     )
-    edge_group = Group(
+    edge_group = GroupComponent(
         'couplings',
-        element=Coupling,
+        element=CouplingComponent,
         space=space,
         on='edges',
         variable=True,
@@ -368,8 +372,8 @@ def sole_manrubia(
     return System(
         components=[species, edge_group],
         interactions=[
-            DependencyField('field', species='species', couplings='couplings'),
-            CouplingDrift('drift', species='species', couplings='couplings', noise=noise),
+            DependencyFieldInteraction('field', species='species', couplings='couplings'),
+            CouplingDriftInteraction('drift', species='species', couplings='couplings', noise=noise),
         ],
         time=DiscreteTime(),
     )
@@ -425,9 +429,9 @@ def jain_krishna(
     rng = _initial_stream(seed)
     graph = nx.gnp_random_graph(n, p, seed=int(rng.integers(2**31)), directed=True)
     space = NetworkSpace(graph)
-    species = Group(
+    species = GroupComponent(
         'species',
-        element=Chemical,
+        element=ChemicalComponent,
         space=space,
         on='sites',
         variable=True,
@@ -443,5 +447,13 @@ def jain_krishna(
         },
         visual=VisualSpec('sites', {'states': ['x']}),
     )
-    links = Group('links', element=CatalyticLink, space=space, on='edges', variable=True, capacity=n * n, visual=HIDDEN)
+    links = GroupComponent(
+        'links',
+        element=CatalyticLinkComponent,
+        space=space,
+        on='edges',
+        variable=True,
+        capacity=n * n,
+        visual=HIDDEN,
+    )
     return System(components=[species, links], time=DiscreteTime())

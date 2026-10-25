@@ -8,13 +8,13 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -63,7 +63,7 @@ def _meal(kind: int, habit: int, rng: np.random.Generator) -> tuple[float, bool]
     return float(calories), bool(calories > (low + high) / 2)
 
 
-class Restaurant(Element):
+class RestaurantComponent(ElementComponent):
     """Restaurant of the obesity model: a market at 0, a restaurant at 1, or a fast food outlet at 2.
 
     Args:
@@ -80,17 +80,17 @@ class Restaurant(Element):
             The number of meals sold from the top half of the restaurant's calorie range.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Restaurant
-        >>> Restaurant.group('restaurants', 3, kind=2.0)
-        Group('restaurants', element=Restaurant, size=3)
+        >>> from skcomplex.models.social.organizations import RestaurantComponent
+        >>> RestaurantComponent.group('restaurants', 3, kind=2.0)
+        GroupComponent('restaurants', element=RestaurantComponent, size=3)
     """
 
-    kind: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    sold: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    sold_high: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    kind: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    sold: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    sold_high: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class Eater(Element):
+class EaterComponent(ElementComponent):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
 
     At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, or at the
@@ -140,26 +140,26 @@ class Eater(Element):
             The factor of the basal metabolic rate a person spends a day, 1.2 when sedentary and 1.9 when very active.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Eater
-        >>> Eater.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
-        Group('people', element=Eater, size=5)
+        >>> from skcomplex.models.social.organizations import EaterComponent
+        >>> EaterComponent.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
+        GroupComponent('people', element=EaterComponent, size=5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})
     home: npt.ArrayLike = state(default=0.0, vector=True)
     work: npt.ArrayLike = state(default=0.0, vector=True)
-    weight: float = state(default=70.0, domain=Domain.POSITIVE)
-    height: float = state(default=170.0, domain=Domain.POSITIVE)
-    age: float = state(default=40.0, domain=Domain.POSITIVE)
-    male: float = state(default=1.0, domain=Domain.BOOLEAN)
-    habit: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    calories: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    bmi: float = state(default=24.0, domain=Domain.POSITIVE)
-    day: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    reach: float = parameter(default=30.0, domain=Domain.POSITIVE)
-    activity: float = parameter(default=1.55, domain=Domain.POSITIVE)
+    weight: float = state(default=70.0, domain=NumericDomain.POSITIVE)
+    height: float = state(default=170.0, domain=NumericDomain.POSITIVE)
+    age: float = state(default=40.0, domain=NumericDomain.POSITIVE)
+    male: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    habit: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    calories: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    bmi: float = state(default=24.0, domain=NumericDomain.POSITIVE)
+    day: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    reach: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    activity: float = parameter(default=1.55, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the daily rule.
 
         Args:
@@ -170,7 +170,7 @@ class Eater(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def _eat(self, agent: AgentView, model: ModelView) -> None:
         """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
@@ -265,7 +265,7 @@ def obesity(
     male = (rng.random(n_people) < 0.5).astype(float)  # noqa: PLR2004
     height = np.where(male > 0, rng.normal(176, 7, n_people), rng.normal(163, 7, n_people))
     weight = rng.normal(24, 3, n_people) * (height / 100) ** 2
-    people = Eater.group(
+    people = EaterComponent.group(
         'people',
         n_people,
         location=home,
@@ -280,7 +280,7 @@ def obesity(
         reach=reach,
         activity=activity,
     )
-    restaurants = Restaurant.group(
+    restaurants = RestaurantComponent.group(
         'restaurants',
         n_places,
         location=rng.uniform(0, size, (n_places, 2)),

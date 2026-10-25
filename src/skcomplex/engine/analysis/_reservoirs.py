@@ -11,12 +11,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import AnalysisError, vector
-from ...core.laws import Call, Law, Symbols, Update
+from ...core.laws import BaseLaw, Call, Symbols, UpdateLaw
 from ...core.space import DiscreteTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
-    Surrogate,
+    BaseSurrogate,
     SurrogateData,
     relative_error,
     samples_of,
@@ -168,19 +168,19 @@ def _fit_readout(step: _ReservoirStep, series: list[Array], training: list[Array
     )
 
 
-def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Symbols], list[Law]]:
+def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Symbols], list[BaseLaw]]:
     """Return the function that gives the one update law of every state, which calls the reservoir map once."""
 
-    def laws(s: Symbols) -> list[Law]:
+    def laws(s: Symbols) -> list[BaseLaw]:
         """Return the update law."""
         symbols = symbols_of(s, names)
-        return [Update(vector(symbols), Call(step, *symbols))]
+        return [UpdateLaw(vector(symbols), Call(step, *symbols))]
 
     return laws
 
 
 @dataclass(frozen=True)
-class ReservoirModel(Surrogate):
+class ReservoirSurrogate(BaseSurrogate):
     """Reservoir surrogate whose readout gives the increments of the variables over one sample.
 
     Args:
@@ -255,7 +255,7 @@ def fit_reservoir(
     validation: float = 0.2,
     random_state: int | None = 0,
     label: str = 'surrogate',
-) -> ReservoirModel:
+) -> ReservoirSurrogate:
     """Return the reservoir surrogate fitted to series, with a reservoir and a ridge readout from ReservoirPy.
 
     The reservoir is driven by the standardized variables, and a ridge regression from its features to the increments
@@ -355,7 +355,7 @@ def fit_reservoir(
         _reservoir_laws(states, step),
         DiscreteTime(),
     )
-    return ReservoirModel(
+    return ReservoirSurrogate(
         system,
         samples.labels,
         states,

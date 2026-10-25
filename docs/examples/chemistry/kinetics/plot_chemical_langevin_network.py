@@ -14,7 +14,7 @@ species it changes with one Wiener process, so the amounts fluctuate around the 
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -22,7 +22,7 @@ MODEL = 'chemical_langevin_network'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-solver = EulerMaruyama(dt=0.001)
+solver = EulerMaruyamaSolver(dt=0.001)
 simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).run(until=50)
 
 # %%

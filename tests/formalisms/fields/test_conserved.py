@@ -5,26 +5,26 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import NoiseKind, ValidationError, symbol
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Noise
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.space import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.solvers import EulerMaruyama, Heun, Milstein
-from skcomplex.formalisms.fields import Field
+from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
+from skcomplex.formalisms.fields import FieldComponent
 
-Conserved = Element.define(
-    'Conserved',
+ConservedComponent = ElementComponent.define(
+    'ConservedComponent',
     states={'rho': 0.0},
     parameters={'a': 2.0},
-    laws=lambda s: [Noise(s.rho, s.a, conserved=True)],
+    laws=lambda s: [NoiseLaw(s.rho, s.a, conserved=True)],
 )
 
 
 def _field(shape, boundary='periodic', spacing=1.0):
     """Return a system of one field with conserved noise on a lattice."""
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[Field('f', Conserved, space, boundary={'rho': boundary})])
+    return System(components=[FieldComponent('f', ConservedComponent, space, boundary={'rho': boundary})])
 
 
 def _noise_matrix(problem):
@@ -38,7 +38,7 @@ def _noise_matrix(problem):
 def test_noise_rejects_conserved_process():
     """Test that a conserved noise law rejects a named process."""
     with pytest.raises(ValidationError, match='per link'):
-        Noise(symbol('rho'), 1.0, conserved=True, process='common')
+        NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common')
 
 
 def test_compile_system_gives_every_link_two_entries():
@@ -63,19 +63,19 @@ def test_compile_system_leaves_out_outer_links_of_zero_flux_edges():
 
 def test_compile_system_rejects_conserved_amplitude_of_state():
     """Test that a conserved noise whose amplitude reads the field is rejected as out of scope."""
-    Multiplicative = Element.define(
-        'Multiplicative',
+    MultiplicativeComponent = ElementComponent.define(
+        'MultiplicativeComponent',
         states={'rho': 1.0},
-        laws=lambda s: [Noise(s.rho, s.rho, conserved=True)],
+        laws=lambda s: [NoiseLaw(s.rho, s.rho, conserved=True)],
     )
-    system = System(components=[Field('f', Multiplicative, LatticeSpace((4,)))])
+    system = System(components=[FieldComponent('f', MultiplicativeComponent, LatticeSpace((4,)))])
     with pytest.raises(ValidationError, match='reads the states'):
         compile_system(system)
 
 
 def test_validate_reports_conserved_noise_off_lattice():
     """Test that conserved noise on an element that is not a field reports `noise-unsupported` naming lattices."""
-    (issue,) = validate(System(components=[Conserved('c')])).issues
+    (issue,) = validate(System(components=[ConservedComponent('c')])).issues
     assert issue.code == 'noise-unsupported'
     assert 'c.rho' in issue.message
     assert 'LatticeSpace' in issue.fix
@@ -84,7 +84,7 @@ def test_validate_reports_conserved_noise_off_lattice():
 def test_validate_reports_conserved_noise_on_network():
     """Test that conserved noise on a field of a network reports `noise-unsupported`."""
     space = NetworkSpace(nx.cycle_graph(5))
-    issues = validate(System(components=[Field('f', Conserved, space)])).issues
+    issues = validate(System(components=[FieldComponent('f', ConservedComponent, space)])).issues
     assert [issue.code for issue in issues] == ['noise-unsupported']
 
 
@@ -103,6 +103,6 @@ def test_validate_accepts_conserved_noise_on_lattice():
 
 def test_declared_conserved_support():
     """Test that Euler-Maruyama and Heun declare conserved noise and Milstein does not."""
-    assert NoiseKind.CONSERVED in EulerMaruyama.supports.noise
-    assert NoiseKind.CONSERVED in Heun.supports.noise
-    assert NoiseKind.CONSERVED not in Milstein.supports.noise
+    assert NoiseKind.CONSERVED in EulerMaruyamaSolver.supports.noise
+    assert NoiseKind.CONSERVED in HeunSolver.supports.noise
+    assert NoiseKind.CONSERVED not in MilsteinSolver.supports.noise

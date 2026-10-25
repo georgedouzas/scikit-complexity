@@ -3,15 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class Listeners(Element):
+class ListenersComponent(ElementComponent):
     """Number of people in one state of a rumour: ignorant, spreading, or stifling.
 
     Args:
@@ -22,15 +22,15 @@ class Listeners(Element):
             The initial number of people.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import Listeners
-        >>> Listeners('spreaders', n=1).n
+        >>> from skcomplex.models.social.spreading import ListenersComponent
+        >>> ListenersComponent('spreaders', n=1).n
         1
     """
 
-    n: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    n: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class RumourContacts(Interaction):
+class RumourContactsInteraction(BaseInteraction):
     """Contacts of the Maki-Thompson rumour model in a well-mixed population of size `N`.
 
     A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a spreader who meets another
@@ -56,18 +56,18 @@ class RumourContacts(Interaction):
             The contact rate that stifles a spreader.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import RumourContacts
-        >>> RumourContacts('contacts', ignorants='X', spreaders='Y', stiflers='Z').spread
+        >>> from skcomplex.models.social.spreading import RumourContactsInteraction
+        >>> RumourContactsInteraction('contacts', ignorants='X', spreaders='Y', stiflers='Z').spread
         1.0
     """
 
     ignorants: str = role()
     spreaders: str = role()
     stiflers: str = role()
-    spread: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    stifle: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    spread: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    stifle: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the telling and stifling jumps.
 
         Args:
@@ -81,8 +81,8 @@ class RumourContacts(Interaction):
         ignorants, spreaders, stiflers = s.ignorants.n, s.spreaders.n, s.stiflers.n
         total = ignorants + spreaders + stiflers
         return [
-            Jump(s.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
-            Jump(s.stifle * spreaders * (spreaders - 1 + stiflers) / total, {spreaders: -1, stiflers: 1}),
+            JumpLaw(s.spread * ignorants * spreaders / total, {ignorants: -1, spreaders: 1}),
+            JumpLaw(s.stifle * spreaders * (spreaders - 1 + stiflers) / total, {spreaders: -1, stiflers: 1}),
         ]
 
 
@@ -115,9 +115,13 @@ def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 
         [99, 1, 0]
     """
     return System(
-        components=[Listeners('ignorants', n=n_people - 1), Listeners('spreaders', n=1), Listeners('stiflers', n=0)],
+        components=[
+            ListenersComponent('ignorants', n=n_people - 1),
+            ListenersComponent('spreaders', n=1),
+            ListenersComponent('stiflers', n=0),
+        ],
         interactions=[
-            RumourContacts(
+            RumourContactsInteraction(
                 'contacts',
                 ignorants='ignorants',
                 spreaders='spreaders',

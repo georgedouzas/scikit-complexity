@@ -3,10 +3,10 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import hahnfeldt, vascular_core_periphery
 
-STIFF = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-8)
+STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 
 
 def _run(system, until, dt):

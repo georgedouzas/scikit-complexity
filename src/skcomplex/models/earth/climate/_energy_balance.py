@@ -8,13 +8,13 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from ....core.base import Domain, Expression, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, where
+from ....core.base import Expression, NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, where
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, gradient, laplacian
+from ....formalisms.fields import FieldComponent, gradient, laplacian
 
 
 def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401
@@ -35,12 +35,12 @@ def _daisyworld_growth(s: Any, albedo: Expression) -> Expression:  # noqa: ANN40
     return where(growth > 0, growth, 0)
 
 
-def _daisyworld_laws(s: Symbols) -> list[Law]:
+def _daisyworld_laws(s: Symbols) -> list[BaseLaw]:
     """Return the growth and death of white and black daisies on the bare ground."""
     bare = s.p - s.white - s.black
     return [
-        Rate(s.white, s.white * (bare * _daisyworld_growth(s, s.albedo_white) - s.gamma)),
-        Rate(s.black, s.black * (bare * _daisyworld_growth(s, s.albedo_black) - s.gamma)),
+        RateLaw(s.white, s.white * (bare * _daisyworld_growth(s, s.albedo_white) - s.gamma)),
+        RateLaw(s.black, s.black * (bare * _daisyworld_growth(s, s.albedo_black) - s.gamma)),
     ]
 
 
@@ -49,19 +49,19 @@ def _daisyworld_temperature(s: Any) -> Expression:  # noqa: ANN401
     return _daisyworld_emission(s.planet) ** (1 / 4)
 
 
-def _budyko_sellers_laws(s: Symbols) -> list[Law]:
+def _budyko_sellers_laws(s: Symbols) -> list[BaseLaw]:
     """Return the absorbed insolation, the linearized outgoing radiation, and the meridional diffusion of heat."""
     legendre = (3 * s.x**2 - 1) / 2
     insolation = s.Q * (1 + s.s2 * legendre)
     free = s.albedo_free + s.albedo_slope * legendre
     albedo = (s.albedo_ice + free) / 2 - (s.albedo_ice - free) / 2 * tanh((s.T - s.T_ice) / s.width)
     transport = s.D * ((1 - s.x**2) * laplacian(s.T) - 2 * s.x * gradient(s.T, 1)[0])
-    return [Rate(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
+    return [RateLaw(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
 
 
-IceAlbedoClimate = Element.define(
-    'IceAlbedoClimate',
-    states={'T': state(default=290.0, domain=Domain.POSITIVE)},
+IceAlbedoClimateComponent = ElementComponent.define(
+    'IceAlbedoClimateComponent',
+    states={'T': state(default=290.0, domain=NumericDomain.POSITIVE)},
     parameters={
         's': 1.0,
         'epsilon': 0.65,
@@ -72,13 +72,16 @@ IceAlbedoClimate = Element.define(
         'width': 4.0,
     },
     laws=lambda s: [
-        Rate(s.T, s.s * (1 - (s.albedo - s.contrast * tanh((s.T - s.T_ice) / s.width))) - s.sigma * s.epsilon * s.T**4),
+        RateLaw(
+            s.T,
+            s.s * (1 - (s.albedo - s.contrast * tanh((s.T - s.T_ice) / s.width))) - s.sigma * s.epsilon * s.T**4,
+        ),
     ],
 )
 
-LatitudeBand = Element.define(
-    'LatitudeBand',
-    states={'T': state(default=15.0, domain=Domain.REAL)},
+LatitudeBandComponent = ElementComponent.define(
+    'LatitudeBandComponent',
+    states={'T': state(default=15.0, domain=NumericDomain.REAL)},
     parameters={
         'x': 0.5,
         'Q': 334.4,
@@ -96,11 +99,11 @@ LatitudeBand = Element.define(
     laws=_budyko_sellers_laws,
 )
 
-Daisyworld = Element.define(
-    'Daisyworld',
+DaisyworldComponent = ElementComponent.define(
+    'DaisyworldComponent',
     states={
-        'white': state(default=0.2, domain=Domain.NONNEGATIVE),
-        'black': state(default=0.2, domain=Domain.NONNEGATIVE),
+        'white': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
+        'black': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={
         'L': 1.0,
@@ -176,7 +179,7 @@ def energy_balance(
         >>> energy_balance(T=230.0).elements[0].T
         230.0
     """
-    climate = IceAlbedoClimate(
+    climate = IceAlbedoClimateComponent(
         'earth',
         T=T,
         s=s,
@@ -246,9 +249,9 @@ def budyko_sellers(
         10
     """
     x = (np.arange(n_bands) + 0.5) / n_bands
-    bands = Field(
+    bands = FieldComponent(
         'bands',
-        LatitudeBand,
+        LatitudeBandComponent,
         LatticeSpace(n_bands, spacing=1 / n_bands),
         boundary={'T': 'zero-flux'},
         values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
@@ -299,5 +302,5 @@ def daisyworld(
         1.2
     """
     return System(
-        components=[Daisyworld('planet', white=white, black=black, L=L, gamma=gamma)],
+        components=[DaisyworldComponent('planet', white=white, black=black, L=L, gamma=gamma)],
     )

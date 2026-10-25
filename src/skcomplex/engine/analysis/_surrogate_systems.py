@@ -13,9 +13,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import AnalysisError, Expression
-from ...core.components import Element
-from ...core.laws import Law, Symbols
-from ...core.space import Time
+from ...core.components import ElementComponent
+from ...core.laws import BaseLaw, Symbols
+from ...core.space import BaseTime
 from ...core.system import System
 from ..runtime import Trajectory
 from ._adapters import Series, series_of
@@ -175,8 +175,8 @@ def surrogate_system(
     kind: str,
     label: str,
     initial: Mapping[str, float],
-    laws: Callable[[Symbols], list[Law]],
-    time: Time,
+    laws: Callable[[Symbols], list[BaseLaw]],
+    time: BaseTime,
 ) -> System:
     """Return a system of one surrogate element with the given states, laws, and time.
 
@@ -200,7 +200,7 @@ def surrogate_system(
         system:
             The system.
     """
-    element_type = Element.define(kind, states=dict(initial), laws=laws)
+    element_type = ElementComponent.define(kind, states=dict(initial), laws=laws)
     return System(components=[element_type(label)], time=time)
 
 
@@ -222,7 +222,7 @@ def symbols_of(s: Symbols, names: Sequence[str]) -> list[Expression]:
 
 
 @dataclass(frozen=True)
-class Surrogate:
+class BaseSurrogate:
     """Surrogate system fitted to series, with its errors.
 
     Args:

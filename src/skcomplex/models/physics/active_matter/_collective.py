@@ -11,22 +11,22 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Noise, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4, EulerMaruyama
-from ....formalisms.fields import Field, advection, divergence, gradient, laplacian
-from ....formalisms.particles import Particle
-from ._particles import ActiveParticle
+from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
+from ....formalisms.fields import FieldComponent, advection, divergence, gradient, laplacian
+from ....formalisms.particles import ParticleComponent
+from ._particles import ActiveParticleComponent
 
 type Array = npt.NDArray[np.float64]
 
 
-class SoftRepulsion(Interaction):
+class SoftRepulsionInteraction(BaseInteraction):
     """Overdamped repulsion between overlapping disks, which pushes them apart at the speed `k (cutoff - r)`.
 
     Args:
@@ -52,8 +52,8 @@ class SoftRepulsion(Interaction):
                 The stiffness times the mobility.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import SoftRepulsion
-        >>> SoftRepulsion('contact', first='swimmers', second='swimmers', k=50.0).k
+        >>> from skcomplex.models.physics.active_matter import SoftRepulsionInteraction
+        >>> SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', k=50.0).k
         50.0
     """
 
@@ -61,9 +61,9 @@ class SoftRepulsion(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    k: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -75,7 +75,7 @@ class SoftRepulsion(Interaction):
         super().__init__(label, **values)
         self.period = period
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the opposite displacements of the two members of an overlapping pair.
 
         Args:
@@ -89,10 +89,10 @@ class SoftRepulsion(Interaction):
         separation = s.first.x - s.second.x
         r = sqrt(separation.dot_product(separation))
         push = s.k * (s.cutoff - r) * separation / r
-        return [Rate(s.first.x, push), Rate(s.second.x, -push)]
+        return [RateLaw(s.first.x, push), RateLaw(s.second.x, -push)]
 
 
-class PhoreticAttraction(Interaction):
+class PhoreticAttractionInteraction(BaseInteraction):
     """Phoretic attraction between active colloids, a drift towards each other at the speed `v0 R^2 / r^2`.
 
     Args:
@@ -121,8 +121,8 @@ class PhoreticAttraction(Interaction):
                 The particle radius.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import PhoreticAttraction
-        >>> PhoreticAttraction('phoresis', first='colloids', second='colloids', v0=20.0).v0
+        >>> from skcomplex.models.physics.active_matter import PhoreticAttractionInteraction
+        >>> PhoreticAttractionInteraction('phoresis', first='colloids', second='colloids', v0=20.0).v0
         20.0
     """
 
@@ -130,10 +130,10 @@ class PhoreticAttraction(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    v0: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    R: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    v0: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    R: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -145,7 +145,7 @@ class PhoreticAttraction(Interaction):
         super().__init__(label, **values)
         self.period = period
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drifts of the two members of a pair towards each other.
 
         Args:
@@ -159,10 +159,10 @@ class PhoreticAttraction(Interaction):
         separation = s.first.x - s.second.x
         r = sqrt(separation.dot_product(separation))
         drift = s.v0 * s.R**2 / r**2 * separation / r
-        return [Rate(s.first.x, -drift), Rate(s.second.x, drift)]
+        return [RateLaw(s.first.x, -drift), RateLaw(s.second.x, drift)]
 
 
-class CuckerSmaleAlignment(Interaction):
+class CuckerSmaleAlignmentInteraction(BaseInteraction):
     """Cucker-Smale alignment, `dv_i/dt = K / N sum_j psi(r_ij) (v_j - v_i)` with `psi(r) = (1 + r^2)^(-beta)`.
 
     Args:
@@ -194,8 +194,8 @@ class CuckerSmaleAlignment(Interaction):
                 The decay exponent of the communication weight.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import CuckerSmaleAlignment
-        >>> CuckerSmaleAlignment('align', first='birds', second='birds', beta=0.25).beta
+        >>> from skcomplex.models.physics.active_matter import CuckerSmaleAlignmentInteraction
+        >>> CuckerSmaleAlignmentInteraction('align', first='birds', second='birds', beta=0.25).beta
         0.25
     """
 
@@ -203,10 +203,10 @@ class CuckerSmaleAlignment(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    K: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.25, domain=Domain.NONNEGATIVE)
+    K: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -220,7 +220,7 @@ class CuckerSmaleAlignment(Interaction):
         self.period = period
         self.n_agents = n_agents
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the opposite velocity changes of the two members of a pair.
 
         Args:
@@ -234,10 +234,10 @@ class CuckerSmaleAlignment(Interaction):
         separation = s.first.x - s.second.x
         weight = s.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-s.beta)
         change = weight * (s.second.v - s.first.v)
-        return [Rate(s.first.v, change), Rate(s.second.v, -change)]
+        return [RateLaw(s.first.v, change), RateLaw(s.second.v, -change)]
 
 
-class PolarFluid(Element):
+class PolarFluidComponent(ElementComponent):
     """Site of the Toner-Tu polar active fluid, with a density `rho` and a velocity `(vx, vy)`.
 
     The density is conserved, `drho/dt + div(rho v) = 0`, and the velocity follows
@@ -280,23 +280,23 @@ class PolarFluid(Element):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import PolarFluid
-        >>> PolarFluid('site').rho_c
+        >>> from skcomplex.models.physics.active_matter import PolarFluidComponent
+        >>> PolarFluidComponent('site').rho_c
         0.5
     """
 
-    rho: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    rho: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
     vx: float = state(default=0.0)
     vy: float = state(default=0.0)
-    a: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    rho_c: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    rho_c: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     lam: float = parameter(default=1.0)
-    sigma: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    D: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    noise: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    sigma: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    D: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    noise: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the continuity equation and the Toner-Tu equation of each velocity component.
 
         Args:
@@ -310,13 +310,13 @@ class PolarFluid(Element):
         velocity = [s.vx, s.vy]
         pressure = gradient(s.sigma * s.rho, 2)
         speed_squared = s.vx**2 + s.vy**2
-        laws: list[Law] = [Rate(s.rho, -divergence([s.rho * s.vx, s.rho * s.vy]))]
+        laws: list[BaseLaw] = [RateLaw(s.rho, -divergence([s.rho * s.vx, s.rho * s.vy]))]
         for axis, component in enumerate(velocity):
             transport = advection(component, [s.lam * item for item in velocity])
             growth = (s.a * (s.rho - s.rho_c) - s.beta * speed_squared) * component
             laws += [
-                Rate(component, -transport + growth - pressure[axis] + s.D * laplacian(component)),
-                Noise(component, sqrt(2 * s.noise)),
+                RateLaw(component, -transport + growth - pressure[axis] + s.D * laplacian(component)),
+                NoiseLaw(component, sqrt(2 * s.noise)),
             ]
         return laws
 
@@ -344,7 +344,15 @@ def _active_disks(
 ) -> System:
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
-    group = ActiveParticle.group('swimmers', n_particles, x=positions, theta=angles, speed=speed, D_t=0.0, D_r=D_r)
+    group = ActiveParticleComponent.group(
+        'swimmers',
+        n_particles,
+        x=positions,
+        theta=angles,
+        speed=speed,
+        D_t=0.0,
+        D_r=D_r,
+    )
     return System(components=[group], space=ContinuousSpace(size, size, boundary='periodic'))
 
 
@@ -352,7 +360,7 @@ def _active_disks(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'phase separation', 'pair interaction'),
     references=('Cates and Tailleur 2015', 'Bechinger et al. 2016', 'Fily and Marchetti 2012'),
-    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.005)},
+    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.005)},
 )
 def motility_induced_phase_separation(
     n_particles: int = 400,
@@ -399,7 +407,7 @@ def motility_induced_phase_separation(
     """
     size = math.sqrt(n_particles * math.pi / 4 / packing_fraction)
     system = _active_disks(n_particles, size, speed, D_r, random_state)
-    repulsion = SoftRepulsion('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
+    repulsion = SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
     return System(components=system.elements, interactions=[*system.interactions, repulsion], space=system.space)
 
 
@@ -407,7 +415,7 @@ def motility_induced_phase_separation(
     field='physics/active_matter',
     tags=('active matter', 'sde', 'clusters', 'phoresis', 'pair interaction'),
     references=('Argun et al. 2021', 'Palacci et al. 2013'),
-    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.002)},
+    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.002)},
 )
 def living_crystals(
     n_particles: int = 100,
@@ -460,8 +468,8 @@ def living_crystals(
         20.0
     """
     system = _active_disks(n_particles, size, speed, D_r, random_state)
-    repulsion = SoftRepulsion('contact', first='swimmers', second='swimmers', cutoff=2.0, period=size, k=k)
-    attraction = PhoreticAttraction(
+    repulsion = SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', cutoff=2.0, period=size, k=k)
+    attraction = PhoreticAttractionInteraction(
         'phoresis',
         first='swimmers',
         second='swimmers',
@@ -478,7 +486,7 @@ def living_crystals(
     field='physics/active_matter',
     tags=('flocking', 'ode', 'alignment', 'pair interaction'),
     references=('Cucker and Smale 2007', 'Vicsek and Zafeiris 2012', 'Bellomo et al. 2017'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': RK4(dt=0.05)},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': RK4Solver(dt=0.05)},
 )
 def cucker_smale_flocking(
     n_agents: int = 50,
@@ -518,14 +526,14 @@ def cucker_smale_flocking(
         5
     """
     rng = np.random.default_rng(random_state)
-    birds = Particle.group(
+    birds = ParticleComponent.group(
         'birds',
         n_agents,
         x=rng.uniform(0.0, size, (n_agents, 2)),
         v=rng.normal(0.0, 1.0, (n_agents, 2)),
         visual=VisualSpec('points', {'position': 'x', 'color_by': 'v', 'states': ()}),
     )
-    alignment = CuckerSmaleAlignment(
+    alignment = CuckerSmaleAlignmentInteraction(
         'align',
         first='birds',
         second='birds',
@@ -541,7 +549,7 @@ def cucker_smale_flocking(
     field='physics/active_matter',
     tags=('field', 'flocking', 'hydrodynamics', 'pde'),
     references=('Toner and Tu 1995', 'Marchetti et al. 2013'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.02)},
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.02)},
 )
 def toner_tu(
     shape: Sequence[int] = (32, 32),
@@ -610,4 +618,4 @@ def toner_tu(
     }
     parameters = {'a': a, 'rho_c': rho_c, 'beta': beta, 'lam': lam, 'sigma': sigma, 'D': D}
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[Field('flock', PolarFluid, space, values={**values, **parameters})])
+    return System(components=[FieldComponent('flock', PolarFluidComponent, space, values={**values, **parameters})])

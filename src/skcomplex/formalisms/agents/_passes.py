@@ -8,12 +8,21 @@ import re
 from dataclasses import replace
 from typing import cast
 
-from ...core.base import BackendError, Domain, LabelError, ValidationError, VariableKind, VisualSpec, declarations_of
-from ...core.components import Group, probe_laws
-from ...core.interactions import Interaction
-from ...core.laws import Invariant, Law
-from ...core.space import Space
+from ...core.base import (
+    BackendError,
+    LabelError,
+    NumericDomain,
+    ValidationError,
+    VariableKind,
+    VisualSpec,
+    declarations_of,
+)
+from ...core.components import GroupComponent, probe_laws
+from ...core.interactions import BaseInteraction
+from ...core.laws import BaseLaw, Invariant
+from ...core.space import BaseSpace
 from ...engine.compile import (
+    BasePass,
     Block,
     BlockLaws,
     Compilation,
@@ -22,11 +31,10 @@ from ...engine.compile import (
     KernelSpec,
     Laws,
     Node,
-    Pass,
     Problem,
     visual_of,
 )
-from ._laws import Match, Rule, runs_rules
+from ._laws import MatchLaw, RuleLaw, runs_rules
 
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 AGENT_VIEW_NAMES = frozenset(
@@ -71,7 +79,7 @@ def _agent_visual(node: Node) -> VisualSpec:
     return VisualSpec('agents') if visual == VisualSpec() else visual
 
 
-def _agent_space(blocks: list[Block]) -> Space | None:
+def _agent_space(blocks: list[Block]) -> BaseSpace | None:
     """Return the one space every agent group lives in, or raise an error when groups live in different spaces."""
     spaces = {id(block.node.space): block.node.space for block in blocks if block.node.is_agent}
     if len(spaces) > 1:
@@ -80,11 +88,11 @@ def _agent_space(blocks: list[Block]) -> Space | None:
     return next(iter(spaces.values()), None)
 
 
-def _agent_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
+def _agent_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the group a rule or a matching acts for: the first agent group among its roles, or its first role."""
-    if isinstance(law, Match):
+    if isinstance(law, MatchLaw):
         law = law.rule
-    if not isinstance(law, Rule):
+    if not isinstance(law, RuleLaw):
         return None
     paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
     return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
@@ -92,7 +100,7 @@ def _agent_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
 
 def _compiled_agents(
     blocks: list[Block],
-    rules: list[tuple[KernelSpec, tuple[Rule, ...]]],
+    rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
     specs: Laws,
 ) -> tuple[CompiledAgents, ...]:
     """Return the agent elements and groups with their states, initial values, parameters, and rules."""
@@ -107,7 +115,7 @@ def _compiled_agents(
             continue
         _check_agent_names(node)
         declared = declarations_of(node.component_type, VariableKind.STATE)
-        complex_states = [name for name, declaration in declared.items() if declaration.domain is Domain.COMPLEX]
+        complex_states = [name for name, declaration in declared.items() if declaration.domain is NumericDomain.COMPLEX]
         if complex_states:
             error_msg = (
                 f'Agent group {node.path} declares the complex state {complex_states[0]}, which the Mesa backend '
@@ -133,7 +141,7 @@ def _compiled_agents(
 
 def _is_passive(component: object) -> bool:
     """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
-    return isinstance(component, Group) and component.on is None and probe_laws(component) == []
+    return isinstance(component, GroupComponent) and component.on is None and probe_laws(component) == []
 
 
 def _bound_paths(node: Node) -> set[str]:
@@ -152,27 +160,27 @@ def _agent_paths(nodes: list[Node]) -> set[str]:
     passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
     if not passive:
         return agents
-    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, Interaction)]
-    has_rules = bool(agents) or any(any(isinstance(law, Rule) for law in laws or ()) for _, laws in interactions)
+    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, BaseInteraction)]
+    has_rules = bool(agents) or any(any(isinstance(law, RuleLaw) for law in laws or ()) for _, laws in interactions)
     if not has_rules:
         return agents
     bound = {
         path
         for node, laws in interactions
-        if laws is None or not all(isinstance(law, Rule | Match) for law in laws)
+        if laws is None or not all(isinstance(law, RuleLaw | MatchLaw) for law in laws)
         for path in _bound_paths(node)
     }
     return agents | {node.path for node in passive if node.path not in bound}
 
 
-class AgentsPass(Pass):
+class AgentsPass(BasePass):
     """Pass that marks the nodes of the elements and groups that run on the agent stepper.
 
-    An agent is a member of a variable group, or of an element or group whose own laws include a `Rule`. When the tree
-    holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents too,
-    as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings binds
-    them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a space
-    are never passive agents.
+    An agent is a member of a variable group, or of an element or group whose own laws include a `RuleLaw`. When the
+    tree holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
+    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
+    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
+    space are never passive agents.
     """
 
     reads = ('nodes',)
@@ -190,7 +198,7 @@ class AgentsPass(Pass):
         compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 
 
-class UnpackMatchesPass(Pass):
+class UnpackMatchesPass(BasePass):
     """Pass that replaces every matching by the rule it runs."""
 
     reads = ('collected',)
@@ -204,12 +212,12 @@ class UnpackMatchesPass(Pass):
                 The compilation state.
         """
         compilation.collected = [
-            (spec, [law.rule if isinstance(law, Match) else law for law in laws], block)
+            (spec, [law.rule if isinstance(law, MatchLaw) else law for law in laws], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
 
 
-class SetRulesApartPass(Pass):
+class SetRulesApartPass(BasePass):
     """Pass that takes the rules out of the laws lowered into kernels, since the agent stepper runs them."""
 
     reads = ('reduced',)
@@ -224,12 +232,12 @@ class SetRulesApartPass(Pass):
         """
         reduced = cast('Laws', compilation.reduced)
         compilation.facts['rules'] = [
-            (spec, tuple(law for law in laws if isinstance(law, Rule))) for spec, laws in reduced
+            (spec, tuple(law for law in laws if isinstance(law, RuleLaw))) for spec, laws in reduced
         ]
-        compilation.reduced = [(spec, [law for law in laws if not isinstance(law, Rule)]) for spec, laws in reduced]
+        compilation.reduced = [(spec, [law for law in laws if not isinstance(law, RuleLaw)]) for spec, laws in reduced]
 
 
-class AgentsProblemPass(Pass):
+class AgentsProblemPass(BasePass):
     """Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
 
     reads = ('problem', 'layout', 'reduced', 'rules')
@@ -243,7 +251,7 @@ class AgentsProblemPass(Pass):
                 The compilation state.
         """
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
-        rules = cast('list[tuple[KernelSpec, tuple[Rule, ...]]]', compilation.facts['rules'])
+        rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.facts['rules'])
         reduced = cast('Laws', compilation.reduced)
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(

@@ -19,7 +19,7 @@ from ...core.base import (
     RewritingError,
     TimeKind,
 )
-from ...core.laws import Law
+from ...core.laws import BaseLaw
 
 
 class Module:
@@ -94,7 +94,7 @@ def parse_word(value: Letters, names: Sequence[str] = ()) -> list[Module]:
 
 
 @dataclass(frozen=True, eq=False)
-class Production(Law):
+class ProductionLaw(BaseLaw):
     """Production of a string rewriting system, which replaces every matching module of a word by a successor.
 
     The predecessor's parameters are symbols bound to the parameters of each matching module. The condition, the
@@ -123,8 +123,8 @@ class Production(Law):
             stochastic productions of one predecessor, context, and condition sum to one.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Production
-        >>> Production('F', 'F+F--F+F')
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw
+        >>> ProductionLaw('F', 'F+F--F+F')
         F → F+F--F+F
     """
 
@@ -261,7 +261,7 @@ class Affine:
 
 
 @dataclass(frozen=True, eq=False)
-class Substitution(Law):
+class SubstitutionLaw(BaseLaw):
     """Substitution that replaces every tile of a prototile by pieces placed relative to the tile.
 
     Args:
@@ -272,8 +272,8 @@ class Substitution(Law):
             Pairs of a prototile name and the affine map from the parent tile's frame.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import Affine, Substitution
-        >>> len(Substitution('interval', [('interval', Affine(scale=1 / 3))]).pieces)
+        >>> from skcomplex.formalisms.rewriting import Affine, SubstitutionLaw
+        >>> len(SubstitutionLaw('interval', [('interval', Affine(scale=1 / 3))]).pieces)
         1
     """
 
@@ -290,7 +290,7 @@ class Substitution(Law):
 
 
 @dataclass(frozen=True, eq=False)
-class GraphProduction(Law):
+class GraphProductionLaw(BaseLaw):
     """Double-pushout graph production: a left graph, an interface, and a right graph that share nodes by name.
 
     A match of the left graph in a host graph deletes the nodes and edges of the left graph that are not in the
@@ -309,11 +309,11 @@ class GraphProduction(Law):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.formalisms.rewriting import GraphProduction
+        >>> from skcomplex.formalisms.rewriting import GraphProductionLaw
         >>> left = nx.Graph([('a', 'b')])
         >>> interface = nx.Graph()
         >>> interface.add_nodes_from('ab')
-        >>> production = GraphProduction(left, interface, nx.Graph([('a', 'c'), ('c', 'b')]))
+        >>> production = GraphProductionLaw(left, interface, nx.Graph([('a', 'c'), ('c', 'b')]))
         >>> sorted(production.added())
         ['c']
     """
@@ -341,4 +341,4 @@ class GraphProduction(Law):
         return f'GraphProduction({sizes} → {self.right.number_of_nodes()} nodes)'
 
 
-type RewritingLaw = Production | Substitution | GraphProduction
+type RewritingLaw = ProductionLaw | SubstitutionLaw | GraphProductionLaw

@@ -8,13 +8,13 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 type Integers = npt.NDArray[np.int64]
@@ -85,7 +85,7 @@ def _offspring(strategies: Integers, scores: Array, rng: np.random.Generator, mu
     return np.where(mutated, rng.integers(0, N_ACTIONS, children.shape), children)
 
 
-class Strategy(Element):
+class StrategyComponent(ElementComponent):
     """Strategy of Robby, the action for each of the 243 situations he can see, with its last measured score.
 
     The actions are 0 to 3 for moving north, south, east, and west, 4 to stay, 5 to pick up a can, and 6 to move in a
@@ -102,9 +102,9 @@ class Strategy(Element):
             The initial score.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import Strategy
-        >>> Strategy.group('strategies', 3)
-        Group('strategies', element=Strategy, size=3)
+        >>> from skcomplex.models.computer_science.evolutionary_computation import StrategyComponent
+        >>> StrategyComponent.group('strategies', 3)
+        GroupComponent('strategies', element=StrategyComponent, size=3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'score'})
@@ -112,7 +112,7 @@ class Strategy(Element):
     score: float = state(default=0.0)
 
 
-class Evolution(Interaction):
+class EvolutionInteraction(BaseInteraction):
     """Generation of a genetic algorithm: score every strategy in random rooms and breed the next generation.
 
     Every strategy cleans `sessions` random rooms of side `side`, with a can in each cell with probability `density`,
@@ -146,12 +146,12 @@ class Evolution(Interaction):
                 The path of the group of strategies.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import Evolution
-        >>> Evolution('evolution', population='strategies').sessions
+        >>> from skcomplex.models.computer_science.evolutionary_computation import EvolutionInteraction
+        >>> EvolutionInteraction('evolution', population='strategies').sessions
         10
     """
 
-    mutation: float = parameter(0.005, domain=Domain.NONNEGATIVE)
+    mutation: float = parameter(0.005, domain=NumericDomain.NONNEGATIVE)
     population: str = role()
 
     def __init__(
@@ -170,7 +170,7 @@ class Evolution(Interaction):
         self.side = side
         self.density = density
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of one generation.
 
         Args:
@@ -181,7 +181,7 @@ class Evolution(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.breed)]
+        return [RuleLaw(self.breed)]
 
     def score(self, strategies: Integers, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -267,7 +267,7 @@ def robby_ga(
         (5, 243)
     """
     rng = np.random.default_rng(random_state)
-    evolution = Evolution(
+    evolution = EvolutionInteraction(
         'evolution',
         population='strategies',
         mutation=mutation,
@@ -277,6 +277,6 @@ def robby_ga(
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
     scores = evolution.score(actions, rng)
     return System(
-        components=[Strategy.group('strategies', n_strategies, actions=actions, score=scores)],
+        components=[StrategyComponent.group('strategies', n_strategies, actions=actions, score=scores)],
         interactions=[evolution],
     )

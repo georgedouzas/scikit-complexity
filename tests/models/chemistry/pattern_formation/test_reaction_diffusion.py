@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Frame, Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, resolve_visual
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
 from skcomplex.models.physics.heat import heat_diffusion
@@ -33,7 +33,7 @@ def _turing_wavelength(a, b, du, dv):
 
 def test_turing_spots_have_predicted_wavelength():
     """Test that the Schnakenberg model forms a stationary pattern with the wavelength of the linear prediction."""
-    simulation = Simulation(schnakenberg((256,)), dt=50, solver=RK4(dt=0.01)).run(until=600)
+    simulation = Simulation(schnakenberg((256,)), dt=50, solver=RK4Solver(dt=0.01)).run(until=600)
     values = simulation.trajectory_['cells.u']
     wavelengths = [256 / np.argmax(np.abs(np.fft.rfft(row - row.mean()))) for row in values[-5:]]
     changes = np.abs(np.diff(values[-5:], axis=0)).max(axis=1)
@@ -45,7 +45,7 @@ def test_turing_spots_have_predicted_wavelength():
 
 def test_brusselator_and_heat_stay_bounded():
     """Test that the Brusselator stays bounded and insulated heat keeps its total."""
-    values = Simulation(brusselator((32, 32)), dt=1, solver=RK4(dt=0.01)).run(until=20).state_
+    values = Simulation(brusselator((32, 32)), dt=1, solver=RK4Solver(dt=0.01)).run(until=20).state_
     assert np.all(np.isfinite(values))
     assert values.max() < 20
     trajectory = Simulation(heat_diffusion((32, 32)), dt=5).run(until=50).trajectory_
@@ -54,7 +54,7 @@ def test_brusselator_and_heat_stay_bounded():
 
 def test_gray_scott_streams_images(tmp_path):
     """Test that both Gray-Scott fields are logged as images every frame."""
-    simulation = Simulation(gray_scott((32, 32)), dt=20, solver=RK4(dt=1.0)).run(until=40)
+    simulation = Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0)).run(until=40)
     element = simulation.problem_.elements[0]
     recording = Images()
     for step in range(len(simulation.trajectory_)):
@@ -62,5 +62,5 @@ def test_gray_scott_streams_images(tmp_path):
         resolve_visual(element.visual).log(recording, element, frame)
     assert recording.images == [('cells/u', 'Image'), ('cells/v', 'Image')] * 3
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
-    Simulation(gray_scott((32, 32)), dt=20, solver=RK4(dt=1.0), observers=[observer]).run(until=40)
+    Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0), observers=[observer]).run(until=40)
     assert observer.logged_frames_ == 3

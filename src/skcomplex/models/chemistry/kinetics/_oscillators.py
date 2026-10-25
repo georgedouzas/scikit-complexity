@@ -3,45 +3,51 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
-BrusselatorReaction = Element.define(
-    'BrusselatorReaction',
-    states={'u': state(default=1.0, domain=Domain.NONNEGATIVE), 'v': state(default=1.0, domain=Domain.NONNEGATIVE)},
+BrusselatorReactionComponent = ElementComponent.define(
+    'BrusselatorReactionComponent',
+    states={
+        'u': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'v': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
+    },
     parameters={'a': 1.0, 'b': 3.0},
     laws=lambda s: [
-        Rate(s.u, s.a - (s.b + 1) * s.u + s.u**2 * s.v),
-        Rate(s.v, s.b * s.u - s.u**2 * s.v),
+        RateLaw(s.u, s.a - (s.b + 1) * s.u + s.u**2 * s.v),
+        RateLaw(s.v, s.b * s.u - s.u**2 * s.v),
     ],
 )
 
-Oregonator = Element.define(
-    'Oregonator',
+OregonatorComponent = ElementComponent.define(
+    'OregonatorComponent',
     states={
-        'x': state(default=0.1, domain=Domain.NONNEGATIVE),
-        'y': state(default=0.1, domain=Domain.NONNEGATIVE),
-        'z': state(default=0.1, domain=Domain.NONNEGATIVE),
+        'x': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'y': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'z': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={'epsilon': 0.04, 'delta': 4e-4, 'q': 8e-4, 'f': 1.0},
     laws=lambda s: [
-        Rate(s.x, (s.q * s.y - s.x * s.y + s.x * (1 - s.x)) / s.epsilon),
-        Rate(s.y, (-s.q * s.y - s.x * s.y + s.f * s.z) / s.delta),
-        Rate(s.z, s.x - s.z),
+        RateLaw(s.x, (s.q * s.y - s.x * s.y + s.x * (1 - s.x)) / s.epsilon),
+        RateLaw(s.y, (-s.q * s.y - s.x * s.y + s.f * s.z) / s.delta),
+        RateLaw(s.z, s.x - s.z),
     ],
 )
 
-CubicAutocatalysis = Element.define(
-    'CubicAutocatalysis',
-    states={'a': state(default=1.0, domain=Domain.NONNEGATIVE), 'b': state(default=0.0, domain=Domain.NONNEGATIVE)},
+CubicAutocatalysisComponent = ElementComponent.define(
+    'CubicAutocatalysisComponent',
+    states={
+        'a': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'b': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
+    },
     parameters={'F': 0.04, 'k': 0.05},
     laws=lambda s: [
-        Rate(s.a, -s.a * s.b**2 + s.F * (1 - s.a)),
-        Rate(s.b, s.a * s.b**2 - (s.F + s.k) * s.b),
+        RateLaw(s.a, -s.a * s.b**2 + s.F * (1 - s.a)),
+        RateLaw(s.b, s.a * s.b**2 - (s.F + s.k) * s.b),
     ],
 )
 
@@ -80,14 +86,14 @@ def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float 
         >>> brusselator_ode(b=1.5).elements[0].b
         1.5
     """
-    return System(components=[BrusselatorReaction('reactor', u=u, v=v, a=a, b=b)])
+    return System(components=[BrusselatorReactionComponent('reactor', u=u, v=v, a=a, b=b)])
 
 
 @register_model(
     field='chemistry/kinetics',
     tags=('ode', 'oscillation', 'relaxation oscillation', 'stiff', 'Belousov-Zhabotinsky'),
     references=('Field and Noyes 1974', 'Field, Körös, and Noyes 1972', 'Tyson 1985', 'Trzaska 2023'),
-    defaults={'until': 30.0, 'dt': 0.05, 'solver': ScipyODE(method='LSODA', rtol=1e-6, atol=1e-9)},
+    defaults={'until': 30.0, 'dt': 0.05, 'solver': ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)},
 )
 def oregonator(
     x: float = 0.1,
@@ -136,7 +142,7 @@ def oregonator(
         >>> oregonator(f=0.8).elements[0].f
         0.8
     """
-    return System(components=[Oregonator('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
+    return System(components=[OregonatorComponent('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
 
 
 @register_model(
@@ -173,4 +179,4 @@ def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: f
         >>> cubic_autocatalysis(k=0.06).elements[0].k
         0.06
     """
-    return System(components=[CubicAutocatalysis('reactor', a=a, b=b, F=F, k=k)])
+    return System(components=[CubicAutocatalysisComponent('reactor', a=a, b=b, F=F, k=k)])

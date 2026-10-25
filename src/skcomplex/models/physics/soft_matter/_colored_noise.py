@@ -8,25 +8,25 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Noise, Rate
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
+from ....engine.solvers import EulerMaruyamaSolver
 
-ColoredNoiseParticle = Element.define(
-    'ColoredNoiseParticle',
+ColoredNoiseParticleComponent = ElementComponent.define(
+    'ColoredNoiseParticleComponent',
     states={'v': 0.0, 'xi': 0.0},
     parameters={
-        'gamma': parameter(default=1.0, domain=Domain.POSITIVE),
-        'D': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'tau': parameter(default=1.0, domain=Domain.POSITIVE),
+        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(s.v, -s.gamma * s.v + s.xi),
-        Rate(s.xi, -s.xi / s.tau),
-        Noise(s.xi, sqrt(2 * s.D) / s.tau),
+        RateLaw(s.v, -s.gamma * s.v + s.xi),
+        RateLaw(s.xi, -s.xi / s.tau),
+        NoiseLaw(s.xi, sqrt(2 * s.D) / s.tau),
     ],
 )
 
@@ -35,7 +35,7 @@ ColoredNoiseParticle = Element.define(
     field='physics/soft_matter',
     tags=('noise', 'sde', 'colored noise', 'langevin equation'),
     references=('Bertin 2021', 'Hänggi and Jung 1995'),
-    defaults={'until': 50.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 50.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def colored_noise_langevin(
     n_particles: int = 500,
@@ -78,5 +78,5 @@ def colored_noise_langevin(
         0.5
     """
     noise = np.random.default_rng(random_state).normal(0.0, math.sqrt(D / tau), n_particles)
-    particles = ColoredNoiseParticle.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
+    particles = ColoredNoiseParticleComponent.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
     return System(components=[particles])

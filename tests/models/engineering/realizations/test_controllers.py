@@ -4,15 +4,15 @@ import importlib
 import pkgutil
 
 import skcomplex.core
-from skcomplex.models.engineering.realizations import PID, Integrator, StateFeedback
+from skcomplex.models.engineering.realizations import IntegratorComponent, PIDInteraction, StateFeedbackInteraction
 
 
 def test_controllers_live_only_in_the_engineering_realizations():
     """Test that no package of the core exports a controller, which the engineering realizations provide."""
-    names = {'PID', 'StateFeedback', 'Integrator'}
+    names = {'PIDInteraction', 'StateFeedbackInteraction', 'IntegratorComponent'}
     for module in pkgutil.walk_packages(skcomplex.core.__path__, 'skcomplex.core.'):
         if module.ispkg:
             assert not names & set(getattr(importlib.import_module(module.name), '__all__', [])), module.name
-    assert issubclass(PID, object)
-    assert StateFeedback('feedback', plant='plant').states == ()
-    assert Integrator('memory').value == 0.0
+    assert issubclass(PIDInteraction, object)
+    assert StateFeedbackInteraction('feedback', plant='plant').states == ()
+    assert IntegratorComponent('memory').value == 0.0

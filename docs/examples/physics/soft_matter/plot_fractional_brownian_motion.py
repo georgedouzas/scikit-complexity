@@ -17,14 +17,14 @@ import numpy as np
 from skcomplex.engine.analysis import hurst_exponent
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fractional import FractionalEulerMaruyama
+from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver
 from skcomplex.models import create
 
 MODEL = 'fractional_brownian_motion'
 
 system = create(MODEL, n_walkers=500, H=0.3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = FractionalEulerMaruyama(dt=0.01)
+solver = FractionalEulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).run(until=10)
 
 # %%

@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnyDomain, Domain
+from ...core.base import AnyDomain, NumericDomain
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -41,9 +41,9 @@ class Entry:
             Whether the variable is complex, with the real and imaginary part of every component stored in a row.
 
     Examples:
-        >>> from skcomplex.core.base import Domain
+        >>> from skcomplex.core.base import NumericDomain
         >>> from skcomplex.engine.compile import Entry
-        >>> entry = Entry('a.z', 0, (2,), Domain.COMPLEX, is_complex=True)
+        >>> entry = Entry('a.z', 0, (2,), NumericDomain.COMPLEX, is_complex=True)
         >>> entry.size, entry.component_names
         (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
     """
@@ -151,9 +151,9 @@ class Entry:
                 The value does not broadcast to the shape of the variable.
 
         Examples:
-            >>> from skcomplex.core.base import Domain
+            >>> from skcomplex.core.base import NumericDomain
             >>> from skcomplex.engine.compile import Entry
-            >>> Entry('a.z', 0, (), Domain.COMPLEX, is_complex=True).encode(1 + 2j).tolist()
+            >>> Entry('a.z', 0, (), NumericDomain.COMPLEX, is_complex=True).encode(1 + 2j).tolist()
             [1.0, 2.0]
         """
         values = np.broadcast_to(self.domain.encode(value), self.shape)
@@ -187,8 +187,8 @@ class Layout:
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import Entry, Layout
-        >>> from skcomplex.core.base import Domain
-        >>> layout = Layout([Entry('a.n', 0, (), Domain.REAL), Entry('b.x', 1, (2,), Domain.REAL)])
+        >>> from skcomplex.core.base import NumericDomain
+        >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.x', 1, (2,), NumericDomain.REAL)])
         >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
         array([2., 3.])
     """
@@ -261,8 +261,8 @@ class Layout:
 
         Examples:
             >>> from skcomplex.engine.compile import Entry, Layout
-            >>> from skcomplex.core.base import Domain
-            >>> layout = Layout([Entry('a.n', 0, (), Domain.REAL), Entry('b.w', 1, (3,), Domain.REAL)])
+            >>> from skcomplex.core.base import NumericDomain
+            >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.w', 1, (3,), NumericDomain.REAL)])
             >>> entry, indices = layout.locate('b.w[1]')
             >>> entry.name, entry.shape, indices
             ('b.w[1]', (), slice(2, 3, None))
@@ -273,7 +273,10 @@ class Layout:
         found = self._by_name.get(name.partition('[')[0].removesuffix('.real').removesuffix('.imag'))
         if found is not None and name in found.component_names:
             start = found.start + found.component_names.index(name)
-            return Entry(name, start, (), Domain.REAL if found.is_complex else found.domain), slice(start, start + 1)
+            return Entry(name, start, (), NumericDomain.REAL if found.is_complex else found.domain), slice(
+                start,
+                start + 1,
+            )
         error_msg = f'No variable or component named {name!r}. Available names are: {", ".join(self.names)}.'
         raise KeyError(error_msg)
 

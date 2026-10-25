@@ -21,12 +21,12 @@ from ...core.base import (
     Trait,
     ValidationError,
 )
-from ...core.laws import Law
+from ...core.laws import BaseLaw
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
 type Table = npt.NDArray[Any]
-type EncounterLaw = Encounter | Proliferation | Destruction
+type EncounterLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 
 
 def _table(value: object, dimensions: tuple[int, ...], description: str) -> Table:
@@ -53,7 +53,7 @@ def _check_sizes(rate: Table, outcomes: Table | None, description: str) -> None:
     raise ValidationError(error_msg)
 
 
-def is_encounter(law: Law) -> TypeGuard[EncounterLaw]:
+def is_encounter(law: BaseLaw) -> TypeGuard[EncounterLaw]:
     """Check whether a law is an encounter law, a law of the encounter kind."""
     return law.law_kind is LawKind.ENCOUNTER
 
@@ -80,7 +80,7 @@ def outcome_sums(outcomes: Table) -> Table:
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Encounter(Law):
+class EncounterLaw(BaseLaw):
     """Conservative encounter of active particles, which moves a candidate particle to a new activity.
 
     A candidate particle at activity `h` meets a field particle at activity `k` at the encounter rate `eta[h, k]`, and
@@ -117,9 +117,9 @@ class Encounter(Law):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.kinetics import Encounter
+        >>> from skcomplex.formalisms.kinetics import EncounterLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> Encounter(f, g, 1.0, np.full((2, 2, 2), 0.5)).transition.shape
+        >>> EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5)).transition.shape
         (2, 2, 2)
     """
 
@@ -163,7 +163,7 @@ class Encounter(Law):
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Proliferation(Law):
+class ProliferationLaw(BaseLaw):
     """Proliferative encounter, which creates a particle in the test group without removing the candidate.
 
     A candidate particle at activity `h` that meets a field particle at activity `k` creates, at the rate `mu[h, k]`,
@@ -193,9 +193,9 @@ class Proliferation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.kinetics import Proliferation
+        >>> from skcomplex.formalisms.kinetics import ProliferationLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> Proliferation(f, g, 0.5).outcomes is None
+        >>> ProliferationLaw(f, g, 0.5).outcomes is None
         True
     """
 
@@ -235,7 +235,7 @@ class Proliferation(Law):
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Destruction(Law):
+class DestructionLaw(BaseLaw):
     """Destructive encounter, which removes the candidate particle.
 
     A candidate particle at activity `h` that meets a field particle at activity `k` is removed at the rate
@@ -257,9 +257,9 @@ class Destruction(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.kinetics import Destruction
+        >>> from skcomplex.formalisms.kinetics import DestructionLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> float(Destruction(f, g, 0.2).rate)
+        >>> float(DestructionLaw(f, g, 0.2).rate)
         0.2
     """
 

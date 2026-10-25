@@ -13,16 +13,16 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
-    Categorical,
-    Domain,
+    CategoricalDomain,
     DomainKind,
     Form,
-    HilbertFamily,
-    HilbertSpace,
+    HilbertDomain,
+    HilbertFamilyDomain,
     LabelError,
     LawClass,
     LawKind,
     NoiseKind,
+    NumericDomain,
     OrderKind,
     ParameterError,
     Requires,
@@ -34,25 +34,25 @@ from ...core.base import (
     SpaceTooLargeError,
     Structure,
     Supports,
-    Tensor,
+    TensorDomain,
     TimeKind,
     UnregisteredLawError,
     ValidationError,
     VariableKind,
     declarations_of,
 )
-from ...core.components import Element, Group, Wiener
+from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import (
-    Jump,
-    Noise,
+    JumpLaw,
+    NoiseLaw,
     law_classes,
     neighborhoods_in,
     values_of,
 )
 from ...core.laws._neighbourhoods import NeighborReduction
-from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
+from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace, SiteSpace
 from ...core.system import Observable, System
-from ._backends import BACKENDS, Backend
+from ._backends import BACKENDS, BaseBackend
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
@@ -104,29 +104,29 @@ def _subclasses(base: type) -> list[type]:
 def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
     """Return the kind of value a state of the layout holds."""
     domain = entry.domain
-    if vector or entry.is_complex or domain is Domain.COMPLEX:
+    if vector or entry.is_complex or domain is NumericDomain.COMPLEX:
         return DomainKind.VECTOR if vector else DomainKind.COMPLEX
     if isinstance(domain, Structure):
         return DomainKind(domain.kind)
-    classes = {Categorical: DomainKind.CATEGORICAL, Tensor: DomainKind.TENSOR}
-    classes |= {HilbertSpace: DomainKind.HILBERT, HilbertFamily: DomainKind.HILBERT}
+    classes = {CategoricalDomain: DomainKind.CATEGORICAL, TensorDomain: DomainKind.TENSOR}
+    classes |= {HilbertDomain: DomainKind.HILBERT, HilbertFamilyDomain: DomainKind.HILBERT}
     if type(domain) in classes:
         return classes[type(domain)]
     kinds: dict[object, DomainKind] = {
-        Domain.INTEGER: DomainKind.INTEGER,
-        Domain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
-        Domain.BOOLEAN: DomainKind.BOOLEAN,
-        Domain.ANGLE: DomainKind.ANGLE,
+        NumericDomain.INTEGER: DomainKind.INTEGER,
+        NumericDomain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
+        NumericDomain.BOOLEAN: DomainKind.BOOLEAN,
+        NumericDomain.ANGLE: DomainKind.ANGLE,
     }
     return kinds.get(domain, DomainKind.REAL)
 
 
-def _space_kind(space: Space | None) -> SpaceKind:
+def _space_kind(space: BaseSpace | None) -> SpaceKind:
     """Return the kind of a space, or `none` without one."""
     return SpaceKind.NONE if space is None else space.space_kind
 
 
-def _layer_issues(node: Any, space: Space | None) -> list[Issue]:  # noqa: ANN401
+def _layer_issues(node: Any, space: BaseSpace | None) -> list[Issue]:  # noqa: ANN401
     """Return the issue of an interaction over neighbours that names a layer its network does not have."""
     layer = getattr(node.component, 'layer', None)
     labels = getattr(space, 'layer_labels', (None,))
@@ -201,7 +201,7 @@ def _bound_issues(nodes: list[Node]) -> list[Issue]:
 def _space_issues(system: System, nodes: list[Node]) -> list[Issue]:
     """Return the visuals that need options their space lacks, and the spaces whose own check fails."""
     issues = []
-    spaces: dict[int, tuple[str, Space]] = {}
+    spaces: dict[int, tuple[str, BaseSpace]] = {}
     for node in nodes:
         space = getattr(node.component, 'space', None) or node.space
         visual = getattr(node.component, 'visual', None)
@@ -234,7 +234,7 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
     for record in records:
         time = times.get(record.path.rpartition('/')[0])
         law, requires = record.law, record.law.requires
-        name = f'{type(law).__name__} law of {record.path}'
+        name = f'{type(law).__name__} of {record.path}'
         for entry in record.targets:
             kind = _domain_kind(entry, vector=entry.name in record.vectors)
             if not requires.accepts('domains', kind):
@@ -306,9 +306,9 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
     by_path = {node.path: node for node in nodes}
     issues = []
     for record in records:
-        name = f'{type(record.law).__name__} law of {record.path}'
+        name = f'{type(record.law).__name__} of {record.path}'
         space = _space_kind(record.space)
-        values = values_of(record.law, include=('rate',) if isinstance(record.law, Jump) else ('value',))
+        values = values_of(record.law, include=('rate',) if isinstance(record.law, JumpLaw) else ('value',))
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
@@ -392,7 +392,7 @@ def _order_issues(nodes: list[Node]) -> list[Issue]:
     fractional = [
         (node.path, name, declaration.order)
         for node in nodes
-        if isinstance(node.component, Element | Group)
+        if isinstance(node.component, ElementComponent | GroupComponent)
         for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
         if declaration.is_fractional
     ]
@@ -462,7 +462,7 @@ def _wiener_issues(system: System, nodes: list[Node]) -> list[Issue]:
 
 def _law_name(record: CensusRecord) -> str:
     """Return the name of the law of a census record."""
-    return f'{type(record.law).__name__} law of {record.path}'
+    return f'{type(record.law).__name__} of {record.path}'
 
 
 def _process_name(key: Any) -> str:  # noqa: ANN401
@@ -475,7 +475,7 @@ def _process_name(key: Any) -> str:  # noqa: ANN401
 
 def _noise_records(records: list[CensusRecord]) -> list[CensusRecord]:
     """Return the records of noise laws."""
-    return [record for record in records if isinstance(record.law, Noise)]
+    return [record for record in records if isinstance(record.law, NoiseLaw)]
 
 
 def _handle_issues(records: list[CensusRecord]) -> list[Issue]:
@@ -487,7 +487,7 @@ def _handle_issues(records: list[CensusRecord]) -> list[Issue]:
                 f'The {_law_name(record)} uses the Wiener handle {", ".join(record.handles)} in a value, but a handle '
                 'is only the process of a noise law.'
             )
-            fix = 'Name the handle as the process of a noise law, `Noise(target, value, process=s.<role>.dW)`.'
+            fix = 'Name the handle as the process of a noise law, `NoiseLaw(target, value, process=s.<role>.dW)`.'
             issues.append(Issue('wiener-handle', record.path, message, fix))
     return issues
 
@@ -501,9 +501,9 @@ def _convention_issues(records: list[CensusRecord]) -> list[Issue]:
                 sharing.setdefault(key, []).append(record)
     issues = []
     for process, sharers in sharing.items():
-        conventions = {cast('Noise', record.law).convention for record in sharers}
+        conventions = {cast('NoiseLaw', record.law).convention for record in sharers}
         if len(conventions) > 1:
-            laws = ' and '.join(f'the {cast("Noise", item.law).convention} {_law_name(item)}' for item in sharers)
+            laws = ' and '.join(f'the {cast("NoiseLaw", item.law).convention} {_law_name(item)}' for item in sharers)
             message = f'{laws[0].upper()}{laws[1:]} share {_process_name(process)} with different conventions.'
             fix = 'Declare one convention for every noise law of the process.'
             issues.append(Issue('noise-convention-mixed', sharers[0].path, message, fix))
@@ -529,7 +529,7 @@ def _scope_issues(records: list[CensusRecord], wieners: dict[str, Wiener]) -> li
     noisy = _noise_records(records)
     issues = []
     for record in noisy:
-        if cast('Noise', record.law).convention == 'ito':
+        if cast('NoiseLaw', record.law).convention == 'ito':
             continue
         other = _sharer(record, noisy, wieners)
         if other is not None:
@@ -549,7 +549,7 @@ def _noise_needs(records: list[CensusRecord], wieners: dict[str, Wiener]) -> dic
     first: dict[object, CensusRecord] = {}
     spread: set[object] = set()
     for record in _noise_records(records):
-        if cast('Noise', record.law).conserved:
+        if cast('NoiseLaw', record.law).conserved:
             needs.setdefault(NoiseKind.CONSERVED, record)
             continue
         for key, state in zip(record.processes, record.driven, strict=True):
@@ -644,7 +644,7 @@ def _counted(
     except ValidationError as error:
         return None, [Issue('observable-path', system.label, str(error), 'Label observables by their path.')]
     passes = _registered_passes(CORE_PASSES)
-    compilation = Compilation(observed, cast('str | Backend', backend), solver)
+    compilation = Compilation(observed, cast('str | BaseBackend', backend), solver)
     try:
         run_passes(compilation, passes, until='nodes')
     except SkcomplexError as error:
@@ -658,7 +658,7 @@ def _counted(
     held = held_observables(observed, cast('list[Node]', compilation.nodes))
     if held:
         tree, paths = with_held_observables(observed, held)
-        compilation = Compilation(tree, cast('str | Backend', backend), solver, held=tuple(paths))
+        compilation = Compilation(tree, cast('str | BaseBackend', backend), solver, held=tuple(paths))
     return run_passes(compilation, passes, until='census'), []
 
 
@@ -734,7 +734,7 @@ def missing_declarations() -> list[str]:
             missing.append(f'The law {law.__name__} declares no requirements.')
     missing.extend(
         f'The space {space.__name__} declares no space kind.'
-        for space in _subclasses(Space)
+        for space in _subclasses(BaseSpace)
         if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
     )
     solvers = solver_registry()

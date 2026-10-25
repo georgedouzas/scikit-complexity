@@ -21,9 +21,9 @@ from skcomplex.engine.analysis import (
     structure_factor,
 )
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.fields import Field
+from skcomplex.formalisms.fields import FieldComponent
 from skcomplex.models import create, run
-from skcomplex.models.chemistry.pattern_formation import Brusselator
+from skcomplex.models.chemistry.pattern_formation import BrusselatorComponent
 
 
 def _exact_correlation_length(temperature: float) -> float:
@@ -160,7 +160,9 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
     values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
-    return System(components=[Field('cells', Brusselator, space, values=values, discretization=discretization)])
+    return System(
+        components=[FieldComponent('cells', BrusselatorComponent, space, values=values, discretization=discretization)],
+    )
 
 
 def test_dispersion_relation_finds_the_turing_band():

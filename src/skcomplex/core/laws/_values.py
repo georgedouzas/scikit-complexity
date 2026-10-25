@@ -7,11 +7,11 @@ import dataclasses
 from collections.abc import Collection, Mapping
 
 from ..base import SymbolicVector
-from ._law import Law
+from ._law import BaseLaw
 from ._laws import Call
 
 
-def values_of(law: Law, *, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
+def values_of(law: BaseLaw, *, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
     """Return the values of the fields of a law, flattened in field order.
 
     A called function gives its arguments, a mapping its keys and values in pairs, and a vector, a list, or a tuple its
@@ -33,11 +33,11 @@ def values_of(law: Law, *, include: Collection[str] | None = None, exclude: Coll
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Jump, Noise, values_of
+        >>> from skcomplex.core.laws import JumpLaw, NoiseLaw, values_of
         >>> s, i = symbol('s'), symbol('i')
-        >>> values_of(Jump(0.1 * s * i, {s: -1, i: 1}))
+        >>> values_of(JumpLaw(0.1 * s * i, {s: -1, i: 1}))
         [0.1*i*s, s, -1, i, 1, None, None, None]
-        >>> values_of(Noise(s, 0.2 * s, process='market'), include=('value', 'process'))
+        >>> values_of(NoiseLaw(s, 0.2 * s, process='market'), include=('value', 'process'))
         [0.2*s, 'market']
     """
     names = [

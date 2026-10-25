@@ -12,7 +12,7 @@ from sklearn.base import BaseEstimator
 
 from ...core.base import ExperimentError, ValidationError
 from ...core.system import Observable
-from ._designs import Design
+from ._designs import BaseDesign
 from ._results import ExperimentResult
 from ._scenarios import Scenario
 from ._sources import Source, _problem, resolve_source, split_overrides
@@ -66,9 +66,9 @@ class Experiment(BaseEstimator):
             The observables of every run, or `None` for the standard observables of a registered model.
 
     Examples:
-        >>> from skcomplex.engine.experiments import Experiment, Grid
+        >>> from skcomplex.engine.experiments import Experiment, GridDesign
         >>> from skcomplex.models.biology.ecology import logistic_growth
-        >>> result = Experiment('logistic_growth', Grid(r=[0.5, 1.0]), until=5, outputs=['population.n']).run()
+        >>> result = Experiment('logistic_growth', GridDesign(r=[0.5, 1.0]), until=5, outputs=['population.n']).run()
         >>> len(result.rows)
         2
     """
@@ -76,7 +76,7 @@ class Experiment(BaseEstimator):
     def __init__(
         self,
         source: Source,
-        design: Design | None = None,
+        design: BaseDesign | None = None,
         scenarios: Sequence[Scenario] | None = None,
         replicates: int = 1,
         *,

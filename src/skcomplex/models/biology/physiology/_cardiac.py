@@ -7,17 +7,17 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import RK4Solver
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-class AlievPanfilov(Element):
+class AlievPanfilovComponent(ElementComponent):
     """Cardiac tissue of Aliev and Panfilov, an excitable medium with the restitution of heart muscle.
 
     The potential follows `u' = D Δu - k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u +
@@ -53,21 +53,21 @@ class AlievPanfilov(Element):
             The offset of the recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import AlievPanfilov
-        >>> AlievPanfilov('tissue').k
+        >>> from skcomplex.models.biology.physiology import AlievPanfilovComponent
+        >>> AlievPanfilovComponent('tissue').k
         8.0
     """
 
     u: float = state(default=0.0)
     v: float = state(default=0.0)
-    D: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=8.0, domain=Domain.POSITIVE)
-    a: float = parameter(default=0.15, domain=Domain.POSITIVE)
-    epsilon0: float = parameter(default=0.002, domain=Domain.POSITIVE)
-    mu1: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    mu2: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    D: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=8.0, domain=NumericDomain.POSITIVE)
+    a: float = parameter(default=0.15, domain=NumericDomain.POSITIVE)
+    epsilon0: float = parameter(default=0.002, domain=NumericDomain.POSITIVE)
+    mu1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    mu2: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the diffusing potential and its state-dependent recovery.
 
         Args:
@@ -80,8 +80,8 @@ class AlievPanfilov(Element):
         """
         recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
         return [
-            Rate(s.u, s.D * laplacian(s.u) - s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
-            Rate(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
+            RateLaw(s.u, s.D * laplacian(s.u) - s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
+            RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
         ]
 
 
@@ -89,7 +89,7 @@ class AlievPanfilov(Element):
     field='biology/physiology',
     tags=('field', 'excitable media', 'spirals', 'cardiac', 'pde'),
     references=('Aliev and Panfilov 1996', 'Datseris and Parlitz 2022'),
-    defaults={'until': 200.0, 'dt': 2.0, 'solver': RK4(dt=0.05)},
+    defaults={'until': 200.0, 'dt': 2.0, 'solver': RK4Solver(dt=0.05)},
 )
 def aliev_panfilov(
     shape: Sequence[int] = (100, 100),
@@ -144,4 +144,4 @@ def aliev_panfilov(
     v[:, : columns // 2] = 2.0
     values = {'u': u, 'v': v, 'D': D, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(components=[Field('tissue', AlievPanfilov, space, values=values)])
+    return System(components=[FieldComponent('tissue', AlievPanfilovComponent, space, values=values)])

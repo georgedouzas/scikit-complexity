@@ -8,22 +8,22 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.components import Element
-from ....core.laws import Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, vector
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import VelocityVerlet
-from ....formalisms.fields import Field, laplacian
-from ....formalisms.particles import Particle, Potential
-from ..realizations.particles import Spring
+from ....engine.solvers import VelocityVerletSolver
+from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.particles import ParticleComponent, PotentialInteraction
+from ..realizations.particles import SpringInteraction
 
-WaveString = Element.define(
-    'WaveString',
+WaveStringComponent = ElementComponent.define(
+    'WaveStringComponent',
     states={'u': 0.0, 'v': 0.0},
-    parameters={'c': parameter(default=1.0, domain=Domain.POSITIVE)},
-    laws=lambda s: [Rate(s.u, s.v), Rate(s.v, s.c**2 * laplacian(s.u))],
+    parameters={'c': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
+    laws=lambda s: [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))],
 )
 
 
@@ -33,7 +33,7 @@ def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np
     return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
 
-class DrivenAnchor(Potential):
+class DrivenAnchorInteraction(PotentialInteraction):
     """Spring that ties a particle to an anchor point, which oscillates transversally as `amplitude sin(omega t)`.
 
     The energy is `k |x - center - (0, amplitude sin(omega t))|² / 2`, and a zero amplitude gives a fixed anchor.
@@ -58,16 +58,16 @@ class DrivenAnchor(Potential):
             The angular frequency of the anchor.
 
     Examples:
-        >>> from skcomplex.models.physics.waves import DrivenAnchor
-        >>> DrivenAnchor('end', target='mass_0', center=[0.0, 0.0], amplitude=0.1).amplitude
+        >>> from skcomplex.models.physics.waves import DrivenAnchorInteraction
+        >>> DrivenAnchorInteraction('end', target='mass_0', center=[0.0, 0.0], amplitude=0.1).amplitude
         0.1
     """
 
     target: str = role()
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     center: list[float] = parameter(default=0.0, vector=True)
     amplitude: float = parameter(default=0.0)
-    omega: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    omega: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `k |x - center - (0, amplitude sin(omega t))|² / 2`.
@@ -89,7 +89,7 @@ class DrivenAnchor(Potential):
     field='physics/waves',
     tags=('waves', 'ode', 'springs', 'normal modes', 'mechanics'),
     references=('Argun et al. 2021',),
-    defaults={'until': 20.0, 'dt': 0.05, 'solver': VelocityVerlet(dt=0.01)},
+    defaults={'until': 20.0, 'dt': 0.05, 'solver': VelocityVerletSolver(dt=0.01)},
 )
 def spring_chain(
     n_masses: int = 15,
@@ -148,16 +148,16 @@ def spring_chain(
     positions = spacing * np.arange(1, n_masses + 1)
     heights = _pluck(positions, length, pluck, pluck_at) if pluck else np.zeros(n_masses)
     masses = [
-        Particle(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
+        ParticleComponent(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
         for index in range(n_masses)
     ]
     springs = [
-        Spring(f'spring_{index}', first=f'mass_{index}', second=f'mass_{index + 1}', k=k)
+        SpringInteraction(f'spring_{index}', first=f'mass_{index}', second=f'mass_{index + 1}', k=k)
         for index in range(n_masses - 1)
     ]
     anchors = [
-        DrivenAnchor('left_end', target='mass_0', k=k, center=[0.0, 0.0], amplitude=amplitude, omega=omega),
-        DrivenAnchor('right_end', target=f'mass_{n_masses - 1}', k=k, center=[length, 0.0]),
+        DrivenAnchorInteraction('left_end', target='mass_0', k=k, center=[0.0, 0.0], amplitude=amplitude, omega=omega),
+        DrivenAnchorInteraction('right_end', target=f'mass_{n_masses - 1}', k=k, center=[length, 0.0]),
     ]
     return System(components=masses, interactions=[*anchors, *springs], space=ContinuousSpace(n_dim=2))
 
@@ -213,5 +213,11 @@ def standing_waves(
     shape = amplitude * np.sin(mode * math.pi * positions / length)
     space = LatticeSpace(n_sites, spacing=spacing)
     edges = ('fixed', 0.0)
-    string = Field('string', WaveString, space, boundary={'u': edges, 'v': edges}, values={'u': shape, 'c': c})
+    string = FieldComponent(
+        'string',
+        WaveStringComponent,
+        space,
+        boundary={'u': edges, 'v': edges},
+        values={'u': shape, 'c': c},
+    )
     return System(components=[string])

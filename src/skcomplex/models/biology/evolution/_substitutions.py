@@ -9,10 +9,10 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Symbols, total
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, Symbols, total
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
@@ -40,7 +40,7 @@ def _genome_fitness(s: Symbols) -> Expression:
     return s.substitution.F0 + s.field_share + s.coupling_share
 
 
-class Locus(Element):
+class LocusComponent(ElementComponent):
     """Locus of the genome shared by a monomorphic population, with an allele of `-1` or `1`.
 
     Args:
@@ -54,17 +54,17 @@ class Locus(Element):
             The random field of the locus, the fitness gained by the allele `1` over the allele `-1`, halved.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Locus
-        >>> Locus.group('genome', 10, h=0.05).size
+        >>> from skcomplex.models.biology.evolution import LocusComponent
+        >>> LocusComponent.group('genome', 10, h=0.05).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64})
-    s: float = state(default=-1.0, domain=Domain.INTEGER)
-    h: float = parameter(default=0.0, domain=Domain.REAL)
+    s: float = state(default=-1.0, domain=NumericDomain.INTEGER)
+    h: float = parameter(default=0.0, domain=NumericDomain.REAL)
 
 
-class Substitution(Interaction):
+class SubstitutionInteraction(BaseInteraction):
     """Origin and fixation of mutants that flip one locus of the genome of a monomorphic population.
 
     Every locus of each of the `N` individuals mutates at the rate `mu`, so mutants of a given locus arise at the rate
@@ -97,15 +97,15 @@ class Substitution(Interaction):
                 every fitness is positive.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Substitution
-        >>> Substitution('substitution', genome='genome', N=50.0).N
+        >>> from skcomplex.models.biology.evolution import SubstitutionInteraction
+        >>> SubstitutionInteraction('substitution', genome='genome', N=50.0).N
         50.0
     """
 
     genome: str = role()
-    N: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    mu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    F0: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    N: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    mu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    F0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -117,7 +117,7 @@ class Substitution(Interaction):
         super().__init__(label, **values)
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the substitutions of the allele of every locus, from `-1` to `1` and back.
 
         Args:
@@ -138,8 +138,8 @@ class Substitution(Interaction):
         ratio = fitness / (fitness - 2 * genome.s * local)
         rate = s.N * s.mu * abs((1 - ratio) / (1 - ratio**s.N))
         return [
-            Jump(rate * (1 - genome.s) / 2, {genome.s: 2}),
-            Jump(rate * (1 + genome.s) / 2, {genome.s: -2}),
+            JumpLaw(rate * (1 - genome.s) / 2, {genome.s: 2}),
+            JumpLaw(rate * (1 + genome.s) / 2, {genome.s: -2}),
         ]
 
 
@@ -218,8 +218,8 @@ def origin_fixation_walk(
     upper = np.triu(rng.normal(0.0, coupling / np.sqrt(loci), (loci, loci)), 1)
     matrix = upper + upper.T
     couplings = matrix if coupling else None
-    genome = Locus.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
+    genome = LocusComponent.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
     return System(
         components=[genome],
-        interactions=[Substitution('substitution', genome='genome', N=N, mu=mu, F0=F0, couplings=couplings)],
+        interactions=[SubstitutionInteraction('substitution', genome='genome', N=N, mu=mu, F0=F0, couplings=couplings)],
     )

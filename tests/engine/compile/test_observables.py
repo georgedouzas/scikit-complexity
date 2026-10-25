@@ -2,16 +2,16 @@
 
 import pytest
 
-from skcomplex.core.components import Element, Group
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of
 from skcomplex.formalisms.agents import runs_rules
 from skcomplex.formalisms.quantum import contains_quantum
 from skcomplex.models import catalog, create
 
-ObservedValue = Element.define('ObservedValue', states={'y': 0.0})
+ObservedValueComponent = ElementComponent.define('ObservedValueComponent', states={'y': 0.0})
 
 
 def _observed(entry_name):
@@ -24,7 +24,7 @@ def _observed(entry_name):
     found, blocked = [], set()
     for scope, observable in observables_of(system):
         group = groups[scope].get(observable.group) if observable.group is not None else None
-        agents = isinstance(group, Group) and runs_rules(group)
+        agents = isinstance(group, GroupComponent) and runs_rules(group)
         if scope in blocked or (
             observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
         ):
@@ -45,10 +45,10 @@ def _readers(paths):
     """Return one reader of the modulus of every observable, added to a probe element."""
     readers = []
     for index, path in enumerate(paths):
-        Read = Interaction.define(
+        Read = BaseInteraction.define(
             f'Read{index}',
             roles=['probe', 'source'],
-            laws=lambda s: [Rate(s.probe.y, abs(s.source.value))],
+            laws=lambda s: [RateLaw(s.probe.y, abs(s.source.value))],
         )
         readers.append(Read(f'read_{index}', probe=f'probe_{index}', source=f'model/{path}'))
     return readers
@@ -67,7 +67,7 @@ def test_reductions_agree_with_observables(entry):
     if not paths:
         pytest.skip('The model has no observable that laws read at the current state.')
     model.label = 'model'
-    probes = [ObservedValue(f'probe_{index}') for index in range(len(paths))]
+    probes = [ObservedValueComponent(f'probe_{index}') for index in range(len(paths))]
     problem = compile_system(System(components=[*probes, *[model]], interactions=_readers(paths)), backend='numpy')
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters

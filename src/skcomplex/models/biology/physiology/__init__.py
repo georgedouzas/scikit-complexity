@@ -1,27 +1,37 @@
 """Physiology: delayed feedback, excitable tissue, the circulation, cell exchange, regulation, and adaptivity."""
 
-from ._adaptivity import AdaptiveResponder, adaptive_response_costs
-from ._cardiac import AlievPanfilov, aliev_panfilov
-from ._circulation import Chamber, Transfer, cardiovascular
-from ._exchange import ContourCell, ExchangingCell, closed_contour_cell_exchange, nanotube_gap_junction_exchange
-from ._pharmacokinetics import TwoCompartment, two_compartment_pharmacokinetics
-from ._physiology import FitzHughNagumo, MackeyGlass, fitzhugh_nagumo, mackey_glass
-from ._regulation import Coagulation, GlucoseControl, coagulation_positive_feedback, glucose_dual_hormone_control
-from ._toxicity import DrugToxicity, drug_toxicity
+from ._adaptivity import AdaptiveResponderComponent, adaptive_response_costs
+from ._cardiac import AlievPanfilovComponent, aliev_panfilov
+from ._circulation import ChamberComponent, TransferInteraction, cardiovascular
+from ._exchange import (
+    ContourCellComponent,
+    ExchangingCellComponent,
+    closed_contour_cell_exchange,
+    nanotube_gap_junction_exchange,
+)
+from ._pharmacokinetics import TwoCompartmentComponent, two_compartment_pharmacokinetics
+from ._physiology import FitzHughNagumoComponent, MackeyGlassComponent, fitzhugh_nagumo, mackey_glass
+from ._regulation import (
+    CoagulationComponent,
+    GlucoseControlComponent,
+    coagulation_positive_feedback,
+    glucose_dual_hormone_control,
+)
+from ._toxicity import DrugToxicityComponent, drug_toxicity
 
 __all__: list[str] = [
-    'AdaptiveResponder',
-    'AlievPanfilov',
-    'Chamber',
-    'Coagulation',
-    'ContourCell',
-    'DrugToxicity',
-    'ExchangingCell',
-    'FitzHughNagumo',
-    'GlucoseControl',
-    'MackeyGlass',
-    'Transfer',
-    'TwoCompartment',
+    'AdaptiveResponderComponent',
+    'AlievPanfilovComponent',
+    'ChamberComponent',
+    'CoagulationComponent',
+    'ContourCellComponent',
+    'DrugToxicityComponent',
+    'ExchangingCellComponent',
+    'FitzHughNagumoComponent',
+    'GlucoseControlComponent',
+    'MackeyGlassComponent',
+    'TransferInteraction',
+    'TwoCompartmentComponent',
     'adaptive_response_costs',
     'aliev_panfilov',
     'cardiovascular',

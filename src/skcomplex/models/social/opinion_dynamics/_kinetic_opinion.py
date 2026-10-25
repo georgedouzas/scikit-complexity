@@ -8,14 +8,14 @@ from functools import partial
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import Encounter, moment
+from ....formalisms.kinetics import EncounterLaw, moment
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
 
@@ -117,7 +117,7 @@ def opinion_variance(s: Symbols, opinions: npt.NDArray[np.float64]) -> Expressio
     return moment(s.f, 2, opinions, central=True)
 
 
-class OpinionLevel(Element):
+class OpinionLevelComponent(ElementComponent):
     """Density of the population at one opinion level, a member of a distribution over opinions.
 
     Args:
@@ -128,15 +128,15 @@ class OpinionLevel(Element):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import OpinionLevel
-        >>> OpinionLevel.group('opinions', 7, f=1 / 7).size
+        >>> from skcomplex.models.social.opinion_dynamics import OpinionLevelComponent
+        >>> OpinionLevelComponent.group('opinions', 7, f=1 / 7).size
         7
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class OpinionEncounters(Interaction):
+class OpinionEncountersInteraction(BaseInteraction):
     """Conservative encounters between opinion levels, which persuade close opinions and repel distant ones.
 
     Args:
@@ -162,19 +162,19 @@ class OpinionEncounters(Interaction):
             The probability of moving away from a distant opinion.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import OpinionEncounters
-        >>> OpinionEncounters('encounters', population='opinions').confidence
+        >>> from skcomplex.models.social.opinion_dynamics import OpinionEncountersInteraction
+        >>> OpinionEncountersInteraction('encounters', population='opinions').confidence
         2
     """
 
     population: str = role()
-    levels: int = parameter(default=7, domain=Domain.POSITIVE)
-    confidence: int = parameter(default=2, domain=Domain.NONNEGATIVE)
-    eta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    persuasion: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    repulsion: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    levels: int = parameter(default=7, domain=NumericDomain.POSITIVE)
+    confidence: int = parameter(default=2, domain=NumericDomain.NONNEGATIVE)
+    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    persuasion: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    repulsion: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the population with itself.
 
         Args:
@@ -186,7 +186,7 @@ class OpinionEncounters(Interaction):
                 The laws of the component.
         """
         table = persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
-        return [Encounter(s.population.f, s.population.f, s.eta, table)]
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
 
 
 def _levels_of(system: System) -> int:
@@ -269,10 +269,16 @@ def kinetic_opinion(
     initial = 1.0 + 0.1 * opinion_grid(levels)
     return System(
         components=[
-            Group('opinions', element=OpinionLevel, size=levels, on='sites', values={'f': initial / initial.sum()}),
+            GroupComponent(
+                'opinions',
+                element=OpinionLevelComponent,
+                size=levels,
+                on='sites',
+                values={'f': initial / initial.sum()},
+            ),
         ],
         interactions=[
-            OpinionEncounters(
+            OpinionEncountersInteraction(
                 'encounters',
                 population='opinions',
                 levels=levels,

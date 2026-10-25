@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Rate, Symbols, Update, bernoulli, neighbors, where
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols, UpdateLaw, bernoulli, neighbors, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -20,7 +20,7 @@ from ....formalisms.topology import add_edge, remove_edge, rewire
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
-class Carrier(Element):
+class CarrierComponent(ElementComponent):
     """Node of a network whose state is the probability that it is infected, in quenched mean field.
 
     The node recovers at rate 1 and every infected neighbour infects it at rate `lam`, with the probabilities of the
@@ -37,15 +37,15 @@ class Carrier(Element):
             The spreading rate, the ratio of the infection rate per edge and the recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Carrier
-        >>> Carrier('node').lam
+        >>> from skcomplex.models.biology.epidemiology import CarrierComponent
+        >>> CarrierComponent('node').lam
         0.2
     """
 
-    p: float = state(default=0.05, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    p: float = state(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the recovery and the infection by the neighbours.
 
         Args:
@@ -56,10 +56,10 @@ class Carrier(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.p, -s.p + s.lam * (1 - s.p) * neighbors(s.other.p))]
+        return [RateLaw(s.p, -s.p + s.lam * (1 - s.p) * neighbors(s.other.p))]
 
 
-class Host(Element):
+class HostComponent(ElementComponent):
     """Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time.
 
     An infected node recovers at rate `gamma`, and a susceptible node is infected at rate `beta` by every infected
@@ -79,16 +79,16 @@ class Host(Element):
             The recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Host
-        >>> Host('node').gamma
+        >>> from skcomplex.models.biology.epidemiology import HostComponent
+        >>> HostComponent('node').gamma
         1.0
     """
 
-    i: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.4, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    i: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the infection by the infected neighbours and the recovery.
 
         Args:
@@ -100,12 +100,12 @@ class Host(Element):
                 The laws of the component.
         """
         return [
-            Jump(s.beta * (1 - s.i) * neighbors(s.other.i), {s.i: 1}),
-            Jump(s.gamma * s.i, {s.i: -1}),
+            JumpLaw(s.beta * (1 - s.i) * neighbors(s.other.i), {s.i: 1}),
+            JumpLaw(s.gamma * s.i, {s.i: -1}),
         ]
 
 
-class Contact(Element):
+class ContactComponent(ElementComponent):
     """Edge of a network between two hosts, which carries no state of its own.
 
     Args:
@@ -113,13 +113,13 @@ class Contact(Element):
             The label of the edge or of the group of edges.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Contact
-        >>> Contact('edge').label
+        >>> from skcomplex.models.biology.epidemiology import ContactComponent
+        >>> ContactComponent('edge').label
         'edge'
     """
 
 
-class Rewiring(Interaction):
+class RewiringInteraction(BaseInteraction):
     """Susceptible end of an edge to an infected node that moves the edge to another susceptible node at rate `w`.
 
     Args:
@@ -136,17 +136,17 @@ class Rewiring(Interaction):
             The rewiring rate of an edge between a susceptible and an infected node.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Rewiring
-        >>> Rewiring('rewiring', hosts='hosts', contacts='contacts', w=2.0).w
+        >>> from skcomplex.models.biology.epidemiology import RewiringInteraction
+        >>> RewiringInteraction('rewiring', hosts='hosts', contacts='contacts', w=2.0).w
         2.0
     """
 
     over: ClassVar[str] = 'neighbors'
     hosts: str = role()
     contacts: str = role()
-    w: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    w: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rewiring of the edge from either orientation of a susceptible and an infected end.
 
         Args:
@@ -163,12 +163,12 @@ class Rewiring(Interaction):
             return 1 - node.i
 
         return [
-            Jump(s.w * (1 - s.source.i) * s.target.i, {rewire(keep='source', toward=susceptible): 1}),
-            Jump(s.w * s.source.i * (1 - s.target.i), {rewire(keep='target', toward=susceptible): 1}),
+            JumpLaw(s.w * (1 - s.source.i) * s.target.i, {rewire(keep='source', toward=susceptible): 1}),
+            JumpLaw(s.w * s.source.i * (1 - s.target.i), {rewire(keep='target', toward=susceptible): 1}),
         ]
 
 
-class ActiveHost(Element):
+class ActiveHostComponent(ElementComponent):
     """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
 
     At every step the node fires with probability `a`, its activity, and joins `m` other nodes by new edges. An
@@ -198,15 +198,15 @@ class ActiveHost(Element):
                 The probability of recovery at a step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ActiveHost
-        >>> ActiveHost('node').m
+        >>> from skcomplex.models.biology.epidemiology import ActiveHostComponent
+        >>> ActiveHostComponent('node').m
         2
     """
 
-    i: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    mu: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    i: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    mu: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -218,7 +218,7 @@ class ActiveHost(Element):
         super().__init__(label, **values)
         self.m = m
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the infection along the edges, the recovery, and the edges created when the node fires.
 
         Args:
@@ -233,12 +233,12 @@ class ActiveHost(Element):
         infected = bernoulli('infection', 1 - escape)
         recovered = bernoulli('recovery', s.mu)
         return [
-            Update(s.i, where(s.i > 1 / 2, 1 - recovered, infected)),
-            Update(add_edge(edges=self.m), s.a),
+            UpdateLaw(s.i, where(s.i > 1 / 2, 1 - recovered, infected)),
+            UpdateLaw(add_edge(edges=self.m), s.a),
         ]
 
 
-class Expiry(Interaction):
+class ExpiryInteraction(BaseInteraction):
     """Removal of every edge of an activity-driven network one step after it is created.
 
     Args:
@@ -252,8 +252,8 @@ class Expiry(Interaction):
             The path of the variable group on the edges.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Expiry
-        >>> Expiry('expiry', hosts='hosts', contacts='contacts').hosts
+        >>> from skcomplex.models.biology.epidemiology import ExpiryInteraction
+        >>> ExpiryInteraction('expiry', hosts='hosts', contacts='contacts').hosts
         'hosts'
     """
 
@@ -261,7 +261,7 @@ class Expiry(Interaction):
     hosts: str = role()
     contacts: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the removal of the edge at the next step.
 
         Args:
@@ -272,7 +272,7 @@ class Expiry(Interaction):
             laws:
                 The update that removes the edge.
         """
-        return [Update(remove_edge(), 1)]
+        return [UpdateLaw(remove_edge(), 1)]
 
 
 def _initial_stream(seed: int | None) -> np.random.Generator:
@@ -335,7 +335,7 @@ def quenched_mean_field_sis(
         10
     """
     space = NetworkSpace(graph) if graph is not None else NetworkSpace.barabasi_albert(n, m, seed=seed)
-    return System(components=[Carrier.lattice('nodes', space, p=p, lam=lam)])
+    return System(components=[CarrierComponent.lattice('nodes', space, p=p, lam=lam)])
 
 
 @register_model(
@@ -394,9 +394,9 @@ def adaptive_sis(
     """
     space = _random_network(n, k, seed)
     initial = (_initial_stream(seed).random(n) < infected).astype(float)
-    hosts = Group(
+    hosts = GroupComponent(
         'hosts',
-        element=Host,
+        element=HostComponent,
         space=space,
         on='sites',
         variable=True,
@@ -405,16 +405,16 @@ def adaptive_sis(
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
     edges = space.graph.number_of_edges()
-    contacts = Group(
+    contacts = GroupComponent(
         'contacts',
-        element=Contact,
+        element=ContactComponent,
         space=space,
         on='edges',
         variable=True,
         capacity=edges,
         visual=HIDDEN,
     )
-    rewiring = Rewiring('rewiring', hosts='hosts', contacts='contacts', w=w)
+    rewiring = RewiringInteraction('rewiring', hosts='hosts', contacts='contacts', w=w)
     return System(components=[hosts, contacts], interactions=[rewiring])
 
 
@@ -481,9 +481,9 @@ def activity_driven_epidemics(
     activities = np.minimum(least * (1 - rng.random(n)) ** (-1 / (exponent - 1)), 1.0)
     initial = (rng.random(n) < infected).astype(float)
     space = NetworkSpace(nx.empty_graph(n))
-    hosts = Group(
+    hosts = GroupComponent(
         'hosts',
-        element=ActiveHost,
+        element=ActiveHostComponent,
         space=space,
         on='sites',
         variable=True,
@@ -491,9 +491,9 @@ def activity_driven_epidemics(
         values={'i': initial, 'a': activities, 'm': m, 'lam': lam, 'mu': mu},
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
-    contacts = Group(
+    contacts = GroupComponent(
         'contacts',
-        element=Contact,
+        element=ContactComponent,
         space=space,
         on='edges',
         variable=True,
@@ -502,6 +502,6 @@ def activity_driven_epidemics(
     )
     return System(
         components=[hosts, contacts],
-        interactions=[Expiry('expiry', hosts='hosts', contacts='contacts')],
+        interactions=[ExpiryInteraction('expiry', hosts='hosts', contacts='contacts')],
         time=DiscreteTime(),
     )

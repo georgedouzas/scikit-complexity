@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -33,7 +33,7 @@ def order_parameters(positions, phases):
 
 system = create(MODEL, J=1.0, K=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, solver=RK4(dt=0.1), observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0).run(until=100)
 
 # %%
 # Order parameters of the static states
@@ -49,7 +49,7 @@ history = np.array([order_parameters(position, phase) for position, phase in zip
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
-    run = Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4(dt=0.1)).run(until=60)
+    run = Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1)).run(until=60)
     final.append(
         order_parameters(np.asarray(run.trajectory_['units.x'])[-1], np.asarray(run.trajectory_['units.theta'])[-1]),
     )

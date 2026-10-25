@@ -7,16 +7,16 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 
-class Task(Element):
+class TaskComponent(ElementComponent):
     """Task of the Barabási priority queue, with a priority, an age, and the waiting time when it was last executed.
 
     Args:
@@ -36,19 +36,19 @@ class Task(Element):
             The probability that the highest priority task is executed rather than a random one.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Task
-        >>> Task.group('tasks', 2, priority=[0.2, 0.7])
-        Group('tasks', element=Task, size=2)
+        >>> from skcomplex.models.social.organizations import TaskComponent
+        >>> TaskComponent.group('tasks', 2, priority=[0.2, 0.7])
+        GroupComponent('tasks', element=TaskComponent, size=2)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)})
-    priority: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    age: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    wait: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    greed: float = parameter(default=0.99999, domain=Domain.NONNEGATIVE)
+    priority: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    wait: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    greed: float = parameter(default=0.99999, domain=NumericDomain.NONNEGATIVE)
 
 
-class Execution(Interaction):
+class ExecutionInteraction(BaseInteraction):
     """Execution of one task per step from the list of the Barabási model.
 
     The highest priority task is executed with probability `greed` and a random task otherwise. The executed task is
@@ -63,15 +63,15 @@ class Execution(Interaction):
             The path of the group of tasks.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Execution
-        >>> Execution('execution', target='tasks').target
+        >>> from skcomplex.models.social.organizations import ExecutionInteraction
+        >>> ExecutionInteraction('execution', target='tasks').target
         'tasks'
     """
 
     reports: ClassVar[tuple[str, ...]] = ('wait',)
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the execution rule.
 
         Args:
@@ -82,7 +82,7 @@ class Execution(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.execute)]
+        return [RuleLaw(self.execute)]
 
     def execute(self, model: ModelView) -> None:
         """Execute one task and replace it with a new one.
@@ -139,5 +139,5 @@ def priority_queues(
         3
     """
     priorities = np.random.default_rng(random_state).random(n_tasks)
-    tasks = Task.group('tasks', n_tasks, priority=priorities, greed=greed)
-    return System(components=[tasks], interactions=[Execution('execution', target='tasks')])
+    tasks = TaskComponent.group('tasks', n_tasks, priority=priorities, greed=greed)
+    return System(components=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])

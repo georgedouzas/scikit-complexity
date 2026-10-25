@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -22,7 +22,7 @@ MODEL = 'traffic_density_equation'
 
 system = create(MODEL, perturbation=1e-4)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=4.0, solver=RK4(dt=0.1), observers=[observer]).run(until=400)
+simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[observer]).run(until=400)
 
 # %%
 # Growth rates of the density waves

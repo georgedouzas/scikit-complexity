@@ -7,11 +7,11 @@ from typing import cast
 
 from .._census import Census
 from .._compilation import Compilation
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._planner import _plan_partitions
 
 
-class PlanPass(Pass):
+class PlanPass(BasePass):
     """Pass that plans the partitions of the system with the registered forms and solvers."""
 
     reads = ('census', 'kinds')

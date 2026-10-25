@@ -6,16 +6,16 @@
 from typing import cast
 
 from ....core.base import Form
-from ....core.laws import Rate
+from ....core.laws import RateLaw
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._jacobians import ExactJacobian
 from .._kernels import Lowered
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._reductions import ReductionPass
 
 
-class JacobianPass(Pass):
+class JacobianPass(BasePass):
     """Pass that derives the exact Jacobian of the drift of an ODE problem, and none for other forms."""
 
     reads = ('kernels', 'form', 'reductions', 'layout')
@@ -31,7 +31,7 @@ class JacobianPass(Pass):
         declarations = cast('Declarations', compilation.layout)
         compilation.jacobian = (
             ExactJacobian(
-                tuple(cast('Lowered', compilation.kernels).kernels[Rate]),
+                tuple(cast('Lowered', compilation.kernels).kernels[RateLaw]),
                 cast('ReductionPass', compilation.reductions),
                 declarations.ends[True],
                 declarations.time,

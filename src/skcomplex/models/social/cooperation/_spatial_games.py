@@ -9,13 +9,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, ValidationError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 type Offset = tuple[int, int]
@@ -78,7 +78,7 @@ def _random_strategies(
     return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
 
 
-class Prisoner(Element):
+class PrisonerComponent(ElementComponent):
     """Player of the spatial prisoner's dilemma, a cooperator at 1 and a defector at 0.
 
     Every step each player plays the weak dilemma, with reward 1, temptation `temptation`, and 0 otherwise, against
@@ -105,14 +105,14 @@ class Prisoner(Element):
                 The noise of the Fermi imitation.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import Prisoner
-        >>> Prisoner('player').temptation
+        >>> from skcomplex.models.social.cooperation import PrisonerComponent
+        >>> PrisonerComponent('player').temptation
         1.85
     """
 
-    strategy: float = state(default=1.0, domain=Domain.BOOLEAN)
-    temptation: float = parameter(default=1.85, domain=Domain.NONNEGATIVE)
-    noise: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    strategy: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    temptation: float = parameter(default=1.85, domain=NumericDomain.NONNEGATIVE)
+    noise: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -124,7 +124,7 @@ class Prisoner(Element):
         super().__init__(label, **values)
         self.imitation = imitation
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the play and imitation rule over the 5 by 5 square around a player.
 
         Args:
@@ -158,10 +158,10 @@ class Prisoner(Element):
                 return _imitate_best(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies)
             return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
 
-        return [LocalRule(s.strategy, SQUARE, rule, stochastic=True)]
+        return [LocalRuleLaw(s.strategy, SQUARE, rule, stochastic=True)]
 
 
-class Contributor(Element):
+class ContributorComponent(ElementComponent):
     """Player of the spatial public goods game, a cooperator at 1 and a defector at 0.
 
     Every player joins five groups, the one centred on itself and those centred on its four neighbours. In each group
@@ -182,16 +182,16 @@ class Contributor(Element):
             The noise of the Fermi imitation.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import Contributor
-        >>> Contributor('player').synergy
+        >>> from skcomplex.models.social.cooperation import ContributorComponent
+        >>> ContributorComponent('player').synergy
         4.5
     """
 
-    strategy: float = state(default=1.0, domain=Domain.BOOLEAN)
-    synergy: float = parameter(default=4.5, domain=Domain.NONNEGATIVE)
-    noise: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    strategy: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    synergy: float = parameter(default=4.5, domain=NumericDomain.NONNEGATIVE)
+    noise: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the play and imitation rule over the sites within three steps of a player.
 
         Args:
@@ -218,7 +218,7 @@ class Contributor(Element):
             strategies = [cells[offset] for offset in VON_NEUMANN]
             return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
 
-        return [LocalRule(s.strategy, DIAMOND, rule, stochastic=True)]
+        return [LocalRuleLaw(s.strategy, DIAMOND, rule, stochastic=True)]
 
 
 @register_model(
@@ -266,7 +266,7 @@ def spatial_prisoners_dilemma(
         >>> spatial_prisoners_dilemma((10, 10)).elements[0].size
         100
     """
-    players = Prisoner.lattice(
+    players = PrisonerComponent.lattice(
         'players',
         LatticeSpace(tuple(shape)),
         strategy=_random_strategies(shape, share, random_state),
@@ -319,7 +319,7 @@ def public_goods_game(
         100
     """
     strategies = _random_strategies(shape, share, random_state)
-    players = Contributor.lattice(
+    players = ContributorComponent.lattice(
         'players',
         LatticeSpace(tuple(shape)),
         strategy=strategies,

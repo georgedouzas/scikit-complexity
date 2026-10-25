@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Hashable, Iterator
+from collections.abc import Callable, Hashable, Iterator
 from typing import TypeVar
 
 Entry = TypeVar('Entry')
@@ -27,6 +27,7 @@ class Registry[Entry]:
     def __init__(self, name: str) -> None:
         self.name = name
         self._entries: dict[Hashable, Entry] = {}
+        self._loaders: list[Callable[[Hashable], None]] = []
 
     def __iter__(self) -> Iterator[Hashable]:
         """Iterate over the registered keys in registration order."""
@@ -44,6 +45,16 @@ class Registry[Entry]:
         """
         self._entries[key] = entry
 
+    def register_loader(self, loader: Callable[[Hashable], None]) -> None:
+        """Register a function that registers the implementation of an unknown key, such as by importing its module.
+
+        Args:
+            loader:
+                A function of a key, called when the key has no registered implementation, that may register one.
+        """
+        if loader not in self._loaders:
+            self._loaders.append(loader)
+
     def resolve(self, key: Hashable) -> Entry:
         """Return the implementation registered under a key.
 
@@ -57,8 +68,12 @@ class Registry[Entry]:
 
         Raises:
             KeyError:
-                The key has no registered implementation.
+                The key has no registered implementation, and no loader registers one.
         """
+        for loader in self._loaders:
+            if key in self._entries:
+                break
+            loader(key)
         if key not in self._entries:
             available = ', '.join(sorted(map(str, self._entries)))
             error_msg = f'No {self.name} registered under {key!r}. Registered keys are: {available}.'

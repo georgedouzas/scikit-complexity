@@ -9,14 +9,14 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -65,7 +65,7 @@ def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
     return current
 
 
-class Thinker(Element):
+class ThinkerComponent(ElementComponent):
     """Agent of the cognitive consistency model, with the valences of the concepts of its belief network.
 
     Args:
@@ -79,18 +79,18 @@ class Thinker(Element):
             The fraction of every valence lost per update of the belief network.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Thinker
-        >>> Thinker.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
-        Group('thinkers', element=Thinker, size=5)
+        >>> from skcomplex.models.social.opinion_dynamics import ThinkerComponent
+        >>> ThinkerComponent.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
+        GroupComponent('thinkers', element=ThinkerComponent, size=5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)})
     valences: npt.ArrayLike = state(default=0.0, vector=True)
     attitude: float = state(default=0.0)
-    decay: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    decay: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
 
-class Conversations(Interaction):
+class ConversationsInteraction(BaseInteraction):
     """Conversations of the cognitive consistency model, as many per step as there are agents.
 
     A random speaker talks to a random neighbour about F1 or F2. The hearer averages its valence of the topic with the
@@ -104,14 +104,14 @@ class Conversations(Interaction):
             The path of the group of thinkers.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Conversations
-        >>> Conversations('talks', target='thinkers').target
+        >>> from skcomplex.models.social.opinion_dynamics import ConversationsInteraction
+        >>> ConversationsInteraction('talks', target='thinkers').target
         'thinkers'
     """
 
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the conversation rule.
 
         Args:
@@ -122,7 +122,7 @@ class Conversations(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.converse)]
+        return [RuleLaw(self.converse)]
 
     def converse(self, model: ModelView) -> None:
         """Run one conversation per agent.
@@ -188,9 +188,9 @@ def cognitive_consistency(
     size = nx.number_of_nodes(graph)
     signs = np.where(np.random.default_rng(random_state).random(size) < positive, 1.0, -1.0)
     valences = signs[:, None] * np.array(POSITIVE)
-    thinkers = Thinker.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
+    thinkers = ThinkerComponent.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
     return System(
         components=[thinkers],
-        interactions=[Conversations('talks', target='thinkers')],
+        interactions=[ConversationsInteraction('talks', target='thinkers')],
         space=NetworkSpace(graph),
     )

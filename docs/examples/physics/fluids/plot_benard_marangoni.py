@@ -20,7 +20,7 @@ from scipy.stats import skew
 from skcomplex.engine.analysis import fields_of, pattern_wavelength, structure_factor
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4
+from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 
 MODEL = 'benard_marangoni'
@@ -28,7 +28,9 @@ LENGTH = 16 * np.pi
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, solver=ETDRK4(dt=0.5), observers=[observer], random_state=0).run(until=300)
+simulation = Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0).run(
+    until=300,
+)
 
 # %%
 # Hexagons against rolls
@@ -40,7 +42,7 @@ simulation = Simulation(system, dt=5.0, solver=ETDRK4(dt=0.5), observers=[observ
 # skewed, while the rolls of the same layer with `g = 0` are symmetric.
 
 hexagons = fields_of(simulation.trajectory_, 'layer.u')[-1]
-rolls_run = Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4(dt=0.5), random_state=0).run(until=300)
+rolls_run = Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0).run(until=300)
 rolls = fields_of(rolls_run.trajectory_, 'layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 

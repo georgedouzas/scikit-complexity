@@ -10,21 +10,21 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Totalistic
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, Totalistic
 from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.lattices import LocalRule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
 MAJORITY = 5
 
 
-class Voter(Element):
+class VoterComponent(ElementComponent):
     """Agent of the voter model, who adopts the opinion of a random neighbour on a network.
 
     Args:
@@ -35,15 +35,15 @@ class Voter(Element):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Voter
-        >>> Voter.group('voters', 20, opinion=1.0)
-        Group('voters', element=Voter, size=20)
+        >>> from skcomplex.models.social.opinion_dynamics import VoterComponent
+        >>> VoterComponent.group('voters', 20, opinion=1.0)
+        GroupComponent('voters', element=VoterComponent, size=20)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the imitation rule.
 
         Args:
@@ -54,7 +54,7 @@ class Voter(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.imitate)]
+        return [RuleLaw(self.imitate)]
 
     def imitate(self, agent: AgentView, model: ModelView) -> None:
         """Adopt the opinion of a random neighbour.
@@ -71,7 +71,7 @@ class Voter(Element):
             agent.opinion = neighbors[int(model.rng.integers(len(neighbors)))].opinion
 
 
-class MajorityVoter(Element):
+class MajorityVoterComponent(ElementComponent):
     """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
 
     Args:
@@ -82,14 +82,14 @@ class MajorityVoter(Element):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import MajorityVoter
-        >>> MajorityVoter('cell', opinion=1).opinion
+        >>> from skcomplex.models.social.opinion_dynamics import MajorityVoterComponent
+        >>> MajorityVoterComponent('cell', opinion=1).opinion
         1
     """
 
-    opinion: float = state(default=0, domain=Domain.BOOLEAN)
+    opinion: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the majority rule over the nine cells.
 
         Args:
@@ -101,11 +101,11 @@ class MajorityVoter(Element):
                 The laws of the component.
         """
         return [
-            LocalRule(s.opinion, Neighborhood.moore(center=True), Totalistic(lambda total: total >= MAJORITY)),
+            LocalRuleLaw(s.opinion, Neighborhood.moore(center=True), Totalistic(lambda total: total >= MAJORITY)),
         ]
 
 
-class VariantVoter(Element):
+class VariantVoterComponent(ElementComponent):
     """Agent of the voter model variants: an imitator, a threshold voter, or a contrarian.
 
     With a threshold of 0 the agent copies a random neighbour, as in the voter model. With a positive threshold it
@@ -127,17 +127,17 @@ class VariantVoter(Element):
             neighbour.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import VariantVoter
-        >>> VariantVoter.group('voters', 10, threshold=0.5)
-        Group('voters', element=VariantVoter, size=10)
+        >>> from skcomplex.models.social.opinion_dynamics import VariantVoterComponent
+        >>> VariantVoterComponent.group('voters', 10, threshold=0.5)
+        GroupComponent('voters', element=VariantVoterComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    contrarian: float = state(default=0.0, domain=Domain.BOOLEAN)
-    threshold: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    contrarian: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    threshold: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the voting rule.
 
         Args:
@@ -148,7 +148,7 @@ class VariantVoter(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.vote)]
+        return [RuleLaw(self.vote)]
 
     def _choice(self, agent: AgentView, neighbors: list[AgentView], model: ModelView) -> float:
         """Return the opinion an agent that conforms would take."""
@@ -213,7 +213,7 @@ def majority_rule(
         100
     """
     values = _random_cells(shape, density, random_state)
-    return System(components=[MajorityVoter.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
+    return System(components=[MajorityVoterComponent.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
 
 
 @register_model(
@@ -254,7 +254,7 @@ def voter_model(
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
     opinions = (rng.random(size) < share).astype(float)
-    return System(components=[Voter.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
+    return System(components=[VoterComponent.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -303,7 +303,7 @@ def voter_variants(
     rng = np.random.default_rng(random_state)
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    voters = VariantVoter.group(
+    voters = VariantVoterComponent.group(
         'voters',
         size,
         opinion=(rng.random(size) < share).astype(float),

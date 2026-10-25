@@ -10,14 +10,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp, tanh
 from scipy.ndimage import convolve
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Event, Law, Rate, Symbols, delayed, maximum
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, delayed, maximum
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
 type Array = npt.NDArray[np.float64]
 
@@ -47,7 +47,7 @@ def _link_weights(stimulus: Array, total: float) -> Array:
     return total / np.maximum(neighbours, 1.0)
 
 
-class SpikingNeuron(Element):
+class SpikingNeuronComponent(ElementComponent):
     """Leaky integrate-and-fire neuron with an exponential synaptic trace of its own spikes.
 
     The potential follows `tau v' = -v + mu` plus synaptic input. When it reaches `threshold` it is reset and the
@@ -80,20 +80,20 @@ class SpikingNeuron(Element):
             The decay time of the synaptic trace.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import SpikingNeuron
-        >>> SpikingNeuron('neuron').threshold
+        >>> from skcomplex.models.biology.neuroscience import SpikingNeuronComponent
+        >>> SpikingNeuronComponent('neuron').threshold
         20.0
     """
 
     v: float = state(default=0.0)
-    s: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=20.0, domain=Domain.POSITIVE)
+    s: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
     threshold: float = parameter(default=20.0)
     reset: float = parameter(default=10.0)
     mu: float = parameter(default=25.0)
-    tau_s: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    tau_s: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the leaky membrane, the decay of the trace, and the spike that resets the potential.
 
         Args:
@@ -105,13 +105,13 @@ class SpikingNeuron(Element):
                 The laws of the component.
         """
         return [
-            Rate(s.v, (s.mu - s.v) / s.tau),
-            Rate(s.s, -s.s / s.tau_s),
-            Event(s.v - s.threshold, {s.v: s.reset, s.s: s.s + 1 / s.tau_s}, direction=1, label='spike'),
+            RateLaw(s.v, (s.mu - s.v) / s.tau),
+            RateLaw(s.s, -s.s / s.tau_s),
+            EventLaw(s.v - s.threshold, {s.v: s.reset, s.s: s.s + 1 / s.tau_s}, direction=1, label='spike'),
         ]
 
 
-class DelayedSynapse(Interaction):
+class DelayedSynapseInteraction(BaseInteraction):
     """Synapse that adds the presynaptic trace from a transmission delay ago to the postsynaptic potential.
 
     The target gains `J s_source(t - D)`, so every presynaptic spike moves the postsynaptic potential by `J` in
@@ -134,17 +134,17 @@ class DelayedSynapse(Interaction):
             The transmission delay in ms.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import DelayedSynapse
-        >>> DelayedSynapse('synapse', source='a', target='b', J=-1.0).D
+        >>> from skcomplex.models.biology.neuroscience import DelayedSynapseInteraction
+        >>> DelayedSynapseInteraction('synapse', source='a', target='b', J=-1.0).D
         1.5
     """
 
     source: str = role()
     target: str = role()
     J: float = parameter(default=0.5)
-    D: float = parameter(default=1.5, domain=Domain.POSITIVE)
+    D: float = parameter(default=1.5, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the delayed synaptic input `J s_source(t - D)`.
 
         Args:
@@ -155,10 +155,10 @@ class DelayedSynapse(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.v, s.J * delayed(s.source.s, s.D))]
+        return [RateLaw(s.target.v, s.J * delayed(s.source.s, s.D))]
 
 
-class TermanWang(Element):
+class TermanWangComponent(ElementComponent):
     """Relaxation oscillator of Terman and Wang, coupled to its lattice neighbours through their active phases.
 
     The fast variable follows `x' = 3x - x³ + 2 - y + I + W m (sum_k m_k H(x_k - theta_x))`, summed over the four
@@ -201,23 +201,23 @@ class TermanWang(Element):
             The width of the smooth steps.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import TermanWang
-        >>> TermanWang('oscillator').gamma
+        >>> from skcomplex.models.biology.neuroscience import TermanWangComponent
+        >>> TermanWangComponent('oscillator').gamma
         6.0
     """
 
     x: float = state(default=SILENT)
     y: float = state(default=0.0)
     I: float = parameter(default=0.2)
-    m: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    W: float = parameter(default=6.0, domain=Domain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.02, domain=Domain.POSITIVE)
-    gamma: float = parameter(default=6.0, domain=Domain.POSITIVE)
-    beta: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    m: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    W: float = parameter(default=6.0, domain=NumericDomain.NONNEGATIVE)
+    epsilon: float = parameter(default=0.02, domain=NumericDomain.POSITIVE)
+    gamma: float = parameter(default=6.0, domain=NumericDomain.POSITIVE)
+    beta: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
     theta_x: float = parameter(default=-0.5)
-    kappa: float = parameter(default=0.02, domain=Domain.POSITIVE)
+    kappa: float = parameter(default=0.02, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fast variable with its excitation by the neighbours, and the slow recovery.
 
         Args:
@@ -231,12 +231,12 @@ class TermanWang(Element):
         active = s.m * _step(s.x - s.theta_x, s.kappa)
         excitation = s.W * s.m * (laplacian(active) + 4 * active)
         return [
-            Rate(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
-            Rate(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
+            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
+            RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
         ]
 
 
-class Inhibitor(Element):
+class InhibitorComponent(ElementComponent):
     """Global inhibitor of a LEGION network, whose activity `z` decays at rate `phi` without drive.
 
     Args:
@@ -250,15 +250,15 @@ class Inhibitor(Element):
             The rate of the inhibitor.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import Inhibitor
-        >>> Inhibitor('inhibitor').phi
+        >>> from skcomplex.models.biology.neuroscience import InhibitorComponent
+        >>> InhibitorComponent('inhibitor').phi
         3.0
     """
 
-    z: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    phi: float = parameter(default=3.0, domain=Domain.POSITIVE)
+    z: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    phi: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the decay of the inhibitor.
 
         Args:
@@ -269,10 +269,10 @@ class Inhibitor(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.z, -s.phi * s.z)]
+        return [RateLaw(s.z, -s.phi * s.z)]
 
 
-class GlobalInhibition(Interaction):
+class GlobalInhibitionInteraction(BaseInteraction):
     """Coupling of a lattice of oscillators to a global inhibitor that the most active oscillator drives.
 
     The inhibitor follows `z' = phi (sigma - z)`, where `sigma` is the largest activity `m H(x - theta_x)` of the
@@ -296,17 +296,17 @@ class GlobalInhibition(Interaction):
             The threshold of the inhibitor.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import GlobalInhibition
-        >>> GlobalInhibition('inhibition', inhibitor='z', oscillators='grid').W_z
+        >>> from skcomplex.models.biology.neuroscience import GlobalInhibitionInteraction
+        >>> GlobalInhibitionInteraction('inhibition', inhibitor='z', oscillators='grid').W_z
         1.5
     """
 
     inhibitor: str = role()
     oscillators: str = role()
-    W_z: float = parameter(default=1.5, domain=Domain.NONNEGATIVE)
+    W_z: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
     theta_z: float = parameter(default=0.1)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drive of the inhibitor by the most active oscillator and the inhibition of every oscillator.
 
         Args:
@@ -320,8 +320,8 @@ class GlobalInhibition(Interaction):
         oscillator, inhibitor = s.oscillators, s.inhibitor
         activity = maximum(oscillator.m * _step(oscillator.x - oscillator.theta_x, oscillator.kappa))
         return [
-            Rate(oscillator.x, -s.W_z * _step(inhibitor.z - s.theta_z, oscillator.kappa)),
-            Rate(inhibitor.z, inhibitor.phi * activity),
+            RateLaw(oscillator.x, -s.W_z * _step(inhibitor.z - s.theta_z, oscillator.kappa)),
+            RateLaw(inhibitor.z, inhibitor.phi * activity),
         ]
 
 
@@ -377,9 +377,17 @@ def delayed_lif_network(
     """
     rng = np.random.default_rng(random_state)
     potentials = rng.uniform(10.0, 20.0, n_neurons)
-    neurons = [SpikingNeuron(f'neuron_{index}', v=float(potentials[index]), mu=mu) for index in range(n_neurons)]
+    neurons = [
+        SpikingNeuronComponent(f'neuron_{index}', v=float(potentials[index]), mu=mu) for index in range(n_neurons)
+    ]
     synapses = [
-        DelayedSynapse(f'synapse_{source}_{target}', source=f'neuron_{source}', target=f'neuron_{target}', J=J, D=D)
+        DelayedSynapseInteraction(
+            f'synapse_{source}_{target}',
+            source=f'neuron_{source}',
+            target=f'neuron_{target}',
+            J=J,
+            D=D,
+        )
         for source, target in _random_connections(n_neurons, probability, rng)
     ]
     return System(components=neurons, interactions=synapses)
@@ -446,12 +454,12 @@ def legion(
         'W': _link_weights(marks, W),
         'epsilon': epsilon,
     }
-    oscillators = Field(
+    oscillators = FieldComponent(
         'oscillators',
-        TermanWang,
+        TermanWangComponent,
         LatticeSpace(marks.shape),
         boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
         values=values,
     )
-    inhibition = GlobalInhibition('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(components=[oscillators, Inhibitor('inhibitor')], interactions=[inhibition])
+    inhibition = GlobalInhibitionInteraction('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
+    return System(components=[oscillators, InhibitorComponent('inhibitor')], interactions=[inhibition])

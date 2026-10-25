@@ -7,16 +7,16 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, ramp
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, ramp
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, gradient, laplacian
+from ....formalisms.fields import FieldComponent, gradient, laplacian
 
 
-class ChargedWaveFunction(Element):
+class ChargedWaveFunctionComponent(ElementComponent):
     """Wave function `psi = u + i w` of a charge `q` in a uniform electromagnetic potential.
 
     The wave function follows `(d_t - i q A_t) psi = i D (d_x - i q A_x)^2 psi`. The vector potential
@@ -53,21 +53,21 @@ class ChargedWaveFunction(Element):
             The time the electric field is on.
 
     Examples:
-        >>> from skcomplex.models.physics.waves import ChargedWaveFunction
-        >>> ChargedWaveFunction('site').q
+        >>> from skcomplex.models.physics.waves import ChargedWaveFunctionComponent
+        >>> ChargedWaveFunctionComponent('site').q
         1.0
     """
 
     u: float = state(default=0.0)
     w: float = state(default=0.0)
-    D: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    D: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
     q: float = parameter(default=1.0)
     A_x: float = parameter(default=0.0)
     A_t: float = parameter(default=0.0)
     E: float = parameter(default=0.0)
-    duration: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    duration: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the minimally coupled Schrödinger equation for the real and imaginary parts.
 
         Args:
@@ -82,8 +82,8 @@ class ChargedWaveFunction(Element):
         drift = 2 * s.D * s.q * potential
         phase = s.q * s.A_t - s.D * s.q**2 * potential**2
         return [
-            Rate(s.u, -s.D * laplacian(s.w) + drift * gradient(s.u, 1)[0] - phase * s.w),
-            Rate(s.w, s.D * laplacian(s.u) + drift * gradient(s.w, 1)[0] + phase * s.u),
+            RateLaw(s.u, -s.D * laplacian(s.w) + drift * gradient(s.u, 1)[0] - phase * s.w),
+            RateLaw(s.w, s.D * laplacian(s.u) + drift * gradient(s.w, 1)[0] + phase * s.u),
         ]
 
 
@@ -169,4 +169,8 @@ def charged_schrodinger(
         'duration': duration,
     }
     space = LatticeSpace(n_sites, spacing=spacing)
-    return System(components=[Field('packet', ChargedWaveFunction, space, values=values, discretization='spectral')])
+    return System(
+        components=[
+            FieldComponent('packet', ChargedWaveFunctionComponent, space, values=values, discretization='spectral'),
+        ],
+    )

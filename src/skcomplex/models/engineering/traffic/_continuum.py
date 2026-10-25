@@ -6,55 +6,55 @@
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import SSPRK, Field, Flux, laplacian
+from ....formalisms.fields import FieldComponent, FluxLaw, SSPRKSolver, laplacian
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 
-LighthillWhithamRichards = Element.define(
-    'LighthillWhithamRichards',
-    states={'rho': state(default=0.3, domain=Domain.NONNEGATIVE)},
+LighthillWhithamRichardsComponent = ElementComponent.define(
+    'LighthillWhithamRichardsComponent',
+    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'vmax': parameter(default=1.0, domain=Domain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=Domain.POSITIVE),
+        'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
-    laws=lambda s: [Flux(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')],
+    laws=lambda s: [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')],
 )
 
-Payne = Element.define(
-    'Payne',
-    states={'rho': state(default=0.3, domain=Domain.NONNEGATIVE), 'q': 0.21},
+PayneComponent = ElementComponent.define(
+    'PayneComponent',
+    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
     parameters={
-        'vmax': parameter(default=1.0, domain=Domain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=Domain.POSITIVE),
-        'tau': parameter(default=0.5, domain=Domain.POSITIVE),
+        'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'tau': parameter(default=0.5, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Flux(s.rho, s.q),
-        Flux(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
-        Rate(s.q, (s.rho * s.vmax * (1 - s.rho / s.rho_max) - s.q) / s.tau),
+        FluxLaw(s.rho, s.q),
+        FluxLaw(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
+        RateLaw(s.q, (s.rho * s.vmax * (1 - s.rho / s.rho_max) - s.q) / s.tau),
     ],
 )
 
-KernerKonhauser = Element.define(
-    'KernerKonhauser',
-    states={'rho': state(default=0.3, domain=Domain.NONNEGATIVE), 'q': 0.21},
+KernerKonhauserComponent = ElementComponent.define(
+    'KernerKonhauserComponent',
+    states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
     parameters={
-        'V0': parameter(default=1.0, domain=Domain.POSITIVE),
-        'rho_max': parameter(default=1.0, domain=Domain.POSITIVE),
-        'tau': parameter(default=0.5, domain=Domain.POSITIVE),
-        'c0': parameter(default=0.3, domain=Domain.POSITIVE),
-        'mu': parameter(default=0.05, domain=Domain.NONNEGATIVE),
+        'V0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'rho_max': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'tau': parameter(default=0.5, domain=NumericDomain.POSITIVE),
+        'c0': parameter(default=0.3, domain=NumericDomain.POSITIVE),
+        'mu': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Flux(s.rho, s.q),
-        Flux(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
-        Rate(
+        FluxLaw(s.rho, s.q),
+        FluxLaw(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
+        RateLaw(
             s.q,
             (s.rho * s.V0 * (1 / (1 + exp((s.rho / s.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET) - s.q) / s.tau
             + s.mu * laplacian(s.q / s.rho),
@@ -78,7 +78,7 @@ def _kerner_konhauser_speed(rho: np.ndarray, V0: float, rho_max: float) -> np.nd
     field='engineering/traffic',
     tags=('traffic', 'field', 'conservation law', 'finite volume', 'shocks', 'pde'),
     references=('Lighthill and Whitham 1955', 'Richards 1956', 'Chowdhury, Santen, and Schadschneider 2000'),
-    defaults={'until': 1.0, 'dt': 0.05, 'solver': SSPRK()},
+    defaults={'until': 1.0, 'dt': 0.05, 'solver': SSPRKSolver()},
 )
 def lighthill_whitham_richards(
     n: int = 200,
@@ -122,9 +122,9 @@ def lighthill_whitham_richards(
     density = np.where(np.arange(n) < n // 2, upstream, downstream).astype(float)
     values = {'rho': density, 'vmax': vmax, 'rho_max': rho_max}
     space = LatticeSpace(n, spacing=1 / n)
-    road = Field(
+    road = FieldComponent(
         'road',
-        LighthillWhithamRichards,
+        LighthillWhithamRichardsComponent,
         space,
         boundary={'rho': 'zero-flux'},
         values=values,
@@ -137,7 +137,7 @@ def lighthill_whitham_richards(
     field='engineering/traffic',
     tags=('traffic', 'field', 'conservation law', 'finite volume', 'pde'),
     references=('Payne 1971', 'Chowdhury, Santen, and Schadschneider 2000'),
-    defaults={'until': 1.0, 'dt': 0.05, 'solver': SSPRK()},
+    defaults={'until': 1.0, 'dt': 0.05, 'solver': SSPRKSolver()},
 )
 def payne(
     n: int = 200,
@@ -186,7 +186,13 @@ def payne(
     """
     rho = _density_bump(n, density, bump)
     values = {'rho': rho, 'q': rho * vmax * (1 - rho / rho_max), 'vmax': vmax, 'rho_max': rho_max, 'tau': tau}
-    road = Field('road', Payne, LatticeSpace(n, spacing=1 / n), values=values, discretization='finite-volume')
+    road = FieldComponent(
+        'road',
+        PayneComponent,
+        LatticeSpace(n, spacing=1 / n),
+        values=values,
+        discretization='finite-volume',
+    )
     return System(components=[road])
 
 
@@ -194,7 +200,7 @@ def payne(
     field='engineering/traffic',
     tags=('traffic', 'field', 'conservation law', 'finite volume', 'jams', 'pde'),
     references=('Kerner and Konhäuser 1993', 'Chowdhury, Santen, and Schadschneider 2000'),
-    defaults={'until': 100.0, 'dt': 0.2, 'solver': SSPRK(cfl=0.15)},
+    defaults={'until': 100.0, 'dt': 0.2, 'solver': SSPRKSolver(cfl=0.15)},
 )
 def kerner_konhauser(
     n: int = 40,
@@ -263,5 +269,5 @@ def kerner_konhauser(
         'mu': mu,
     }
     space = LatticeSpace(n, spacing=length / n)
-    road = Field('road', KernerKonhauser, space, values=values, discretization='finite-volume')
+    road = FieldComponent('road', KernerKonhauserComponent, space, values=values, discretization='finite-volume')
     return System(components=[road])

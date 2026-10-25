@@ -13,7 +13,7 @@ spike, over and over: a mixed-mode oscillation.
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -21,7 +21,7 @@ MODEL = 'mixed_mode_chua'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, solver=ScipyODE(method='Radau'), observers=[observer]).run(until=200)
+simulation = Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer]).run(until=200)
 
 # %%
 # Small, large, and mixed
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, solver=ScipyODE(method='Radau'), observe
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
 for ax, c in zip(axes, [0.0, 0.00053, 0.00105], strict=True):
-    run = Simulation(create(MODEL, c=c), dt=0.25, solver=ScipyODE(method='Radau')).run(until=200).trajectory_
+    run = Simulation(create(MODEL, c=c), dt=0.25, solver=ScipyODESolver(method='Radau')).run(until=200).trajectory_
     ax.plot(run.times, run['circuit.x'], linewidth=0.8)
     ax.set_ylabel('x')
     ax.set_title(f'c = {c}', fontsize=10)

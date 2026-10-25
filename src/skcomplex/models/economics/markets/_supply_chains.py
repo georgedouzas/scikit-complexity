@@ -5,10 +5,21 @@
 
 from itertools import pairwise
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer, distributed_delay, step, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import (
+    Auxiliary,
+    BaseLaw,
+    RateLaw,
+    Sink,
+    Source,
+    Symbols,
+    TransferLaw,
+    distributed_delay,
+    step,
+    where,
+)
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -28,98 +39,98 @@ def _orders(echelon: Symbols) -> Expression:
     return where(orders > 0, orders, 0)
 
 
-def _echelon_laws(s: Symbols) -> list[Law]:
+def _echelon_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of an echelon, its orders and shipments and the decay of its expectation."""
     shipments = Auxiliary('shipments', _shipments(s))
     return [
         Auxiliary('orders', _orders(s)),
         shipments,
-        Rate(s.backlog, -shipments.symbol),
-        Rate(s.expected, -s.theta * s.expected),
+        RateLaw(s.backlog, -shipments.symbol),
+        RateLaw(s.expected, -s.theta * s.expected),
     ]
 
 
-def _link_laws(s: Symbols) -> list[Law]:
+def _link_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of a link, the mail of orders upstream and the shipping of beer downstream."""
     orders = _orders(s.downstream)
     shipments = _shipments(s.upstream)
     received = distributed_delay(orders, order=3, time=s.mail_delay)
     arrivals = distributed_delay(shipments, order=3, time=s.shipping_delay)
     return [
-        Rate(s.downstream.supply_line, orders - arrivals),
-        Rate(s.upstream.backlog, received),
-        Rate(s.upstream.expected, s.upstream.theta * received),
-        Transfer(s.upstream.inventory, s.downstream.in_transit, shipments, label='shipments'),
-        Transfer(s.downstream.in_transit, s.downstream.inventory, arrivals, label='arrivals'),
+        RateLaw(s.downstream.supply_line, orders - arrivals),
+        RateLaw(s.upstream.backlog, received),
+        RateLaw(s.upstream.expected, s.upstream.theta * received),
+        TransferLaw(s.upstream.inventory, s.downstream.in_transit, shipments, label='shipments'),
+        TransferLaw(s.downstream.in_transit, s.downstream.inventory, arrivals, label='arrivals'),
     ]
 
 
-def _customer_laws(s: Symbols) -> list[Law]:
+def _customer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the customers, whose demand reaches the retailer and who take its shipments."""
     demand = Auxiliary('demand', s.demand + step(s.t, s.step_time, s.demand_step))
     return [
         demand,
-        Rate(s.retailer.backlog, demand.symbol),
-        Rate(s.retailer.expected, s.retailer.theta * demand.symbol),
-        Transfer(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
+        RateLaw(s.retailer.backlog, demand.symbol),
+        RateLaw(s.retailer.expected, s.retailer.theta * demand.symbol),
+        TransferLaw(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
     ]
 
 
-def _brewery_laws(s: Symbols) -> list[Law]:
+def _brewery_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the brewery, which brews the orders of the factory over the production delay."""
     orders = _orders(s.factory)
     completions = distributed_delay(orders, order=3, time=s.production_delay)
     return [
-        Rate(s.factory.supply_line, orders - completions),
-        Transfer(Source('brewery'), s.factory.in_transit, orders, label='starts'),
-        Transfer(s.factory.in_transit, s.factory.inventory, completions, label='completions'),
+        RateLaw(s.factory.supply_line, orders - completions),
+        TransferLaw(Source('brewery'), s.factory.in_transit, orders, label='starts'),
+        TransferLaw(s.factory.in_transit, s.factory.inventory, completions, label='completions'),
     ]
 
 
-Echelon = Element.define(
-    'Echelon',
+EchelonComponent = ElementComponent.define(
+    'EchelonComponent',
     states={
-        'inventory': state(default=12.0, domain=Domain.NONNEGATIVE, quantity='beer'),
-        'in_transit': state(default=8.0, domain=Domain.NONNEGATIVE, quantity='beer'),
-        'backlog': state(default=4.0, domain=Domain.NONNEGATIVE),
-        'expected': state(default=4.0, domain=Domain.NONNEGATIVE),
-        'supply_line': state(default=16.0, domain=Domain.NONNEGATIVE),
+        'inventory': state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
+        'in_transit': state(default=8.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
+        'backlog': state(default=4.0, domain=NumericDomain.NONNEGATIVE),
+        'expected': state(default=4.0, domain=NumericDomain.NONNEGATIVE),
+        'supply_line': state(default=16.0, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={
-        'desired': parameter(default=13.44, domain=Domain.REAL),
-        'theta': parameter(default=0.36, domain=Domain.NONNEGATIVE),
-        'alpha': parameter(default=0.26, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=0.34, domain=Domain.NONNEGATIVE),
-        'dispatch_time': parameter(default=1.0, domain=Domain.POSITIVE),
+        'desired': parameter(default=13.44, domain=NumericDomain.REAL),
+        'theta': parameter(default=0.36, domain=NumericDomain.NONNEGATIVE),
+        'alpha': parameter(default=0.26, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=0.34, domain=NumericDomain.NONNEGATIVE),
+        'dispatch_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_echelon_laws,
 )
 
-SupplyLink = Interaction.define(
-    'SupplyLink',
+SupplyLinkInteraction = BaseInteraction.define(
+    'SupplyLinkInteraction',
     roles=['downstream', 'upstream'],
     parameters={
-        'mail_delay': parameter(default=2.0, domain=Domain.POSITIVE),
-        'shipping_delay': parameter(default=2.0, domain=Domain.POSITIVE),
+        'mail_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'shipping_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
     },
     laws=_link_laws,
 )
 
-RetailDemand = Interaction.define(
-    'RetailDemand',
+RetailDemandInteraction = BaseInteraction.define(
+    'RetailDemandInteraction',
     roles=['retailer'],
     parameters={
-        'demand': parameter(default=4.0, domain=Domain.NONNEGATIVE),
-        'demand_step': parameter(default=4.0, domain=Domain.REAL),
-        'step_time': parameter(default=5.0, domain=Domain.NONNEGATIVE),
+        'demand': parameter(default=4.0, domain=NumericDomain.NONNEGATIVE),
+        'demand_step': parameter(default=4.0, domain=NumericDomain.REAL),
+        'step_time': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_customer_laws,
 )
 
-Brewery = Interaction.define(
-    'Brewery',
+BreweryInteraction = BaseInteraction.define(
+    'BreweryInteraction',
     roles=['factory'],
-    parameters={'production_delay': parameter(default=3.0, domain=Domain.POSITIVE)},
+    parameters={'production_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE)},
     laws=_brewery_laws,
 )
 
@@ -211,7 +222,7 @@ def beer_game(
         pipeline = production_delay if label == 'factory' else shipping_delay
         lead_time = pipeline if label == 'factory' else mail_delay + shipping_delay
         supply_line = demand * lead_time
-        echelon = Echelon(
+        echelon = EchelonComponent(
             label,
             inventory=inventory,
             in_transit=demand * pipeline,
@@ -226,7 +237,7 @@ def beer_game(
         )
         echelons.append(echelon)
     links = [
-        SupplyLink(
+        SupplyLinkInteraction(
             f'{upstream}_to_{downstream}',
             downstream=downstream,
             upstream=upstream,
@@ -235,12 +246,12 @@ def beer_game(
         )
         for downstream, upstream in pairwise(ECHELONS)
     ]
-    customers = RetailDemand(
+    customers = RetailDemandInteraction(
         'customers',
         retailer='retailer',
         demand=demand,
         demand_step=demand_step,
         step_time=step_time,
     )
-    brewery = Brewery('brewery', factory='factory', production_delay=production_delay)
+    brewery = BreweryInteraction('brewery', factory='factory', production_delay=production_delay)
     return System(components=echelons, interactions=[*links, customers, brewery])

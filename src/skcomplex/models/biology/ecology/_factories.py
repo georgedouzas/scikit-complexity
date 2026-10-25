@@ -3,20 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Update, lag
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import UpdateLaw, lag
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._populations import (
-    DelayedLogisticGrowth,
-    ExponentialGrowth,
-    LogisticGrowth,
-    Mortality,
-    Population,
-    Predation,
-    SeasonalLogisticGrowth,
+    DelayedLogisticGrowthInteraction,
+    ExponentialGrowthInteraction,
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationComponent,
+    PredationInteraction,
+    SeasonalLogisticGrowthInteraction,
 )
 
 
@@ -46,8 +46,8 @@ def exponential_growth(n: float = 10.0, r: float = 0.1) -> System:
         0.2
     """
     return System(
-        components=[Population('population', n=n)],
-        interactions=[ExponentialGrowth('growth', target='population', r=r)],
+        components=[PopulationComponent('population', n=n)],
+        interactions=[ExponentialGrowthInteraction('growth', target='population', r=r)],
     )
 
 
@@ -80,8 +80,8 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
         500.0
     """
     return System(
-        components=[Population('population', n=n)],
-        interactions=[LogisticGrowth('growth', target='population', r=r, K=K)],
+        components=[PopulationComponent('population', n=n)],
+        interactions=[LogisticGrowthInteraction('growth', target='population', r=r, K=K)],
     )
 
 
@@ -130,9 +130,16 @@ def varying_capacity_logistic(
         0.2
     """
     return System(
-        components=[Population('population', n=n)],
+        components=[PopulationComponent('population', n=n)],
         interactions=[
-            SeasonalLogisticGrowth('growth', target='population', r=r, K=K, amplitude=amplitude, period=period),
+            SeasonalLogisticGrowthInteraction(
+                'growth',
+                target='population',
+                r=r,
+                K=K,
+                amplitude=amplitude,
+                period=period,
+            ),
         ],
     )
 
@@ -171,8 +178,8 @@ def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float 
         1.0
     """
     return System(
-        components=[Population('population', n=n)],
-        interactions=[DelayedLogisticGrowth('growth', target='population', r=r, K=K, tau=tau)],
+        components=[PopulationComponent('population', n=n)],
+        interactions=[DelayedLogisticGrowthInteraction('growth', target='population', r=r, K=K, tau=tau)],
     )
 
 
@@ -225,25 +232,25 @@ def lotka_volterra(
         >>> [element.label for element in lotka_volterra().elements]
         ['prey', 'predators']
     """
-    growth: Interaction = (
-        ExponentialGrowth('growth', target='prey', r=r)
+    growth: BaseInteraction = (
+        ExponentialGrowthInteraction('growth', target='prey', r=r)
         if K is None
-        else LogisticGrowth('growth', target='prey', r=r, K=K)
+        else LogisticGrowthInteraction('growth', target='prey', r=r, K=K)
     )
     return System(
-        components=[Population('prey', n=prey), Population('predators', n=predators)],
+        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
         interactions=[
             growth,
-            Predation('predation', predator='predators', prey='prey', a=a, b=b),
-            Mortality('death', target='predators', d=d),
+            PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
+            MortalityInteraction('death', target='predators', d=d),
         ],
     )
 
 
-Rabbits = Element.define(
-    'Rabbits',
-    states={'pairs': state(default=1.0, domain=Domain.NONNEGATIVE, lags=1, initial=(0.0,))},
-    laws=lambda s: [Update(s.pairs, s.pairs + lag(s.pairs, 1))],
+RabbitsComponent = ElementComponent.define(
+    'RabbitsComponent',
+    states={'pairs': state(default=1.0, domain=NumericDomain.NONNEGATIVE, lags=1, initial=(0.0,))},
+    laws=lambda s: [UpdateLaw(s.pairs, s.pairs + lag(s.pairs, 1))],
 )
 
 
@@ -274,4 +281,4 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         >>> fibonacci_rabbits().elements[0].pairs
         1.0
     """
-    return System(components=[Rabbits('rabbits', pairs=pairs, pairs_lag1=previous)])
+    return System(components=[RabbitsComponent('rabbits', pairs=pairs, pairs_lag1=previous)])

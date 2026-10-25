@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sqrt, tanh
 
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.engineering.traffic import (
     delayed_car_following,
     intelligent_driver_model,
@@ -24,15 +24,15 @@ def _cars(trajectory, n_cars, variable):
     return np.array([trajectory[f'car_{index}.{variable}'] for index in range(n_cars)]).T
 
 
-Car = Element.define('Car', states={'x': 0.0, 'v': 0.0}, laws=lambda s: [Rate(s.x, s.v)])
+CarComponent = ElementComponent.define('CarComponent', states={'x': 0.0, 'v': 0.0}, laws=lambda s: [RateLaw(s.x, s.v)])
 
 
-PerCarVelocity = Interaction.define(
-    'PerCarVelocity',
+PerCarVelocityInteraction = BaseInteraction.define(
+    'PerCarVelocityInteraction',
     roles=['leader', 'follower'],
     parameters={'a': 1.0, 'V0': 1.0, 'hc': 2.0, 'offset': 0.0},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.follower.v,
             s.a * (s.V0 * (tanh(s.leader.x - s.follower.x + s.offset - s.hc) + tanh(s.hc)) - s.follower.v),
         ),
@@ -40,12 +40,12 @@ PerCarVelocity = Interaction.define(
 )
 
 
-PerCarDriver = Interaction.define(
-    'PerCarDriver',
+PerCarDriverInteraction = BaseInteraction.define(
+    'PerCarDriverInteraction',
     roles=['leader', 'follower'],
     parameters={'v0': 30.0, 'T': 1.5, 'a': 1.0, 'b': 1.5, 's0': 2.0, 'delta': 4.0, 'length': 5.0, 'offset': 0.0},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.follower.v,
             s.a
             * (
@@ -67,7 +67,11 @@ def _per_car(system, interaction):
     cars, following = system.elements[0], system.interactions[0]
     n_cars, road = cars.size, following.road_length
     elements = [
-        Car(f'car_{index}', x=cars.values['x'][index], v=float(np.broadcast_to(cars.values['v'], n_cars)[index]))
+        CarComponent(
+            f'car_{index}',
+            x=cars.values['x'][index],
+            v=float(np.broadcast_to(cars.values['v'], n_cars)[index]),
+        )
         for index in range(n_cars)
     ]
     settings = {
@@ -127,13 +131,13 @@ def test_ring_roads_hold_one_group_of_cars():
 
 @pytest.mark.parametrize(
     ('factory', 'interaction', 'until'),
-    [(optimal_velocity, PerCarVelocity, 200.0), (intelligent_driver_model, PerCarDriver, 100.0)],
+    [(optimal_velocity, PerCarVelocityInteraction, 200.0), (intelligent_driver_model, PerCarDriverInteraction, 100.0)],
 )
 def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
     """Test that the ring road of one group runs as the ring of one element and one interaction per car under RK45."""
     system = factory(n_cars=20)
-    group = Simulation(system, dt=1.0, solver=ScipyODE(method='RK45')).run(until=until).trajectory_
-    per_car = Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODE(method='RK45')).run(until=until)
+    group = Simulation(system, dt=1.0, solver=ScipyODESolver(method='RK45')).run(until=until).trajectory_
+    per_car = Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODESolver(method='RK45')).run(until=until)
     per_car = per_car.trajectory_
     for variable in ('x', 'v'):
         np.testing.assert_allclose(group[f'cars.{variable}'], _cars(per_car, 20, variable), rtol=1e-8, atol=1e-12)

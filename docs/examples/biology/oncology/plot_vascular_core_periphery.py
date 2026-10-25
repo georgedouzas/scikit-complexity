@@ -14,13 +14,13 @@ live cells grow only to about `3 10^4` in two months, against about `10^11` with
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'vascular_core_periphery'
 
-solver = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-8)
+solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).run(until=60)

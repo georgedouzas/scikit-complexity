@@ -15,7 +15,7 @@ from SALib.sample import morris as morris_sample
 from SALib.sample import sobol as sobol_sample
 
 from ...core.base import ValidationError
-from ._designs import Rows
+from ._designs import RowsDesign
 from ._runner import Experiment
 from ._sources import Source
 from ._tasks import Output
@@ -133,7 +133,7 @@ def sensitivity(
     def experiment(rows: list[dict[str, float]]) -> Experiment:
         return Experiment(
             source,
-            Rows(rows),
+            RowsDesign(rows),
             until=until,
             outputs=[output],
             random_state=random_state,

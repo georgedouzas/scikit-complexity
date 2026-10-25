@@ -10,26 +10,34 @@ import pytest
 from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.base import Domain, SolverError, ValidationError, parameter, role
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Event, Rate, delayed, mean, step, total, where
+from skcomplex.core.base import NumericDomain, SolverError, ValidationError, parameter, role
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import EventLaw, RateLaw, delayed, mean, step, total, where
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import RealTime, Simulation
-from skcomplex.engine.solvers import RK4, ScipyODE, VelocityVerlet
-from skcomplex.formalisms.fields import CrankNicolson, Field, laplacian
-from skcomplex.formalisms.particles import PairPotential, Particle
+from skcomplex.engine.runtime import RealTimeClock, Simulation
+from skcomplex.engine.solvers import RK4Solver, ScipyODESolver, VelocityVerletSolver
+from skcomplex.formalisms.fields import CrankNicolsonSolver, FieldComponent, laplacian
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
 from skcomplex.models import create, run
-from skcomplex.models.biology.ecology import ExponentialGrowth, FisherKPP, Population, fisher_kpp
+from skcomplex.models.biology.ecology import (
+    ExponentialGrowthInteraction,
+    FisherKPPComponent,
+    PopulationComponent,
+    fisher_kpp,
+)
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
-    system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1.0)])
+    system = System(
+        components=[PopulationComponent('a', n=1)],
+        interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
+    )
     return compile_system(system)
 
 
@@ -37,28 +45,28 @@ def _growth_problem():
 def test_scipy_ode_matches_exponential(method):
     """Test that the ODE stepper integrates exponential growth accurately."""
     problem = _growth_problem()
-    stepper = ScipyODE(method=method, rtol=1e-9, atol=1e-12)
+    stepper = ScipyODESolver(method=method, rtol=1e-9, atol=1e-12)
     stepper.initialize(problem, np.random.default_rng(0))
     state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
     assert state[0] == pytest.approx(np.exp(2.0), rel=1e-6)
 
 
-class Explosion(Interaction):
+class ExplosionInteraction(BaseInteraction):
     """Growth `dn/dt = n**2`, which blows up in finite time."""
 
     target: str = role()
 
     def laws(self, s):
         """Return the rate `n**2`."""
-        return [Rate(s.target.n, s.target.n**2)]
+        return [RateLaw(s.target.n, s.target.n**2)]
 
 
 def test_scipy_ode_failure_raises_error():
     """Test that an integrator failure raises a named error."""
     problem = compile_system(
-        System(components=[Population('a', n=1)], interactions=[Explosion('boom', target='a')]),
+        System(components=[PopulationComponent('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')]),
     )
-    stepper = ScipyODE()
+    stepper = ScipyODESolver()
     stepper.initialize(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='failed'):
         stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
@@ -81,8 +89,12 @@ def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
 
 def _relaxing_group(size):
     """Return a group whose members relax to their mean, so every member reads every other one."""
-    Relax = Element.define('Relax', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -(s.x - mean(s.x)))])
-    return System(components=[Relax.group('cells', size, x=np.linspace(0.0, 1.0, size))])
+    RelaxComponent = ElementComponent.define(
+        'RelaxComponent',
+        states={'x': 0.0},
+        laws=lambda s: [RateLaw(s.x, -(s.x - mean(s.x)))],
+    )
+    return System(components=[RelaxComponent.group('cells', size, x=np.linspace(0.0, 1.0, size))])
 
 
 def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
@@ -96,35 +108,35 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
     assert banded.stepper_.method_ == 'LSODA'
     assert 'lband' in banded.stepper_.jacobian_options_
     with pytest.raises(SolverError, match='dense 10000 x 10000 matrix'):
-        Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODE(method='LSODA')).run(until=1)
+        Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODESolver(method='LSODA')).run(until=1)
 
 
-Tub = Element.define(
-    'Tub',
+TubComponent = ElementComponent.define(
+    'TubComponent',
     states={'water': 20.0},
-    laws=lambda s: [Rate(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))],
+    laws=lambda s: [RateLaw(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))],
 )
 
 
 def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
     """Test that a group of tubs resting empty on their drain switch finishes with RK45, and explicit LSODA stalls."""
-    tubs = System(components=[Tub.group('tubs', 1, water=[20.0])])
+    tubs = System(components=[TubComponent.group('tubs', 1, water=[20.0])])
     with pytest.warns(UserWarning, match='LSODA stalled'):
         simulation = Simulation(tubs, dt=1).run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
     np.testing.assert_allclose(np.ravel(simulation.trajectory_['tubs.water'])[:5], [20, 15, 10, 5, 0], atol=1e-6)
     with pytest.raises(SolverError, match='stalled'):
-        Simulation(tubs, dt=1, solver=ScipyODE(method='LSODA')).run(until=6)
+        Simulation(tubs, dt=1, solver=ScipyODESolver(method='LSODA')).run(until=6)
 
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     """Test that an oscillator at rest, forced by `sin(t)`, leaves its zero drift at time 0 and follows the solution."""
-    Forced = Element.define(
-        'Forced',
+    ForcedComponent = ElementComponent.define(
+        'ForcedComponent',
         states={'x': 0.0, 'v': 0.0},
-        laws=lambda s: [Rate(s.x, s.v), Rate(s.v, -4 * s.x + sin(s.t))],
+        laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -4 * s.x + sin(s.t))],
     )
-    simulation = Simulation(System(components=[Forced('oscillator')]), dt=0.01).run(until=5)
+    simulation = Simulation(System(components=[ForcedComponent('oscillator')]), dt=0.01).run(until=5)
     times = simulation.trajectory_.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
     np.testing.assert_allclose(simulation.trajectory_['oscillator.x'], expected, atol=1e-6)
@@ -132,7 +144,10 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
 
 def _decay():
     """Return the system of exponential decay."""
-    return System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=-1.0)])
+    return System(
+        components=[PopulationComponent('a', n=1)],
+        interactions=[ExponentialGrowthInteraction('g', target='a', r=-1.0)],
+    )
 
 
 def test_scipy_ode_keeps_integrator_across_frames():
@@ -163,13 +178,17 @@ def test_scipy_ode_restarts_on_parameter_change():
     assert np.all(values[500:] == values[500])
 
 
-Chatter = Element.define('Chatter', states={'w': 20.0}, laws=lambda s: [Rate(s.w, 5 - 10 * ceil(s.w / 100))])
+ChatterComponent = ElementComponent.define(
+    'ChatterComponent',
+    states={'w': 20.0},
+    laws=lambda s: [RateLaw(s.w, 5 - 10 * ceil(s.w / 100))],
+)
 
 
 def test_default_solver_names_a_state_sliding_along_a_discontinuity():
     """Test that a state sliding along a switch no event sees ends in a named error instead of a run without end."""
     with pytest.warns(UserWarning, match='LSODA stalled'), pytest.raises(SolverError, match='slides along'):
-        Simulation(System(components=[Chatter('tub')]), dt=1).run(until=6)
+        Simulation(System(components=[ChatterComponent('tub')]), dt=1).run(until=6)
 
 
 def test_default_solver_names_a_blow_up():
@@ -189,15 +208,15 @@ def test_fixed_step_integrators_step_over_switches_of_the_drift():
     system = create('pendulum_swing_up')
     assert any(event.hidden for event in compile_system(system).events)
     start = time.perf_counter()
-    simulation = Simulation(system, dt=0.1, solver=RK4(dt=0.01)).run(until=75)
+    simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).run(until=75)
     assert time.perf_counter() - start < 30
     assert simulation.time_ == pytest.approx(75)
 
 
-class SoftSphere(PairPotential):
+class SoftSphereInteraction(PairPotentialInteraction):
     """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
 
-    k: float = parameter(100.0, domain=Domain.POSITIVE)
+    k: float = parameter(100.0, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s, r):
         """Return the soft repulsion energy."""
@@ -227,18 +246,18 @@ def _counted(problem):
 def _timed_scipy(problem, method, jacobian, until=10.0):
     """Return the duration, the final state, the drift evaluations, and the stepper of one call of ScipyODE."""
     problem, calls = _counted(problem)
-    stepper = ScipyODE(method=method, rtol=1e-6, jacobian=jacobian)
+    stepper = ScipyODESolver(method=method, rtol=1e-6, jacobian=jacobian)
     stepper.initialize(problem, np.random.default_rng(0))
     start = time.perf_counter()
     state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, until)
     return time.perf_counter() - start, state, calls[0], stepper
 
 
-StiffThreshold = Interaction.define(
-    'StiffThreshold',
+StiffThresholdInteraction = BaseInteraction.define(
+    'StiffThresholdInteraction',
     roles=['line'],
     parameters={'level': 0.0},
-    laws=lambda s: [Event(total(s.line.u) - s.level, terminal=True)],
+    laws=lambda s: [EventLaw(total(s.line.u) - s.level, terminal=True)],
 )
 
 
@@ -246,18 +265,18 @@ def _event_run(jacobian):
     """Return the duration and the event time of stiff Fisher-KPP that stops when its total grows by half."""
     line = fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05).elements[0]
     level = 1.5 * line.values['u'].sum()
-    system = System(components=[line], interactions=[StiffThreshold('threshold', line='line', level=level)])
-    simulation = Simulation(system, solver=ScipyODE(method='BDF', jacobian=jacobian), dt=1.0, backend='numpy')
+    system = System(components=[line], interactions=[StiffThresholdInteraction('threshold', line='line', level=level)])
+    simulation = Simulation(system, solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0, backend='numpy')
     start = time.perf_counter()
     times = simulation.run(until=10.0).trajectory_.times
     return time.perf_counter() - start, times[-1]
 
 
-DiffusiveHutchinson = Element.define(
-    'DiffusiveHutchinson',
+DiffusiveHutchinsonComponent = ElementComponent.define(
+    'DiffusiveHutchinsonComponent',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.2},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
 )
 
 
@@ -265,10 +284,15 @@ def _hutchinson_run(jacobian):
     """Return the duration and the final state of a diffusive Hutchinson equation on 2000 points with BDF."""
     size = 2000
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
-    field = Field('line', DiffusiveHutchinson, LatticeSpace(size, spacing=0.05), values={'u': initial})
+    field = FieldComponent(
+        'line',
+        DiffusiveHutchinsonComponent,
+        LatticeSpace(size, spacing=0.05),
+        values={'u': initial},
+    )
     simulation = Simulation(
         System(components=[field]),
-        solver=ScipyODE(method='BDF', jacobian=jacobian),
+        solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
         backend='numpy',
     )
@@ -280,19 +304,19 @@ def _hutchinson_run(jacobian):
 SIZE = 400
 
 
-Threshold = Interaction.define(
-    'Threshold',
+ThresholdInteraction = BaseInteraction.define(
+    'ThresholdInteraction',
     roles=['line'],
     parameters={'level': 0.0},
-    laws=lambda s: [Event(total(s.line.u) - s.level, terminal=True)],
+    laws=lambda s: [EventLaw(total(s.line.u) - s.level, terminal=True)],
 )
 
 
-UnitRateHutchinson = Element.define(
-    'UnitRateHutchinson',
+UnitRateHutchinsonComponent = ElementComponent.define(
+    'UnitRateHutchinsonComponent',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.0},
-    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
+    laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
 )
 
 
@@ -303,7 +327,7 @@ def _stiff_fisher(size=SIZE):
 
 def _advance(problem, until=1.0, p=None, **options):
     """Return the state of a problem after one call of ScipyODE with options, and the stepper."""
-    stepper = ScipyODE(**options)
+    stepper = ScipyODESolver(**options)
     stepper.initialize(problem, np.random.default_rng(0))
     parameters = problem.initial_parameters if p is None else p
     return stepper.advance(0.0, problem.initial_state, parameters, until), stepper
@@ -323,10 +347,13 @@ def _event_time(size, jacobian):
     """Return the time of the terminal event of Fisher-KPP when its total grows by half."""
     initial = (np.arange(size) < 0.05 * size).astype(float)
     space = LatticeSpace(size, spacing=0.05)
-    field = Field('line', FisherKPP, space, boundary={'u': 'zero-flux'}, values={'u': initial})
+    field = FieldComponent('line', FisherKPPComponent, space, boundary={'u': 'zero-flux'}, values={'u': initial})
     simulation = Simulation(
-        System(components=[field], interactions=[Threshold('threshold', line='line', level=1.5 * initial.sum())]),
-        solver=ScipyODE(method='BDF', jacobian=jacobian),
+        System(
+            components=[field],
+            interactions=[ThresholdInteraction('threshold', line='line', level=1.5 * initial.sum())],
+        ),
+        solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
     )
     return simulation.run(until=10).trajectory_.times[-1], simulation
@@ -335,14 +362,14 @@ def _event_time(size, jacobian):
 def _hutchinson(size, jacobian):
     """Return the final state of a diffusive Hutchinson equation run with BDF."""
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
-    field = Field(
+    field = FieldComponent(
         'line',
-        UnitRateHutchinson,
+        UnitRateHutchinsonComponent,
         LatticeSpace(size, spacing=0.05),
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
     )
-    simulation = Simulation(System(components=[field]), solver=ScipyODE(method='BDF', jacobian=jacobian), dt=1.0)
+    simulation = Simulation(System(components=[field]), solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0)
     return simulation.run(until=4).trajectory_.states[-1]
 
 
@@ -353,13 +380,19 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     size = float(np.sqrt(n))
     rng = np.random.default_rng(0)
     system = System(
-        components=[Particle.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
+        components=[ParticleComponent.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
-            SoftSphere('soft', first='gas', second='gas', cutoff=1.0),
+            SoftSphereInteraction('soft', first='gas', second='gas', cutoff=1.0),
         ],
         space=ContinuousSpace(size, size, boundary='reflecting'),
     )
-    simulation = Simulation(system, solver=VelocityVerlet(dt=0.01), dt=0.01, clock=RealTime(speed=1.0), record=False)
+    simulation = Simulation(
+        system,
+        solver=VelocityVerletSolver(dt=0.01),
+        dt=0.01,
+        clock=RealTimeClock(speed=1.0),
+        record=False,
+    )
     simulation.run(until=2)
     assert simulation.clock_.max_lag_ <= 0.2
 
@@ -373,7 +406,7 @@ def test_sparse_jacobians_speed_up_stiff_fields(record_property):
     dense, dense_state, _, _ = _timed_scipy(problem, 'BDF', 'dense')
     radau, radau_state, _, _ = _timed_scipy(problem, 'Radau', 'auto')
     exact, exact_state, exact_calls, exact_stepper = _timed_scipy(problem, 'BDF', 'exact')
-    split = Simulation(problem, solver=CrankNicolson(dt=0.01), dt=10.0, record=False)
+    split = Simulation(problem, solver=CrankNicolsonSolver(dt=0.01), dt=10.0, record=False)
     start = time.perf_counter()
     split.run(until=10.0)
     crank_nicolson = time.perf_counter() - start
@@ -459,9 +492,9 @@ def test_lsoda_without_narrow_band_receives_nothing():
     """Test that LSODA receives no bandwidths when periodic edges make the band as wide as the line."""
     system = System(
         components=[
-            Field(
+            FieldComponent(
                 'line',
-                FisherKPP,
+                FisherKPPComponent,
                 LatticeSpace(50, spacing=0.25),
                 boundary={'u': 'periodic'},
                 values={'u': np.linspace(0, 1, 50)},
@@ -475,8 +508,12 @@ def test_lsoda_without_narrow_band_receives_nothing():
 
 def test_dense_pattern_is_not_passed():
     """Test that a pattern denser than one half is not passed."""
-    Member = Element.define('Mixed', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x + 0.1 * total(s.x))])
-    problem = compile_system(System(components=[Member.group('group', 10, x=np.arange(10.0))]))
+    MemberComponent = ElementComponent.define(
+        'MixedComponent',
+        states={'x': 0.0},
+        laws=lambda s: [RateLaw(s.x, -s.x + 0.1 * total(s.x))],
+    )
+    problem = compile_system(System(components=[MemberComponent.group('group', 10, x=np.arange(10.0))]))
     _, stepper = _advance(problem, method='BDF')
     assert stepper.jacobian_options_ == {}
     assert stepper.jacobian_pattern_ is None
@@ -497,17 +534,21 @@ def test_unknown_option_raises():
     """Test that an unknown Jacobian option or method raises an error that lists the options."""
     problem = compile_system(fisher_kpp(10))
     with pytest.raises(SolverError, match="'auto', 'exact', 'dense'"):
-        ScipyODE(jacobian='sparse').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(jacobian='sparse').initialize(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='BDF'):
-        ScipyODE(method='Euler').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(method='Euler').initialize(problem, np.random.default_rng(0))
 
 
 def test_exact_option_with_callable_law_raises_on_initialize():
     """Test that asking for the exact Jacobian of a callable law raises when initializing."""
-    Decay = Element.define('Decay', states={'u': 0.0}, laws=lambda s: [Rate(s.u, _callable_rate)])
-    problem = compile_system(System(components=[Field('line', Decay, LatticeSpace(10))]))
+    DecayComponent = ElementComponent.define(
+        'DecayComponent',
+        states={'u': 0.0},
+        laws=lambda s: [RateLaw(s.u, _callable_rate)],
+    )
+    problem = compile_system(System(components=[FieldComponent('line', DecayComponent, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match="jacobian='auto'"):
-        ScipyODE(method='BDF', jacobian='exact').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(method='BDF', jacobian='exact').initialize(problem, np.random.default_rng(0))
 
 
 def test_exact_jacobian_follows_parameter_changes():
@@ -516,7 +557,7 @@ def test_exact_jacobian_follows_parameter_changes():
     p = problem.initial_parameters.copy()
     states = {}
     for option in ['exact', 'dense']:
-        stepper = ScipyODE(method='BDF', rtol=1e-8, jacobian=option)
+        stepper = ScipyODESolver(method='BDF', rtol=1e-8, jacobian=option)
         stepper.initialize(problem, np.random.default_rng(0))
         x = stepper.advance(0.0, problem.initial_state, p, 0.5)
         changed = p.copy()
@@ -546,14 +587,14 @@ def test_stability_warning_names_the_stiff_path():
     """Test that the stability warning of a fixed-step explicit stepper names BDF and Radau."""
     problem = _stiff_fisher(50)
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
-        RK4(dt=0.01).initialize(problem, np.random.default_rng(0))
+        RK4Solver(dt=0.01).initialize(problem, np.random.default_rng(0))
 
 
 def test_adaptive_explicit_method_warns_once_on_stiff_field():
     """Test that RK45 warns once on the first frame that spans more than 1000 stable steps, and not later."""
     problem = _stiff_fisher(100)
     assert problem.stable_step == pytest.approx(1.25e-3)
-    stepper = ScipyODE(method='RK45')
+    stepper = ScipyODESolver(method='RK45')
     stepper.initialize(problem, np.random.default_rng(0))
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
         x = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)

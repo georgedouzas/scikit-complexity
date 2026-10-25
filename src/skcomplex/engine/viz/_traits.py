@@ -11,7 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.space import Space
+from ...core.space import BaseSpace
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -179,7 +179,7 @@ class TraitsVisual(AgentsVisual):
         recording: rr.RecordingStream,
         path: str,
         snapshot: AgentSnapshot,
-        space: Space | None,
+        space: BaseSpace | None,
     ) -> None:
         """Log the histogram and the statistics of every trait of the agents of a group at one frame.
 

@@ -13,9 +13,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
-    Domain,
     Expression,
     LabelError,
+    NumericDomain,
     Registry,
     RoleError,
     SymbolicVector,
@@ -26,9 +26,9 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import Group
-from ...core.laws import Jump, Law, Symbols, has_reductions, neighborhoods_in, reductions_in
-from ...core.space import NetworkSpace, SiteSpace, Space, neighbor_pairs
+from ...core.components import GroupComponent
+from ...core.laws import BaseLaw, JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
+from ...core.space import BaseSpace, NetworkSpace, SiteSpace, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
 from ._real_parts import real_components_of
@@ -398,7 +398,7 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
         groups[edges.node.path] = edges.rows
     elif search.source is not None:
         changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
-        activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', Domain.REAL)
+        activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', NumericDomain.REAL)
         references[activity] = Reference(changing.entries[ACTIVE], False, 0, Source.MEMBER)
         paths['edge'] = changing.node.path
     namespace = Symbols(t=time, **vars(parameters), **namespaces)
@@ -431,14 +431,14 @@ def member_spec(block: Block, time: Expression) -> KernelSpec:
     return KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
 
 
-def settle_rows(spec: KernelSpec, laws: list[Law]) -> None:
+def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
     """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
 
     Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
     the sum over the members. Groups of one size that laws read outside reductions are read member by member, row `i` of
     each together.
     """
-    values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
+    values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
     if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
         return
     read: set[Expression] = set()
@@ -457,7 +457,7 @@ def settle_rows(spec: KernelSpec, laws: list[Law]) -> None:
     spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
-def group_space(block: Block) -> Space | None:
+def group_space(block: Block) -> BaseSpace | None:
     """Return the space of a group, its own or the enclosing one, shared by the groups of one network."""
     return block.node.space
 
@@ -480,7 +480,7 @@ def target_references(target: object, spec: KernelSpec) -> list[Reference]:
 
 def component_of(node: Node) -> object:
     """Return the object whose `laws` method describes a node, a representative member for a group."""
-    if isinstance(node.component, Group):
+    if isinstance(node.component, GroupComponent):
         return node.component.element(node.component.label, **(node.component.values or {}))
     return node.component
 

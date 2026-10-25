@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, total, uniform, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, total, uniform, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
@@ -33,7 +33,7 @@ def _observables(system: System) -> list[Observable]:
     return [Observable('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings))]
 
 
-class LearningAgent(Element):
+class LearningAgentComponent(ElementComponent):
     """Agent of the SK game that plays an action of ±1 from a softmax policy over its incentive to play +1.
 
     The incentive follows the reinforcement rule `Q(t + 1) = (1 - alpha) Q(t) + alpha sum_j J_ij sigma_j(t)`, the
@@ -62,15 +62,15 @@ class LearningAgent(Element):
                 The exploration temperature `T` of the softmax policy.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import LearningAgent
-        >>> LearningAgent('agent').alpha
+        >>> from skcomplex.models.physics.criticality import LearningAgentComponent
+        >>> LearningAgentComponent('agent').alpha
         0.5
     """
 
-    sigma: float = state(default=1.0, domain=Domain.INTEGER)
+    sigma: float = state(default=1.0, domain=NumericDomain.INTEGER)
     Q: float = state(default=0.0)
-    alpha: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -82,7 +82,7 @@ class LearningAgent(Element):
         super().__init__(label, **values)
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reinforcement of the incentive and the softmax draw of the action, both in parallel.
 
         Args:
@@ -96,8 +96,8 @@ class LearningAgent(Element):
         reward = total(s.sigma, weights=self.couplings)
         up = 1 / (1 + exp(-2 * s.Q / s.temperature))
         return [
-            Update(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
-            Update(s.sigma, where(uniform('u') < up, 1, -1)),
+            UpdateLaw(s.Q, (1 - s.alpha) * s.Q + s.alpha * reward),
+            UpdateLaw(s.sigma, where(uniform('u') < up, 1, -1)),
         ]
 
 
@@ -150,7 +150,7 @@ def sk_game(
     """
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
-    agents = LearningAgent.group(
+    agents = LearningAgentComponent.group(
         'agents',
         n_agents,
         sigma=rng.choice([-1.0, 1.0], size=n_agents),

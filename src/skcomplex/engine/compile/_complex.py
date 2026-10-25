@@ -11,7 +11,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, I, arctan2, sqrt
 
 from ...core.base import Expression, SymbolicVector, Trait, ValidationError, components_of
-from ...core.laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Update, has_trait, values_of
+from ...core.laws import (
+    BaseLaw,
+    BoundaryLaw,
+    Call,
+    EquationLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    UpdateLaw,
+    has_trait,
+    values_of,
+)
 from ._lowering import SHIFT, symbolic_components
 
 LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
@@ -174,7 +186,7 @@ def _split_value(
             error_msg = (
                 f'The {description} gives the complex value {value} to the real state {state_of(target)}. Take its '
                 'real part `real_part(...)`, its imaginary part `imag_part(...)`, or its modulus `abs(...)`, or '
-                'declare the state with `domain=Domain.COMPLEX`.'
+                'declare the state with `domain=NumericDomain.COMPLEX`.'
             )
             raise ValidationError(error_msg)
         real_targets.append(target)
@@ -183,12 +195,12 @@ def _split_value(
 
 
 def _split_assignment(
-    law: Rate | Noise | Update | Boundary,
+    law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
     owner: str,
     state_of: Callable[[Expression], str],
-) -> list[Law]:
+) -> list[BaseLaw]:
     """Return the laws of one real target component each that a rate, noise, update, or boundary law stands for."""
-    description = f'{type(law).__name__} law of {owner}'
+    description = f'{type(law).__name__} of {owner}'
     targets = components_of(law.target)
     values = None if isinstance(law.value, Call) else symbolic_components(law.value, len(targets), description)
     if values is None:
@@ -198,12 +210,12 @@ def _split_assignment(
         )
         raise ValidationError(error_msg)
     real_targets, real_values = _split_value(targets, values, description, state_of)
-    if isinstance(law, Rate | Noise):
+    if isinstance(law, RateLaw | NoiseLaw):
         return [type(law)(target, value, law.order) for target, value in zip(real_targets, real_values, strict=True)]
     return [type(law)(target, value) for target, value in zip(real_targets, real_values, strict=True)]
 
 
-def _split_event(event: Event, owner: str, state_of: Callable[[Expression], str]) -> Event:
+def _split_event(event: EventLaw, owner: str, state_of: Callable[[Expression], str]) -> EventLaw:
     """Return an event with a real guard and a reset of real states."""
     description = f'Event of {owner}'
     guard = _real(split_complex(event.guard, description), SR(event.guard), description)
@@ -215,23 +227,23 @@ def _split_event(event: Event, owner: str, state_of: Callable[[Expression], str]
     return dataclasses.replace(event, guard=guard, reset=dict(zip(real_targets, real_values, strict=True)))
 
 
-def _split_jump(jump: Jump, owner: str) -> Jump:
+def _split_jump(jump: JumpLaw, owner: str) -> JumpLaw:
     """Return a jump with a real rate, after checking that it changes real states."""
-    description = f'Jump law of {owner}'
+    description = f'JumpLaw of {owner}'
     if any(has_complex(target) for target in jump.changes):
         error_msg = f'The {description} changes a complex state. Jumps change real states by real increments.'
         raise ValidationError(error_msg)
-    return Jump(_real(split_complex(jump.rate, description), SR(jump.rate), description), jump.changes)
+    return JumpLaw(_real(split_complex(jump.rate, description), SR(jump.rate), description), jump.changes)
 
 
-def _split_equation(equation: Equation, owner: str) -> list[Law]:
+def _split_equation(equation: EquationLaw, owner: str) -> list[BaseLaw]:
     """Return the real equations of the real and imaginary parts of a complex equation."""
     description = f'Equation of {owner}'
     real_lhs, imaginary_lhs = split_complex(equation.lhs, description)
     real_rhs, imaginary_rhs = split_complex(equation.rhs, description)
-    equations: list[Law] = [Equation(real_lhs, real_rhs)]
+    equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs)]
     if not (_is_zero(imaginary_lhs) and _is_zero(imaginary_rhs)):
-        equations.append(Equation(imaginary_lhs, imaginary_rhs))
+        equations.append(EquationLaw(imaginary_lhs, imaginary_rhs))
     return equations
 
 
@@ -346,7 +358,7 @@ def joined_complex(expression: object, owner: str) -> Expression:
     return real if _is_zero(imaginary) else real + I * imaginary
 
 
-def split_law(law: Law, owner: str, state_of: Callable[[Expression], str]) -> list[Law]:
+def split_law(law: BaseLaw, owner: str, state_of: Callable[[Expression], str]) -> list[BaseLaw]:
     """Return the laws of real states and real values that a law of complex states and values stands for.
 
     A law with no complex value is returned unchanged. A law with a complex value becomes one law per real component
@@ -374,16 +386,16 @@ def split_law(law: Law, owner: str, state_of: Callable[[Expression], str]) -> li
     """
     if has_trait(law, Trait.AGENT) or not any(has_complex(item) for item in values_of(law)):
         return [law]
-    if isinstance(law, Rate | Noise | Update | Boundary):
+    if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
         return _split_assignment(law, owner, state_of)
-    if isinstance(law, Event):
+    if isinstance(law, EventLaw):
         return [_split_event(law, owner, state_of)]
-    if isinstance(law, Jump):
+    if isinstance(law, JumpLaw):
         return [_split_jump(law, owner)]
-    if isinstance(law, Equation):
+    if isinstance(law, EquationLaw):
         return _split_equation(law, owner)
     error_msg = (
-        f'A {type(law).__name__} law of {owner} holds a complex value. {type(law).__name__} laws take real states and '
+        f'A {type(law).__name__} of {owner} holds a complex value. {type(law).__name__}s take real states and '
         'real values.'
     )
     raise ValidationError(error_msg)

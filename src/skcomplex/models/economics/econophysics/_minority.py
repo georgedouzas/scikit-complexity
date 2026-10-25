@@ -8,13 +8,13 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Bits = npt.NDArray[np.int64]
 
@@ -46,7 +46,7 @@ def strategy_table(code: float, memory: int) -> Bits:
     return np.random.default_rng(int(code)).integers(0, 2, 2**memory)
 
 
-class Speculator(Element):
+class SpeculatorComponent(ElementComponent):
     """Agent of the minority game, who holds two strategies and plays the one with the higher virtual score.
 
     Args:
@@ -72,20 +72,20 @@ class Speculator(Element):
             The net number of times the agent was in the minority.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Speculator
-        >>> Speculator.group('players', 11, first=3, second=5).size
+        >>> from skcomplex.models.economics.econophysics import SpeculatorComponent
+        >>> SpeculatorComponent.group('players', 11, first=3, second=5).size
         11
     """
 
-    first: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    second: float = state(default=1, domain=Domain.NONNEGATIVE_INTEGER)
-    first_score: float = state(default=0.0, domain=Domain.REAL)
-    second_score: float = state(default=0.0, domain=Domain.REAL)
-    action: float = state(default=0.0, domain=Domain.INTEGER)
-    wealth: float = state(default=0.0, domain=Domain.REAL)
+    first: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    second: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    first_score: float = state(default=0.0, domain=NumericDomain.REAL)
+    second_score: float = state(default=0.0, domain=NumericDomain.REAL)
+    action: float = state(default=0.0, domain=NumericDomain.INTEGER)
+    wealth: float = state(default=0.0, domain=NumericDomain.REAL)
 
 
-class MinorityGame(Interaction):
+class MinorityGameInteraction(BaseInteraction):
     """Rounds of the minority game of Challet and Zhang, where the agents on the minority side win.
 
     Every round each agent plays the action, `+1` or `-1`, that its best strategy assigns to the last `m` winning
@@ -115,14 +115,14 @@ class MinorityGame(Interaction):
                 The fraction of poorest agents that take new strategies at an evolution.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import MinorityGame
-        >>> MinorityGame('game', players='players', memory=4).memory
+        >>> from skcomplex.models.economics.econophysics import MinorityGameInteraction
+        >>> MinorityGameInteraction('game', players='players', memory=4).memory
         4
     """
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
     players: str = role()
-    fraction: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    fraction: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -136,7 +136,7 @@ class MinorityGame(Interaction):
         self.memory = memory
         self.period = period
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of a round.
 
         Args:
@@ -147,7 +147,7 @@ class MinorityGame(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.play)]
+        return [RuleLaw(self.play)]
 
     def _table(self, code: float, model: ModelView) -> Bits:
         """Return the table of a strategy, cached for the run."""
@@ -255,7 +255,7 @@ def minority_game(
         error_msg = f'The minority game needs an odd number of agents, got {n_agents}.'
         raise ValueError(error_msg)
     codes = np.random.default_rng(random_state).integers(MAX_SEED, size=(2, n_agents)).astype(float)
-    players = Speculator.group('players', n_agents, first=codes[0], second=codes[1])
+    players = SpeculatorComponent.group('players', n_agents, first=codes[0], second=codes[1])
     period = period if evolutionary else 0
-    game = MinorityGame('game', players='players', memory=memory, period=period, fraction=fraction)
+    game = MinorityGameInteraction('game', players='players', memory=memory, period=period, fraction=fraction)
     return System(components=[players], interactions=[game])

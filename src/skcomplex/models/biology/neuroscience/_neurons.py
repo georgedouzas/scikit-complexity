@@ -3,37 +3,37 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Event, Rate
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import EventLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-LeakyIntegrateAndFire = Element.define(
-    'LeakyIntegrateAndFire',
+LeakyIntegrateAndFireComponent = ElementComponent.define(
+    'LeakyIntegrateAndFireComponent',
     states={'v': -65.0},
     parameters={
         'rest': -65.0,
         'threshold': -50.0,
         'reset': -65.0,
-        'resistance': parameter(default=10.0, domain=Domain.POSITIVE),
-        'tau': parameter(default=10.0, domain=Domain.POSITIVE),
+        'resistance': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'tau': parameter(default=10.0, domain=NumericDomain.POSITIVE),
         'I': 2.0,
     },
     laws=lambda s: [
-        Rate(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
-        Event(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
+        RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
+        EventLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
     ],
 )
 
-Izhikevich = Element.define(
-    'Izhikevich',
+IzhikevichComponent = ElementComponent.define(
+    'IzhikevichComponent',
     states={'v': -65.0, 'u': -13.0},
     parameters={'a': 0.02, 'b': 0.2, 'c': -65.0, 'd': 8.0, 'I': 10.0, 'peak': 30.0},
     laws=lambda s: [
-        Rate(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
-        Rate(s.u, s.a * (s.b * s.v - s.u)),
-        Event(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
+        RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
+        RateLaw(s.u, s.a * (s.b * s.v - s.u)),
+        EventLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
     ],
 )
 
@@ -94,7 +94,7 @@ def integrate_and_fire(
     """
     return System(
         components=[
-            LeakyIntegrateAndFire(
+            LeakyIntegrateAndFireComponent(
                 'neuron',
                 v=v,
                 rest=rest,
@@ -160,4 +160,4 @@ def izhikevich(
         >>> izhikevich(d=2.0).elements[0].d
         2.0
     """
-    return System(components=[Izhikevich('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])
+    return System(components=[IzhikevichComponent('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])

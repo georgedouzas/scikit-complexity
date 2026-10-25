@@ -1,44 +1,51 @@
 """Epidemiology: compartmental, network, metapopulation, and agent-based models of infection and recovery."""
 
 from ._adaptive import (
-    ActiveHost,
-    Carrier,
-    Contact,
-    Expiry,
-    Host,
-    Rewiring,
+    ActiveHostComponent,
+    CarrierComponent,
+    ContactComponent,
+    ExpiryInteraction,
+    HostComponent,
+    RewiringInteraction,
     activity_driven_epidemics,
     adaptive_sis,
     quenched_mean_field_sis,
 )
-from ._agents import Person, Traveller, Walker, agent_based_sir, network_sir, random_walker_epidemics
-from ._compartments import Compartment, ImmunityLoss, Infection, Recovery
+from ._agents import (
+    PersonComponent,
+    TravellerComponent,
+    WalkerComponent,
+    agent_based_sir,
+    network_sir,
+    random_walker_epidemics,
+)
+from ._compartments import CompartmentComponent, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 from ._factories import sir, sirs, sis
-from ._networks import DegreeClass, Subpopulation, heterogeneous_mean_field_sis, metapopulation
-from ._outbreaks import ImmunizingDegreeClass, heterogeneous_mean_field_sir
-from ._recurrent import EpidemicCenter, Visits, delayed_sirs
-from ._vaccination import VaccinatedPopulation, sir_vaccination
+from ._networks import DegreeClassComponent, SubpopulationComponent, heterogeneous_mean_field_sis, metapopulation
+from ._outbreaks import ImmunizingDegreeClassComponent, heterogeneous_mean_field_sir
+from ._recurrent import EpidemicCenterComponent, VisitsInteraction, delayed_sirs
+from ._vaccination import VaccinatedPopulationComponent, sir_vaccination
 
 __all__: list[str] = [
-    'ActiveHost',
-    'Carrier',
-    'Compartment',
-    'Contact',
-    'DegreeClass',
-    'EpidemicCenter',
-    'Expiry',
-    'Host',
-    'ImmunityLoss',
-    'ImmunizingDegreeClass',
-    'Infection',
-    'Person',
-    'Recovery',
-    'Rewiring',
-    'Subpopulation',
-    'Traveller',
-    'VaccinatedPopulation',
-    'Visits',
-    'Walker',
+    'ActiveHostComponent',
+    'CarrierComponent',
+    'CompartmentComponent',
+    'ContactComponent',
+    'DegreeClassComponent',
+    'EpidemicCenterComponent',
+    'ExpiryInteraction',
+    'HostComponent',
+    'ImmunityLossInteraction',
+    'ImmunizingDegreeClassComponent',
+    'InfectionInteraction',
+    'PersonComponent',
+    'RecoveryInteraction',
+    'RewiringInteraction',
+    'SubpopulationComponent',
+    'TravellerComponent',
+    'VaccinatedPopulationComponent',
+    'VisitsInteraction',
+    'WalkerComponent',
     'activity_driven_epidemics',
     'adaptive_sis',
     'agent_based_sir',

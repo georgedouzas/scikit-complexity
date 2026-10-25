@@ -8,12 +8,12 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Noise, Rate, Symbols, ramp
+from ....core.base import NumericDomain, ValidationError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols, ramp
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
+from ....engine.solvers import EulerMaruyamaSolver
 
 C0 = 1.10869e-8
 C1 = 9.7137e9
@@ -37,7 +37,7 @@ def _lower_branch(a: float, b: float, phi: float) -> float:
     return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
 
 
-class StochasticEnergyBalance(Element):
+class StochasticEnergyBalanceComponent(ElementComponent):
     """Global mean surface temperature of the Sutera-Fraedrich energy balance, with drifting and ramped controls.
 
     The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, in kelvin and years. The control
@@ -83,24 +83,24 @@ class StochasticEnergyBalance(Element):
             The scale of the absorbed radiation, in kelvin to the fourth.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import StochasticEnergyBalance
-        >>> StochasticEnergyBalance('earth').nu
+        >>> from skcomplex.models.earth.climate import StochasticEnergyBalanceComponent
+        >>> StochasticEnergyBalanceComponent('earth').nu
         1.0
     """
 
     T: float = state(default=290.0)
-    mu: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    lam: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    mu: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    lam: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     drift: float = parameter(default=0.0)
-    rho: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    b_ini: float = parameter(default=1.69e-5, domain=Domain.NONNEGATIVE)
-    b_fin: float = parameter(default=1.69e-5, domain=Domain.NONNEGATIVE)
-    a_ini: float = parameter(default=0.6927, domain=Domain.NONNEGATIVE)
-    nu: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    c0: float = parameter(default=C0, domain=Domain.POSITIVE)
-    c1: float = parameter(default=C1, domain=Domain.POSITIVE)
+    rho: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    b_ini: float = parameter(default=1.69e-5, domain=NumericDomain.NONNEGATIVE)
+    b_fin: float = parameter(default=1.69e-5, domain=NumericDomain.NONNEGATIVE)
+    a_ini: float = parameter(default=0.6927, domain=NumericDomain.NONNEGATIVE)
+    nu: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    c0: float = parameter(default=C0, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=C1, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the energy balance with its noise, the drift of `mu`, and the logistic ramp of `b2` and `a2`.
 
         Args:
@@ -114,14 +114,14 @@ class StochasticEnergyBalance(Element):
         b2 = s.b_ini + s.lam * (s.b_fin - s.b_ini)
         a2 = s.a_ini + s.c1 * s.mu * (b2**2 - s.b_ini**2) / 4
         return [
-            Rate(s.T, s.c0 * (-(s.T**4) + s.c1 * s.mu * (b2 * s.T**2 - a2))),
-            Noise(s.T, s.nu**0.5),
-            Rate(s.mu, -s.drift),
-            Rate(s.lam, s.rho * s.lam * (1 - s.lam)),
+            RateLaw(s.T, s.c0 * (-(s.T**4) + s.c1 * s.mu * (b2 * s.T**2 - a2))),
+            NoiseLaw(s.T, s.nu**0.5),
+            RateLaw(s.mu, -s.drift),
+            RateLaw(s.lam, s.rho * s.lam * (1 - s.lam)),
         ]
 
 
-class RampedFold(Element):
+class RampedFoldComponent(ElementComponent):
     """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW` whose control rises linearly from `phi0` to `phi1`.
 
     For `a < 0 < b` the fold has two stable branches for `|phi| < phi_c = sqrt(-4 b^3 / (27 a))`, and the lower
@@ -156,15 +156,15 @@ class RampedFold(Element):
                 The amplitude of the noise.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import RampedFold
-        >>> RampedFold('system').rate
+        >>> from skcomplex.models.earth.climate import RampedFoldComponent
+        >>> RampedFoldComponent('system').rate
         0.004
     """
 
     x: float = state(default=-1.3247)
     a: float = parameter(default=-1.0)
     b: float = parameter(default=1.0)
-    sigma: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
+    sigma: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -180,7 +180,7 @@ class RampedFold(Element):
         self.phi1 = phi1
         self.rate = rate
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fold with its ramped control and its noise.
 
         Args:
@@ -192,14 +192,14 @@ class RampedFold(Element):
                 The laws of the component.
         """
         control = self.phi0 + ramp(s.t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
-        return [Rate(s.x, s.a * s.x**3 + s.b * s.x + control), Noise(s.x, s.sigma)]
+        return [RateLaw(s.x, s.a * s.x**3 + s.b * s.x + control), NoiseLaw(s.x, s.sigma)]
 
 
 @register_model(
     field='earth/climate',
     tags=('tipping points', 'energy balance', 'sde', 'B-tipping', 'N-tipping', 'R-tipping'),
     references=('Fang, Wang, Kurths, and Fan 2025', 'Sutera 1981', 'Fraedrich 1978', 'Ashwin et al. 2012'),
-    defaults={'until': 300.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.05)},
+    defaults={'until': 300.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.05)},
 )
 def sutera_fraedrich_tipping(tipping: str = 'noise', *, rho: float = 0.18, nu: float | None = None) -> System:
     """Return the Sutera-Fraedrich stochastic energy balance set up for bifurcation-, noise-, or rate-induced tipping.
@@ -240,7 +240,7 @@ def sutera_fraedrich_tipping(tipping: str = 'noise', *, rho: float = 0.18, nu: f
         error_msg = f'Unknown tipping type {tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
         raise ValidationError(error_msg)
     values = TIPPING_TYPES[tipping]
-    earth = StochasticEnergyBalance(
+    earth = StochasticEnergyBalanceComponent(
         'earth',
         T=_warm_state(1.0, values['b_ini'], values['a_ini']),
         lam=values['lam'],
@@ -258,7 +258,7 @@ def sutera_fraedrich_tipping(tipping: str = 'noise', *, rho: float = 0.18, nu: f
     field='earth/climate',
     tags=('tipping points', 'fold', 'ramp', 'sde', 'early warning signals', 'critical slowing down'),
     references=('Fang, Wang, Kurths, and Fan 2025', 'Scheffer et al. 2009'),
-    defaults={'until': 500.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 500.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def ramped_stochastic_fold(
     *,
@@ -305,5 +305,14 @@ def ramped_stochastic_fold(
         >>> ramped_stochastic_fold(rate=0.01).elements[0].rate
         0.01
     """
-    fold = RampedFold('system', x=_lower_branch(a, b, phi0), a=a, b=b, sigma=sigma, phi0=phi0, phi1=phi1, rate=rate)
+    fold = RampedFoldComponent(
+        'system',
+        x=_lower_branch(a, b, phi0),
+        a=a,
+        b=b,
+        sigma=sigma,
+        phi0=phi0,
+        phi1=phi1,
+        rate=rate,
+    )
     return System(components=[fold])

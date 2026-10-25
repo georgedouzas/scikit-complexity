@@ -8,15 +8,15 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import Phase, Phases
+from ....formalisms.agents import Phase, PhasesSchedule
 from ..realizations._exchange import cobb_douglas
-from ._goods_traders import Exchange
+from ._goods_traders import ExchangeInteraction
 
 GOODS = ('chocolate', 'cigarettes')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
@@ -80,7 +80,7 @@ def contract_curve(
     return b * (1 - a) * x * total_cigarettes / (a * (1 - b) * (total_chocolate - x) + b * (1 - a) * x)
 
 
-class Barterer(Element):
+class BartererComponent(ElementComponent):
     """Barterer who holds chocolate and cigarettes and values them with Cobb-Douglas weights.
 
     Args:
@@ -100,18 +100,18 @@ class Barterer(Element):
             The Cobb-Douglas weight of cigarettes.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Barterer
-        >>> Barterer.group('barterers', 2, chocolate=[8.0, 2.0]).size
+        >>> from skcomplex.models.economics.markets import BartererComponent
+        >>> BartererComponent.group('barterers', 2, chocolate=[8.0, 2.0]).size
         2
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
-    chocolate: float = state(default=5.0, domain=Domain.NONNEGATIVE)
-    cigarettes: float = state(default=5.0, domain=Domain.NONNEGATIVE)
-    chocolate_weight: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    cigarettes_weight: float = state(default=0.5, domain=Domain.NONNEGATIVE)
+    chocolate: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    cigarettes: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    chocolate_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    cigarettes_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the exchange moves the goods.
 
         Args:
@@ -198,7 +198,7 @@ def barter(
             'cigarettes': rng.uniform(min(cigarettes), max(cigarettes), n_barterers),
         }
         shares = rng.uniform(min(weights), max(weights), n_barterers)
-    barterers = Barterer.group(
+    barterers = BartererComponent.group(
         'barterers',
         n_barterers,
         variable=True,
@@ -208,6 +208,6 @@ def barter(
     )
     return System(
         components=[barterers],
-        interactions=[Exchange('exchange', traders='barterers', goods=GOODS, quantity=quantity)],
-        time=DiscreteTime(schedule=Phases([Phase('trade')])),
+        interactions=[ExchangeInteraction('exchange', traders='barterers', goods=GOODS, quantity=quantity)],
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('trade')])),
     )

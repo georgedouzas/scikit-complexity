@@ -9,18 +9,18 @@ from collections.abc import Sequence
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
 FOLD = math.sqrt(4 / 27)
 
 
-class TippingElement(Element):
+class TippingElementComponent(ElementComponent):
     """Tipping element in the normal form of a fold, pushed toward its upper state by tipped neighbours.
 
     The state follows `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)`. Alone, the element has a
@@ -46,17 +46,17 @@ class TippingElement(Element):
             The number of neighbours of the node.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import TippingElement
-        >>> TippingElement('ice sheet').x
+        >>> from skcomplex.models.earth.climate import TippingElementComponent
+        >>> TippingElementComponent('ice sheet').x
         -1.0
     """
 
     x: float = state(default=-1.0)
     c: float = parameter(default=0.0)
-    d: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    degree: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    d: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    degree: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fold with its coupling to the neighbours.
 
         Args:
@@ -68,7 +68,7 @@ class TippingElement(Element):
                 The laws of the component.
         """
         coupling = laplacian(s.x) + s.degree * (s.x + 1)
-        return [Rate(s.x, -(s.x**3) + s.x + FOLD * s.c + s.d * coupling)]
+        return [RateLaw(s.x, -(s.x**3) + s.x + FOLD * s.c + s.d * coupling)]
 
 
 @register_model(
@@ -121,5 +121,5 @@ def tipping_cascade_network(
         'd': d,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    elements = Field('elements', TippingElement, NetworkSpace(graph), values=values)
+    elements = FieldComponent('elements', TippingElementComponent, NetworkSpace(graph), values=values)
     return System(components=[elements], time=ContinuousTime())

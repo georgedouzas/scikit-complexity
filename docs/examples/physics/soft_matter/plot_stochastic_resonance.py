@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -24,7 +24,7 @@ MODEL = 'stochastic_resonance'
 
 system = create(MODEL, D=0.1)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = EulerMaruyama(dt=0.05)
+solver = EulerMaruyamaSolver(dt=0.05)
 simulation = Simulation(system, solver=solver, dt=4.0, observers=[observer], random_state=0).run(until=1000)
 
 # %%

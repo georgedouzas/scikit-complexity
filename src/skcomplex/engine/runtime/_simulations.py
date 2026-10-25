@@ -12,10 +12,10 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ...core.base import Domain, Form, ParameterError, SimulationError, ValidationError
+from ...core.base import Form, NumericDomain, ParameterError, SimulationError, ValidationError
 from ...core.system import Observable, System
 from ..compile import (
-    Backend,
+    BaseBackend,
     Entry,
     ObservableEvaluator,
     Problem,
@@ -24,11 +24,11 @@ from ..compile import (
     validate,
     with_initial_state,
 )
-from ..solvers import AgentState, Stepper, StructureState, resolve_solver
-from ._clocks import AsFastAsPossible, Clock
-from ._conservation import InvariantMonitor
+from ..solvers import AgentState, Solver, StructureState, resolve_solver
+from ._clocks import AsFastAsPossibleClock, BaseClock
+from ._conservation import InvariantObserver
 from ._frames import Frame
-from ._observers import Observer, Recorder
+from ._observers import BaseObserver, RecorderObserver
 from ._trajectories import Trajectory
 
 DEFAULT_DT = 0.01
@@ -65,7 +65,7 @@ class Simulation(BaseEstimator):
 
         solver:
             `'auto'` for the default solver of the system's form, a registered solver name, or a stepper instance.
-            The default ODE solver is `ScipyODE` with `LSODA`, which switches to BDF methods while the system is
+            The default ODE solver is `ScipyODESolver` with `LSODA`, which switches to BDF methods while the system is
             stiff.
 
         backend:
@@ -125,11 +125,11 @@ class Simulation(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[Population('rabbits', n=10)],
-        ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+        ...     components=[PopulationComponent('rabbits', n=10)],
+        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
         >>> round(simulation.trajectory_['rabbits.n'][-1])
@@ -140,11 +140,11 @@ class Simulation(BaseEstimator):
         self,
         system: System | Problem,
         *,
-        solver: str | Stepper = 'auto',
-        backend: str | Backend = 'auto',
+        solver: str | Solver = 'auto',
+        backend: str | BaseBackend = 'auto',
         dt: float | None = None,
-        clock: Clock | None = None,
-        observers: Sequence[Observer] = (),
+        clock: BaseClock | None = None,
+        observers: Sequence[BaseObserver] = (),
         record: bool = True,
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
@@ -171,10 +171,10 @@ class Simulation(BaseEstimator):
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else _default_dt(until)
         dt = default if self.dt is None else self.dt
-        if not Domain.POSITIVE.contains(dt):
+        if not NumericDomain.POSITIVE.contains(dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if stepwise and not Domain.INTEGER.contains(dt):
+        if stepwise and not NumericDomain.INTEGER.contains(dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
@@ -205,10 +205,10 @@ class Simulation(BaseEstimator):
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
         self.stepper_.plan(until)
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
-        self.clock_ = self.clock if self.clock is not None else AsFastAsPossible()
-        self.recorder_ = Recorder() if self.record else None
+        self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
+        self.recorder_ = RecorderObserver() if self.record else None
         invariants = self.problem_.stock_flow is not None and self.problem_.stock_flow.invariants
-        monitors = [InvariantMonitor()] if invariants else []
+        monitors = [InvariantObserver()] if invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.time_ = 0.0
         self.state_ = initial_state
@@ -429,11 +429,11 @@ class Simulation(BaseEstimator):
 
         Examples:
             >>> from skcomplex.core.system import System
-            >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
+            >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
             >>> from skcomplex.engine.runtime import Simulation
             >>> system = System(
-            ...     components=[Population('rabbits', n=10)],
-            ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+            ...     components=[PopulationComponent('rabbits', n=10)],
+            ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> simulation = Simulation(system, dt=1.0).run(until=5)
             >>> simulation.update_parameters({'growth.r': 0.0})

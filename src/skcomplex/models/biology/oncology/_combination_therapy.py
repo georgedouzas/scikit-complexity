@@ -7,12 +7,12 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp, log, sin
 
-from ....core.base import Domain, Expression, ParameterError, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse, where
+from ....core.base import Expression, NumericDomain, ParameterError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INFUSIONS = ('constant', 'exponential', 'periodic')
@@ -34,7 +34,7 @@ def _total_toxicity(s: Any) -> Expression:  # noqa: ANN401
     return (_toxicity(tumour.c_an, tumour.tox_an) + _toxicity(tumour.c_im, tumour.tox_im)) / 2
 
 
-class ChemoimmunotherapyTumour(Element):
+class ChemoimmunotherapyTumourComponent(ElementComponent):
     """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under chemotherapy, IL-2, and TIL injection.
 
     The tumour `A` grows logistically and NK cells `N` and CD8 T cells `E` kill it. CD8 T cells kill at the rate
@@ -174,48 +174,48 @@ class ChemoimmunotherapyTumour(Element):
                 The rate of chemotherapy infusion during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ChemoimmunotherapyTumour
-        >>> ChemoimmunotherapyTumour('tumour').r1
+        >>> from skcomplex.models.biology.oncology import ChemoimmunotherapyTumourComponent
+        >>> ChemoimmunotherapyTumourComponent('tumour').r1
         0.431
     """
 
-    A: float = state(default=1e6, domain=Domain.NONNEGATIVE)
-    N: float = state(default=5e4, domain=Domain.NONNEGATIVE)
-    E: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    C: float = state(default=1.1e7, domain=Domain.NONNEGATIVE)
-    I: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    M: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.431, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=2.17e-8, domain=Domain.POSITIVE)
-    c1: float = parameter(default=7.13e-10, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=8.17, domain=Domain.NONNEGATIVE)
-    g1: float = parameter(default=0.618, domain=Domain.POSITIVE)
-    l: float = parameter(default=0.657, domain=Domain.POSITIVE)
-    a2: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=1.29e-3, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=4.12e-2, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.4198, domain=Domain.NONNEGATIVE)
-    g2: float = parameter(default=2.02e7, domain=Domain.POSITIVE)
-    psi1: float = parameter(default=1e-7, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.6, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.996, domain=Domain.NONNEGATIVE)
-    g3: float = parameter(default=3.03e5, domain=Domain.POSITIVE)
-    d2: float = parameter(default=2e-2, domain=Domain.NONNEGATIVE)
-    psi2: float = parameter(default=3.42e-10, domain=Domain.NONNEGATIVE)
-    psi3: float = parameter(default=1.8e-8, domain=Domain.NONNEGATIVE)
-    r4: float = parameter(default=1.1e-7, domain=Domain.NONNEGATIVE)
-    r5: float = parameter(default=3e-11, domain=Domain.NONNEGATIVE)
-    a4: float = parameter(default=0.6, domain=Domain.NONNEGATIVE)
-    r6: float = parameter(default=0.125, domain=Domain.NONNEGATIVE)
-    g4: float = parameter(default=2e7, domain=Domain.POSITIVE)
-    s1: float = parameter(default=1.21e5, domain=Domain.NONNEGATIVE)
-    d3: float = parameter(default=1.2e-2, domain=Domain.NONNEGATIVE)
-    a5: float = parameter(default=0.6, domain=Domain.NONNEGATIVE)
-    d_u1: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    d_u2: float = parameter(default=0.9, domain=Domain.POSITIVE)
-    u_til: float = parameter(default=1e7, domain=Domain.NONNEGATIVE)
-    u_il2: float = parameter(default=1e7, domain=Domain.NONNEGATIVE)
-    u_chemo: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
+    A: float = state(default=1e6, domain=NumericDomain.NONNEGATIVE)
+    N: float = state(default=5e4, domain=NumericDomain.NONNEGATIVE)
+    E: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    C: float = state(default=1.1e7, domain=NumericDomain.NONNEGATIVE)
+    I: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    M: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.431, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=2.17e-8, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=7.13e-10, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=8.17, domain=NumericDomain.NONNEGATIVE)
+    g1: float = parameter(default=0.618, domain=NumericDomain.POSITIVE)
+    l: float = parameter(default=0.657, domain=NumericDomain.POSITIVE)
+    a2: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=1.29e-3, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=4.12e-2, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.4198, domain=NumericDomain.NONNEGATIVE)
+    g2: float = parameter(default=2.02e7, domain=NumericDomain.POSITIVE)
+    psi1: float = parameter(default=1e-7, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.996, domain=NumericDomain.NONNEGATIVE)
+    g3: float = parameter(default=3.03e5, domain=NumericDomain.POSITIVE)
+    d2: float = parameter(default=2e-2, domain=NumericDomain.NONNEGATIVE)
+    psi2: float = parameter(default=3.42e-10, domain=NumericDomain.NONNEGATIVE)
+    psi3: float = parameter(default=1.8e-8, domain=NumericDomain.NONNEGATIVE)
+    r4: float = parameter(default=1.1e-7, domain=NumericDomain.NONNEGATIVE)
+    r5: float = parameter(default=3e-11, domain=NumericDomain.NONNEGATIVE)
+    a4: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    r6: float = parameter(default=0.125, domain=NumericDomain.NONNEGATIVE)
+    g4: float = parameter(default=2e7, domain=NumericDomain.POSITIVE)
+    s1: float = parameter(default=1.21e5, domain=NumericDomain.NONNEGATIVE)
+    d3: float = parameter(default=1.2e-2, domain=NumericDomain.NONNEGATIVE)
+    a5: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    d_u1: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    d_u2: float = parameter(default=0.9, domain=NumericDomain.POSITIVE)
+    u_til: float = parameter(default=1e7, domain=NumericDomain.NONNEGATIVE)
+    u_il2: float = parameter(default=1e7, domain=NumericDomain.NONNEGATIVE)
+    u_chemo: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -233,7 +233,7 @@ class ChemoimmunotherapyTumour(Element):
         self.width = width
         self.doses = doses
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of the tumour, the immune cells, and the drugs.
 
         Args:
@@ -255,16 +255,16 @@ class ChemoimmunotherapyTumour(Element):
         inhibition = s.d2 * E + s.psi2 * E * A + s.psi3 * N * E**2 + s.a4 * kill * E
         activation = (s.r4 * N + s.r5 * C) * A + s.r6 * E * I / (s.g4 + I) + s.u_til * schedule
         return [
-            Rate(A, tumour),
-            Rate(N, nk),
-            Rate(E, recruitment - inhibition + activation),
-            Rate(C, s.s1 - s.d3 * C - s.a5 * kill * C),
-            Rate(I, -s.d_u1 * I + s.u_il2 * schedule),
-            Rate(M, -s.d_u2 * M + s.u_chemo * schedule),
+            RateLaw(A, tumour),
+            RateLaw(N, nk),
+            RateLaw(E, recruitment - inhibition + activation),
+            RateLaw(C, s.s1 - s.d3 * C - s.a5 * kill * C),
+            RateLaw(I, -s.d_u1 * I + s.u_il2 * schedule),
+            RateLaw(M, -s.d_u2 * M + s.u_chemo * schedule),
         ]
 
 
-class ClonalTumour(Element):
+class ClonalTumourComponent(ElementComponent):
     """Two competing tumour clones and an immune response under chemotherapy and a dendritic-cell vaccine.
 
     Each clone grows logistically, competes with the other clone and with the immune cells `E`, and dies at the
@@ -330,31 +330,31 @@ class ClonalTumour(Element):
             The level of the immunotherapeutic agent.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ClonalTumour
-        >>> ClonalTumour('tumour').theta
+        >>> from skcomplex.models.biology.oncology import ClonalTumourComponent
+        >>> ClonalTumourComponent('tumour').theta
         300000.0
     """
 
-    A1: float = state(default=9e4, domain=Domain.NONNEGATIVE)
-    A2: float = state(default=4e4, domain=Domain.NONNEGATIVE)
-    E: float = state(default=500.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.11, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=2e-8, domain=Domain.POSITIVE)
-    b2: float = parameter(default=2e-8, domain=Domain.POSITIVE)
-    c1: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=5.5, domain=Domain.NONNEGATIVE)
-    c3: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    c4: float = parameter(default=5.5, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    theta: float = parameter(default=3e5, domain=Domain.POSITIVE)
-    s1: float = parameter(default=1.8e-3, domain=Domain.NONNEGATIVE)
-    s2: float = parameter(default=1.8e-3, domain=Domain.NONNEGATIVE)
-    u_chemo1: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    u_chemo2: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    u_vaccine: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
+    A1: float = state(default=9e4, domain=NumericDomain.NONNEGATIVE)
+    A2: float = state(default=4e4, domain=NumericDomain.NONNEGATIVE)
+    E: float = state(default=500.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.11, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=2e-8, domain=NumericDomain.POSITIVE)
+    b2: float = parameter(default=2e-8, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=5.5, domain=NumericDomain.NONNEGATIVE)
+    c3: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    c4: float = parameter(default=5.5, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    theta: float = parameter(default=3e5, domain=NumericDomain.POSITIVE)
+    s1: float = parameter(default=1.8e-3, domain=NumericDomain.NONNEGATIVE)
+    s2: float = parameter(default=1.8e-3, domain=NumericDomain.NONNEGATIVE)
+    u_chemo1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    u_chemo2: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    u_vaccine: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth and the kill of both clones and the growth of the immune response.
 
         Args:
@@ -369,13 +369,13 @@ class ClonalTumour(Element):
         first = s.r1 * A1 * (1 - s.b1 * A1) - (s.c1 * A2 + s.c2 * E) * s.b1 * A1
         second = s.r2 * A2 * (1 - s.b2 * A2) - (s.c3 * A1 + s.c4 * E) * s.b2 * A2
         return [
-            Rate(A1, first - s.u_chemo1 * A1 - s.b1 * s.u_vaccine * A1 * E),
-            Rate(A2, second - s.u_chemo2 * A2 - s.b2 * s.u_vaccine * A2 * E),
-            Rate(E, s.r3 * E * (1 - E / s.theta) + (s.s1 * A1 + s.s2 * A2) * E / s.theta),
+            RateLaw(A1, first - s.u_chemo1 * A1 - s.b1 * s.u_vaccine * A1 * E),
+            RateLaw(A2, second - s.u_chemo2 * A2 - s.b2 * s.u_vaccine * A2 * E),
+            RateLaw(E, s.r3 * E * (1 - E / s.theta) + (s.s1 * A1 + s.s2 * A2) * E / s.theta),
         ]
 
 
-class ChemovirotherapyTumour(Element):
+class ChemovirotherapyTumourComponent(ElementComponent):
     """Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
 
     The uninfected cells `AU` grow logistically, the virus `V` infects them, and infected cells `AV` burst at the rate
@@ -436,25 +436,25 @@ class ChemovirotherapyTumour(Element):
                 The infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumour
-        >>> ChemovirotherapyTumour('tumour', infusion='periodic').infusion
+        >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumourComponent
+        >>> ChemovirotherapyTumourComponent('tumour', infusion='periodic').infusion
         'periodic'
     """
 
-    AU: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    AV: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    V: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    U: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.206, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1e-6, domain=Domain.POSITIVE)
-    alpha: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.5115, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.006, domain=Domain.NONNEGATIVE)
-    beta_v: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    d_u: float = parameter(default=4.16, domain=Domain.POSITIVE)
-    u1: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
+    AU: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    AV: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    V: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.206, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1e-6, domain=NumericDomain.POSITIVE)
+    alpha: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.5115, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.006, domain=NumericDomain.NONNEGATIVE)
+    beta_v: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    d_u: float = parameter(default=4.16, domain=NumericDomain.POSITIVE)
+    u1: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -466,7 +466,7 @@ class ChemovirotherapyTumour(Element):
         super().__init__(label, **values)
         self.infusion = infusion
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth, the infection, and the drug kill of the cells, the virus balance, and the drug balance.
 
         Args:
@@ -488,14 +488,14 @@ class ChemovirotherapyTumour(Element):
         shape = {'constant': 1, 'exponential': exp(-s.d_u * s.t), 'periodic': sin(s.d_u * s.t) ** 2}[self.infusion]
         infection = s.alpha * AU * V
         return [
-            Rate(AU, s.r1 * AU * (1 - s.b * (AU + AV)) - infection - s.a1 * AU * U),
-            Rate(AV, infection - s.a2 * AV - s.a3 * AV * U),
-            Rate(V, s.beta_v * s.a2 * AV - infection - s.d1 * V),
-            Rate(U, -s.d_u * U + s.u1 * shape),
+            RateLaw(AU, s.r1 * AU * (1 - s.b * (AU + AV)) - infection - s.a1 * AU * U),
+            RateLaw(AV, infection - s.a2 * AV - s.a3 * AV * U),
+            RateLaw(V, s.beta_v * s.a2 * AV - infection - s.d1 * V),
+            RateLaw(U, -s.d_u * U + s.u1 * shape),
         ]
 
 
-class GliomaBrain(Element):
+class GliomaBrainComponent(ElementComponent):
     """Glia, neurons, and a glioma under temozolomide and an oncolytic virus.
 
     Normal glia `G` and the glioma compete. Neurons `N` die in proportion to the loss of glia,
@@ -580,37 +580,37 @@ class GliomaBrain(Element):
             The infusion rate of the drug, in mg per m² per day.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import GliomaBrain
-        >>> GliomaBrain('brain').u1
+        >>> from skcomplex.models.biology.oncology import GliomaBrainComponent
+        >>> GliomaBrainComponent('brain').u1
         400.0
     """
 
-    G: float = state(default=5.94e12, domain=Domain.NONNEGATIVE)
-    N: float = state(default=5.94e12, domain=Domain.NONNEGATIVE)
-    AU: float = state(default=6e10, domain=Domain.NONNEGATIVE)
-    AV: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    V: float = state(default=1e9, domain=Domain.NONNEGATIVE)
-    U: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.0068, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.012, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=0.167e-12, domain=Domain.POSITIVE)
-    c1: float = parameter(default=3.0769e-15, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=3.0769e-16, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=2.808e5, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=2.808e5, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=2.808e8, domain=Domain.NONNEGATIVE)
-    g1: float = parameter(default=6e12, domain=Domain.POSITIVE)
-    g2: float = parameter(default=6e12, domain=Domain.POSITIVE)
-    g3: float = parameter(default=6e12, domain=Domain.POSITIVE)
-    psi: float = parameter(default=3.418e-13, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=1.2e-10, domain=Domain.NONNEGATIVE)
-    a4: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    beta_v: float = parameter(default=1000.0, domain=Domain.NONNEGATIVE)
-    d_u1: float = parameter(default=24.0, domain=Domain.NONNEGATIVE)
-    d_u2: float = parameter(default=0.2, domain=Domain.POSITIVE)
-    u1: float = parameter(default=400.0, domain=Domain.NONNEGATIVE)
+    G: float = state(default=5.94e12, domain=NumericDomain.NONNEGATIVE)
+    N: float = state(default=5.94e12, domain=NumericDomain.NONNEGATIVE)
+    AU: float = state(default=6e10, domain=NumericDomain.NONNEGATIVE)
+    AV: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    V: float = state(default=1e9, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.0068, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.012, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=0.167e-12, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=3.0769e-15, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=3.0769e-16, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=2.808e5, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=2.808e5, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=2.808e8, domain=NumericDomain.NONNEGATIVE)
+    g1: float = parameter(default=6e12, domain=NumericDomain.POSITIVE)
+    g2: float = parameter(default=6e12, domain=NumericDomain.POSITIVE)
+    g3: float = parameter(default=6e12, domain=NumericDomain.POSITIVE)
+    psi: float = parameter(default=3.418e-13, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=1.2e-10, domain=NumericDomain.NONNEGATIVE)
+    a4: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    beta_v: float = parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    d_u1: float = parameter(default=24.0, domain=NumericDomain.NONNEGATIVE)
+    d_u2: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
+    u1: float = parameter(default=400.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of glia, neurons, glioma, virus, and drug.
 
         Args:
@@ -626,16 +626,16 @@ class GliomaBrain(Element):
         infection = s.alpha * AU * V
         glioma = s.r2 * AU * (1 - s.b * (AU + AV)) - s.c2 * G * AU - s.a3 * AU * U / (s.g3 + AU) - infection
         return [
-            Rate(G, glia),
-            Rate(N, s.psi * where(glia < 0, glia, 0) * N - s.a2 * N * U / (s.g2 + N)),
-            Rate(AU, glioma),
-            Rate(AV, infection - s.a4 * AV),
-            Rate(V, s.beta_v * s.a4 * AV - infection - s.d_u1 * V),
-            Rate(U, -s.d_u2 * U + s.u1),
+            RateLaw(G, glia),
+            RateLaw(N, s.psi * where(glia < 0, glia, 0) * N - s.a2 * N * U / (s.g2 + N)),
+            RateLaw(AU, glioma),
+            RateLaw(AV, infection - s.a4 * AV),
+            RateLaw(V, s.beta_v * s.a4 * AV - infection - s.d_u1 * V),
+            RateLaw(U, -s.d_u2 * U + s.u1),
         ]
 
 
-class Her2Tumour(Element):
+class Her2TumourComponent(ElementComponent):
     """HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
 
     The tumour grows logistically, `dA/dt = r (1 - DIm) (1 - A / (kc - DCh)) A`. The bound antibody `Ab` lowers the
@@ -705,25 +705,25 @@ class Her2Tumour(Element):
                 The level of free paclitaxel from its dose on, in pmol.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Her2Tumour
-        >>> Her2Tumour('tumour').kc
+        >>> from skcomplex.models.biology.oncology import Her2TumourComponent
+        >>> Her2TumourComponent('tumour').kc
         0.67
     """
 
-    A: float = state(default=0.035, domain=Domain.NONNEGATIVE)
-    Ab: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Pin: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r: float = parameter(default=0.83, domain=Domain.NONNEGATIVE)
-    kc: float = parameter(default=0.67, domain=Domain.POSITIVE)
-    a1: float = parameter(default=2.51, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=23.0, domain=Domain.NONNEGATIVE)
-    gamma_p: float = parameter(default=6.35, domain=Domain.NONNEGATIVE)
-    sigma: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    theta_ab: float = parameter(default=8.78, domain=Domain.NONNEGATIVE)
-    theta_r: float = parameter(default=1.94e6, domain=Domain.NONNEGATIVE)
-    alpha_p: float = parameter(default=0.68, domain=Domain.NONNEGATIVE)
-    antibody: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    paclitaxel: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
+    A: float = state(default=0.035, domain=NumericDomain.NONNEGATIVE)
+    Ab: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Pin: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r: float = parameter(default=0.83, domain=NumericDomain.NONNEGATIVE)
+    kc: float = parameter(default=0.67, domain=NumericDomain.POSITIVE)
+    a1: float = parameter(default=2.51, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=23.0, domain=NumericDomain.NONNEGATIVE)
+    gamma_p: float = parameter(default=6.35, domain=NumericDomain.NONNEGATIVE)
+    sigma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    theta_ab: float = parameter(default=8.78, domain=NumericDomain.NONNEGATIVE)
+    theta_r: float = parameter(default=1.94e6, domain=NumericDomain.NONNEGATIVE)
+    alpha_p: float = parameter(default=0.68, domain=NumericDomain.NONNEGATIVE)
+    antibody: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    paclitaxel: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -739,7 +739,7 @@ class Her2Tumour(Element):
         self.t_a = t_a
         self.t_p = t_p
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth of the tumour, the binding of the antibody, and the uptake of paclitaxel.
 
         Args:
@@ -757,13 +757,13 @@ class Her2Tumour(Element):
         cytotoxicity = where(t >= self.t_p, s.sigma * s.a2 * exp(-s.gamma_p * (t - self.t_p)) * Pin, 0)
         binding = s.theta_ab * (free_antibody - Ab) * (s.theta_r * A - Ab)
         return [
-            Rate(A, s.r * (1 - inhibition) * (1 - A / (s.kc - cytotoxicity)) * A),
-            Rate(Ab, where(free_antibody > 0, binding, 0)),
-            Rate(Pin, where(free_paclitaxel > 0, s.alpha_p * (free_paclitaxel - Pin) * A, 0)),
+            RateLaw(A, s.r * (1 - inhibition) * (1 - A / (s.kc - cytotoxicity)) * A),
+            RateLaw(Ab, where(free_antibody > 0, binding, 0)),
+            RateLaw(Pin, where(free_paclitaxel > 0, s.alpha_p * (free_paclitaxel - Pin) * A, 0)),
         ]
 
 
-class AngiogenesisImmunotherapyTumour(Element):
+class AngiogenesisImmunotherapyTumourComponent(ElementComponent):
     """Tumour with its vasculature and effector cells under bevacizumab and atezolizumab, with resistance.
 
     The tumour `A` grows by the Hahnfeldt law toward its vascular capacity `Vb` and effector cells `E` kill it. The
@@ -901,48 +901,48 @@ class AngiogenesisImmunotherapyTumour(Element):
                 The dose of the immunotherapeutic drug, in mg per kg.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AngiogenesisImmunotherapyTumour
-        >>> AngiogenesisImmunotherapyTumour('tumour').Vb
+        >>> from skcomplex.models.biology.oncology import AngiogenesisImmunotherapyTumourComponent
+        >>> AngiogenesisImmunotherapyTumourComponent('tumour').Vb
         625.0
     """
 
-    A: float = state(default=5000.0, domain=Domain.POSITIVE)
-    Vb: float = state(default=625.0, domain=Domain.POSITIVE)
-    E: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    c_an: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    q_an: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R_an: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    c_im: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    q_im: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R_im: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    v1: float = parameter(default=0.025, domain=Domain.NONNEGATIVE)
-    v2: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    xi_s: float = parameter(default=8.7, domain=Domain.NONNEGATIVE)
-    xi_i: float = parameter(default=8.73e-3, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=1.35, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=3e-5, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=5e-4, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.37451, domain=Domain.NONNEGATIVE)
-    s_e: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    alpha_an: float = parameter(default=0.4811, domain=Domain.POSITIVE)
-    beta_an: float = parameter(default=0.0348, domain=Domain.POSITIVE)
-    k12_an: float = parameter(default=0.223, domain=Domain.NONNEGATIVE)
-    k21_an: float = parameter(default=0.215, domain=Domain.POSITIVE)
-    u50_an: float = parameter(default=11.4274, domain=Domain.POSITIVE)
-    alpha_im: float = parameter(default=0.5827, domain=Domain.POSITIVE)
-    beta_im: float = parameter(default=0.0271, domain=Domain.POSITIVE)
-    k12_im: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    k21_im: float = parameter(default=0.2455, domain=Domain.POSITIVE)
-    u50_im: float = parameter(default=7.1903, domain=Domain.POSITIVE)
-    g: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    delta_r: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    u_theta: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    tox_an: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    tox_im: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    dose_an: float = parameter(default=15.0, domain=Domain.NONNEGATIVE)
-    dose_im: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
+    A: float = state(default=5000.0, domain=NumericDomain.POSITIVE)
+    Vb: float = state(default=625.0, domain=NumericDomain.POSITIVE)
+    E: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    c_an: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    q_an: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R_an: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    c_im: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    q_im: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R_im: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    v1: float = parameter(default=0.025, domain=NumericDomain.NONNEGATIVE)
+    v2: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    xi_s: float = parameter(default=8.7, domain=NumericDomain.NONNEGATIVE)
+    xi_i: float = parameter(default=8.73e-3, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=1.35, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=3e-5, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=5e-4, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.37451, domain=NumericDomain.NONNEGATIVE)
+    s_e: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    alpha_an: float = parameter(default=0.4811, domain=NumericDomain.POSITIVE)
+    beta_an: float = parameter(default=0.0348, domain=NumericDomain.POSITIVE)
+    k12_an: float = parameter(default=0.223, domain=NumericDomain.NONNEGATIVE)
+    k21_an: float = parameter(default=0.215, domain=NumericDomain.POSITIVE)
+    u50_an: float = parameter(default=11.4274, domain=NumericDomain.POSITIVE)
+    alpha_im: float = parameter(default=0.5827, domain=NumericDomain.POSITIVE)
+    beta_im: float = parameter(default=0.0271, domain=NumericDomain.POSITIVE)
+    k12_im: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    k21_im: float = parameter(default=0.2455, domain=NumericDomain.POSITIVE)
+    u50_im: float = parameter(default=7.1903, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    delta_r: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    u_theta: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    tox_an: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    tox_im: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    dose_an: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    dose_im: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -958,22 +958,22 @@ class AngiogenesisImmunotherapyTumour(Element):
         self.width = width
         self.doses = doses
 
-    def _drug_laws(self, s: Symbols, drug: str, schedule: Expression) -> tuple[list[Law], Expression]:
+    def _drug_laws(self, s: Symbols, drug: str, schedule: Expression) -> tuple[list[BaseLaw], Expression]:
         """Return the laws of the compartments and the resistance of a drug, and its effect."""
         c, q, R = getattr(s, f'c_{drug}'), getattr(s, f'q_{drug}'), getattr(s, f'R_{drug}')
         alpha, beta = getattr(s, f'alpha_{drug}'), getattr(s, f'beta_{drug}')
         k12, k21 = getattr(s, f'k12_{drug}'), getattr(s, f'k21_{drug}')
         dose, u50 = getattr(s, f'dose_{drug}'), getattr(s, f'u50_{drug}')
         k10 = alpha * beta / k21
-        laws: list[Law] = [
-            Rate(c, -(k10 + k12) * c + k21 * q + dose / self.width * schedule),
-            Rate(q, k12 * c - k21 * q),
-            Rate(R, where(c < s.u_theta, s.u_theta - c, 0)),
+        laws: list[BaseLaw] = [
+            RateLaw(c, -(k10 + k12) * c + k21 * q + dose / self.width * schedule),
+            RateLaw(q, k12 * c - k21 * q),
+            RateLaw(R, where(c < s.u_theta, s.u_theta - c, 0)),
         ]
         effect = c**s.g / (((1 + s.delta_r * R) * u50) ** s.g + c**s.g)
         return laws, effect
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the tumour, vasculature, and effector balances, and the kinetics and resistance of both drugs.
 
         Args:
@@ -989,9 +989,9 @@ class AngiogenesisImmunotherapyTumour(Element):
         antiangiogenic, UAn = self._drug_laws(s, 'an', schedule)
         immunotherapy, UIm = self._drug_laws(s, 'im', schedule)
         return [
-            Rate(A, -s.v1 * A * log(A / Vb) - s.a1 * A * E),
-            Rate(Vb, -s.v2 * Vb + s.xi_s * A - s.xi_i * Vb * A ** (2 / 3) - s.a2 * Vb * UAn),
-            Rate(E, s.r1 * (A - s.c1 * A**2) * E - s.d1 * E + s.s_e + s.a3 * E * UIm),
+            RateLaw(A, -s.v1 * A * log(A / Vb) - s.a1 * A * E),
+            RateLaw(Vb, -s.v2 * Vb + s.xi_s * A - s.xi_i * Vb * A ** (2 / 3) - s.a2 * Vb * UAn),
+            RateLaw(E, s.r1 * (A - s.c1 * A**2) * E - s.d1 * E + s.s_e + s.a3 * E * UIm),
             *antiangiogenic,
             *immunotherapy,
         ]
@@ -1001,7 +1001,7 @@ class AngiogenesisImmunotherapyTumour(Element):
     field='biology/oncology',
     tags=('chemotherapy', 'immunotherapy', 'combination therapy', 'ode', 'dosing'),
     references=(BOOK, 'de Pillis, Gu, and Radunskaya 2006'),
-    defaults={'until': 60.0, 'dt': 0.2, 'solver': ScipyODE(method='LSODA', rtol=1e-6, atol=1e-6)},
+    defaults={'until': 60.0, 'dt': 0.2, 'solver': ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)},
 )
 def chemoimmunotherapy(
     A: float = 1e6,
@@ -1069,7 +1069,7 @@ def chemoimmunotherapy(
         >>> chemoimmunotherapy(u_til=0.0).elements[0].u_til
         0.0
     """
-    tumour = ChemoimmunotherapyTumour(
+    tumour = ChemoimmunotherapyTumourComponent(
         'tumour',
         A=A,
         N=N,
@@ -1145,7 +1145,7 @@ def clonal_chemoimmunotherapy(
         >>> clonal_chemoimmunotherapy(u_vaccine=0.0).elements[0].u_vaccine
         0.0
     """
-    tumour = ClonalTumour(
+    tumour = ClonalTumourComponent(
         'tumour',
         A1=A1,
         A2=A2,
@@ -1206,7 +1206,7 @@ def chemovirotherapy(
         >>> chemovirotherapy(infusion='exponential').elements[0].infusion
         'exponential'
     """
-    return System(components=[ChemovirotherapyTumour('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
+    return System(components=[ChemovirotherapyTumourComponent('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
 
 
 @register_model(
@@ -1248,14 +1248,14 @@ def glioma_chemovirotherapy(
         >>> glioma_chemovirotherapy(u1=0.0).elements[0].u1
         0.0
     """
-    return System(components=[GliomaBrain('brain', AU=AU, V=V, u1=u1)])
+    return System(components=[GliomaBrainComponent('brain', AU=AU, V=V, u1=u1)])
 
 
 @register_model(
     field='biology/oncology',
     tags=('chemotherapy', 'targeted therapy', 'combination therapy', 'HER2', 'antibody', 'ode'),
     references=(BOOK, 'Jarrett et al. 2019'),
-    defaults={'until': 10.0, 'dt': 0.02, 'solver': ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)},
+    defaults={'until': 10.0, 'dt': 0.02, 'solver': ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)},
 )
 def her2_targeted_therapy(
     A: float = 0.035,
@@ -1308,7 +1308,7 @@ def her2_targeted_therapy(
         >>> her2_targeted_therapy(sigma=1.5).elements[0].sigma
         1.5
     """
-    tumour = Her2Tumour(
+    tumour = Her2TumourComponent(
         'tumour',
         A=A,
         antibody=antibody,
@@ -1389,7 +1389,7 @@ def angiogenesis_immunotherapy(
         >>> angiogenesis_immunotherapy(dose_an=0.0).elements[0].dose_an
         0.0
     """
-    tumour = AngiogenesisImmunotherapyTumour(
+    tumour = AngiogenesisImmunotherapyTumourComponent(
         'tumour',
         A=A,
         Vb=Vb,

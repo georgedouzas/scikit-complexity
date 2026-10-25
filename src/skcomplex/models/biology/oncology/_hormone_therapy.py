@@ -7,12 +7,12 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import log
 
-from ....core.base import Domain, Expression, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import Event, Law, Rate, Symbols, pulse_train
+from ....core.base import Expression, NumericDomain, ValidationError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 PATIENT_FACTORS = {
@@ -61,7 +61,7 @@ def _quota_rate(s: Symbols, Q: Expression, q: Expression) -> Expression:
     return uptake - s.rm * (Q - q) - s.d3 * Q
 
 
-class AndrogenSuppression(Element):
+class AndrogenSuppressionComponent(ElementComponent):
     """Androgen-dependent and androgen-independent prostate cancer cells under continuous androgen suppression.
 
     The dependent cells follow `dAD/dt = r1 U (1 - b (AD + c1 AI)) AD - (d1 + m1)(1 - U / U0) AD`, the independent
@@ -112,26 +112,26 @@ class AndrogenSuppression(Element):
             The efficacy of the suppression.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AndrogenSuppression
-        >>> AndrogenSuppression('tumour', a=0.6).a
+        >>> from skcomplex.models.biology.oncology import AndrogenSuppressionComponent
+        >>> AndrogenSuppressionComponent('tumour', a=0.6).a
         0.6
     """
 
-    AD: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    AI: float = state(default=0.14, domain=Domain.NONNEGATIVE)
-    U: float = state(default=20.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.025, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.006, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=0.091e-9, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.064, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=5e-5, domain=Domain.NONNEGATIVE)
-    U0: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    du: float = parameter(default=0.08, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
+    AD: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    AI: float = state(default=0.14, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.025, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.006, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=0.091e-9, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.064, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=5e-5, domain=NumericDomain.NONNEGATIVE)
+    U0: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    du: float = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth and transition of the cells and the suppression of the androgen.
 
         Args:
@@ -144,13 +144,13 @@ class AndrogenSuppression(Element):
         """
         deprivation = 1 - s.U / s.U0
         return [
-            Rate(s.AD, s.r1 * s.U * (1 - s.b * (s.AD + s.c1 * s.AI)) * s.AD - (s.d1 + s.m1) * deprivation * s.AD),
-            Rate(s.AI, s.r2 * (1 - s.b * (s.AI + s.c2 * s.AD)) * s.AI + s.m1 * deprivation * s.AD),
-            Rate(s.U, -s.du * (s.U - s.U0) - s.U0 * s.du * s.a),
+            RateLaw(s.AD, s.r1 * s.U * (1 - s.b * (s.AD + s.c1 * s.AI)) * s.AD - (s.d1 + s.m1) * deprivation * s.AD),
+            RateLaw(s.AI, s.r2 * (1 - s.b * (s.AI + s.c2 * s.AD)) * s.AI + s.m1 * deprivation * s.AD),
+            RateLaw(s.U, -s.du * (s.U - s.U0) - s.U0 * s.du * s.a),
         ]
 
 
-class IntermittentSuppression(Element):
+class IntermittentSuppressionComponent(ElementComponent):
     """Prostate cancer cells under androgen suppression that PSA thresholds switch on and off.
 
     The dependent cells follow `dAD/dt = r1 (k1 + (1 - k1) U / (U + k2)) AD - d1 (k3 + (1 - k3) U / (U + k4)) AD
@@ -220,32 +220,32 @@ class IntermittentSuppression(Element):
             The PSA above which the therapy starts.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import IntermittentSuppression
-        >>> IntermittentSuppression('tumour').h1
+        >>> from skcomplex.models.biology.oncology import IntermittentSuppressionComponent
+        >>> IntermittentSuppressionComponent('tumour').h1
         15.0
     """
 
-    AD: float = state(default=5.0, domain=Domain.NONNEGATIVE)
-    AI: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    U: float = state(default=30.0, domain=Domain.NONNEGATIVE)
-    u: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.0204, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.0242, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.0076, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.0168, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=5e-5, domain=Domain.NONNEGATIVE)
-    k1: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    k2: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    k3: float = parameter(default=8.0, domain=Domain.NONNEGATIVE)
-    k4: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    U0: float = parameter(default=30.0, domain=Domain.POSITIVE)
-    du: float = parameter(default=0.08, domain=Domain.NONNEGATIVE)
-    x1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    x2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    h0: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    h1: float = parameter(default=15.0, domain=Domain.NONNEGATIVE)
+    AD: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    AI: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=30.0, domain=NumericDomain.NONNEGATIVE)
+    u: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.0204, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.0242, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.0076, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.0168, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=5e-5, domain=NumericDomain.NONNEGATIVE)
+    k1: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    k2: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    k3: float = parameter(default=8.0, domain=NumericDomain.NONNEGATIVE)
+    k4: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    U0: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    du: float = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+    x1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    x2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    h0: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    h1: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth and transition of the cells, the androgen, and the switching of the therapy.
 
         Args:
@@ -261,15 +261,15 @@ class IntermittentSuppression(Element):
         death = s.d1 * (s.k3 + (1 - s.k3) * s.U / (s.U + s.k4))
         psa = s.x1 * s.AD + s.x2 * s.AI
         return [
-            Rate(s.AD, (growth - death - s.m1 * deprivation) * s.AD),
-            Rate(s.AI, s.m1 * deprivation * s.AD + (s.r2 * deprivation - s.d2) * s.AI),
-            Rate(s.U, -s.du * (s.U - s.U0) - s.U0 * s.du * s.u),
-            Event(psa - s.h1, {s.u: 1}, direction=1, label='on'),
-            Event(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
+            RateLaw(s.AD, (growth - death - s.m1 * deprivation) * s.AD),
+            RateLaw(s.AI, s.m1 * deprivation * s.AD + (s.r2 * deprivation - s.d2) * s.AI),
+            RateLaw(s.U, -s.du * (s.U - s.U0) - s.U0 * s.du * s.u),
+            EventLaw(psa - s.h1, {s.u: 1}, direction=1, label='on'),
+            EventLaw(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
         ]
 
 
-class CellQuotaProstate(Element):
+class CellQuotaProstateComponent(ElementComponent):
     """Prostate cancer cells whose growth and mutation follow their androgen cell quota, with the PSA they release.
 
     The cells grow at the Droop rate `rm (1 - q_i / Q_i)`, die at `d_i`, and switch from dependent to independent at
@@ -383,41 +383,41 @@ class CellQuotaProstate(Element):
                 The rate at which the serum androgen relaxes.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CellQuotaProstate
-        >>> CellQuotaProstate('tumour').qm
+        >>> from skcomplex.models.biology.oncology import CellQuotaProstateComponent
+        >>> CellQuotaProstateComponent('tumour').qm
         5.0
     """
 
-    AD: float = state(default=15.0, domain=Domain.NONNEGATIVE)
-    AI: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Q1: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    Q2: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    P: float = state(default=3.4, domain=Domain.NONNEGATIVE)
-    U: float = state(default=15.0, domain=Domain.NONNEGATIVE)
-    rm: float = parameter(default=0.025, domain=Domain.NONNEGATIVE)
-    q1: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    q2: float = parameter(default=0.15, domain=Domain.POSITIVE)
-    d1: float = parameter(default=0.015, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.015, domain=Domain.NONNEGATIVE)
-    d3: float = parameter(default=0.09, domain=Domain.NONNEGATIVE)
-    qm: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    vm: float = parameter(default=0.275, domain=Domain.NONNEGATIVE)
-    v50: float = parameter(default=4.0, domain=Domain.POSITIVE)
-    mx1: float = parameter(default=0.00015, domain=Domain.NONNEGATIVE)
-    mx2: float = parameter(default=0.0001, domain=Domain.NONNEGATIVE)
-    m501: float = parameter(default=0.08, domain=Domain.POSITIVE)
-    m502: float = parameter(default=1.7, domain=Domain.POSITIVE)
-    n: float = parameter(default=3.0, domain=Domain.POSITIVE)
-    r0: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
-    rho1: float = parameter(default=1.3, domain=Domain.POSITIVE)
-    rho2: float = parameter(default=1.1, domain=Domain.POSITIVE)
-    theta: float = parameter(default=3.0, domain=Domain.POSITIVE)
-    du: float = parameter(default=0.08, domain=Domain.NONNEGATIVE)
-    U0: float = parameter(default=15.0, domain=Domain.NONNEGATIVE)
-    Umin: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    du1: float = parameter(default=0.08, domain=Domain.NONNEGATIVE)
+    AD: float = state(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    AI: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Q1: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    Q2: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    P: float = state(default=3.4, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    rm: float = parameter(default=0.025, domain=NumericDomain.NONNEGATIVE)
+    q1: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    q2: float = parameter(default=0.15, domain=NumericDomain.POSITIVE)
+    d1: float = parameter(default=0.015, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.015, domain=NumericDomain.NONNEGATIVE)
+    d3: float = parameter(default=0.09, domain=NumericDomain.NONNEGATIVE)
+    qm: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    vm: float = parameter(default=0.275, domain=NumericDomain.NONNEGATIVE)
+    v50: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    mx1: float = parameter(default=0.00015, domain=NumericDomain.NONNEGATIVE)
+    mx2: float = parameter(default=0.0001, domain=NumericDomain.NONNEGATIVE)
+    m501: float = parameter(default=0.08, domain=NumericDomain.POSITIVE)
+    m502: float = parameter(default=1.7, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    r0: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    rho1: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
+    rho2: float = parameter(default=1.1, domain=NumericDomain.POSITIVE)
+    theta: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    du: float = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+    U0: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    Umin: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    du1: float = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -431,7 +431,7 @@ class CellQuotaProstate(Element):
         self.period = period
         self.width = width
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth and mutation of the cells, their quotas, the PSA, and the serum androgen.
 
         Args:
@@ -447,16 +447,16 @@ class CellQuotaProstate(Element):
         produced = s.r1 * s.AD * _hill(s.Q1, s.rho1, s.theta) + s.r2 * s.AI * _hill(s.Q2, s.rho2, s.theta)
         androgen = s.U0 - (s.U0 - s.Umin) * pulse_train(s.t, self.period, self.width)
         return [
-            Rate(s.AD, s.rm * (1 - s.q1 / s.Q1) * s.AD - s.d1 * s.AD - to_independent + to_dependent),
-            Rate(s.AI, s.rm * (1 - s.q2 / s.Q2) * s.AI - s.d2 * s.AI + to_independent - to_dependent),
-            Rate(s.Q1, _quota_rate(s, s.Q1, s.q1)),
-            Rate(s.Q2, _quota_rate(s, s.Q2, s.q2)),
-            Rate(s.P, s.r0 * (s.AD + s.AI) + produced - s.du * s.P),
-            Rate(s.U, s.du1 * (androgen - s.U)),
+            RateLaw(s.AD, s.rm * (1 - s.q1 / s.Q1) * s.AD - s.d1 * s.AD - to_independent + to_dependent),
+            RateLaw(s.AI, s.rm * (1 - s.q2 / s.Q2) * s.AI - s.d2 * s.AI + to_independent - to_dependent),
+            RateLaw(s.Q1, _quota_rate(s, s.Q1, s.q1)),
+            RateLaw(s.Q2, _quota_rate(s, s.Q2, s.q2)),
+            RateLaw(s.P, s.r0 * (s.AD + s.AI) + produced - s.du * s.P),
+            RateLaw(s.U, s.du1 * (androgen - s.U)),
         ]
 
 
-class AndrogenReceptorProstate(Element):
+class AndrogenReceptorProstateComponent(ElementComponent):
     """Normal epithelium and prostate cancer cells driven by activated androgen receptors, with tissue and serum PSA.
 
     The normal cells follow `dN/dt = r1 N (1 - (N + c1 (AD + AI)) / b1) - d1 N`, the dependent cells
@@ -588,51 +588,51 @@ class AndrogenReceptorProstate(Element):
             The PSA production independent of the receptors.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AndrogenReceptorProstate
-        >>> AndrogenReceptorProstate('prostate').KP
+        >>> from skcomplex.models.biology.oncology import AndrogenReceptorProstateComponent
+        >>> AndrogenReceptorProstateComponent('prostate').KP
         800.0
     """
 
-    N: float = state(default=1.5, domain=Domain.NONNEGATIVE)
-    AD: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    AI: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    UIP: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    UP: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    UT: float = parameter(default=40.0, domain=Domain.NONNEGATIVE)
-    UD: float = parameter(default=40.0, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
-    b2: float = parameter(default=22.4, domain=Domain.POSITIVE)
-    b3: float = parameter(default=22.4, domain=Domain.POSITIVE)
-    c1: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    psi1_n: float = parameter(default=1.202e-4, domain=Domain.NONNEGATIVE)
-    psi1_d: float = parameter(default=10.48e-4, domain=Domain.NONNEGATIVE)
-    psi1_i: float = parameter(default=0.98e-4, domain=Domain.NONNEGATIVE)
-    phi1_n: float = parameter(default=1.281e-4, domain=Domain.NONNEGATIVE)
-    phi1_d: float = parameter(default=11.1e-4, domain=Domain.NONNEGATIVE)
-    phi1_i: float = parameter(default=2.79e-4, domain=Domain.NONNEGATIVE)
-    psi2: float = parameter(default=12.355, domain=Domain.POSITIVE)
-    phi2: float = parameter(default=49.587, domain=Domain.POSITIVE)
-    psi3_n: float = parameter(default=0.008, domain=Domain.NONNEGATIVE)
-    psi3_d: float = parameter(default=0.150, domain=Domain.NONNEGATIVE)
-    psi3_i: float = parameter(default=0.010, domain=Domain.NONNEGATIVE)
-    psi4: float = parameter(default=62.162, domain=Domain.POSITIVE)
-    Vc: float = parameter(default=5.56, domain=Domain.POSITIVE)
-    v1: float = parameter(default=18.397, domain=Domain.NONNEGATIVE)
-    v2: float = parameter(default=63.753, domain=Domain.POSITIVE)
-    v3: float = parameter(default=28.4, domain=Domain.POSITIVE)
-    phi: float = parameter(default=12.0, domain=Domain.POSITIVE)
-    age: float = parameter(default=60.0, domain=Domain.POSITIVE)
-    du1: float = parameter(default=1.515e-3, domain=Domain.NONNEGATIVE)
-    du2: float = parameter(default=0.05635, domain=Domain.NONNEGATIVE)
-    du3: float = parameter(default=5.776, domain=Domain.NONNEGATIVE)
-    gamma_p: float = parameter(default=0.3125, domain=Domain.NONNEGATIVE)
-    KP: float = parameter(default=800.0, domain=Domain.POSITIVE)
-    beta_n: float = parameter(default=2.2622e-3, domain=Domain.NONNEGATIVE)
-    beta_d: float = parameter(default=0.002, domain=Domain.NONNEGATIVE)
-    beta_i: float = parameter(default=0.003, domain=Domain.NONNEGATIVE)
-    sigma: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
+    N: float = state(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    AD: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    AI: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    UIP: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    UP: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    UT: float = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
+    UD: float = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
+    b2: float = parameter(default=22.4, domain=NumericDomain.POSITIVE)
+    b3: float = parameter(default=22.4, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    psi1_n: float = parameter(default=1.202e-4, domain=NumericDomain.NONNEGATIVE)
+    psi1_d: float = parameter(default=10.48e-4, domain=NumericDomain.NONNEGATIVE)
+    psi1_i: float = parameter(default=0.98e-4, domain=NumericDomain.NONNEGATIVE)
+    phi1_n: float = parameter(default=1.281e-4, domain=NumericDomain.NONNEGATIVE)
+    phi1_d: float = parameter(default=11.1e-4, domain=NumericDomain.NONNEGATIVE)
+    phi1_i: float = parameter(default=2.79e-4, domain=NumericDomain.NONNEGATIVE)
+    psi2: float = parameter(default=12.355, domain=NumericDomain.POSITIVE)
+    phi2: float = parameter(default=49.587, domain=NumericDomain.POSITIVE)
+    psi3_n: float = parameter(default=0.008, domain=NumericDomain.NONNEGATIVE)
+    psi3_d: float = parameter(default=0.150, domain=NumericDomain.NONNEGATIVE)
+    psi3_i: float = parameter(default=0.010, domain=NumericDomain.NONNEGATIVE)
+    psi4: float = parameter(default=62.162, domain=NumericDomain.POSITIVE)
+    Vc: float = parameter(default=5.56, domain=NumericDomain.POSITIVE)
+    v1: float = parameter(default=18.397, domain=NumericDomain.NONNEGATIVE)
+    v2: float = parameter(default=63.753, domain=NumericDomain.POSITIVE)
+    v3: float = parameter(default=28.4, domain=NumericDomain.POSITIVE)
+    phi: float = parameter(default=12.0, domain=NumericDomain.POSITIVE)
+    age: float = parameter(default=60.0, domain=NumericDomain.POSITIVE)
+    du1: float = parameter(default=1.515e-3, domain=NumericDomain.NONNEGATIVE)
+    du2: float = parameter(default=0.05635, domain=NumericDomain.NONNEGATIVE)
+    du3: float = parameter(default=5.776, domain=NumericDomain.NONNEGATIVE)
+    gamma_p: float = parameter(default=0.3125, domain=NumericDomain.NONNEGATIVE)
+    KP: float = parameter(default=800.0, domain=NumericDomain.POSITIVE)
+    beta_n: float = parameter(default=2.2622e-3, domain=NumericDomain.NONNEGATIVE)
+    beta_d: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
+    beta_i: float = parameter(default=0.003, domain=NumericDomain.NONNEGATIVE)
+    sigma: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth of the normal and cancer cells and the balance of tissue and serum PSA.
 
         Args:
@@ -652,24 +652,24 @@ class AndrogenReceptorProstate(Element):
         activation = s.UT + s.UD + s.sigma
         production = activation * (s.beta_n * s.N + s.beta_d * s.AD + s.beta_i * s.AI)
         return [
-            Rate(
+            RateLaw(
                 s.N,
                 _receptor_growth(s, s.psi1_n, s.phi1_n) * s.N * (1 - (s.N + s.c1 * cancer) / b1)
                 - _receptor_death(s, s.psi3_n) * s.N,
             ),
-            Rate(s.AD, (1 - s.m1) * division - _receptor_death(s, s.psi3_d) * s.AD),
-            Rate(
+            RateLaw(s.AD, (1 - s.m1) * division - _receptor_death(s, s.psi3_d) * s.AD),
+            RateLaw(
                 s.AI,
                 _receptor_growth(s, s.psi1_i, s.phi1_i) * s.AI * (1 - (s.c1 * s.N + cancer) / s.b3)
                 - _receptor_death(s, s.psi3_i) * s.AI
                 + s.m1 * division,
             ),
-            Rate(s.UIP, production - normal_leak - cancer_leak - s.du2 * s.UIP),
-            Rate(s.UP, normal_leak + cancer_leak - s.du3 * s.UP),
+            RateLaw(s.UIP, production - normal_leak - cancer_leak - s.du2 * s.UIP),
+            RateLaw(s.UP, normal_leak + cancer_leak - s.du3 * s.UP),
         ]
 
 
-class PiecewiseLinearProstate(Element):
+class PiecewiseLinearProstateComponent(ElementComponent):
     """Androgen-dependent, reversibly and irreversibly independent prostate cancer cells under intermittent therapy.
 
     During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
@@ -739,32 +739,32 @@ class PiecewiseLinearProstate(Element):
             The PSA above which the therapy starts.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import PiecewiseLinearProstate
-        >>> PiecewiseLinearProstate('tumour').h0
+        >>> from skcomplex.models.biology.oncology import PiecewiseLinearProstateComponent
+        >>> PiecewiseLinearProstateComponent('tumour').h0
         4.0
     """
 
-    AD: float = state(default=17.84, domain=Domain.NONNEGATIVE)
-    AIR: float = state(default=0.778, domain=Domain.NONNEGATIVE)
-    AII: float = state(default=0.382, domain=Domain.NONNEGATIVE)
-    u: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    w11_on: float = parameter(default=-0.043844, domain=Domain.REAL)
-    w21_on: float = parameter(default=0.00130716, domain=Domain.REAL)
-    w22_on: float = parameter(default=-0.004282, domain=Domain.REAL)
-    w31_on: float = parameter(default=0.0, domain=Domain.REAL)
-    w32_on: float = parameter(default=0.0, domain=Domain.REAL)
-    w33_on: float = parameter(default=0.00181, domain=Domain.REAL)
-    w11_off: float = parameter(default=0.00223, domain=Domain.REAL)
-    w12_off: float = parameter(default=0.1, domain=Domain.REAL)
-    w22_off: float = parameter(default=0.00392, domain=Domain.REAL)
-    w33_off: float = parameter(default=-0.2, domain=Domain.REAL)
-    x1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    x2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    x3: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    h0: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
-    h1: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
+    AD: float = state(default=17.84, domain=NumericDomain.NONNEGATIVE)
+    AIR: float = state(default=0.778, domain=NumericDomain.NONNEGATIVE)
+    AII: float = state(default=0.382, domain=NumericDomain.NONNEGATIVE)
+    u: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    w11_on: float = parameter(default=-0.043844, domain=NumericDomain.REAL)
+    w21_on: float = parameter(default=0.00130716, domain=NumericDomain.REAL)
+    w22_on: float = parameter(default=-0.004282, domain=NumericDomain.REAL)
+    w31_on: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    w32_on: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    w33_on: float = parameter(default=0.00181, domain=NumericDomain.REAL)
+    w11_off: float = parameter(default=0.00223, domain=NumericDomain.REAL)
+    w12_off: float = parameter(default=0.1, domain=NumericDomain.REAL)
+    w22_off: float = parameter(default=0.00392, domain=NumericDomain.REAL)
+    w33_off: float = parameter(default=-0.2, domain=NumericDomain.REAL)
+    x1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    x2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    x3: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    h0: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    h1: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the linear growth and transitions of each mode and the switching of the therapy.
 
         Args:
@@ -778,15 +778,15 @@ class PiecewiseLinearProstate(Element):
         on, off = s.u, 1 - s.u
         psa = s.x1 * s.AD + s.x2 * s.AIR + s.x3 * s.AII
         return [
-            Rate(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
-            Rate(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
-            Rate(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
-            Event(psa - s.h1, {s.u: 1}, direction=1, label='on'),
-            Event(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
+            RateLaw(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
+            RateLaw(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
+            RateLaw(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
+            EventLaw(psa - s.h1, {s.u: 1}, direction=1, label='on'),
+            EventLaw(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
         ]
 
 
-class TamoxifenTumour(Element):
+class TamoxifenTumourComponent(ElementComponent):
     """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen, its metabolite, and the lymphocytes.
 
     The phases follow `dAg/dt = -mg Ag L + 2 mm Am L - a1 Ag (UX + delta1 UH)`, `dAs/dt = -ms As + mg Ag L`, and
@@ -876,38 +876,38 @@ class TamoxifenTumour(Element):
             The infusion rate of tamoxifen.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TamoxifenTumour
-        >>> TamoxifenTumour('tumour').Asat
+        >>> from skcomplex.models.biology.oncology import TamoxifenTumourComponent
+        >>> TamoxifenTumourComponent('tumour').Asat
         10000.0
     """
 
-    Ag: float = state(default=900.0, domain=Domain.NONNEGATIVE)
-    As: float = state(default=50.0, domain=Domain.NONNEGATIVE)
-    Am: float = state(default=50.0, domain=Domain.NONNEGATIVE)
-    X0: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    X1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    X2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    X3: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    E: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    mg: float = parameter(default=0.0013, domain=Domain.NONNEGATIVE)
-    ms: float = parameter(default=0.039, domain=Domain.NONNEGATIVE)
-    mm: float = parameter(default=0.0169, domain=Domain.NONNEGATIVE)
-    Asat: float = parameter(default=1e4, domain=Domain.POSITIVE)
-    a1: float = parameter(default=0.0062, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.010, domain=Domain.NONNEGATIVE)
-    delta1: float = parameter(default=25.0, domain=Domain.NONNEGATIVE)
-    delta2: float = parameter(default=25.0, domain=Domain.NONNEGATIVE)
-    k01: float = parameter(default=0.048, domain=Domain.NONNEGATIVE)
-    k12: float = parameter(default=0.993, domain=Domain.NONNEGATIVE)
-    k23: float = parameter(default=35.932, domain=Domain.NONNEGATIVE)
-    du1: float = parameter(default=1.145, domain=Domain.NONNEGATIVE)
-    du2: float = parameter(default=39.525, domain=Domain.NONNEGATIVE)
-    V: float = parameter(default=8.592, domain=Domain.POSITIVE)
-    s: float = parameter(default=0.121, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.012, domain=Domain.NONNEGATIVE)
-    u: float = parameter(default=12.5, domain=Domain.NONNEGATIVE)
+    Ag: float = state(default=900.0, domain=NumericDomain.NONNEGATIVE)
+    As: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    Am: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    X0: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    X1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    X2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    X3: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    E: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    mg: float = parameter(default=0.0013, domain=NumericDomain.NONNEGATIVE)
+    ms: float = parameter(default=0.039, domain=NumericDomain.NONNEGATIVE)
+    mm: float = parameter(default=0.0169, domain=NumericDomain.NONNEGATIVE)
+    Asat: float = parameter(default=1e4, domain=NumericDomain.POSITIVE)
+    a1: float = parameter(default=0.0062, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.010, domain=NumericDomain.NONNEGATIVE)
+    delta1: float = parameter(default=25.0, domain=NumericDomain.NONNEGATIVE)
+    delta2: float = parameter(default=25.0, domain=NumericDomain.NONNEGATIVE)
+    k01: float = parameter(default=0.048, domain=NumericDomain.NONNEGATIVE)
+    k12: float = parameter(default=0.993, domain=NumericDomain.NONNEGATIVE)
+    k23: float = parameter(default=35.932, domain=NumericDomain.NONNEGATIVE)
+    du1: float = parameter(default=1.145, domain=NumericDomain.NONNEGATIVE)
+    du2: float = parameter(default=39.525, domain=NumericDomain.NONNEGATIVE)
+    V: float = parameter(default=8.592, domain=NumericDomain.POSITIVE)
+    s: float = parameter(default=0.121, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.012, domain=NumericDomain.NONNEGATIVE)
+    u: float = parameter(default=12.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the cell cycle under the drug, the pharmacokinetics, and the lymphocytes.
 
         Args:
@@ -921,14 +921,14 @@ class TamoxifenTumour(Element):
         room = log(s.Asat / (s.Ag + s.As + s.Am))
         UX, UH = s.X2 / s.V, s.X3 / s.V
         return [
-            Rate(s.Ag, -s.mg * s.Ag * room + 2 * s.mm * s.Am * room - s.a1 * s.Ag * (UX + s.delta1 * UH)),
-            Rate(s.As, -s.ms * s.As + s.mg * s.Ag * room),
-            Rate(s.Am, -s.mm * s.Am * room + s.ms * s.As),
-            Rate(s.X0, -s.k01 * s.X0 + s.u),
-            Rate(s.X1, s.k01 * s.X0 - s.k12 * s.X1),
-            Rate(s.X2, s.k12 * s.X1 - (s.du1 + s.k23) * s.X2),
-            Rate(s.X3, s.k23 * s.X2 - s.du2 * s.X3),
-            Rate(s.E, s.s - s.d1 * s.E - s.a2 * s.E * (UX + s.delta2 * UH)),
+            RateLaw(s.Ag, -s.mg * s.Ag * room + 2 * s.mm * s.Am * room - s.a1 * s.Ag * (UX + s.delta1 * UH)),
+            RateLaw(s.As, -s.ms * s.As + s.mg * s.Ag * room),
+            RateLaw(s.Am, -s.mm * s.Am * room + s.ms * s.As),
+            RateLaw(s.X0, -s.k01 * s.X0 + s.u),
+            RateLaw(s.X1, s.k01 * s.X0 - s.k12 * s.X1),
+            RateLaw(s.X2, s.k12 * s.X1 - (s.du1 + s.k23) * s.X2),
+            RateLaw(s.X3, s.k23 * s.X2 - s.du2 * s.X3),
+            RateLaw(s.E, s.s - s.d1 * s.E - s.a2 * s.E * (UX + s.delta2 * UH)),
         ]
 
 
@@ -1011,7 +1011,7 @@ def continuous_androgen_suppression(
         >>> continuous_androgen_suppression(a=0.6).elements[0].a
         0.6
     """
-    tumour = AndrogenSuppression(
+    tumour = AndrogenSuppressionComponent(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1118,7 +1118,7 @@ def ideta_intermittent_androgen(
         >>> ideta_intermittent_androgen(h1=20.0).elements[0].h1
         20.0
     """
-    tumour = IntermittentSuppression(
+    tumour = IntermittentSuppressionComponent(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1239,7 +1239,7 @@ def prostate_cell_quota(
         >>> prostate_cell_quota(q1=0.45).elements[0].q1
         0.45
     """
-    tumour = CellQuotaProstate(
+    tumour = CellQuotaProstateComponent(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1267,7 +1267,7 @@ def prostate_cell_quota(
     field='biology/oncology',
     tags=('hormone therapy', 'ode', 'prostate cancer', 'androgen receptor', 'PSA'),
     references=(BOOK, 'Jain et al. 2011'),
-    defaults={'until': 26280.0, 'dt': 168.0, 'solver': ScipyODE(method='LSODA')},
+    defaults={'until': 26280.0, 'dt': 168.0, 'solver': ScipyODESolver(method='LSODA')},
 )
 def prostate_androgen_receptor(
     N: float = 1.5,
@@ -1324,7 +1324,7 @@ def prostate_androgen_receptor(
         >>> prostate_androgen_receptor(UT=5.0).elements[0].UT
         5.0
     """
-    prostate = AndrogenReceptorProstate('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
+    prostate = AndrogenReceptorProstateComponent('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
     return System(components=[prostate])
 
 
@@ -1376,7 +1376,7 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
     on11, on21, on22, on31, on32, on33 = factors['on']
     off11, off12, off22, off33 = factors['off']
     AD, AIR, AII = factors['cells']
-    tumour = PiecewiseLinearProstate(
+    tumour = PiecewiseLinearProstateComponent(
         'tumour',
         AD=AD,
         AIR=AIR,
@@ -1402,7 +1402,7 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
     field='biology/oncology',
     tags=('hormone therapy', 'ode', 'breast cancer', 'cell cycle', 'pharmacokinetics'),
     references=(BOOK, 'Chen, Kirkby, and Jena 2012'),
-    defaults={'until': 2400.0, 'dt': 8.0, 'solver': ScipyODE(method='LSODA')},
+    defaults={'until': 2400.0, 'dt': 8.0, 'solver': ScipyODESolver(method='LSODA')},
 )
 def tamoxifen_cell_cycle(
     Ag: float = 900.0,
@@ -1451,5 +1451,5 @@ def tamoxifen_cell_cycle(
         >>> tamoxifen_cell_cycle(u=0.0).elements[0].u
         0.0
     """
-    tumour = TamoxifenTumour('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
+    tumour = TamoxifenTumourComponent('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
     return System(components=[tumour])

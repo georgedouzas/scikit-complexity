@@ -9,20 +9,20 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Drive, LocalRule, Relaxation
+from ....formalisms.lattices import DriveLaw, LocalRuleLaw, RelaxationLaw
 
 type Array = npt.NDArray[np.float64]
 
 NEAREST = Neighborhood.von_neumann(center=True)
 
 
-class Fault(Element):
+class FaultComponent(ElementComponent):
     """Block of the Olami-Feder-Christensen earthquake model, loaded uniformly and slipping at a threshold force.
 
     A slipping block passes the fraction `alpha` of its force to each of its four neighbours and drops to zero. With
@@ -45,13 +45,13 @@ class Fault(Element):
                 The fraction of force passed to each neighbour.
 
     Examples:
-        >>> from skcomplex.models.earth.seismology import Fault
-        >>> Fault('block').alpha
+        >>> from skcomplex.models.earth.seismology import FaultComponent
+        >>> FaultComponent('block').alpha
         0.2
     """
 
-    force: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    force: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class Fault(Element):
         super().__init__(label, **values)
         self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the uniform loading and the slipping relaxation.
 
         Args:
@@ -86,9 +86,9 @@ class Fault(Element):
             return np.where(force >= threshold, 0.0, force) + alpha * passed
 
         return [
-            Relaxation(
-                drive=[Drive(s.force, load)],
-                relax=[LocalRule(s.force, NEAREST, slip)],
+            RelaxationLaw(
+                drive=[DriveLaw(s.force, load)],
+                relax=[LocalRuleLaw(s.force, NEAREST, slip)],
                 stable=lambda force: bool((force < threshold).all()),
                 activity=lambda force: force >= threshold,
                 label='earthquake',
@@ -134,4 +134,4 @@ def earthquakes(
     """
     forces = np.random.default_rng(random_state).random(tuple(shape))
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[Fault.lattice('fault', space, force=forces, alpha=alpha)])
+    return System(components=[FaultComponent.lattice('fault', space, force=forces, alpha=alpha)])

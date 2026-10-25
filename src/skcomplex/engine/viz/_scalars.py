@@ -13,7 +13,7 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import SERIES_COLORS
 from ._utils import PARTS, log_scalars
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 
 def _series_index(problem: Problem, path: str, state: str) -> int:
@@ -31,7 +31,7 @@ def _style_series(recording: rr.RecordingStream, path: str, value: object, index
         recording.log(entity, rr.SeriesLines(colors=colors), static=True)
 
 
-class ScalarsVisual(Visual):
+class ScalarsVisual(BaseVisual):
     """Visual that logs each state component of an element as a time series.
 
     Every state gets static series colors from a categorical palette, by its position among the states of every element

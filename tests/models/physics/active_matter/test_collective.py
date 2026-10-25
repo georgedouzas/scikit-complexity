@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models.physics.active_matter import (
     cucker_smale_flocking,
     living_crystals,
@@ -26,7 +26,9 @@ def test_motility_induced_phase_separation_gathers_disks():
     """Test that fast repulsive swimmers gather into clusters without passing through each other."""
     model = motility_induced_phase_separation(200)
     size = model.space.width
-    trajectory = Simulation(model, dt=0.5, solver=EulerMaruyama(dt=0.005), random_state=0).run(until=5).trajectory_
+    trajectory = (
+        Simulation(model, dt=0.5, solver=EulerMaruyamaSolver(dt=0.005), random_state=0).run(until=5).trajectory_
+    )
     positions = trajectory['swimmers.x']
     assert _mean_neighbors(positions[-1], size, 1.1) > 3 * _mean_neighbors(positions[0], size, 1.1)
     distances = np.linalg.norm(positions[-1][:, None] - positions[-1][None], axis=-1)
@@ -38,7 +40,7 @@ def test_living_crystals_form_only_with_phoretic_attraction():
     neighbors = {}
     for v0 in (0.0, 50.0):
         model = living_crystals(50, size=30.0, v0=v0)
-        solver = EulerMaruyama(dt=0.002)
+        solver = EulerMaruyamaSolver(dt=0.002)
         trajectory = Simulation(model, dt=0.5, solver=solver, random_state=0).run(until=5).trajectory_
         neighbors[v0] = _mean_neighbors(trajectory['swimmers.x'][-1], 30.0, 2.5)
     assert neighbors[50.0] > 4 * neighbors[0.0]
@@ -55,7 +57,9 @@ def test_cucker_smale_flock_aligns_and_keeps_momentum():
 def test_toner_tu_flock_orders_at_the_mean_field_speed():
     """Test that the polar fluid conserves its mass and moves together at `sqrt(a (rho0 - rho_c) / beta)`."""
     model = toner_tu((16, 16))
-    trajectory = Simulation(model, dt=1.0, solver=EulerMaruyama(dt=0.02), random_state=0).run(until=30).trajectory_
+    trajectory = (
+        Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0).run(until=30).trajectory_
+    )
     vx, vy, rho = trajectory['flock.vx'][-1], trajectory['flock.vy'][-1], trajectory['flock.rho']
     assert rho[-1].sum() == pytest.approx(rho[0].sum())
     assert np.hypot(vx.mean(), vy.mean()) == pytest.approx(np.sqrt(0.5), rel=0.02)

@@ -9,13 +9,13 @@ import numpy as np
 import numpy.typing as npt
 from scipy.special import expit
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -32,7 +32,7 @@ def _spins_of(configurations: Array) -> Array:
     return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
-class ComplexAgent(Element):
+class ComplexAgentComponent(ElementComponent):
     """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
 
     Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
@@ -49,15 +49,15 @@ class ComplexAgent(Element):
             The spin of the configuration.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ComplexAgent
-        >>> ComplexAgent.group('agents', 10, configuration=5.0, spin=0.0).size
+        >>> from skcomplex.models.social.opinion_dynamics import ComplexAgentComponent
+        >>> ComplexAgentComponent.group('agents', 10, configuration=5.0, spin=0.0).size
         10
     """
 
-    configuration: float = state(default=2.0, domain=Domain.NONNEGATIVE_INTEGER)
-    spin: float = state(default=0.0, domain=Domain.INTEGER)
+    configuration: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    spin: float = state(default=0.0, domain=NumericDomain.INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the standardization moves every agent.
 
         Args:
@@ -71,7 +71,7 @@ class ComplexAgent(Element):
         return []
 
 
-class Standardization(Interaction):
+class StandardizationInteraction(BaseInteraction):
     """Changes of configuration of random agents, accepted with the logistic probability of their gain in utility.
 
     The utility of agent `i` is `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. A random
@@ -101,15 +101,15 @@ class Standardization(Interaction):
                 The temperature, the randomness of the choices.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Standardization
-        >>> Standardization('standardization', agents='agents', H=100).H
+        >>> from skcomplex.models.social.opinion_dynamics import StandardizationInteraction
+        >>> StandardizationInteraction('standardization', agents='agents', H=100).H
         100
     """
 
     agents: str = role()
-    K: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    J: float = parameter(default=1.0, domain=Domain.REAL)
-    T: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    K: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    J: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    T: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -121,7 +121,7 @@ class Standardization(Interaction):
         super().__init__(label, **values)
         self.H = H
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of the configuration changes.
 
         Args:
@@ -132,7 +132,7 @@ class Standardization(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.sweep)]
+        return [RuleLaw(self.sweep)]
 
     def sweep(self, model: ModelView) -> None:
         """Propose one change of configuration per agent on average, and accept each with the logistic probability.
@@ -228,6 +228,8 @@ def standardized_agents(
     configurations = np.where(marked, rng.integers(MARKED, size=agents), rng.integers(MARKED, H + MARKED, size=agents))
     configurations = configurations.astype(float)
     return System(
-        components=[ComplexAgent.group('agents', agents, configuration=configurations, spin=_spins_of(configurations))],
-        interactions=[Standardization('standardization', agents='agents', K=K, J=J, T=T, H=H)],
+        components=[
+            ComplexAgentComponent.group('agents', agents, configuration=configurations, spin=_spins_of(configurations)),
+        ],
+        interactions=[StandardizationInteraction('standardization', agents='agents', K=K, J=J, T=T, H=H)],
     )

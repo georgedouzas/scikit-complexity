@@ -9,20 +9,22 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, neighbors
-from ....core.laws import Rate as RateLaw
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, neighbors
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ._kuramoto import PhaseOscillator
+from ._kuramoto import PhaseOscillatorComponent
 from ._utils import _order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
-Link = Element.define('Link', parameters={'w': parameter(default=1.0, domain=Domain.NONNEGATIVE)})
+LinkComponent = ElementComponent.define(
+    'LinkComponent',
+    parameters={'w': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
+)
 
 
 def _logistic(r: Expression, x: Expression) -> Expression:
@@ -30,12 +32,12 @@ def _logistic(r: Expression, x: Expression) -> Expression:
     return r * x * (1 - x)
 
 
-LogisticNode = Element.define(
-    'LogisticNode',
-    states={'x': state(default=0.5, domain=Domain.REAL)},
-    parameters={'r': 4.0, 'epsilon': parameter(default=0.5, domain=Domain.NONNEGATIVE)},
+LogisticNodeComponent = ElementComponent.define(
+    'LogisticNodeComponent',
+    states={'x': state(default=0.5, domain=NumericDomain.REAL)},
+    parameters={'r': 4.0, 'epsilon': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Update(
+        UpdateLaw(
             s.x,
             (1 - s.epsilon) * _logistic(s.r, s.x) + s.epsilon * neighbors(_logistic(s.r, s.other.x), reduce='mean'),
         ),
@@ -43,7 +45,7 @@ LogisticNode = Element.define(
 )
 
 
-class EdgeCoupling(Interaction):
+class EdgeCouplingInteraction(BaseInteraction):
     """Kuramoto coupling along one weighted edge, `theta_i' += K w_ij sin(theta_j - theta_i)` at both of its ends.
 
     The interaction runs once per edge of the network of its oscillators and reads the weight `w` of the edge from
@@ -63,8 +65,8 @@ class EdgeCoupling(Interaction):
             The coupling strength.
 
     Examples:
-        >>> from skcomplex.models.physics.synchronization import EdgeCoupling
-        >>> EdgeCoupling('coupling', oscillators='nodes', links='edges', K=0.5).K
+        >>> from skcomplex.models.physics.synchronization import EdgeCouplingInteraction
+        >>> EdgeCouplingInteraction('coupling', oscillators='nodes', links='edges', K=0.5).K
         0.5
     """
 
@@ -74,7 +76,7 @@ class EdgeCoupling(Interaction):
 
     K: float = parameter(default=1.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the pull of both ends of an edge towards each other.
 
         Args:
@@ -166,15 +168,15 @@ def kuramoto_on_networks(
     space = _network(network, n_oscillators, degree, rewiring, seed)
     rng = np.random.default_rng(seed + 1)
     mean_degree = 2 * space.graph.number_of_edges() / n_oscillators
-    oscillators = PhaseOscillator.lattice(
+    oscillators = PhaseOscillatorComponent.lattice(
         'oscillators',
         space,
         theta=rng.uniform(0, 2 * math.pi, n_oscillators),
         omega=rng.normal(0.0, sigma, n_oscillators),
         visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
     )
-    links = Group('links', element=Link, space=space, on='edges')
-    coupling = EdgeCoupling('coupling', oscillators='oscillators', links='links', K=K / mean_degree)
+    links = GroupComponent('links', element=LinkComponent, space=space, on='edges')
+    coupling = EdgeCouplingInteraction('coupling', oscillators='oscillators', links='links', K=K / mean_degree)
     return System(components=[oscillators, links], interactions=[coupling])
 
 
@@ -239,7 +241,7 @@ def coupled_map_lattices_on_networks(
     """
     space = _network(network, n_nodes, degree, rewiring, seed)
     rng = np.random.default_rng(seed + 1)
-    maps = LogisticNode.lattice(
+    maps = LogisticNodeComponent.lattice(
         'maps',
         space,
         x=rng.uniform(0.0, 1.0, n_nodes),

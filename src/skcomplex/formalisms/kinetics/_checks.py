@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression
 from ...engine.compile import Census, Compilation, Issue
-from ._laws import Encounter, Proliferation, outcome_sums
+from ._laws import EncounterLaw, ProliferationLaw, outcome_sums
 
 PROBABILITY_TOLERANCE = 1e-9
 LISTED_ENCOUNTERS = 3
@@ -22,9 +22,9 @@ def _probability_sum(total: object) -> float | None:
     return float(value) if value.is_numeric() else None
 
 
-def _unnormalized(law: Encounter | Proliferation) -> list[tuple[int, int, float]]:
+def _unnormalized(law: EncounterLaw | ProliferationLaw) -> list[tuple[int, int, float]]:
     """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
-    table = law.transition if isinstance(law, Encounter) else law.outcomes
+    table = law.transition if isinstance(law, EncounterLaw) else law.outcomes
     if table is None:
         return []
     sums = outcome_sums(table)
@@ -54,7 +54,7 @@ def probability_issues(compilation: Compilation) -> list[Issue]:
     issues = []
     for record in cast('Census', compilation.census).records:
         law = record.law
-        if not isinstance(law, Encounter | Proliferation):
+        if not isinstance(law, EncounterLaw | ProliferationLaw):
             continue
         found = _unnormalized(law)
         if not found:
@@ -65,7 +65,7 @@ def probability_issues(compilation: Compilation) -> list[Issue]:
         )
         more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
         message = (
-            f'The {type(law).__name__} law of {record.path} has outcome probabilities that do not sum to one over the '
+            f'The {type(law).__name__} of {record.path} has outcome probabilities that do not sum to one over the '
             f'outcomes of an encounter: {listed}{more}.'
         )
         fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'

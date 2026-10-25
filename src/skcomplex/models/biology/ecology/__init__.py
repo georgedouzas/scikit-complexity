@@ -1,11 +1,11 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
-from ._agent_predation import Predator, Prey, agent_based_lotka_volterra
-from ._cell_quota import QuotaPhytoplankton, droop_cell_quota
-from ._clustering import Hopping, Patch, neutral_clustering
-from ._communities import Competition, Mutualism, competition, food_webs, mutualism
+from ._agent_predation import PredatorComponent, PreyComponent, agent_based_lotka_volterra
+from ._cell_quota import QuotaPhytoplanktonComponent, droop_cell_quota
+from ._clustering import HoppingInteraction, PatchComponent, neutral_clustering
+from ._communities import CompetitionInteraction, MutualismInteraction, competition, food_webs, mutualism
 from ._factories import (
-    Rabbits,
+    RabbitsComponent,
     exponential_growth,
     fibonacci_rabbits,
     hutchinson,
@@ -13,87 +13,93 @@ from ._factories import (
     lotka_volterra,
     varying_capacity_logistic,
 )
-from ._fronts import FisherKPP, fisher_kpp
-from ._instability import UnstablePopulations, intrinsic_instability
-from ._meadow import Cow, Grazing, Herding, Pasture, meadow_capacity
-from ._microbial_communities import GeneralizedLotkaVolterra, Microbe, generalized_lotka_volterra
-from ._neutral import NeutralSpecies, neutral_macroecology
+from ._fronts import FisherKPPComponent, fisher_kpp
+from ._instability import UnstablePopulationsComponent, intrinsic_instability
+from ._meadow import CowComponent, GrazingInteraction, HerdingInteraction, PastureComponent, meadow_capacity
+from ._microbial_communities import GeneralizedLotkaVolterraInteraction, MicrobeComponent, generalized_lotka_volterra
+from ._neutral import NeutralSpeciesComponent, neutral_macroecology
 from ._populations import (
-    DelayedLogisticGrowth,
-    ExponentialGrowth,
-    LogisticGrowth,
-    Mortality,
-    Population,
-    Predation,
-    SeasonalLogisticGrowth,
+    DelayedLogisticGrowthInteraction,
+    ExponentialGrowthInteraction,
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationComponent,
+    PredationInteraction,
+    SeasonalLogisticGrowthInteraction,
 )
 from ._predation import (
-    Parasitism,
-    PredatorPreyEvents,
-    RosenzweigMacArthur,
+    ParasitismInteraction,
+    PredatorPreyEventsInteraction,
+    RosenzweigMacArthurInteraction,
     lotka_volterra_with_harvesting,
     nicholson_bailey,
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
-from ._sequential import Abundance, Influence, InfluenceDraw, LinearGrowth, sequentially_linear_ecosystem
-from ._speciation import NeutralReplacement, Organism, neutral_biodiversity
+from ._sequential import (
+    AbundanceComponent,
+    InfluenceComponent,
+    InfluenceDrawInteraction,
+    LinearGrowthInteraction,
+    sequentially_linear_ecosystem,
+)
+from ._speciation import NeutralReplacementInteraction, OrganismComponent, neutral_biodiversity
 from ._stigmergy import (
-    EmotionMarks,
-    Forager,
-    Plant,
-    StigmergicPredator,
-    StigmergicPrey,
+    EmotionMarksComponent,
+    ForagerComponent,
+    PlantComponent,
+    StigmergicPredatorComponent,
+    StigmergicPreyComponent,
     stigmergic_predator_prey,
 )
-from ._succession import PioneerGrowth, Stand, SuccessionalGrowth, mangrove_succession
-from ._wolf_sheep import Grass, Sheep, Wolf, wolf_sheep
+from ._succession import PioneerGrowthInteraction, StandComponent, SuccessionalGrowthInteraction, mangrove_succession
+from ._wolf_sheep import GrassComponent, SheepComponent, WolfComponent, wolf_sheep
 
 __all__: list[str] = [
-    'Abundance',
-    'Competition',
-    'Cow',
-    'DelayedLogisticGrowth',
-    'EmotionMarks',
-    'ExponentialGrowth',
-    'FisherKPP',
-    'Forager',
-    'GeneralizedLotkaVolterra',
-    'Grass',
-    'Grazing',
-    'Herding',
-    'Hopping',
-    'Influence',
-    'InfluenceDraw',
-    'LinearGrowth',
-    'LogisticGrowth',
-    'Microbe',
-    'Mortality',
-    'Mutualism',
-    'NeutralReplacement',
-    'NeutralSpecies',
-    'Organism',
-    'Parasitism',
-    'Pasture',
-    'Patch',
-    'PioneerGrowth',
-    'Plant',
-    'Population',
-    'Predation',
-    'Predator',
-    'PredatorPreyEvents',
-    'Prey',
-    'QuotaPhytoplankton',
-    'Rabbits',
-    'RosenzweigMacArthur',
-    'SeasonalLogisticGrowth',
-    'Sheep',
-    'Stand',
-    'StigmergicPredator',
-    'StigmergicPrey',
-    'SuccessionalGrowth',
-    'UnstablePopulations',
-    'Wolf',
+    'AbundanceComponent',
+    'CompetitionInteraction',
+    'CowComponent',
+    'DelayedLogisticGrowthInteraction',
+    'EmotionMarksComponent',
+    'ExponentialGrowthInteraction',
+    'FisherKPPComponent',
+    'ForagerComponent',
+    'GeneralizedLotkaVolterraInteraction',
+    'GrassComponent',
+    'GrazingInteraction',
+    'HerdingInteraction',
+    'HoppingInteraction',
+    'InfluenceComponent',
+    'InfluenceDrawInteraction',
+    'LinearGrowthInteraction',
+    'LogisticGrowthInteraction',
+    'MicrobeComponent',
+    'MortalityInteraction',
+    'MutualismInteraction',
+    'NeutralReplacementInteraction',
+    'NeutralSpeciesComponent',
+    'OrganismComponent',
+    'ParasitismInteraction',
+    'PastureComponent',
+    'PatchComponent',
+    'PioneerGrowthInteraction',
+    'PlantComponent',
+    'PopulationComponent',
+    'PredationInteraction',
+    'PredatorComponent',
+    'PredatorPreyEventsInteraction',
+    'PreyComponent',
+    'QuotaPhytoplanktonComponent',
+    'RabbitsComponent',
+    'RosenzweigMacArthurInteraction',
+    'SeasonalLogisticGrowthInteraction',
+    'SheepComponent',
+    'StandComponent',
+    'StigmergicPredatorComponent',
+    'StigmergicPreyComponent',
+    'SuccessionalGrowthInteraction',
+    'UnstablePopulationsComponent',
+    'WolfComponent',
     'agent_based_lotka_volterra',
     'competition',
     'droop_cell_quota',

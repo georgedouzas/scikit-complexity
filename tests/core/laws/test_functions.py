@@ -7,17 +7,17 @@ import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
 from skcomplex.core.base import ValidationError, state, symbol
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Equation, Rate, Update, both, derivative, either, lag, mod, series, where
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw, both, derivative, either, lag, mod, series, where
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4, ScipyODE
-from skcomplex.formalisms.particles import Particle
+from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
+from skcomplex.formalisms.particles import ParticleComponent
 
-from .conftest import PRECISE, Mass
+from .conftest import PRECISE, MassComponent
 
 
 def test_functions_stay_unevaluated_on_symbols():
@@ -65,7 +65,7 @@ def test_functions_lower_to_numpy_and_numba():
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
     system = System(
-        components=[Particle('p', x=[0.9], v=[1.0])],
+        components=[ParticleComponent('p', x=[0.9], v=[1.0])],
         space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
@@ -76,7 +76,7 @@ def test_reflecting_box_reverses_crossing_particle():
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
     system = System(
-        components=[Particle('p', x=[0.9], v=[1.0])],
+        components=[ParticleComponent('p', x=[0.9], v=[1.0])],
         space=ContinuousSpace(1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
@@ -100,11 +100,11 @@ def test_where_branch_not_chosen_raises_no_warning():
         assert function(0.0, np.array([0.0, 2.0]))[0].tolist() == [0.0, 0.5]
 
 
-@pytest.mark.parametrize('solver', [RK4(), ScipyODE()], ids=['rk4', 'scipy'])
+@pytest.mark.parametrize('solver', [RK4Solver(), ScipyODESolver()], ids=['rk4', 'scipy'])
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
     system = System(
-        components=[Particle('p', x=[0.5], v=[1.0])],
+        components=[ParticleComponent('p', x=[0.5], v=[1.0])],
         space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
@@ -114,7 +114,7 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
 
 def _driven_by(data):
     """Return a system whose one rate reads a series input."""
-    driven = Element.define('Driven', states={'y': 0.0}, laws=lambda s: [Rate(s.y, data(s.t))])
+    driven = ElementComponent.define('DrivenComponent', states={'y': 0.0}, laws=lambda s: [RateLaw(s.y, data(s.t))])
     return System(components=[driven('d')])
 
 
@@ -140,26 +140,26 @@ def test_series_interpolates_long_linear_data(backend):
 
 def test_condition_on_a_nested_modulo_of_time_compiles():
     """Test that a condition whose side holds a modulo of time inside another function compiles and switches."""
-    nested = Element.define(
-        'Nested',
+    nested = ElementComponent.define(
+        'NestedComponent',
         states={'y': 0.0},
-        laws=lambda s: [Rate(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))],
+        laws=lambda s: [RateLaw(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))],
     )
     problem = compile_system(System(components=[nested('n')]))
     assert problem.drift(0.5, problem.initial_state, problem.initial_parameters)[0] == 1.0
     assert problem.drift(1.5, problem.initial_state, problem.initial_parameters)[0] == 0.0
 
 
-DoublePendulum = Element.define(
-    'DoublePendulum',
+DoublePendulumComponent = ElementComponent.define(
+    'DoublePendulumComponent',
     states={'a': state(default=1.0, order=2), 'b': state(default=0.5, order=2)},
     parameters={'g': 9.81},
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             2 * derivative(s.a, 2) + cos(s.a - s.b) * derivative(s.b, 2)
             == -(derivative(s.b, 1) ** 2) * sin(s.a - s.b) - 2 * s.g * sin(s.a),
         ),
-        Equation(
+        EquationLaw(
             derivative(s.b, 2) + cos(s.a - s.b) * derivative(s.a, 2)
             == derivative(s.a, 1) ** 2 * sin(s.a - s.b) - s.g * sin(s.b),
         ),
@@ -167,25 +167,27 @@ DoublePendulum = Element.define(
 )
 
 
-TooFar = Element.define(
-    'TooFar',
+TooFarComponent = ElementComponent.define(
+    'TooFarComponent',
     states={'x': state(default=1.0, lags=1)},
-    laws=lambda s: [Update(s.x, lag(s.x, 2))],
+    laws=lambda s: [UpdateLaw(s.x, lag(s.x, 2))],
 )
 
 
-Jerk = Element.define(
-    'Jerk',
+JerkComponent = ElementComponent.define(
+    'JerkComponent',
     states={'x': state(default=0.0, order=3, initial=(0.0, 1.0))},
     parameters={'A': 0.6},
-    laws=lambda s: [Rate(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
+    laws=lambda s: [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
 )
 
 
 def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
     trajectory = (
-        Simulation(System(components=[DoublePendulum('dp')]), solver=PRECISE, dt=0.05).run(until=10).trajectory_
+        Simulation(System(components=[DoublePendulumComponent('dp')]), solver=PRECISE, dt=0.05)
+        .run(until=10)
+        .trajectory_
     )
     a, b = trajectory['dp.a'], trajectory['dp.b']
     a_d1, b_d1 = trajectory['dp.a_d1'], trajectory['dp.b_d1']
@@ -196,14 +198,14 @@ def test_coupled_equations_conserve_energy():
 def test_lag_beyond_kept_values_is_rejected():
     """Test that reading a lag the state does not keep raises an error naming the lag."""
     with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
-        Simulation(System(components=[TooFar('t')])).run(until=1)
+        Simulation(System(components=[TooFarComponent('t')])).run(until=1)
 
 
 def test_third_order_jerk_is_bounded_and_chaotic():
     """Test that Sprott's jerk equation compiles to three equations and gives a bounded, sensitive trajectory."""
-    first = Simulation(System(components=[Jerk('j')]), solver=PRECISE, dt=0.5).run(until=300)
+    first = Simulation(System(components=[JerkComponent('j')]), solver=PRECISE, dt=0.5).run(until=300)
     assert first.problem_.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
-    second = Simulation(System(components=[Jerk('j', x=1e-8)]), solver=PRECISE, dt=0.5).run(until=300)
+    second = Simulation(System(components=[JerkComponent('j', x=1e-8)]), solver=PRECISE, dt=0.5).run(until=300)
     x = first.trajectory_['j.x']
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
@@ -212,6 +214,12 @@ def test_third_order_jerk_is_bounded_and_chaotic():
 
 def test_derivative_at_order_is_rejected_in_rates():
     """Test that a rate cannot read the derivative of a state's own order."""
-    Bad = Interaction.define('Bad', roles=['target'], laws=lambda s: [Rate(s.target.x, derivative(s.target.x, 2))])
+    BadInteraction = BaseInteraction.define(
+        'BadInteraction',
+        roles=['target'],
+        laws=lambda s: [RateLaw(s.target.x, derivative(s.target.x, 2))],
+    )
     with pytest.raises(ValidationError, match='below its declared order'):
-        Simulation(System(components=[Mass('mass')], interactions=[Bad('bad', target='mass')])).run(until=1)
+        Simulation(System(components=[MassComponent('mass')], interactions=[BadInteraction('bad', target='mass')])).run(
+            until=1,
+        )

@@ -14,7 +14,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import fields_of, structure_factor
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
@@ -23,7 +23,7 @@ MODEL = 'brusselator'
 system = create(MODEL, random_state=0)
 blueprint = default_blueprint(system, primary='cells/u')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, solver=RK4(dt=0.01), observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).run(until=100)
 
 # %%
 # Pattern wavelength against the linear instability

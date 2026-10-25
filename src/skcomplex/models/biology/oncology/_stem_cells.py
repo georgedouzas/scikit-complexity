@@ -8,17 +8,17 @@ from typing import Any, Literal
 import numpy as np
 from sage.all__sagemath_symbolics import exp, log
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, delayed, pulse
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, delayed, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class StemCellDifferentiation(Element):
+class StemCellDifferentiationComponent(ElementComponent):
     """Normal and malignant lineages of quiescent stem cells, progenitors, basal cells, and differentiated cells.
 
     In each lineage the quiescent stem cells become progenitors at the rate `k12` and progenitors return at the rate
@@ -165,51 +165,51 @@ class StemCellDifferentiation(Element):
                 The dose of the continuous therapy.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import StemCellDifferentiation
-        >>> StemCellDifferentiation('tissue', therapy='pulsed').therapy
+        >>> from skcomplex.models.biology.oncology import StemCellDifferentiationComponent
+        >>> StemCellDifferentiationComponent('tissue', therapy='pulsed').therapy
         'pulsed'
     """
 
-    NSq: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    NPr: float = state(default=1000.0, domain=Domain.NONNEGATIVE)
-    NBs: float = state(default=2000.0, domain=Domain.NONNEGATIVE)
-    ND: float = state(default=2000.0, domain=Domain.NONNEGATIVE)
-    ASq: float = state(default=5.0, domain=Domain.NONNEGATIVE)
-    APr: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    ABs: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    AD: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.0001, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    d3: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    d4: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    d5: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    d6: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    d7: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    d8: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    k12: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    k21: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    k23: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    k34: float = parameter(default=0.06, domain=Domain.NONNEGATIVE)
-    k56: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k65: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    k67: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    k78: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    r4: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    NPinf: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    APinf: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    NPmax: float = parameter(default=1e4, domain=Domain.POSITIVE)
-    APmax: float = parameter(default=5e4, domain=Domain.POSITIVE)
-    Nbmax: float = parameter(default=1e4, domain=Domain.POSITIVE)
-    Abmax: float = parameter(default=5e3, domain=Domain.POSITIVE)
-    beta0: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    kappa0: float = parameter(default=2000.0, domain=Domain.POSITIVE)
-    delta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    up: float = parameter(default=30.0, domain=Domain.NONNEGATIVE)
-    uc: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
+    NSq: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    NPr: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    NBs: float = state(default=2000.0, domain=NumericDomain.NONNEGATIVE)
+    ND: float = state(default=2000.0, domain=NumericDomain.NONNEGATIVE)
+    ASq: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    APr: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ABs: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    AD: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.0001, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    d3: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    d4: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    d5: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    d6: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    d7: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    d8: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    k12: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    k21: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    k23: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    k34: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
+    k56: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k65: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    k67: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    k78: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    r4: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    NPinf: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    APinf: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    NPmax: float = parameter(default=1e4, domain=NumericDomain.POSITIVE)
+    APmax: float = parameter(default=5e4, domain=NumericDomain.POSITIVE)
+    Nbmax: float = parameter(default=1e4, domain=NumericDomain.POSITIVE)
+    Abmax: float = parameter(default=5e3, domain=NumericDomain.POSITIVE)
+    beta0: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    kappa0: float = parameter(default=2000.0, domain=NumericDomain.POSITIVE)
+    delta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    up: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
+    uc: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -234,7 +234,7 @@ class StemCellDifferentiation(Element):
             return s.d2 * s.up * (1 + on * s.delta * renewal), s.up * (1 + 3 * on)
         return s.d2, 1
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the transitions, renewals, deaths, and mutation of the eight compartments.
 
         Args:
@@ -251,24 +251,24 @@ class StemCellDifferentiation(Element):
         normal_return = s.k21 * (1 - NPr / (NPr + s.NPinf)) * NPr
         malignant_return = s.k65 * (1 - APr / (APr + s.APinf)) * APr
         return [
-            Rate(NSq, -s.d1 * NSq - s.k12 * NSq + normal_return),
-            Rate(NPr, (renewal - d2 - s.m1 - s.k23) * NPr + s.k12 * NSq - normal_return),
-            Rate(NBs, -s.d3 * other_factor * NBs + s.k23 * NPr - s.k34 * NBs + s.r2 * (1 - NBs / s.Nbmax) * NBs),
-            Rate(ND, -s.d4 * ND + s.k34 * NBs),
-            Rate(ASq, -s.d5 * ASq - s.k56 * ASq + malignant_return),
-            Rate(
+            RateLaw(NSq, -s.d1 * NSq - s.k12 * NSq + normal_return),
+            RateLaw(NPr, (renewal - d2 - s.m1 - s.k23) * NPr + s.k12 * NSq - normal_return),
+            RateLaw(NBs, -s.d3 * other_factor * NBs + s.k23 * NPr - s.k34 * NBs + s.r2 * (1 - NBs / s.Nbmax) * NBs),
+            RateLaw(ND, -s.d4 * ND + s.k34 * NBs),
+            RateLaw(ASq, -s.d5 * ASq - s.k56 * ASq + malignant_return),
+            RateLaw(
                 APr,
                 (s.r3 * (1 - APr / s.APmax) - s.d6 * other_factor - s.k67) * APr
                 + s.k56 * ASq
                 - malignant_return
                 + s.m1 * NPr,
             ),
-            Rate(ABs, -s.d7 * other_factor * ABs + s.k67 * APr - s.k78 * ABs + s.r4 * (1 - ABs / s.Abmax) * ABs),
-            Rate(AD, -s.d8 * AD + s.k78 * ABs),
+            RateLaw(ABs, -s.d7 * other_factor * ABs + s.k67 * APr - s.k78 * ABs + s.r4 * (1 - ABs / s.Abmax) * ABs),
+            RateLaw(AD, -s.d8 * AD + s.k78 * ABs),
         ]
 
 
-class BoneMarrowBlood(Element):
+class BoneMarrowBloodComponent(ElementComponent):
     """Normal and malignant cells in the bone marrow and the peripheral blood, and cancer stem cells.
 
     Normal marrow cells renew as `r1 NBM log((b1 + b2) / (theta1 + NBM))`, mutate into blasts at the rate `m1` and
@@ -372,43 +372,43 @@ class BoneMarrowBlood(Element):
             The reciprocal carrying capacity of cancer stem cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import BoneMarrowBlood
-        >>> BoneMarrowBlood('patient').tau1
+        >>> from skcomplex.models.biology.oncology import BoneMarrowBloodComponent
+        >>> BoneMarrowBloodComponent('patient').tau1
         96.0
     """
 
-    NBM: float = state(default=1e13, domain=Domain.NONNEGATIVE)
-    NPB: float = state(default=3.5e9, domain=Domain.NONNEGATIVE)
-    ABM: float = state(default=4e11, domain=Domain.NONNEGATIVE)
-    APB: float = state(default=5e9, domain=Domain.NONNEGATIVE)
-    AS: float = state(default=1e5, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.149, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=5.8e13, domain=Domain.POSITIVE)
-    b2: float = parameter(default=1e13, domain=Domain.POSITIVE)
-    theta1: float = parameter(default=1e10, domain=Domain.POSITIVE)
-    m1: float = parameter(default=0.0013, domain=Domain.NONNEGATIVE)
-    m2: float = parameter(default=2.7e4, domain=Domain.NONNEGATIVE)
-    theta2: float = parameter(default=1e10, domain=Domain.POSITIVE)
-    r2: float = parameter(default=1e-12, domain=Domain.NONNEGATIVE)
-    m3: float = parameter(default=1e-7, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=1e-14, domain=Domain.NONNEGATIVE)
-    alpha1: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    tau1: float = parameter(default=96.0, domain=Domain.POSITIVE)
-    c2: float = parameter(default=1e-14, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.0083, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.00396, domain=Domain.NONNEGATIVE)
-    b3: float = parameter(default=3.688e14, domain=Domain.POSITIVE)
-    theta3: float = parameter(default=1e10, domain=Domain.POSITIVE)
-    m4: float = parameter(default=0.0065, domain=Domain.NONNEGATIVE)
-    m5: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    alpha2: float = parameter(default=0.002, domain=Domain.NONNEGATIVE)
-    tau2: float = parameter(default=576.0, domain=Domain.POSITIVE)
-    r4: float = parameter(default=1e-12, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    r5: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    b4: float = parameter(default=1e-6, domain=Domain.NONNEGATIVE)
+    NBM: float = state(default=1e13, domain=NumericDomain.NONNEGATIVE)
+    NPB: float = state(default=3.5e9, domain=NumericDomain.NONNEGATIVE)
+    ABM: float = state(default=4e11, domain=NumericDomain.NONNEGATIVE)
+    APB: float = state(default=5e9, domain=NumericDomain.NONNEGATIVE)
+    AS: float = state(default=1e5, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.149, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=5.8e13, domain=NumericDomain.POSITIVE)
+    b2: float = parameter(default=1e13, domain=NumericDomain.POSITIVE)
+    theta1: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
+    m1: float = parameter(default=0.0013, domain=NumericDomain.NONNEGATIVE)
+    m2: float = parameter(default=2.7e4, domain=NumericDomain.NONNEGATIVE)
+    theta2: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
+    r2: float = parameter(default=1e-12, domain=NumericDomain.NONNEGATIVE)
+    m3: float = parameter(default=1e-7, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=1e-14, domain=NumericDomain.NONNEGATIVE)
+    alpha1: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    tau1: float = parameter(default=96.0, domain=NumericDomain.POSITIVE)
+    c2: float = parameter(default=1e-14, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.0083, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.00396, domain=NumericDomain.NONNEGATIVE)
+    b3: float = parameter(default=3.688e14, domain=NumericDomain.POSITIVE)
+    theta3: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
+    m4: float = parameter(default=0.0065, domain=NumericDomain.NONNEGATIVE)
+    m5: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    alpha2: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
+    tau2: float = parameter(default=576.0, domain=NumericDomain.POSITIVE)
+    r4: float = parameter(default=1e-12, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    r5: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    b4: float = parameter(default=1e-6, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the renewal, mutation, migration, and delayed maturation and conversion of the five populations.
 
         Args:
@@ -425,24 +425,24 @@ class BoneMarrowBlood(Element):
         arrival = s.m2 * delayed(NBM, s.tau1) * survival / (s.theta2 + delayed(NPB, s.tau1))
         conversion = exp(-s.alpha2 * s.tau2 - s.r4 * delayed(APB, s.tau2))
         return [
-            Rate(
+            RateLaw(
                 NBM,
                 s.r1 * NBM * log((s.b1 + s.b2) / (s.theta1 + NBM)) - (s.m1 + s.m3) * NBM - release - s.c1 * NBM * ABM,
             ),
-            Rate(NPB, arrival - s.c2 * NPB * APB - s.d1 * NPB),
-            Rate(
+            RateLaw(NPB, arrival - s.c2 * NPB * APB - s.d1 * NPB),
+            RateLaw(
                 ABM,
                 s.r3 * ABM * log(s.b3 / (s.theta3 + ABM))
                 + s.m1 * NBM
                 - s.m4 * ABM
                 + s.m5 * conversion * delayed(AS, s.tau2),
             ),
-            Rate(APB, s.m4 * ABM - s.d2 * APB),
-            Rate(AS, s.r5 * AS * (1 - s.b4 * AS) - s.m5 * exp(-s.r4 * APB) * AS + s.m3 * NBM),
+            RateLaw(APB, s.m4 * ABM - s.d2 * APB),
+            RateLaw(AS, s.r5 * AS * (1 - s.b4 * AS) - s.m5 * exp(-s.r4 * APB) * AS + s.m3 * NBM),
         ]
 
 
-class LeukaemiaStemCells(Element):
+class LeukaemiaStemCellsComponent(ElementComponent):
     """Normal and leukaemic stem cells that share a niche, with the progeny that feeds back on them.
 
     Stem cells renew symmetrically at the rate `r e^-psi1` and differentiate symmetrically at the rate
@@ -518,34 +518,34 @@ class LeukaemiaStemCells(Element):
             The feedback gain of the progeny on differentiation.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import LeukaemiaStemCells
-        >>> LeukaemiaStemCells('niche').beta1
+        >>> from skcomplex.models.biology.oncology import LeukaemiaStemCellsComponent
+        >>> LeukaemiaStemCellsComponent('niche').beta1
         0.01
     """
 
-    NS: float = state(default=100.0, domain=Domain.NONNEGATIVE)
-    NPr: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    ND: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    AS: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    AD: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.6, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    d2: float = parameter(default=0.4, domain=Domain.NONNEGATIVE)
-    m2: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    d3: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    r4: float = parameter(default=0.7, domain=Domain.NONNEGATIVE)
-    m3: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    d4: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    r5: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    d5: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    beta1: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    beta2: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    beta3: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    NS: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    NPr: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ND: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    AS: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    AD: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    d2: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    m2: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    d3: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    r4: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
+    m3: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    d4: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    r5: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    d5: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    beta1: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    beta2: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    beta3: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regulated renewal, division, and differentiation of the normal and leukaemic lineages.
 
         Args:
@@ -561,11 +561,11 @@ class LeukaemiaStemCells(Element):
         progeny = NPr + ND + AD
         division, differentiation = exp(-s.beta2 * progeny), exp(-s.beta3 * progeny)
         return [
-            Rate(NS, NS * niche * (s.r1 - s.m1 * differentiation) - s.d1 * NS),
-            Rate(NPr, NS * niche * (s.r2 * division + 2 * s.m1 * differentiation) + (s.r3 - s.d2) * NPr),
-            Rate(ND, s.m2 * s.d2 * NPr - s.d3 * ND),
-            Rate(AS, AS * niche * (s.r4 - s.m3 * differentiation) - s.d4 * AS),
-            Rate(AD, AS * niche * (s.r5 * division + 2 * s.m3 * differentiation) - s.d5 * AD),
+            RateLaw(NS, NS * niche * (s.r1 - s.m1 * differentiation) - s.d1 * NS),
+            RateLaw(NPr, NS * niche * (s.r2 * division + 2 * s.m1 * differentiation) + (s.r3 - s.d2) * NPr),
+            RateLaw(ND, s.m2 * s.d2 * NPr - s.d3 * ND),
+            RateLaw(AS, AS * niche * (s.r4 - s.m3 * differentiation) - s.d4 * AS),
+            RateLaw(AD, AS * niche * (s.r5 * division + 2 * s.m3 * differentiation) - s.d5 * AD),
         ]
 
 
@@ -629,7 +629,7 @@ def stem_cell_differentiation(
         True
     """
     m1 = m0 * (1 + np.random.default_rng(seed).uniform())
-    tissue = StemCellDifferentiation(
+    tissue = StemCellDifferentiationComponent(
         'tissue',
         m1=m1,
         beta0=beta0,
@@ -645,7 +645,7 @@ def stem_cell_differentiation(
     field='biology/oncology',
     tags=('leukaemia', 'stem cells', 'delay', 'bone marrow'),
     references=(BOOK, 'Afenya, Ouifki, and Mundle 2019'),
-    defaults={'until': 3000.0, 'dt': 10.0, 'solver': ScipyODE(method='BDF')},
+    defaults={'until': 3000.0, 'dt': 10.0, 'solver': ScipyODESolver(method='BDF')},
 )
 def bone_marrow_blood_leukaemia(
     *,
@@ -688,7 +688,7 @@ def bone_marrow_blood_leukaemia(
         >>> bone_marrow_blood_leukaemia(tau1=144.0).elements[0].tau1
         144.0
     """
-    return System(components=[BoneMarrowBlood('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
+    return System(components=[BoneMarrowBloodComponent('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
 
 
 @register_model(
@@ -751,5 +751,5 @@ def leukaemia_stem_cells(
         >>> leukaemia_stem_cells(r4=0.5).elements[0].r4
         0.5
     """
-    niche = LeukaemiaStemCells('niche', NS=NS, AS=AS, r1=r1, m1=m1, d1=d1, r4=r4, m3=m3, d4=d4)
+    niche = LeukaemiaStemCellsComponent('niche', NS=NS, AS=AS, r1=r1, m1=m1, d1=d1, r4=r4, m3=m3, d4=d4)
     return System(components=[niche])

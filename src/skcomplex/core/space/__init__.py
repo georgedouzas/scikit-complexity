@@ -4,11 +4,13 @@ from ._lattices import LatticeSpace, Neighborhood
 from ._memory import Memory
 from ._neighbours import Cone, Nearest, Radius, neighbor_pairs
 from ._networks import Adjacency, Layer, NetworkSpace, part_count
-from ._spaces import ContinuousSpace, SiteSpace, Space
-from ._time import ContinuousTime, DiscreteTime, Schedule, StaticTime, Time
+from ._spaces import BaseSpace, ContinuousSpace, SiteSpace
+from ._time import BaseTime, ContinuousTime, DiscreteTime, Schedule, StaticTime
 
 __all__: list[str] = [
     'Adjacency',
+    'BaseSpace',
+    'BaseTime',
     'Cone',
     'ContinuousSpace',
     'ContinuousTime',
@@ -22,9 +24,7 @@ __all__: list[str] = [
     'Radius',
     'Schedule',
     'SiteSpace',
-    'Space',
     'StaticTime',
-    'Time',
     'neighbor_pairs',
     'part_count',
 ]

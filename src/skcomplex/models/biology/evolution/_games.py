@@ -9,14 +9,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, total
+from ....core.base import Expression, NumericDomain, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, total
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -38,10 +38,13 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
     return np.where(beaten, neighbor, strategy)
 
 
-Strategy = Element.define('Strategy', states={'x': state(default=0.5, domain=Domain.NONNEGATIVE)})
+StrategyComponent = ElementComponent.define(
+    'StrategyComponent',
+    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
+)
 
 
-class Replication(Interaction):
+class ReplicationInteraction(BaseInteraction):
     """Replicator equation of the strategies of a group, `dx_i/dt = x_i ((A x)_i - x . A x)`, with a payoff matrix `A`.
 
     Every strategy is a member of the group, and its fitness `(A x)_i` is a total over the strategies weighted by its
@@ -61,8 +64,8 @@ class Replication(Interaction):
                 The path of the group of strategies.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Replication
-        >>> Replication('replication', population='players', payoff=((0, 1), (1, 0))).payoff
+        >>> from skcomplex.models.biology.evolution import ReplicationInteraction
+        >>> ReplicationInteraction('replication', population='players', payoff=((0, 1), (1, 0))).payoff
         ((0, 1), (1, 0))
     """
 
@@ -78,7 +81,7 @@ class Replication(Interaction):
         super().__init__(label, **values)
         self.payoff = payoff
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the replicator equation of the payoff matrix.
 
         Args:
@@ -90,10 +93,10 @@ class Replication(Interaction):
                 The laws of the component.
         """
         payoff = np.asarray(self.payoff, dtype=float)
-        return [Rate(s.population.x, _replicator_rate(s.population.x, payoff))]
+        return [RateLaw(s.population.x, _replicator_rate(s.population.x, payoff))]
 
 
-class CyclicSpecies(Element):
+class CyclicSpeciesComponent(ElementComponent):
     """Site of a lattice of rock, paper, and scissors, 0, 1, and 2, where each strategy beats the one before it.
 
     Sites update one at a time in random order, and a site adopts the strategy of a random neighbour that beats it.
@@ -106,14 +109,14 @@ class CyclicSpecies(Element):
             The initial strategy, 0, 1, or 2.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CyclicSpecies
-        >>> CyclicSpecies('site', strategy=2).strategy
+        >>> from skcomplex.models.biology.evolution import CyclicSpeciesComponent
+        >>> CyclicSpeciesComponent('site', strategy=2).strategy
         2
     """
 
-    strategy: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    strategy: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stochastic invasion by a random neighbour.
 
         Args:
@@ -124,7 +127,7 @@ class CyclicSpecies(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.strategy, NEAREST, _invade, schedule='random-sequential', stochastic=True)]
+        return [LocalRuleLaw(s.strategy, NEAREST, _invade, schedule='random-sequential', stochastic=True)]
 
 
 @register_model(
@@ -172,8 +175,8 @@ def replicator_dynamics(
     matrix = (((V - C) / 2, V), (0.0, V / 2)) if payoff is None else tuple(tuple(row) for row in payoff)
     strategies = len(matrix)
     shares = [1 / strategies] * strategies if x is None else list(x)
-    population = Strategy.group('population', strategies, x=shares)
-    replication = Replication('replication', population='population', payoff=matrix)
+    population = StrategyComponent.group('population', strategies, x=shares)
+    replication = ReplicationInteraction('replication', population='population', payoff=matrix)
     return System(components=[population], interactions=[replication])
 
 
@@ -210,4 +213,6 @@ def rock_paper_scissors(
         100
     """
     strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)
-    return System(components=[CyclicSpecies.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)])
+    return System(
+        components=[CyclicSpeciesComponent.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)],
+    )

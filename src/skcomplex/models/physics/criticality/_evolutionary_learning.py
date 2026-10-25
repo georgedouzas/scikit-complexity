@@ -9,9 +9,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import tanh
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Update, both, minimum, mod, total, uniform, where
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, both, minimum, mod, total, uniform, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
@@ -31,7 +31,7 @@ def _sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
     return upper + upper.T
 
 
-class Learner(Element):
+class LearnerComponent(ElementComponent):
     """Agent of the evolutionary Sherrington-Kirkpatrick game, who learns a binary action and may be replaced.
 
     The agent keeps an incentive `Q`, the value of action +1, and plays the action `s = ±1` by the softmax policy at
@@ -79,18 +79,18 @@ class Learner(Element):
                 The largest temperature of a newcomer.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import Learner
-        >>> Learner('agent').memory
+        >>> from skcomplex.models.physics.criticality import LearnerComponent
+        >>> LearnerComponent('agent').memory
         0.75
     """
 
     incentive: float = state(default=0.0)
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
-    temperature: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
+    temperature: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
     fitness: float = state(default=0.0)
     reward: float = state(default=0.0)
-    memory: float = parameter(default=0.75, domain=Domain.NONNEGATIVE)
-    max_temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    memory: float = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
+    max_temperature: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class Learner(Element):
         self.evolving = evolving
         self.settling = settling
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the replacement of the least fit agent, the learning of the incentive, and the softmax action.
 
         Args:
@@ -126,11 +126,11 @@ class Learner(Element):
         learned = (1 - s.memory) * incentive + s.memory * field
         action = _softmax_action(learned, temperature)
         return [
-            Update(s.incentive, learned),
-            Update(s.temperature, temperature),
-            Update(s.spin, action),
-            Update(s.fitness, action * learned),
-            Update(s.reward, s.spin * field),
+            UpdateLaw(s.incentive, learned),
+            UpdateLaw(s.temperature, temperature),
+            UpdateLaw(s.spin, action),
+            UpdateLaw(s.fitness, action * learned),
+            UpdateLaw(s.reward, s.spin * field),
         ]
 
 
@@ -206,7 +206,7 @@ def evolutionary_sk_game(
         temperatures = rng.uniform(0.0, max_temperature, n_agents)
     else:
         temperatures = np.broadcast_to(np.asarray(temperature, dtype=float), (n_agents,)).copy()
-    agents = Learner.group(
+    agents = LearnerComponent.group(
         'agents',
         n_agents,
         visual=TEMPERATURE_VISUAL,

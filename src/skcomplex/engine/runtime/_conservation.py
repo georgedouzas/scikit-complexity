@@ -8,10 +8,10 @@ import numpy as np
 from ...core.base import ConservationError, SimulationError
 from ..compile import Problem, StockFlow, Vector
 from ._frames import Frame
-from ._observers import Observer
+from ._observers import BaseObserver
 
 
-class ConservationMonitor(Observer):
+class ConservationObserver(BaseObserver):
     """Observer that checks at every frame that each quantity changes only by its flows with the environment.
 
     The total of a quantity is the sum of the states that hold it. The monitor compares its change since the first
@@ -30,9 +30,9 @@ class ConservationMonitor(Observer):
             The total of every quantity at the latest frame.
 
     Examples:
-        >>> from skcomplex.engine.runtime import ConservationMonitor, Simulation
+        >>> from skcomplex.engine.runtime import ConservationObserver, Simulation
         >>> from skcomplex.models import create
-        >>> monitor = ConservationMonitor()
+        >>> monitor = ConservationObserver()
         >>> _ = Simulation(create('bathtub'), dt=1, observers=[monitor]).run(10)
         >>> round(monitor.totals_['water'], 6)
         25.0
@@ -99,7 +99,7 @@ class ConservationMonitor(Observer):
                 raise ConservationError(error_msg)
 
 
-class InvariantMonitor(Observer):
+class InvariantObserver(BaseObserver):
     """Observer that checks at every frame that every invariant of the laws stays within its tolerance.
 
     Every run attaches one when its problem declares invariants.

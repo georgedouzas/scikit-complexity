@@ -9,13 +9,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -80,7 +80,7 @@ def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Ar
     return matrix
 
 
-class Component(Element):
+class Component(ElementComponent):
     """Component of a technology, described by its unit cost.
 
     Args:
@@ -99,9 +99,9 @@ class Component(Element):
         5
     """
 
-    cost: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    cost: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since redesigns change several components at once.
 
         Args:
@@ -115,7 +115,7 @@ class Component(Element):
         return []
 
 
-class Redesign(Interaction):
+class RedesignInteraction(BaseInteraction):
     """Attempt to cut the cost of a technology by redesigning a random component and the components that depend on it.
 
     The redesigned components get new costs drawn uniformly from `[0, 1]`, and the redesign is kept only if the total
@@ -135,8 +135,8 @@ class Redesign(Interaction):
                 The path of the group of components.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import Redesign
-        >>> Redesign('redesign', components='components', dependencies=[[1.0]]).dependencies
+        >>> from skcomplex.models.economics.innovation import RedesignInteraction
+        >>> RedesignInteraction('redesign', components='components', dependencies=[[1.0]]).dependencies
         [[1.0]]
     """
 
@@ -152,7 +152,7 @@ class Redesign(Interaction):
         super().__init__(label, **values)
         self.dependencies = dependencies
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the redesign rule.
 
         Args:
@@ -163,7 +163,7 @@ class Redesign(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.redesign)]
+        return [RuleLaw(self.redesign)]
 
     def redesign(self, model: ModelView) -> None:
         """Propose new costs for a random component and its dependents and keep them if the total cost falls.
@@ -181,7 +181,7 @@ class Redesign(Interaction):
             components[index].cost = float(proposal[index])
 
 
-class Technology(Element):
+class TechnologyComponent(ElementComponent):
     """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
 
     Bit `r` of the table is the output on the inputs whose bits form `r`, with the first input as the lowest bit.
@@ -200,16 +200,16 @@ class Technology(Element):
             The number of NAND gates in the circuit.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import Technology
-        >>> Technology.group('technologies', 3, arity=[2, 0, 0], table=[7, 0, 1]).size
+        >>> from skcomplex.models.economics.innovation import TechnologyComponent
+        >>> TechnologyComponent.group('technologies', 3, arity=[2, 0, 0], table=[7, 0, 1]).size
         3
     """
 
-    arity: float = state(default=2, domain=Domain.NONNEGATIVE_INTEGER)
-    table: float = state(default=NAND[1], domain=Domain.NONNEGATIVE_INTEGER)
-    cost: float = state(default=1, domain=Domain.NONNEGATIVE_INTEGER)
+    arity: float = state(default=2, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    table: float = state(default=NAND[1], domain=NumericDomain.NONNEGATIVE_INTEGER)
+    cost: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since inventions combine several technologies at once.
 
         Args:
@@ -223,7 +223,7 @@ class Technology(Element):
         return []
 
 
-class Invention(Interaction):
+class InventionInteraction(BaseInteraction):
     """Random wiring of technologies of the pool into a circuit, kept if it computes a wanted function more cheaply.
 
     A circuit has between one and `max_inputs` inputs and wires between two and `max_components` technologies in a
@@ -245,14 +245,14 @@ class Invention(Interaction):
             The largest number of inputs of a circuit.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import Invention
-        >>> Invention('invention', technologies='technologies', max_components=6).max_components
+        >>> from skcomplex.models.economics.innovation import InventionInteraction
+        >>> InventionInteraction('invention', technologies='technologies', max_components=6).max_components
         6
     """
 
     technologies: str = role()
-    max_components: float = parameter(default=12, domain=Domain.POSITIVE)
-    max_inputs: float = parameter(default=3, domain=Domain.POSITIVE)
+    max_components: float = parameter(default=12, domain=NumericDomain.POSITIVE)
+    max_inputs: float = parameter(default=3, domain=NumericDomain.POSITIVE)
 
     def _wire(self, pool: list[AgentView], model: ModelView) -> tuple[int, int, int]:
         """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
@@ -267,7 +267,7 @@ class Invention(Interaction):
             cost += int(part.cost)
         return n_inputs, signals[-1], cost
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the invention rule.
 
         Args:
@@ -278,7 +278,7 @@ class Invention(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.invent)]
+        return [RuleLaw(self.invent)]
 
     def invent(self, model: ModelView) -> None:
         """Wire a random circuit and add it to the pool if it computes a wanted function better.
@@ -341,7 +341,7 @@ def nk_technology(
     components = Component.group('components', n_components, cost=rng.random(n_components))
     return System(
         components=[components],
-        interactions=[Redesign('redesign', components='components', dependencies=dependencies.tolist())],
+        interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
     )
 
 
@@ -376,7 +376,7 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         3
     """
     primitives = (NAND, FALSE, TRUE)
-    technologies = Technology.group(
+    technologies = TechnologyComponent.group(
         'technologies',
         len(primitives),
         variable=True,
@@ -384,7 +384,7 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         table=[float(table) for _, table in primitives],
         cost=[1.0, 0.0, 0.0],
     )
-    invention = Invention(
+    invention = InventionInteraction(
         'invention',
         technologies='technologies',
         max_components=float(max_components),

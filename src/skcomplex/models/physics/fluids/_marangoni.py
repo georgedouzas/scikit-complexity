@@ -8,19 +8,19 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4, Field, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
 
-MarangoniLayer = Element.define(
-    'MarangoniLayer',
+MarangoniLayerComponent = ElementComponent.define(
+    'MarangoniLayerComponent',
     states={'u': 0.0},
     parameters={'r': 0.1, 'g': 1.0},
     laws=lambda s: [
-        Rate(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) + s.g * s.u**2 - s.u**3),
+        RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) + s.g * s.u**2 - s.u**3),
     ],
 )
 
@@ -29,7 +29,7 @@ MarangoniLayer = Element.define(
     field='physics/fluids',
     tags=('field', 'convection', 'hexagons', 'surface tension', 'spectral', 'pde'),
     references=('Satz 2022', 'Bestehorn 1993', 'Cross and Hohenberg 1993'),
-    defaults={'until': 300.0, 'dt': 5.0, 'solver': ETDRK4(dt=0.5)},
+    defaults={'until': 300.0, 'dt': 5.0, 'solver': ETDRK4Solver(dt=0.5)},
 )
 def benard_marangoni(
     shape: Sequence[int] = (64, 64),
@@ -76,4 +76,6 @@ def benard_marangoni(
     rng = np.random.default_rng(random_state)
     values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': r, 'g': g}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[Field('layer', MarangoniLayer, space, values=values, discretization='spectral')])
+    return System(
+        components=[FieldComponent('layer', MarangoniLayerComponent, space, values=values, discretization='spectral')],
+    )

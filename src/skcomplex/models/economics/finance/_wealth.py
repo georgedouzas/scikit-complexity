@@ -7,23 +7,26 @@ from collections.abc import Sequence
 
 import networkx as nx
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element, Group
-from ....core.laws import Noise, Rate, Symbols, count, mean
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.laws import NoiseLaw, RateLaw, Symbols, count, mean
 from ....core.space import NetworkSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.fields import FieldComponent, laplacian
 
-Saver = Element.define(
-    'Saver',
-    states={'W': state(default=1.0, domain=Domain.POSITIVE)},
+SaverComponent = ElementComponent.define(
+    'SaverComponent',
+    states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
     parameters={
-        'J': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'sigma': parameter(default=0.5, domain=Domain.NONNEGATIVE),
-        'degree': parameter(default=1.0, domain=Domain.POSITIVE),
+        'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'sigma': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
+        'degree': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
-    laws=lambda s: [Rate(s.W, s.J / s.degree * laplacian(s.W)), Noise(s.W, s.sigma * s.W, convention='stratonovich')],
+    laws=lambda s: [
+        RateLaw(s.W, s.J / s.degree * laplacian(s.W)),
+        NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich'),
+    ],
 )
 
 
@@ -32,14 +35,14 @@ def _mean_exchange(s: Symbols) -> Expression:
     return s.J * count() / (count() - 1) * (mean(s.W) - s.W)
 
 
-MeanFieldSaver = Element.define(
-    'MeanFieldSaver',
-    states={'W': state(default=1.0, domain=Domain.POSITIVE)},
+MeanFieldSaverComponent = ElementComponent.define(
+    'MeanFieldSaverComponent',
+    states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
     parameters={
-        'J': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'sigma': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'sigma': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
-    laws=lambda s: [Rate(s.W, _mean_exchange(s)), Noise(s.W, s.sigma * s.W, convention='stratonovich')],
+    laws=lambda s: [RateLaw(s.W, _mean_exchange(s)), NoiseLaw(s.W, s.sigma * s.W, convention='stratonovich')],
 )
 
 
@@ -93,9 +96,15 @@ def bouchaud_mezard_wealth(
         1.0
     """
     if graph is None:
-        agents: Field | Group = MeanFieldSaver.group('agents', n_agents, W=wealth, J=J, sigma=sigma)
+        agents: FieldComponent | GroupComponent = MeanFieldSaverComponent.group(
+            'agents',
+            n_agents,
+            W=wealth,
+            J=J,
+            sigma=sigma,
+        )
     else:
         degree = 2 * nx.number_of_edges(graph) / nx.number_of_nodes(graph)
         values = {'W': wealth, 'J': J, 'sigma': sigma, 'degree': degree}
-        agents = Field('agents', Saver, NetworkSpace(graph), values=values)
+        agents = FieldComponent('agents', SaverComponent, NetworkSpace(graph), values=values)
     return System(components=[agents])

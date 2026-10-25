@@ -7,27 +7,27 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import cos, pi, sin
 
-from ....core.base import Domain, Expression, ParameterError, parameter, state
-from ....core.components import Element
-from ....core.laws import Equation, Event, Rate, derivative, where
+from ....core.base import Expression, NumericDomain, ParameterError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative, where
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
-Circuit = Element.define(
-    'Circuit',
+CircuitComponent = ElementComponent.define(
+    'CircuitComponent',
     states={'q': state(default=1.0, order=2)},
     parameters={
-        'L': parameter(default=1.0, domain=Domain.POSITIVE),
-        'R': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'C': parameter(default=1.0, domain=Domain.POSITIVE),
+        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'R': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
         'V': parameter(default=0.0),
-        'omega': parameter(default=1.0, domain=Domain.NONNEGATIVE),
+        'omega': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Equation(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+        EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
     ],
 )
 
@@ -81,7 +81,7 @@ def rlc_circuit(
         >>> rlc_circuit(R=0.5).elements[0].R
         0.5
     """
-    return System(components=[Circuit('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
+    return System(components=[CircuitComponent('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
 
 
 def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
@@ -91,103 +91,103 @@ def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Express
     return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
 
 
-ChuaCircuit = Element.define(
-    'ChuaCircuit',
+ChuaCircuitComponent = ElementComponent.define(
+    'ChuaCircuitComponent',
     states={'x': 0.1, 'y': 0.0, 'z': 0.0},
     parameters={
-        'alpha': parameter(default=15.6, domain=Domain.POSITIVE),
-        'beta': parameter(default=28.0, domain=Domain.POSITIVE),
+        'alpha': parameter(default=15.6, domain=NumericDomain.POSITIVE),
+        'beta': parameter(default=28.0, domain=NumericDomain.POSITIVE),
         'm0': parameter(default=-8 / 7),
         'm1': parameter(default=-5 / 7),
     },
     laws=lambda s: [
-        Rate(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
-        Rate(s.y, s.x - s.y + s.z),
-        Rate(s.z, -s.beta * s.y),
+        RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
+        RateLaw(s.y, s.x - s.y + s.z),
+        RateLaw(s.z, -s.beta * s.y),
     ],
 )
 
-MultiscrollChuaCircuit = Element.define(
-    'MultiscrollChuaCircuit',
+MultiscrollChuaCircuitComponent = ElementComponent.define(
+    'MultiscrollChuaCircuitComponent',
     states={'x': 1.0, 'y': 1.0, 'z': 0.0},
     parameters={
-        'alpha': parameter(default=10.82, domain=Domain.POSITIVE),
-        'beta': parameter(default=14.286, domain=Domain.POSITIVE),
-        'a': parameter(default=1.3, domain=Domain.POSITIVE),
-        'b': parameter(default=0.11, domain=Domain.POSITIVE),
-        'c': parameter(default=3.0, domain=Domain.POSITIVE),
+        'alpha': parameter(default=10.82, domain=NumericDomain.POSITIVE),
+        'beta': parameter(default=14.286, domain=NumericDomain.POSITIVE),
+        'a': parameter(default=1.3, domain=NumericDomain.POSITIVE),
+        'b': parameter(default=0.11, domain=NumericDomain.POSITIVE),
+        'c': parameter(default=3.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
-        Rate(s.y, s.x - s.y + s.z),
-        Rate(s.z, -s.beta * s.y),
+        RateLaw(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
+        RateLaw(s.y, s.x - s.y + s.z),
+        RateLaw(s.z, -s.beta * s.y),
     ],
 )
 
-MixedModeChuaCircuit = Element.define(
-    'MixedModeChuaCircuit',
+MixedModeChuaCircuitComponent = ElementComponent.define(
+    'MixedModeChuaCircuitComponent',
     states={'x': 0.01, 'y': 0.0, 'z': 0.0},
     parameters={
-        'epsilon': parameter(default=0.01, domain=Domain.POSITIVE),
+        'epsilon': parameter(default=0.01, domain=NumericDomain.POSITIVE),
         'a': parameter(default=1.5),
         'b': parameter(default=-1.0),
-        'alpha': parameter(default=1.0, domain=Domain.POSITIVE),
-        'R': parameter(default=0.0, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=0.005, domain=Domain.POSITIVE),
+        'alpha': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'R': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=0.005, domain=NumericDomain.POSITIVE),
         'c': parameter(default=0.00053),
     },
     laws=lambda s: [
-        Rate(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
-        Rate(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
-        Rate(s.z, s.c - s.beta * s.y),
+        RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
+        RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
+        RateLaw(s.z, s.c - s.beta * s.y),
     ],
 )
 
-MemristorCircuit = Element.define(
-    'MemristorCircuit',
+MemristorCircuitComponent = ElementComponent.define(
+    'MemristorCircuitComponent',
     states={'v': 0.1, 'i': 0.0, 'w': 0.1},
     parameters={
-        'C': parameter(default=1.0, domain=Domain.POSITIVE),
-        'L': parameter(default=3.0, domain=Domain.POSITIVE),
-        'alpha': parameter(default=0.6, domain=Domain.NONNEGATIVE),
-        'beta': parameter(default=1.5, domain=Domain.NONNEGATIVE),
+        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'L': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'alpha': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
+        'beta': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(s.v, s.i / s.C),
-        Rate(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
-        Rate(s.w, -s.i - s.alpha * s.w + s.w * s.i),
+        RateLaw(s.v, s.i / s.C),
+        RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
+        RateLaw(s.w, -s.i - s.alpha * s.w + s.w * s.i),
     ],
 )
 
-TunnelDiodeCircuit = Element.define(
-    'TunnelDiodeCircuit',
+TunnelDiodeCircuitComponent = ElementComponent.define(
+    'TunnelDiodeCircuitComponent',
     states={'V': 0.1, 'i': 0.0},
     parameters={
-        'L': parameter(default=1.0, domain=Domain.POSITIVE),
-        'C': parameter(default=1.0, domain=Domain.POSITIVE),
-        'alpha': parameter(default=1.0, domain=Domain.POSITIVE),
-        'gamma': parameter(default=1.0, domain=Domain.POSITIVE),
+        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'alpha': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
-        Rate(s.i, s.V / s.L),
+        RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
+        RateLaw(s.i, s.V / s.L),
     ],
 )
 
-KickedCircuit = Element.define(
-    'KickedCircuit',
-    states={'x': state(default=0.0, order=2), 'clock': state(default=0.0, domain=Domain.NONNEGATIVE)},
+KickedCircuitComponent = ElementComponent.define(
+    'KickedCircuitComponent',
+    states={'x': state(default=0.0, order=2), 'clock': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'L': parameter(default=1.0, domain=Domain.POSITIVE),
-        'R': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'C': parameter(default=1.0, domain=Domain.POSITIVE),
+        'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'R': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
         'A': parameter(default=1.0),
-        'T': parameter(default=2.0, domain=Domain.POSITIVE),
+        'T': parameter(default=2.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Equation(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
-        Rate(s.clock, 1),
-        Event(
+        EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
+        RateLaw(s.clock, 1),
+        EventLaw(
             s.clock - s.T,
             {s.clock: 0, derivative(s.x, 1): derivative(s.x, 1) + s.A / (s.L * s.C)},
             direction=1,
@@ -259,7 +259,7 @@ def chua(
     if nonlinearity not in CHUA_NONLINEARITIES:
         error_msg = f"Unknown nonlinearity {nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
         raise ParameterError(error_msg)
-    element = ChuaCircuit if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuit
+    element = ChuaCircuitComponent if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitComponent
     initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
     values: dict[str, Any] = {name: value for name, value in initial.items() if value is not None}
     return System(components=[element('circuit', z=z, **values)])
@@ -269,7 +269,7 @@ def chua(
     field='engineering/circuits',
     tags=('circuit', 'mixed-mode oscillations', 'canards', 'slow-fast', 'ode'),
     references=('Krupa, Popović, and Kopell 2008', 'Trzaska 2023'),
-    defaults={'until': 200.0, 'dt': 0.5, 'solver': ScipyODE(method='Radau')},
+    defaults={'until': 200.0, 'dt': 0.5, 'solver': ScipyODESolver(method='Radau')},
 )
 def mixed_mode_chua(
     x: float = 0.01,
@@ -330,7 +330,7 @@ def mixed_mode_chua(
         >>> mixed_mode_chua(c=0.0).elements[0].c
         0.0
     """
-    circuit = MixedModeChuaCircuit(
+    circuit = MixedModeChuaCircuitComponent(
         'circuit',
         x=x,
         y=y,
@@ -399,7 +399,7 @@ def memristor_oscillator(
         >>> memristor_oscillator(L=2.0).elements[0].L
         2.0
     """
-    return System(components=[MemristorCircuit('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
+    return System(components=[MemristorCircuitComponent('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
 
 
 @register_model(
@@ -451,7 +451,7 @@ def tunnel_diode_oscillator(
         >>> tunnel_diode_oscillator(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[TunnelDiodeCircuit('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
+    return System(components=[TunnelDiodeCircuitComponent('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
 
 
 @register_model(
@@ -507,4 +507,4 @@ def impulsive_circuits(
         >>> impulsive_circuits(T=3.0).elements[0].T
         3.0
     """
-    return System(components=[KickedCircuit('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])
+    return System(components=[KickedCircuitComponent('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])

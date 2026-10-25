@@ -9,17 +9,17 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
+from ....engine.solvers import RK4Solver
 
 
-class Swarmalator(Element):
+class SwarmalatorComponent(ElementComponent):
     """Oscillator in the plane with a position `x` and a phase `theta` that turns at the natural frequency `omega`.
 
     Args:
@@ -36,17 +36,17 @@ class Swarmalator(Element):
             The natural frequency.
 
     Examples:
-        >>> from skcomplex.models.physics.synchronization import Swarmalator
-        >>> Swarmalator('unit').omega
+        >>> from skcomplex.models.physics.synchronization import SwarmalatorComponent
+        >>> SwarmalatorComponent('unit').omega
         0.0
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03})
     x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=Domain.ANGLE)
+    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
     omega: float = parameter(default=0.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the turning of the phase at the natural frequency.
 
         Args:
@@ -57,10 +57,10 @@ class Swarmalator(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.theta, s.omega)]
+        return [RateLaw(s.theta, s.omega)]
 
 
-class SwarmalatorCoupling(Interaction):
+class SwarmalatorCouplingInteraction(BaseInteraction):
     """Coupling of two swarmalators through their separation `r` and their phase difference `dtheta`.
 
     Each swarmalator moves toward the other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`, and
@@ -101,8 +101,8 @@ class SwarmalatorCoupling(Interaction):
                 The phase coupling, synchronizing when positive.
 
     Examples:
-        >>> from skcomplex.models.physics.synchronization import SwarmalatorCoupling
-        >>> SwarmalatorCoupling('coupling', first='units', second='units', J=0.5).J
+        >>> from skcomplex.models.physics.synchronization import SwarmalatorCouplingInteraction
+        >>> SwarmalatorCouplingInteraction('coupling', first='units', second='units', J=0.5).J
         0.5
     """
 
@@ -110,10 +110,10 @@ class SwarmalatorCoupling(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(default=1e6, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1e6, domain=NumericDomain.POSITIVE)
 
-    A: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    B: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    A: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    B: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
     J: float = parameter(default=1.0)
     K: float = parameter(default=0.0)
 
@@ -129,7 +129,7 @@ class SwarmalatorCoupling(Interaction):
         self.period = period
         self.n_units = n_units
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the opposite moves and the opposite phase turns of the two members of a pair.
 
         Args:
@@ -145,14 +145,19 @@ class SwarmalatorCoupling(Interaction):
         difference = s.second.theta - s.first.theta
         move = ((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units
         turn = s.K * sin(difference) / (self.n_units * r)
-        return [Rate(s.first.x, move), Rate(s.second.x, -move), Rate(s.first.theta, turn), Rate(s.second.theta, -turn)]
+        return [
+            RateLaw(s.first.x, move),
+            RateLaw(s.second.x, -move),
+            RateLaw(s.first.theta, turn),
+            RateLaw(s.second.theta, -turn),
+        ]
 
 
 @register_model(
     field='physics/synchronization',
     tags=('swarmalators', 'synchronization', 'swarming', 'pair interaction', 'ode'),
     references=("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': RK4(dt=0.1)},
+    defaults={'until': 100.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.1)},
 )
 def swarmalators(
     n_units: int = 100,
@@ -201,11 +206,20 @@ def swarmalators(
         -0.1
     """
     rng = np.random.default_rng(random_state)
-    units = Swarmalator.group(
+    units = SwarmalatorComponent.group(
         'units',
         n_units,
         x=rng.uniform(-1.0, 1.0, (n_units, 2)),
         theta=rng.uniform(-np.pi, np.pi, n_units),
     )
-    coupling = SwarmalatorCoupling('coupling', first='units', second='units', A=A, B=B, J=J, K=K, n_units=n_units)
+    coupling = SwarmalatorCouplingInteraction(
+        'coupling',
+        first='units',
+        second='units',
+        A=A,
+        B=B,
+        J=J,
+        K=K,
+        n_units=n_units,
+    )
     return System(components=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))

@@ -8,14 +8,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, Totalistic
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, Totalistic
 from ....core.space import LatticeSpace, Memory, Neighborhood
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.groups import GroupSpace
-from ....formalisms.lattices import LocalRule
+from ....formalisms.groups import CayleySpace
+from ....formalisms.lattices import LocalRuleLaw
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 type Array = npt.NDArray[np.float64]
@@ -46,7 +46,7 @@ def _mean_observables(system: System) -> list[Observable]:
     return [Observable('mean', group='cells', variable='value')]
 
 
-class MajorityCell(Element):
+class MajorityCellComponent(ElementComponent):
     """Cell of an automaton on a group that takes the value held by the majority of its memory set.
 
     The memory set starts with the identity, the cell itself. Cells on the boundary of a ball count only their
@@ -66,12 +66,12 @@ class MajorityCell(Element):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import MajorityCell
-        >>> MajorityCell('cell').memory.elements
+        >>> from skcomplex.models.computer_science.automata import MajorityCellComponent
+        >>> MajorityCellComponent('cell').memory.elements
         ('1', 'a', 'a^-1')
     """
 
-    alive: float = state(default=0, domain=Domain.BOOLEAN)
+    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
     def __init__(
         self,
@@ -83,7 +83,7 @@ class MajorityCell(Element):
         super().__init__(label, **values)
         self.memory = memory
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the majority rule on the memory set.
 
         Args:
@@ -94,10 +94,10 @@ class MajorityCell(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.alive, self.memory, _majority)]
+        return [LocalRuleLaw(s.alive, self.memory, _majority)]
 
 
-class ParityCell(Element):
+class ParityCellComponent(ElementComponent):
     """Cell of an automaton on a group that takes the sum modulo 2 of its memory set, a linear rule over `GF(2)`.
 
     Args:
@@ -114,12 +114,12 @@ class ParityCell(Element):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import ParityCell
-        >>> len(ParityCell('cell').memory)
+        >>> from skcomplex.models.computer_science.automata import ParityCellComponent
+        >>> len(ParityCellComponent('cell').memory)
         3
     """
 
-    alive: float = state(default=0, domain=Domain.BOOLEAN)
+    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
     def __init__(
         self,
@@ -131,7 +131,7 @@ class ParityCell(Element):
         super().__init__(label, **values)
         self.memory = memory
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the parity rule on the memory set.
 
         Args:
@@ -143,7 +143,7 @@ class ParityCell(Element):
                 The laws of the component.
         """
         return [
-            LocalRule(s.alive, self.memory, Totalistic({total: total % 2 for total in range(len(self.memory) + 1)})),
+            LocalRuleLaw(s.alive, self.memory, Totalistic({total: total % 2 for total in range(len(self.memory) + 1)})),
         ]
 
 
@@ -152,7 +152,7 @@ def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> A
     return (left + right - 2 * center) % modulus
 
 
-class LaplacianCell(Element):
+class LaplacianCellComponent(ElementComponent):
     """Cell of the discrete Laplacian on the cyclic group of a ring over the field of a prime number of elements.
 
     Args:
@@ -166,15 +166,15 @@ class LaplacianCell(Element):
             The prime size of the field.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import LaplacianCell
-        >>> LaplacianCell('cell').modulus
+        >>> from skcomplex.models.computer_science.automata import LaplacianCellComponent
+        >>> LaplacianCellComponent('cell').modulus
         3
     """
 
-    value: float = state(default=0, domain=Domain.INTEGER)
-    modulus: float = parameter(3, domain=Domain.POSITIVE)
+    value: float = state(default=0, domain=NumericDomain.INTEGER)
+    modulus: float = parameter(3, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the linear rule of the Laplacian.
 
         Args:
@@ -185,7 +185,7 @@ class LaplacianCell(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.value, Neighborhood.radius(), _laplacian)]
+        return [LocalRuleLaw(s.value, Neighborhood.radius(), _laplacian)]
 
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
@@ -195,7 +195,7 @@ def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> 
     return np.where(blocked, center, flipped)
 
 
-class GoldenMeanCell(Element):
+class GoldenMeanCellComponent(ElementComponent):
     """Cell of a Markov chain on the golden mean shift, the configurations of a ring without two adjacent ones.
 
     Every step visits the cells in a random order, and each proposes to flip, which it does unless a one would sit
@@ -209,14 +209,14 @@ class GoldenMeanCell(Element):
             The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import GoldenMeanCell
-        >>> GoldenMeanCell('cell').alive
+        >>> from skcomplex.models.computer_science.automata import GoldenMeanCellComponent
+        >>> GoldenMeanCellComponent('cell').alive
         0
     """
 
-    alive: float = state(default=0, domain=Domain.BOOLEAN)
+    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the constrained flip of the cell.
 
         Args:
@@ -227,18 +227,20 @@ class GoldenMeanCell(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.alive, Neighborhood.radius(), _golden_move, schedule='random-sequential', stochastic=True)]
+        return [
+            LocalRuleLaw(s.alive, Neighborhood.radius(), _golden_move, schedule='random-sequential', stochastic=True),
+        ]
 
 
 def _majority_system(
-    space: GroupSpace,
+    space: CayleySpace,
     memory: Memory,
     density: float,
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
     cells = _random_cells(space.size, density, random_state)
-    return System(components=[MajorityCell.lattice('cells', space, alive=cells, memory=memory)])
+    return System(components=[MajorityCellComponent.lattice('cells', space, alive=cells, memory=memory)])
 
 
 @register_model(
@@ -284,7 +286,7 @@ def free_group_automaton(
         53
     """
     group = free_group(rank)
-    return _majority_system(GroupSpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
 
 
 @register_model(
@@ -324,9 +326,9 @@ def lamplighter_automaton(
         >>> lamplighter_automaton(radius=3).elements[0].size
         39
     """
-    space = GroupSpace(lamplighter(), ball=radius)
+    space = CayleySpace(lamplighter(), ball=radius)
     cells = _random_cells(space.size, density, random_state)
-    return System(components=[ParityCell.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
+    return System(components=[ParityCellComponent.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
 
 
 @register_model(
@@ -366,7 +368,7 @@ def heisenberg_automaton(
         17
     """
     group = heisenberg()
-    return _majority_system(GroupSpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
 
 
 @register_model(
@@ -415,7 +417,7 @@ def baumslag_solitar_automaton(
         17
     """
     group = baumslag_solitar(m, n)
-    return _majority_system(GroupSpace(group, ball=radius), Memory.generators(group), density, random_state)
+    return _majority_system(CayleySpace(group, ball=radius), Memory.generators(group), density, random_state)
 
 
 @register_model(
@@ -454,7 +456,9 @@ def linear_ring_automaton(
     """
     values = np.zeros(size)
     values[size // 2] = 1.0
-    return System(components=[LaplacianCell.lattice('cells', LatticeSpace(size), value=values, modulus=modulus)])
+    return System(
+        components=[LaplacianCellComponent.lattice('cells', LatticeSpace(size), value=values, modulus=modulus)],
+    )
 
 
 @register_model(
@@ -484,7 +488,7 @@ def subshifts(size: int = 200) -> System:
         >>> subshifts(10).elements[0].size
         10
     """
-    return System(components=[GoldenMeanCell.lattice('cells', LatticeSpace(size))])
+    return System(components=[GoldenMeanCellComponent.lattice('cells', LatticeSpace(size))])
 
 
 @register_model(
@@ -525,4 +529,4 @@ def grigorchuk_automaton(
         >>> grigorchuk_automaton(radius=3).elements[0].size
         23
     """
-    return _majority_system(GroupSpace(grigorchuk_group(), ball=radius), GRIGORCHUK_MEMORY, density, random_state)
+    return _majority_system(CayleySpace(grigorchuk_group(), ball=radius), GRIGORCHUK_MEMORY, density, random_state)

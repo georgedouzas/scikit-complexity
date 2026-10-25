@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
@@ -28,7 +28,7 @@ def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     return pairs
 
 
-class Patch(Element):
+class PatchComponent(ElementComponent):
     """Patch of space whose organisms divide and die at the same rate, so their number makes a symmetric random walk.
 
     Every organism divides at the rate `alpha` and dies at the rate `alpha`, and an empty patch stays empty without
@@ -45,16 +45,16 @@ class Patch(Element):
             The rate at which an organism divides, equal to the rate at which it dies.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Patch
-        >>> Patch('patch', n=5.0).alpha
+        >>> from skcomplex.models.biology.ecology import PatchComponent
+        >>> PatchComponent('patch', n=5.0).alpha
         1.0
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('image', {'low': 0.0})
-    n: float = state(default=10.0, domain=Domain.NONNEGATIVE_INTEGER)
-    alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the divisions and deaths of the organisms of the patch.
 
         Args:
@@ -65,10 +65,10 @@ class Patch(Element):
             laws:
                 The laws of the component.
         """
-        return [Jump(s.alpha * s.n, {s.n: 1}), Jump(s.alpha * s.n, {s.n: -1})]
+        return [JumpLaw(s.alpha * s.n, {s.n: 1}), JumpLaw(s.alpha * s.n, {s.n: -1})]
 
 
-class Hopping(Interaction):
+class HoppingInteraction(BaseInteraction):
     """Hops of single organisms between neighbouring patches, each organism moving to each neighbour at the rate `beta`.
 
     The patches are the entries of a variadic role, and every pair `(i, j)` of `links` gives a jump that moves one
@@ -91,13 +91,13 @@ class Hopping(Interaction):
                 The rate at which an organism hops to one neighbouring patch.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Hopping
-        >>> Hopping('hopping', patches=['a', 'b'], links=[(0, 1), (1, 0)]).beta
+        >>> from skcomplex.models.biology.ecology import HoppingInteraction
+        >>> HoppingInteraction('hopping', patches=['a', 'b'], links=[(0, 1), (1, 0)]).beta
         0.5
     """
 
     patches: list[str] = role(variadic=True)
-    beta: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    beta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class Hopping(Interaction):
         super().__init__(label, **values)
         self.links = links
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return one hop per ordered pair of neighbouring patches.
 
         Args:
@@ -121,7 +121,7 @@ class Hopping(Interaction):
                 The laws of the component.
         """
         patches = s.patches
-        return [Jump(s.beta * patches[i].n, {patches[i].n: -1, patches[j].n: 1}) for i, j in self.links]
+        return [JumpLaw(s.beta * patches[i].n, {patches[i].n: -1, patches[j].n: 1}) for i, j in self.links]
 
 
 @register_model(
@@ -172,11 +172,11 @@ def neutral_clustering(
         8
     """
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)
-    patches = Patch.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
+    patches = PatchComponent.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:
-        interactions.append(Hopping('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
+        interactions.append(HoppingInteraction('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
     return System(
         components=[patches],
         interactions=interactions,

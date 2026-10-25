@@ -9,17 +9,17 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, parameter, role, vector
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, mod, series, where
+from ....core.base import NumericDomain, parameter, role, vector
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, mod, series, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ._diffusion import BrownianParticle
+from ....engine.solvers import EulerMaruyamaSolver
+from ._diffusion import BrownianParticleComponent
 
 
-class TiltedWashboard(Interaction):
+class TiltedWashboardInteraction(BaseInteraction):
     """Tilted periodic potential `U(x) - f x`, with `U(x) = U0 cos(2 pi x / L)`, on overdamped particles on a line.
 
     Args:
@@ -39,17 +39,17 @@ class TiltedWashboard(Interaction):
             The constant non-conservative force that tilts the potential.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import TiltedWashboard
-        >>> TiltedWashboard('washboard', target='beads', f=0.5).f
+        >>> from skcomplex.models.physics.soft_matter import TiltedWashboardInteraction
+        >>> TiltedWashboardInteraction('washboard', target='beads', f=0.5).f
         0.5
     """
 
     target: str = role()
-    U0: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    L: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    U0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    L: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     f: float = parameter(default=0.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drift down the tilted potential.
 
         Args:
@@ -62,10 +62,10 @@ class TiltedWashboard(Interaction):
         """
         position = s.target.x
         force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * position[0] / s.L) + s.f
-        return [Rate(position, vector([force / s.target.gamma]))]
+        return [RateLaw(position, vector([force / s.target.gamma]))]
 
 
-class FlashingSawtooth(Interaction):
+class FlashingSawtoothInteraction(BaseInteraction):
     """Sawtooth potential on overdamped particles on a line, turned on and off at given times.
 
     The potential of period `L` has a minimum at every multiple of `L`, rises linearly by `barrier` over the fraction
@@ -95,15 +95,15 @@ class FlashingSawtooth(Interaction):
                 The fraction of the period over which the potential rises, 0.5 for a symmetric potential.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import FlashingSawtooth
-        >>> FlashingSawtooth('ratchet', target='beads', switches=(1.0, 2.5)).switches
+        >>> from skcomplex.models.physics.soft_matter import FlashingSawtoothInteraction
+        >>> FlashingSawtoothInteraction('ratchet', target='beads', switches=(1.0, 2.5)).switches
         (1.0, 2.5)
     """
 
     target: str = role()
-    barrier: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    L: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    asymmetry: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    barrier: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    L: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    asymmetry: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -115,7 +115,7 @@ class FlashingSawtooth(Interaction):
         super().__init__(label, **values)
         self.switches = switches
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drift down the sawtooth while it is on.
 
         Args:
@@ -131,14 +131,14 @@ class FlashingSawtooth(Interaction):
         position = s.target.x
         rise = s.asymmetry * s.L
         force = where(mod(position[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
-        return [Rate(position, vector([on * force / s.target.gamma]))]
+        return [RateLaw(position, vector([on * force / s.target.gamma]))]
 
 
 @register_model(
     field='physics/soft_matter',
     tags=('brownian motion', 'sde', 'nonequilibrium steady state', 'current'),
     references=('Bertin 2021', 'Risken 1996', 'Reimann 2002'),
-    defaults={'until': 50.0, 'dt': 0.25, 'solver': EulerMaruyama(dt=0.005)},
+    defaults={'until': 50.0, 'dt': 0.25, 'solver': EulerMaruyamaSolver(dt=0.005)},
 )
 def tilted_periodic_potential(
     n_particles: int = 500,
@@ -185,14 +185,14 @@ def tilted_periodic_potential(
         >>> tilted_periodic_potential(10, f=2.0).interactions[0].f
         2.0
     """
-    particles = BrownianParticle.group(
+    particles = BrownianParticleComponent.group(
         'particles',
         n_particles,
         x=np.zeros((n_particles, 1)),
         gamma=gamma,
         temperature=kT,
     )
-    washboard = TiltedWashboard('washboard', target='particles', U0=U0, L=L, f=f)
+    washboard = TiltedWashboardInteraction('washboard', target='particles', U0=U0, L=L, f=f)
     return System(components=[particles], interactions=[washboard], space=ContinuousSpace(n_dim=1))
 
 
@@ -200,7 +200,7 @@ def tilted_periodic_potential(
     field='physics/soft_matter',
     tags=('brownian motion', 'sde', 'ratchet', 'nonequilibrium steady state', 'current'),
     references=('Bertin 2021', 'Ajdari and Prost 1992', 'Reimann 2002'),
-    defaults={'until': 100.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.002)},
+    defaults={'until': 100.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.002)},
 )
 def flashing_ratchet(
     n_particles: int = 500,
@@ -262,14 +262,14 @@ def flashing_ratchet(
     """
     rng = np.random.default_rng(random_state)
     times = np.cumsum(rng.exponential(1 / rate, int(2 * rate * duration) + 10))
-    particles = BrownianParticle.group(
+    particles = BrownianParticleComponent.group(
         'particles',
         n_particles,
         x=np.zeros((n_particles, 1)),
         gamma=gamma,
         temperature=kT,
     )
-    sawtooth = FlashingSawtooth(
+    sawtooth = FlashingSawtoothInteraction(
         'sawtooth',
         target='particles',
         barrier=barrier,

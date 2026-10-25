@@ -5,15 +5,15 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class InvestingFirm(Element):
+class InvestingFirmComponent(ElementComponent):
     """Firm of the toy business-cycle model, which invests a share of its last profit and sells at a random price.
 
     Every period the firm invests `I = gamma * Z`, accumulates capital `K = K + I`, produces `Y = phi * K`, borrows
@@ -55,23 +55,23 @@ class InvestingFirm(Element):
             The constant part of the price.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import InvestingFirm
-        >>> InvestingFirm.group('firms', 10, gamma=1.2).size
+        >>> from skcomplex.models.economics.macroeconomics import InvestingFirmComponent
+        >>> InvestingFirmComponent.group('firms', 10, gamma=1.2).size
         10
     """
 
-    A: float = state(default=1.0, domain=Domain.REAL)
-    K: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    Z: float = state(default=0.0, domain=Domain.REAL)
-    B: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Y: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    P: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=1.1, domain=Domain.POSITIVE)
-    phi: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    r: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    pbar: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    A: float = state(default=1.0, domain=NumericDomain.REAL)
+    K: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    Z: float = state(default=0.0, domain=NumericDomain.REAL)
+    B: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=1.1, domain=NumericDomain.POSITIVE)
+    phi: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    r: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    pbar: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of one period.
 
         Args:
@@ -82,7 +82,7 @@ class InvestingFirm(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.trade)]
+        return [RuleLaw(self.trade)]
 
     def trade(self, agent: AgentView, model: ModelView) -> None:
         """Invest, produce, borrow, sell, and update the net worth, with replacement of a bankrupt firm.
@@ -154,5 +154,5 @@ def toy_firm_investment(
         20
     """
     profits = pbar + 2.0 * np.random.default_rng(random_state).random(n_firms)
-    firms = InvestingFirm.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
+    firms = InvestingFirmComponent.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
     return System(components=[firms])

@@ -4,7 +4,7 @@ from .._formalism import Formalism, register
 from ._checks import probability_issues
 from ._components import distribution_from, members_from
 from ._contractions import CompiledEncounter, TableValues
-from ._laws import Destruction, Encounter, Proliferation, outcome_sums
+from ._laws import DestructionLaw, EncounterLaw, ProliferationLaw, outcome_sums
 from ._moments import moment
 from ._passes import (
     CompileEncountersPass,
@@ -13,15 +13,15 @@ from ._passes import (
     EncounterProblemPass,
     KineticProblem,
 )
-from ._solvers import ParticleKinetics
+from ._solvers import KineticSolver
 
 __all__: list[str] = [
     'CompiledEncounter',
-    'Destruction',
-    'Encounter',
+    'DestructionLaw',
+    'EncounterLaw',
     'KineticProblem',
-    'ParticleKinetics',
-    'Proliferation',
+    'KineticSolver',
+    'ProliferationLaw',
     'TableValues',
     'distribution_from',
     'members_from',
@@ -32,9 +32,9 @@ __all__: list[str] = [
 register(
     Formalism(
         'kinetics',
-        laws=(Encounter, Proliferation, Destruction),
+        laws=(EncounterLaw, ProliferationLaw, DestructionLaw),
         passes=(CompileEncountersPass(), EncounterFunctionsPass(), EncounterJacobianPass(), EncounterProblemPass()),
-        solvers={'particles': ParticleKinetics},
+        solvers={'particles': KineticSolver},
         checks=(probability_issues,),
     ),
 )

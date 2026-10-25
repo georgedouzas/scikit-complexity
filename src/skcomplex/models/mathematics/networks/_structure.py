@@ -8,22 +8,22 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import NetworkSpace
 from ....core.system import Observable, System
 from ....engine.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 BLOCKS = 4
 BLOCK_SIZE = 100
 IN_DEGREE = 16
 OUT_DEGREE = 2
 
-NetworkMeasures = Element.define(
-    'NetworkMeasures',
+NetworkMeasuresComponent = ElementComponent.define(
+    'NetworkMeasuresComponent',
     parameters={
         'path_length': 0.0,
         'assortativity': 0.0,
@@ -34,7 +34,7 @@ NetworkMeasures = Element.define(
 )
 
 
-class NetworkNode(Element):
+class NetworkNodeComponent(ElementComponent):
     """Node of a network that carries its degree, clustering, betweenness, and community.
 
     Args:
@@ -54,18 +54,18 @@ class NetworkNode(Element):
             The index of the community of the node.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkNode
-        >>> NetworkNode.group('nodes', 3)
-        Group('nodes', element=NetworkNode, size=3)
+        >>> from skcomplex.models.mathematics.networks import NetworkNodeComponent
+        >>> NetworkNodeComponent.group('nodes', 3)
+        GroupComponent('nodes', element=NetworkNodeComponent, size=3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'community'})
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    clustering: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    betweenness: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    community: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    clustering: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    betweenness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    community: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that keeps the node in place.
 
         Args:
@@ -76,7 +76,7 @@ class NetworkNode(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.stay)]
+        return [RuleLaw(self.stay)]
 
     def stay(self, agent: AgentView, model: ModelView) -> None:
         """Keep the node and its measures unchanged.
@@ -199,7 +199,7 @@ def network_structure_analysis(
     clustering = nx.clustering(network)
     betweenness = centrality(network, 'betweenness')
     nodes = list(network.nodes())
-    group = NetworkNode.group(
+    group = NetworkNodeComponent.group(
         'nodes',
         len(nodes),
         location=nodes,
@@ -213,7 +213,7 @@ def network_structure_analysis(
         if null_samples
         else 0.0
     )
-    measures = NetworkMeasures(
+    measures = NetworkMeasuresComponent(
         'measures',
         path_length=summary.path_length,
         assortativity=float(assortativity(network)),

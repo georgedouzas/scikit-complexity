@@ -25,7 +25,7 @@ from ..base import (
     symbol,
 )
 from ._functions import series
-from ._law import Law, register_laws
+from ._law import BaseLaw, register_laws
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
@@ -47,8 +47,8 @@ def _check_holder(name: str, holder: object, environment: type) -> None:
 def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str | None = None) -> None:  # noqa: ANN401
     """Move an amount of a quantity from one agent to another at once, inside a rule.
 
-    It is the imperative form of `Transfer` for agent rules. Both holdings change together, so the total of the quantity
-    over all agents is unchanged, and a negative holding is an amount the agent owes.
+    It is the imperative form of `TransferLaw` for agent rules. Both holdings change together, so the total of the
+    quantity over all agents is unchanged, and a negative holding is an amount the agent owes.
 
     Args:
         source:
@@ -236,7 +236,7 @@ type Holder = Expression | Source | Sink
 
 
 @dataclass(frozen=True)
-class Transfer(Law):
+class TransferLaw(BaseLaw):
     """Movement of an amount of a quantity from a source holder to a sink holder.
 
     A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
@@ -267,9 +267,9 @@ class Transfer(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Source, Transfer
+        >>> from skcomplex.core.laws import Source, TransferLaw
         >>> level = symbol('level')
-        >>> Transfer(Source(), level, 5, label='faucet').label
+        >>> TransferLaw(Source(), level, 5, label='faucet').label
         'faucet'
     """
 
@@ -304,7 +304,7 @@ class Transfer(Law):
 
 
 @dataclass(frozen=True)
-class Auxiliary(Law):
+class Auxiliary(BaseLaw):
     """Named intermediate expression that laws reuse through its symbol and that trajectories record.
 
     Laws use `auxiliary.symbol` where the expression belongs, and the compiler substitutes the expression. The loop
@@ -346,7 +346,7 @@ class Auxiliary(Law):
 
 
 @dataclass(frozen=True)
-class Invariant(Law):
+class Invariant(BaseLaw):
     """Expression of the states of a component that stays constant during a run, such as a conserved total.
 
     The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
@@ -442,4 +442,4 @@ class Invariant(Law):
             raise ConservationError(error_msg)
 
 
-register_laws(Transfer, Auxiliary, Invariant)
+register_laws(TransferLaw, Auxiliary, Invariant)

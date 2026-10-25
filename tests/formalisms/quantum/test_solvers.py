@@ -7,33 +7,41 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError, parameter, role
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.quantum import (
-    Dissipator,
-    Generator,
-    LindbladEvolution,
-    QuantumTrajectories,
-    UnitaryEvolution,
+    DissipatorLaw,
+    GeneratorLaw,
+    LindbladSolver,
+    QuantumTrajectoriesSolver,
+    UnitarySolver,
     expectation,
 )
-from skcomplex.models.physics.realizations.quantum import Qubit, Spin
+from skcomplex.models.physics.realizations.quantum import QubitComponent, SpinComponent
 
 OMEGA = 2.0
 GAMMA = 0.5
 
-Rabi = Qubit.define('Rabi', parameters={'omega': OMEGA}, laws=lambda s: [Generator(s.omega / 2 * s.x)])
-Decaying = Qubit.define('Decaying', parameters={'gamma': GAMMA}, laws=lambda s: [Dissipator(s.minus, s.gamma)])
-Dephased = Qubit.define(
-    'Dephased',
-    laws=lambda s: [Generator(s.x), Dissipator(s.z, 0.3)],
+RabiComponent = QubitComponent.define(
+    'RabiComponent',
+    parameters={'omega': OMEGA},
+    laws=lambda s: [GeneratorLaw(s.omega / 2 * s.x)],
+)
+DecayingComponent = QubitComponent.define(
+    'DecayingComponent',
+    parameters={'gamma': GAMMA},
+    laws=lambda s: [DissipatorLaw(s.minus, s.gamma)],
+)
+DephasedComponent = QubitComponent.define(
+    'DephasedComponent',
+    laws=lambda s: [GeneratorLaw(s.x), DissipatorLaw(s.z, 0.3)],
 )
 
 
-class XXZ(Interaction):
+class XXZInteraction(BaseInteraction):
     """Anisotropic exchange."""
 
     over: ClassVar[str] = 'neighbors'
@@ -44,7 +52,7 @@ class XXZ(Interaction):
     def laws(self, s):
         """Return the exchange of one bond."""
         a, b = s.first, s.second
-        return [Generator(a.x * b.x + a.y * b.y + s.delta * a.z * b.z)]
+        return [GeneratorLaw(a.x * b.x + a.y * b.y + s.delta * a.z * b.z)]
 
 
 def total_z(s):
@@ -60,14 +68,14 @@ def _chain(n_sites, **values):
     """Return a Heisenberg chain from a Néel state."""
     labels = ['up', 'down'] * (n_sites // 2)
     return System(
-        components=[Spin.lattice('chain', LatticeSpace(n_sites), initial=labels)],
-        interactions=[XXZ('xxz', target='chain', **values)],
+        components=[SpinComponent.lattice('chain', LatticeSpace(n_sites), initial=labels)],
+        interactions=[XXZInteraction('xxz', target='chain', **values)],
     )
 
 
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
-    system = System(components=[Rabi('q')])
+    system = System(components=[RabiComponent('q')])
     simulation = Simulation(system, solver='unitary', dt=0.05, observables=Z).run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
     assert np.allclose(trajectory['z'], np.cos(OMEGA * trajectory.times), atol=1e-6)
@@ -77,7 +85,7 @@ def test_unitary_evolution_follows_rabi_oscillations():
 def test_unitary_evolution_conserves_magnetization_and_energy():
     """Test that an isotropic chain of 10 spins conserves its magnetisation and energy."""
     trajectory = (
-        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitaryEvolution(), dt=1.0).run(until=10.0).trajectory_
+        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(), dt=1.0).run(until=10.0).trajectory_
     )
     assert np.ptp(trajectory['magnetization']) < 1e-8
     assert np.ptp(trajectory['energy']) < 1e-8
@@ -86,14 +94,14 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(System(components=[Decaying('q')]), solver='unitary').run(until=1.0)
+        Simulation(System(components=[DecayingComponent('q')]), solver='unitary').run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
-    system = System(components=[Decaying('q')])
+    system = System(components=[DecayingComponent('q')])
     simulation = Simulation(system, dt=0.5, observables=Z).run(until=4.0)
-    assert isinstance(simulation.stepper_, LindbladEvolution)
+    assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
     assert np.allclose((1 + trajectory['z']) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
     traces = np.trace(trajectory['system.state'], axis1=1, axis2=2)
@@ -102,7 +110,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = Simulation(System(components=[Dephased('q')]), dt=0.2).run(until=4.0).trajectory_
+    trajectory = Simulation(System(components=[DephasedComponent('q')]), dt=0.2).run(until=4.0).trajectory_
     purity = trajectory['purity']
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
@@ -110,9 +118,9 @@ def test_lindblad_evolution_lowers_purity():
 
 def test_quantum_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
-    system = System(components=[Decaying('q')])
+    system = System(components=[DecayingComponent('q')])
     runs = [
-        Simulation(system, solver=QuantumTrajectories(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
+        Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
         for _ in range(2)
     ]
     assert np.array_equal(runs[0].trajectory_['z'], runs[1].trajectory_['z'])
@@ -121,7 +129,7 @@ def test_quantum_trajectories_are_reproducible():
 
 def test_quantum_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
-    system = System(components=[Decaying('q')])
+    system = System(components=[DecayingComponent('q')])
     problem = compile_system(system, observables=Z)
     rng = np.random.default_rng(0)
     values = np.array(
@@ -150,4 +158,4 @@ def test_quantum_solvers_follow_parameter_updates():
 def test_quantum_solvers_reject_classical_problems():
     """Test that a quantum solver refuses a classical problem."""
     with pytest.raises(SolverError):
-        LindbladEvolution().initialize(compile_system(System()), np.random.default_rng(0))
+        LindbladSolver().initialize(compile_system(System()), np.random.default_rng(0))

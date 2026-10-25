@@ -8,11 +8,11 @@ from typing import cast
 from ....core.base import symbol
 from .._compilation import Compilation
 from .._declarations import Declarations, check_symbol_names
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._tree import Node
 
 
-class LayoutPass(Pass):
+class LayoutPass(BasePass):
     """Pass that declares every component in tree order and checks that no two variables share a symbol."""
 
     reads = ('nodes',)

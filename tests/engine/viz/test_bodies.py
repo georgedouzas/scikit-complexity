@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError, VisualSpec
-from skcomplex.engine.runtime import Observer, Simulation
+from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.viz import BodiesVisual, resolve_visual
 from skcomplex.models import create
 
@@ -32,14 +32,14 @@ def _frames(system, steps, dt):
     """Return the problem and the frames of a run of a system."""
     frames = []
 
-    class Keep(Observer):
+    class KeepObserver(BaseObserver):
         """Observer that keeps every frame."""
 
         def on_frame(self, frame):
             """Keep a frame."""
             frames.append(frame)
 
-    simulation = Simulation(system, dt=dt, observers=[Keep()])
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()])
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 

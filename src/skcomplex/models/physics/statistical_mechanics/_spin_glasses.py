@@ -8,13 +8,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, neighbors
+from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, neighbors
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, Move, Sample, Sampler
+from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 from ._fully_connected_spins import SPIN_IMAGE
 
 type Couplings = npt.NDArray[np.floating]
@@ -45,7 +45,7 @@ def _overlap(member: Symbols) -> Expression:
     return member.spin * member.pattern
 
 
-class BondSpin(Element):
+class BondSpinComponent(ElementComponent):
     """Ising spin on a square lattice with quenched couplings to its four neighbours, of local energy `-s sum J_k s_k`.
 
     The couplings are constant states of every site, so a bond between two sites is stored at both of them with the same
@@ -78,20 +78,20 @@ class BondSpin(Element):
             The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import BondSpin
-        >>> BondSpin('spin', J_left=-1.0).J_left
+        >>> from skcomplex.models.physics.statistical_mechanics import BondSpinComponent
+        >>> BondSpinComponent('spin', J_left=-1.0).J_left
         -1.0
     """
 
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     J_up: float = state(default=1.0)
     J_left: float = state(default=1.0)
     J_right: float = state(default=1.0)
     J_down: float = state(default=1.0)
     h: float = parameter(default=0.0)
-    temperature: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the local energy, the spin flip, and the Metropolis sampler.
 
         Args:
@@ -108,11 +108,15 @@ class BondSpin(Element):
             for coupling, other in zip(couplings, neighbors(s.spin, NEAREST, reduce='each'), strict=True)
         )
         return [
-            Sample(Energy(-s.spin * (field + s.h), NEAREST), Move.flip(s.spin), Sampler('metropolis', s.temperature)),
+            SampleLaw(
+                Energy(-s.spin * (field + s.h), NEAREST),
+                MoveLaw.flip(s.spin),
+                SamplerLaw('metropolis', s.temperature),
+            ),
         ]
 
 
-class MattisSpin(BondSpin):
+class MattisSpinComponent(BondSpinComponent):
     """Spin of the Mattis model, a bond spin that also holds its quenched pattern `xi`, with couplings `J xi_i xi_j`.
 
     Args:
@@ -144,12 +148,12 @@ class MattisSpin(BondSpin):
             The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import MattisSpin
-        >>> MattisSpin('spin', pattern=-1.0).pattern
+        >>> from skcomplex.models.physics.statistical_mechanics import MattisSpinComponent
+        >>> MattisSpinComponent('spin', pattern=-1.0).pattern
         -1.0
     """
 
-    pattern: float = state(default=1.0, domain=Domain.INTEGER)
+    pattern: float = state(default=1.0, domain=NumericDomain.INTEGER)
 
 
 def _magnetization_observables(system: System) -> list[Observable]:
@@ -223,7 +227,7 @@ def edwards_anderson(
         error_msg = f"The disorder is 'bimodal' or 'gaussian', not {disorder!r}."
         raise ValidationError(error_msg)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = BondSpin.lattice(
+    group = BondSpinComponent.lattice(
         'spins',
         LatticeSpace(shape),
         visual=SPIN_IMAGE,
@@ -299,7 +303,7 @@ def mattis_spin_glass(
     right = J * pattern * np.roll(pattern, -1, axis=1)
     down = J * pattern * np.roll(pattern, -1, axis=0)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = MattisSpin.lattice(
+    group = MattisSpinComponent.lattice(
         'spins',
         LatticeSpace(shape),
         visual=VisualSpec('image', {'states': ()}),

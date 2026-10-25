@@ -1,18 +1,18 @@
 """Stochastic processes: random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes."""
 
-from ._branching import Individual, galton_watson
-from ._counting import BernoulliTrial, PoissonCounter, bernoulli_process, poisson_process
-from ._intermittency import IntermittentVariable, on_off_intermittency
-from ._queues import Queue, birth_death_queue
-from ._reducing import Fragment, ReducingBall, fragmentation, sample_space_reducing
-from ._sources import HiddenMarkovSource, MarkovSource, hidden_markov_source, markov_source
-from ._urns import PolyaUrn, polya_urn
+from ._branching import IndividualComponent, galton_watson
+from ._counting import BernoulliTrialComponent, PoissonCounterComponent, bernoulli_process, poisson_process
+from ._intermittency import IntermittentVariableComponent, on_off_intermittency
+from ._queues import QueueComponent, birth_death_queue
+from ._reducing import FragmentComponent, ReducingBallComponent, fragmentation, sample_space_reducing
+from ._sources import HiddenMarkovSourceComponent, MarkovSourceComponent, hidden_markov_source, markov_source
+from ._urns import PolyaUrnComponent, polya_urn
 from ._walks import (
-    AgeingWalker,
-    MemoryWalker,
-    PersistentWalker,
-    RandomWalker,
-    WeakeningParticle,
+    AgeingWalkerComponent,
+    MemoryWalkerComponent,
+    PersistentWalkerComponent,
+    RandomWalkerComponent,
+    WeakeningParticleComponent,
     ageing_random_walk,
     persistent_random_walk,
     random_walk,
@@ -21,21 +21,21 @@ from ._walks import (
 )
 
 __all__: list[str] = [
-    'AgeingWalker',
-    'BernoulliTrial',
-    'Fragment',
-    'HiddenMarkovSource',
-    'Individual',
-    'IntermittentVariable',
-    'MarkovSource',
-    'MemoryWalker',
-    'PersistentWalker',
-    'PoissonCounter',
-    'PolyaUrn',
-    'Queue',
-    'RandomWalker',
-    'ReducingBall',
-    'WeakeningParticle',
+    'AgeingWalkerComponent',
+    'BernoulliTrialComponent',
+    'FragmentComponent',
+    'HiddenMarkovSourceComponent',
+    'IndividualComponent',
+    'IntermittentVariableComponent',
+    'MarkovSourceComponent',
+    'MemoryWalkerComponent',
+    'PersistentWalkerComponent',
+    'PoissonCounterComponent',
+    'PolyaUrnComponent',
+    'QueueComponent',
+    'RandomWalkerComponent',
+    'ReducingBallComponent',
+    'WeakeningParticleComponent',
     'ageing_random_walk',
     'bernoulli_process',
     'birth_death_queue',

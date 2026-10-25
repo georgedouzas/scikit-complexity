@@ -18,7 +18,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
@@ -42,7 +42,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 simulation = Simulation(
     system,
     dt=1.0,
-    solver=EulerMaruyama(dt=0.05),
+    solver=EulerMaruyamaSolver(dt=0.05),
     observers=[observer],
     random_state=0,
     observables=describe(MODEL).observables_of(system),
@@ -67,7 +67,7 @@ for gamma in strengths:
     run = Simulation(
         model_system,
         dt=1.0,
-        solver=EulerMaruyama(dt=0.05),
+        solver=EulerMaruyamaSolver(dt=0.05),
         random_state=1,
         observables=describe(MODEL).observables_of(model_system),
     )

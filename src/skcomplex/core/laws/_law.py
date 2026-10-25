@@ -11,7 +11,7 @@ from ..base import LawClass, LawKind, Registry, RegistryError, Requires, Trait
 
 def _check_declarations(cls: type) -> None:
     """Raise an error for a class that is not a law class declaring its kind, its time class, and its requirements."""
-    if not (isinstance(cls, type) and issubclass(cls, Law)):
+    if not (isinstance(cls, type) and issubclass(cls, BaseLaw)):
         error_msg = f'{cls!r} is not a law class. Register subclasses of `Law` only.'
         raise RegistryError(error_msg)
     missing = [
@@ -29,7 +29,7 @@ def _qualified_name(cls: type) -> str:
     return f'{cls.__module__}.{cls.__qualname__}'
 
 
-def register_laws(*classes: type['Law']) -> None:
+def register_laws(*classes: type['BaseLaw']) -> None:
     """Register law classes, so systems may hold their laws and the compiler and validation read their declarations.
 
     The shared core registers its own law classes, and a formalism registers its law classes through its declaration.
@@ -44,9 +44,9 @@ def register_laws(*classes: type['Law']) -> None:
             A class is not a law class, or does not declare its kind, its time class, or its requirements.
 
     Examples:
-        >>> from skcomplex.core.laws import Rate, law_classes, register_laws
-        >>> register_laws(Rate)
-        >>> law_classes().count(Rate)
+        >>> from skcomplex.core.laws import RateLaw, law_classes, register_laws
+        >>> register_laws(RateLaw)
+        >>> law_classes().count(RateLaw)
         1
     """
     for cls in classes:
@@ -55,7 +55,7 @@ def register_laws(*classes: type['Law']) -> None:
         LAWS.register(_qualified_name(cls), cls)
 
 
-def law_classes(trait: Trait | None = None) -> tuple[type['Law'], ...]:
+def law_classes(trait: Trait | None = None) -> tuple[type['BaseLaw'], ...]:
     """Return every registered law class, optionally only the classes with a trait, in registration order.
 
     Args:
@@ -68,9 +68,9 @@ def law_classes(trait: Trait | None = None) -> tuple[type['Law'], ...]:
 
     Examples:
         >>> from skcomplex.core.base import Trait
-        >>> from skcomplex.formalisms.fields import Flux
+        >>> from skcomplex.formalisms.fields import FluxLaw
         >>> from skcomplex.core.laws import law_classes
-        >>> Flux in law_classes(Trait.FORMLESS)
+        >>> FluxLaw in law_classes(Trait.FORMLESS)
         True
     """
     classes = [LAWS.resolve(key) for key in LAWS]
@@ -90,8 +90,8 @@ def is_registered(law: object) -> bool:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Rate, is_registered
-        >>> is_registered(Rate(symbol('x'), 1)), is_registered(object())
+        >>> from skcomplex.core.laws import RateLaw, is_registered
+        >>> is_registered(RateLaw(symbol('x'), 1)), is_registered(object())
         (True, False)
     """
     cls = law if isinstance(law, type) else type(law)
@@ -115,17 +115,17 @@ def has_trait(law: object, trait: Trait) -> bool:
 
     Examples:
         >>> from skcomplex.core.base import Trait, symbol
-        >>> from skcomplex.core.laws import Boundary, Rate, has_trait
+        >>> from skcomplex.core.laws import BoundaryLaw, RateLaw, has_trait
         >>> x = symbol('x')
-        >>> has_trait(Boundary(x, 0), Trait.FORMLESS), has_trait(Rate(x, 1), Trait.FORMLESS)
+        >>> has_trait(BoundaryLaw(x, 0), Trait.FORMLESS), has_trait(RateLaw(x, 1), Trait.FORMLESS)
         (True, False)
     """
     cls = law if isinstance(law, type) else type(law)
-    return issubclass(cls, Law) and trait in cls.traits
+    return issubclass(cls, BaseLaw) and trait in cls.traits
 
 
 @dataclass(frozen=True)
-class Law:
+class BaseLaw:
     """Base of every law, a frozen dataclass that declares its kind, its time class, and its traits.
 
     A law class declares as class variables its `law_kind`, its `time_class` among continuous, event, discrete,
@@ -134,8 +134,8 @@ class Law:
 
     Examples:
         >>> from skcomplex.core.base import LawClass, LawKind
-        >>> from skcomplex.core.laws import Law, Rate
-        >>> issubclass(Rate, Law), Rate.law_kind is LawKind.RATE, Rate.time_class is LawClass.CONTINUOUS
+        >>> from skcomplex.core.laws import BaseLaw, RateLaw
+        >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
         (True, True, True)
     """
 
@@ -145,4 +145,4 @@ class Law:
     requires: ClassVar[Requires] = Requires()
 
 
-LAWS = Registry[type[Law]]('law')
+LAWS = Registry[type[BaseLaw]]('law')

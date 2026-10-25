@@ -16,7 +16,7 @@ from ...core.base import (
     TimeKind,
     Trait,
 )
-from ...core.laws import Law, OuterTotalistic, Table, Totalistic
+from ...core.laws import BaseLaw, OuterTotalistic, Table, Totalistic
 from ...core.space import Adjacency, Memory, Neighborhood
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
@@ -35,7 +35,7 @@ def _targets(target: object) -> tuple[Expression, ...]:
 
 
 @dataclass(frozen=True)
-class LocalRule(Law):
+class LocalRuleLaw(BaseLaw):
     """Law that computes the next value of lattice cells from the ordered values of their neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
@@ -70,10 +70,10 @@ class LocalRule(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import LocalRule
+        >>> from skcomplex.formalisms.lattices import LocalRuleLaw
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import Neighborhood
-        >>> LocalRule(symbol('cell'), Neighborhood.radius(), Totalistic({2: 1})).schedule
+        >>> LocalRuleLaw(symbol('cell'), Neighborhood.radius(), Totalistic({2: 1})).schedule
         'synchronous'
     """
 
@@ -101,7 +101,7 @@ class LocalRule(Law):
 
 
 @dataclass(frozen=True)
-class Drive(Law):
+class DriveLaw(BaseLaw):
     """Law that changes a whole lattice state at once, such as dropping a grain on a random site.
 
     The function receives the state as an array of the lattice shape, keyword arguments for the parameters of the
@@ -116,8 +116,8 @@ class Drive(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import Drive
-        >>> Drive(symbol('height'), lambda values, *, random: values + 1).target
+        >>> from skcomplex.formalisms.lattices import DriveLaw
+        >>> DriveLaw(symbol('height'), lambda values, *, random: values + 1).target
         height
     """
 
@@ -136,7 +136,7 @@ class Drive(Law):
 
 
 @dataclass(frozen=True)
-class Relaxation(Law):
+class RelaxationLaw(BaseLaw):
     """Slow drive and fast relaxation: drive laws once per step, then relaxation laws until the lattice is stable.
 
     Every relaxation that changes the lattice is recorded as an event with its size, the number of site updates, its
@@ -168,11 +168,11 @@ class Relaxation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import LocalRule, Relaxation
+        >>> from skcomplex.formalisms.lattices import LocalRuleLaw, RelaxationLaw
         >>> from skcomplex.core.space import Neighborhood
         >>> height = symbol('height')
-        >>> topple = LocalRule(height, Neighborhood.von_neumann(center=True), lambda z, *n: z - 4 * (z >= 4))
-        >>> Relaxation([], [topple], lambda z: bool((z < 4).all())).max_iterations
+        >>> topple = LocalRuleLaw(height, Neighborhood.von_neumann(center=True), lambda z, *n: z - 4 * (z >= 4))
+        >>> RelaxationLaw([], [topple], lambda z: bool((z < 4).all())).max_iterations
         100000
     """
 
@@ -181,8 +181,8 @@ class Relaxation(Law):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
-    drive: Sequence[LocalRule | Drive]
-    relax: Sequence[LocalRule | Drive]
+    drive: Sequence[LocalRuleLaw | DriveLaw]
+    relax: Sequence[LocalRuleLaw | DriveLaw]
     stable: Callable[..., bool]
     max_iterations: int = 100_000
     label: str | None = None
@@ -195,7 +195,7 @@ class Relaxation(Law):
 
 
 @dataclass(frozen=True)
-class Energy(Law):
+class Energy(BaseLaw):
     """Local energy of a lattice site: every term of the total energy that involves the site's value.
 
     The energy change of a move is the difference of the local energy at the proposed and the current value, derived
@@ -231,7 +231,7 @@ class Energy(Law):
 
 
 @dataclass(frozen=True)
-class Move(Law):
+class MoveLaw(BaseLaw):
     """Proposed change of the value of a lattice site.
 
     Args:
@@ -250,8 +250,8 @@ class Move(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import Move
-        >>> Move.random_value(symbol('color'), range(3)).values
+        >>> from skcomplex.formalisms.lattices import MoveLaw
+        >>> MoveLaw.random_value(symbol('color'), range(3)).values
         (0.0, 1.0, 2.0)
     """
 
@@ -271,7 +271,7 @@ class Move(Law):
             raise ValueError(error_msg)
 
     @classmethod
-    def flip(cls, target: Expression) -> 'Move':
+    def flip(cls, target: Expression) -> 'MoveLaw':
         """Return the move that changes a value to its negative, the spin flip of Ising models.
 
         Args:
@@ -285,7 +285,7 @@ class Move(Law):
         return cls(target, 'flip')
 
     @classmethod
-    def random_value(cls, target: Expression, values: Iterable[float]) -> 'Move':
+    def random_value(cls, target: Expression, values: Iterable[float]) -> 'MoveLaw':
         """Return the move that draws a new value uniformly from a set, as Potts models do.
 
         Args:
@@ -302,7 +302,7 @@ class Move(Law):
         return cls(target, 'random-value', tuple(float(value) for value in values))
 
     @classmethod
-    def rotate(cls, target: Expression, width: float) -> 'Move':
+    def rotate(cls, target: Expression, width: float) -> 'MoveLaw':
         """Return the move that adds a uniform number in `[-width, width]`, as XY models do with angles.
 
         Args:
@@ -320,7 +320,7 @@ class Move(Law):
 
 
 @dataclass(frozen=True)
-class Sampler(Law):
+class SamplerLaw(BaseLaw):
     """Acceptance of Monte Carlo moves at a temperature, with one sweep of the lattice per unit of time.
 
     Args:
@@ -337,8 +337,8 @@ class Sampler(Law):
             `'random-sequential'` to visit the sites one at a time in a random order.
 
     Examples:
-        >>> from skcomplex.formalisms.lattices import Sampler
-        >>> Sampler('glauber', 2.0).schedule
+        >>> from skcomplex.formalisms.lattices import SamplerLaw
+        >>> SamplerLaw('glauber', 2.0).schedule
         'checkerboard'
     """
 
@@ -363,7 +363,7 @@ class Sampler(Law):
 
 
 @dataclass(frozen=True)
-class Sample(Law):
+class SampleLaw(BaseLaw):
     """Monte Carlo law that samples states by moves accepted from the change of an energy, one sweep per unit of time.
 
     Args:
@@ -379,10 +379,10 @@ class Sample(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import Energy, Move, Sample, Sampler
+        >>> from skcomplex.formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
         >>> from skcomplex.core.space import Neighborhood
         >>> spin = symbol('spin')
-        >>> law = Sample(Energy(-spin, Neighborhood.von_neumann()), Move.flip(spin), Sampler('glauber', 2.0))
+        >>> law = SampleLaw(Energy(-spin, Neighborhood.von_neumann()), MoveLaw.flip(spin), SamplerLaw('glauber', 2.0))
         >>> law.sampler.kind
         'glauber'
     """
@@ -393,17 +393,17 @@ class Sample(Law):
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     energy: Energy
-    move: Move
-    sampler: Sampler | None = None
+    move: MoveLaw
+    sampler: SamplerLaw | None = None
 
     @property
-    def parts(self) -> list[Energy | Move | Sampler]:
+    def parts(self) -> list[Energy | MoveLaw | SamplerLaw]:
         """Energy, move, and sampler, as the compiler reads them."""
         return [self.energy, self.move] if self.sampler is None else [self.energy, self.move, self.sampler]
 
 
 @dataclass(frozen=True)
-class Extremal(Law):
+class ExtremalLaw(BaseLaw):
     """Law that applies a rule to the site with the smallest or largest value of a key state and to its neighbours.
 
     Every application finds the extremal site, with ties broken by the simulation's random stream, gathers the site
@@ -435,9 +435,9 @@ class Extremal(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.lattices import Extremal
+        >>> from skcomplex.formalisms.lattices import ExtremalLaw
         >>> from skcomplex.core.space import Neighborhood
-        >>> law = Extremal(symbol('fitness'), Neighborhood.radius(), lambda values, *, random: random)
+        >>> law = ExtremalLaw(symbol('fitness'), Neighborhood.radius(), lambda values, *, random: random)
         >>> law.extremum, law.repeat
         ('min', 1)
     """

@@ -10,13 +10,13 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Drive, LocalRule, Relaxation
+from ....formalisms.lattices import DriveLaw, LocalRuleLaw, RelaxationLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -51,7 +51,7 @@ def _topple_at_random(heights: Array, *, random: np.random.Generator) -> Array:
     return following
 
 
-class SandpileCell(Element):
+class SandpileCellComponent(ElementComponent):
     """Site of the Bak-Tang-Wiesenfeld sandpile, which topples to its four neighbours when it holds four grains.
 
     Every step drops one grain on a random site, then sites at or above the threshold topple until the pile is
@@ -71,12 +71,12 @@ class SandpileCell(Element):
                 The initial number of grains.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import SandpileCell
-        >>> SandpileCell('site').threshold
+        >>> from skcomplex.models.physics.criticality import SandpileCellComponent
+        >>> SandpileCellComponent('site').threshold
         4
     """
 
-    height: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    height: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
     def __init__(
         self,
@@ -88,7 +88,7 @@ class SandpileCell(Element):
         super().__init__(label, **values)
         self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drive by single grains and the toppling relaxation.
 
         Args:
@@ -105,9 +105,9 @@ class SandpileCell(Element):
             return height - threshold * (height >= threshold) + sum(item >= threshold for item in around)
 
         return [
-            Relaxation(
-                drive=[Drive(s.height, _drop_grain)],
-                relax=[LocalRule(s.height, NEAREST, topple)],
+            RelaxationLaw(
+                drive=[DriveLaw(s.height, _drop_grain)],
+                relax=[LocalRuleLaw(s.height, NEAREST, topple)],
                 stable=lambda heights: bool((heights < threshold).all()),
                 activity=lambda heights: heights >= threshold,
                 label='avalanche',
@@ -115,7 +115,7 @@ class SandpileCell(Element):
         ]
 
 
-class MannaCell(Element):
+class MannaCellComponent(ElementComponent):
     """Site of the Manna sandpile, which topples when it holds two grains and sends each to a random neighbour.
 
     Every step drops one grain on a random site, then all sites with two or more grains topple at once until the pile
@@ -129,14 +129,14 @@ class MannaCell(Element):
             The initial number of grains.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import MannaCell
-        >>> MannaCell('site').height
+        >>> from skcomplex.models.physics.criticality import MannaCellComponent
+        >>> MannaCellComponent('site').height
         0
     """
 
-    height: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    height: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drive by single grains and the stochastic toppling relaxation.
 
         Args:
@@ -148,9 +148,9 @@ class MannaCell(Element):
                 The laws of the component.
         """
         return [
-            Relaxation(
-                drive=[Drive(s.height, _drop_grain)],
-                relax=[Drive(s.height, _topple_at_random)],
+            RelaxationLaw(
+                drive=[DriveLaw(s.height, _drop_grain)],
+                relax=[DriveLaw(s.height, _topple_at_random)],
                 stable=lambda heights: bool((heights < MANNA_THRESHOLD).all()),
                 activity=lambda heights: heights >= MANNA_THRESHOLD,
                 label='avalanche',
@@ -158,7 +158,7 @@ class MannaCell(Element):
         ]
 
 
-class Forest(Element):
+class ForestComponent(ElementComponent):
     """Site of the Drossel-Schwabl forest fire: empty at 0, a tree at 1, or burning at 2.
 
     Trees grow on empty sites with probability `growth`, catch fire from a burning neighbour or from lightning with
@@ -178,16 +178,16 @@ class Forest(Element):
             The probability that lightning strikes a tree per step.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import Forest
-        >>> Forest('site').growth
+        >>> from skcomplex.models.physics.criticality import ForestComponent
+        >>> ForestComponent('site').growth
         0.05
     """
 
-    cover: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    lightning: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
+    cover: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    growth: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    lightning: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stochastic rule of growth, fire, and burning out.
 
         Args:
@@ -198,7 +198,7 @@ class Forest(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.cover, NEAREST, _burn, stochastic=True)]
+        return [LocalRuleLaw(s.cover, NEAREST, _burn, stochastic=True)]
 
 
 def _burn(cover: Array, *around: Array, growth: Any, lightning: Any, random: Array) -> Array:  # noqa: ANN401
@@ -210,7 +210,7 @@ def _burn(cover: Array, *around: Array, growth: Any, lightning: Any, random: Arr
     return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
-class SpreadingForest(Element):
+class SpreadingForestComponent(ElementComponent):
     """Site of the Drossel-Schwabl forest fire on a triangular lattice or a graph: empty at 0, a tree, or burning at 2.
 
     Fire spreads to the six neighbours of a site of a triangular lattice, whose cells are the hexagons of a hexagonal
@@ -237,14 +237,14 @@ class SpreadingForest(Element):
                 The probability that lightning strikes a tree per step.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import SpreadingForest
-        >>> SpreadingForest('site').neighbors
+        >>> from skcomplex.models.physics.criticality import SpreadingForestComponent
+        >>> SpreadingForestComponent('site').neighbors
         'triangular'
     """
 
-    cover: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    lightning: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
+    cover: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    growth: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    lightning: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -256,7 +256,7 @@ class SpreadingForest(Element):
         super().__init__(label, **values)
         self.neighbors = neighbors
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stochastic rule of growth, fire, and burning out over the neighbours of the site.
 
         Args:
@@ -267,7 +267,7 @@ class SpreadingForest(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.cover, SITE_NEIGHBORHOODS[self.neighbors], _burn, stochastic=True)]
+        return [LocalRuleLaw(s.cover, SITE_NEIGHBORHOODS[self.neighbors], _burn, stochastic=True)]
 
 
 @register_model(
@@ -300,7 +300,7 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     """
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[SandpileCell.lattice('pile', space, height=heights)])
+    return System(components=[SandpileCellComponent.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -333,7 +333,7 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
     """
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[MannaCell.lattice('pile', space, height=heights)])
+    return System(components=[MannaCellComponent.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -379,7 +379,9 @@ def forest_fire(
     """
     cover = (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[Forest.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)])
+    return System(
+        components=[ForestComponent.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)],
+    )
 
 
 @register_model(
@@ -445,7 +447,7 @@ def hexagonal_forest_fire(
         if cover is None
         else np.ravel(np.asarray(cover, dtype=float))
     )
-    forest = SpreadingForest.lattice(
+    forest = SpreadingForestComponent.lattice(
         'forest',
         space,
         cover=initial,

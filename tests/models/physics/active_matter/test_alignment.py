@@ -1,7 +1,7 @@
 """Test the `_alignment` module of `skcomplex.models.physics.active_matter`."""
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models import describe
 from skcomplex.models.physics.active_matter import aligning_active_brownian_particles
 
@@ -16,7 +16,7 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
         simulation = Simulation(
             system,
             dt=1.0,
-            solver=EulerMaruyama(dt=0.05),
+            solver=EulerMaruyamaSolver(dt=0.05),
             random_state=0,
             observables=describe('aligning_active_brownian_particles').observables_of(system),
         ).run(until=200)

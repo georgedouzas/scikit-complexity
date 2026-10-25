@@ -15,7 +15,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.01), observers=[observer], random_state=0).run(
+simulation = Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), observers=[observer], random_state=0).run(
     until=200,
 )
 
@@ -56,7 +56,7 @@ densities = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
 flows, variances = [], []
 for density in densities:
     cars = create(MODEL, n_cars=round(density * length), length=length, gamma=gamma, D1=D1)
-    run = Simulation(cars, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=1).run(until=100)
+    run = Simulation(cars, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=100)
     speeds = run.trajectory_['cars.v']
     flows.append(density * speeds[25:].mean())
     variances.append(speeds[25:].var())

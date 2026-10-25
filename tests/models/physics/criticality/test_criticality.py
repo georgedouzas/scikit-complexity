@@ -8,7 +8,7 @@ from skcomplex.engine.analysis import histogram
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.criticality import hexagonal_forest_fire, manna_sandpile, sandpile
 
-from ...conftest import Events
+from ...conftest import EventsObserver
 
 
 @pytest.mark.slow
@@ -18,7 +18,7 @@ def test_sandpile_avalanches_follow_power_law():
     The exponent is the slope of the log-binned density of the avalanche sizes of 22,000 grains after a transient of
     8,000 grains, more than twice the grains that fill the pile to its critical density, between sizes 1 and 100.
     """
-    observer = Events(lambda frame: (frame.lattice('pile.height') < 4).all())
+    observer = EventsObserver(lambda frame: (frame.lattice('pile.height') < 4).all())
     simulation = Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer])
     simulation.run(until=30_000)
     sizes = np.asarray([event.size for event in observer.events if event.time > 8_000])

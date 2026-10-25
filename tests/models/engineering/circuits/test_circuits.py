@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.base import ParameterError
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import run
 from skcomplex.models.engineering.circuits import (
     chua,
@@ -51,7 +51,7 @@ def test_chua_rejects_unknown_nonlinearity():
 @pytest.mark.parametrize(('c', 'mixed'), [(0.00053, True), (0.00105, False)])
 def test_mixed_mode_chua_oscillations(c, mixed):
     """Test that small oscillations come between the spikes for `c = 0.00053` and not for `c = 0.00105`."""
-    solver = ScipyODE(method='Radau')
+    solver = ScipyODESolver(method='Radau')
     trajectory = Simulation(mixed_mode_chua(c=c), dt=0.1, solver=solver).run(until=50).trajectory_
     peaks = _peaks(trajectory['circuit.x'][100:])
     assert (peaks > 1.0).sum() >= 4

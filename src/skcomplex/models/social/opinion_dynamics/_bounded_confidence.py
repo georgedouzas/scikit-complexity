@@ -8,17 +8,17 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, neighbors, where
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, where
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 
-class Discussant(Element):
+class DiscussantComponent(ElementComponent):
     """Agent of the Deffuant model, with a continuous opinion and a confidence bound.
 
     Args:
@@ -35,18 +35,18 @@ class Discussant(Element):
             The fraction of the opinion difference by which each agent of a compromising pair moves.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Discussant
-        >>> Discussant.group('people', 10, opinion=0.5)
-        Group('people', element=Discussant, size=10)
+        >>> from skcomplex.models.social.opinion_dynamics import DiscussantComponent
+        >>> DiscussantComponent.group('people', 10, opinion=0.5)
+        GroupComponent('people', element=DiscussantComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    confidence: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    convergence: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    confidence: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    convergence: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
 
-class Encounters(Interaction):
+class EncountersInteraction(BaseInteraction):
     """Random binary encounters of the Deffuant model, as many per step as there are agents.
 
     In every encounter two random agents whose opinions differ by less than the confidence bound move towards each
@@ -60,14 +60,14 @@ class Encounters(Interaction):
             The path of the group of discussants.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Encounters
-        >>> Encounters('meetings', target='people').target
+        >>> from skcomplex.models.social.opinion_dynamics import EncountersInteraction
+        >>> EncountersInteraction('meetings', target='people').target
         'people'
     """
 
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter rule.
 
         Args:
@@ -78,7 +78,7 @@ class Encounters(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.meet)]
+        return [RuleLaw(self.meet)]
 
     def meet(self, model: ModelView) -> None:
         """Run one random encounter per agent.
@@ -141,7 +141,7 @@ def deffuant(
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
     visual = VisualSpec('traits', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
-    people = Discussant.group(
+    people = DiscussantComponent.group(
         'people',
         n_agents,
         opinion=opinions,
@@ -149,10 +149,10 @@ def deffuant(
         convergence=convergence,
         visual=visual,
     )
-    return System(components=[people], interactions=[Encounters('meetings', target='people')])
+    return System(components=[people], interactions=[EncountersInteraction('meetings', target='people')])
 
 
-class Confident(Element):
+class ConfidentComponent(ElementComponent):
     """Agent of the Hegselmann-Krause model, who moves to the mean opinion of the neighbours within its confidence.
 
     Every step all agents update at once to the mean opinion of the neighbours, themselves included, whose opinions
@@ -169,16 +169,16 @@ class Confident(Element):
             The largest opinion difference of a neighbour an agent still listens to.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Confident
-        >>> Confident('people', confidence=0.1).confidence
+        >>> from skcomplex.models.social.opinion_dynamics import ConfidentComponent
+        >>> ConfidentComponent('people', confidence=0.1).confidence
         0.1
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_range': (0.0, 1.0), 'histogram_first': True})
-    opinion: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    confidence: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    confidence: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the move to the mean opinion of the confident neighbours.
 
         Args:
@@ -191,7 +191,7 @@ class Confident(Element):
         """
         close = where(abs(s.other.opinion - s.opinion) < s.confidence, 1, 0)
         mean = neighbors(s.other.opinion, over=Adjacency(center=True), reduce='normalized-mean', weight=close)
-        return [Update(s.opinion, mean)]
+        return [UpdateLaw(s.opinion, mean)]
 
 
 @register_model(
@@ -239,5 +239,5 @@ def hegselmann_krause(
     """
     space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents))
     opinions = np.random.default_rng(random_state).random(space.size)
-    people = Confident.lattice('people', space, opinion=opinions, confidence=confidence)
+    people = ConfidentComponent.lattice('people', space, opinion=opinions, confidence=confidence)
     return System(components=[people], time=DiscreteTime())

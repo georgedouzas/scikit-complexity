@@ -201,7 +201,7 @@ from ._markov import (
     mean_first_passage_time,
 )
 from ._mixing import dissimilarity_index, interface_density, like_neighbor_share
-from ._mode_decomposition import ModeDecomposition, fit_dmd
+from ._mode_decomposition import ModeDecompositionSurrogate, fit_dmd
 from ._motifs import MotifScores, motif_counts, motif_zscores
 from ._multivariate import (
     PartialInformation,
@@ -228,7 +228,7 @@ from ._passage import first_passage_times, hitting_probabilities, laminar_durati
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
 from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from ._recurrence import Recurrence, recurrence_matrix, recurrence_quantification
-from ._reservoirs import ReservoirModel, fit_reservoir
+from ._reservoirs import ReservoirSurrogate, fit_reservoir
 from ._scaling import Collapse, binder_crossings, binder_cumulant, scaling_collapse
 from ._sections import Section, poincare_section, stroboscopic
 from ._series import (
@@ -244,7 +244,7 @@ from ._series import (
     power_spectrum,
 )
 from ._signatures import Signature, signature_analysis
-from ._sparse_identification import SparseModel, fit_sindy
+from ._sparse_identification import SparseSurrogate, fit_sindy
 from ._spatial import Clusters, box_counting_dimension, correlation_function, label_clusters
 from ._stability import Dynamics, Stability, divergence, dynamics_of, fixed_points, jacobian, nullclines, stability
 from ._statistics import PowerLawFit, ccdf, fit_power_law, gini, hill, histogram
@@ -310,7 +310,7 @@ __all__: list[str] = [
     'LoopDominance',
     'Loops',
     'MarkovStateModel',
-    'ModeDecomposition',
+    'ModeDecompositionSurrogate',
     'MotifScores',
     'Multiscale',
     'NetworkSummary',
@@ -323,13 +323,13 @@ __all__: list[str] = [
     'RateFunction',
     'Recurrence',
     'RelativeFluctuations',
-    'ReservoirModel',
+    'ReservoirSurrogate',
     'Reweighted',
     'Section',
     'Series',
     'Signature',
     'Snapshots',
-    'SparseModel',
+    'SparseSurrogate',
     'Spectrum',
     'Stability',
     'StableFit',

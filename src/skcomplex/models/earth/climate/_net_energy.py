@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, RateLaw, Sink, Source, Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _energy_laws(s: Symbols) -> list[Law]:
+def _energy_laws(s: Symbols) -> list[BaseLaw]:
     """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population."""
     remaining = s.reserve / s.reserve_size
     eroi = Auxiliary('eroi', 1 + (s.initial_eroi - 1) * remaining**s.decline)
@@ -22,29 +22,29 @@ def _energy_laws(s: Symbols) -> list[Law]:
         gross,
         cost,
         Auxiliary('net_per_capita', net / s.population),
-        Transfer(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
-        Transfer(s.reserve, Sink('society'), net, label='net_energy'),
-        Rate(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
-        Transfer(Source('births'), s.population, s.birth_rate * s.population, label='births'),
-        Transfer(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
+        TransferLaw(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
+        TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
+        RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
+        TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
+        TransferLaw(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
     ]
 
 
-EnergySector = Element.define(
-    'EnergySector',
+EnergySectorComponent = ElementComponent.define(
+    'EnergySectorComponent',
     states={
-        'reserve': state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='energy'),
-        'capacity': state(default=0.1, domain=Domain.NONNEGATIVE),
-        'population': state(default=1.0, domain=Domain.NONNEGATIVE, quantity='people'),
+        'reserve': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='energy'),
+        'capacity': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'population': state(default=1.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
     },
     parameters={
-        'reserve_size': parameter(default=1000.0, domain=Domain.POSITIVE),
-        'initial_eroi': parameter(default=20.0, domain=Domain.POSITIVE),
-        'decline': parameter(default=3.0, domain=Domain.POSITIVE),
-        'reinvestment': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'lifetime': parameter(default=20.0, domain=Domain.POSITIVE),
-        'birth_rate': parameter(default=0.03, domain=Domain.NONNEGATIVE),
-        'death_rate': parameter(default=0.015, domain=Domain.NONNEGATIVE),
+        'reserve_size': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
+        'initial_eroi': parameter(default=20.0, domain=NumericDomain.POSITIVE),
+        'decline': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'reinvestment': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'lifetime': parameter(default=20.0, domain=NumericDomain.POSITIVE),
+        'birth_rate': parameter(default=0.03, domain=NumericDomain.NONNEGATIVE),
+        'death_rate': parameter(default=0.015, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_energy_laws,
 )
@@ -104,7 +104,7 @@ def energy_return(
         >>> energy_return(initial_eroi=20.0).elements[0].initial_eroi
         20.0
     """
-    sector = EnergySector(
+    sector = EnergySectorComponent(
         'energy',
         reserve=reserve,
         capacity=capacity,

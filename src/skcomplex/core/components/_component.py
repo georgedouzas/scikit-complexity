@@ -45,7 +45,7 @@ def _method(laws: Callable[..., list[Any]]) -> Callable[..., list[Any]]:
     if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
         return laws
 
-    def method(self: 'Component', s: Any) -> list[Any]:  # noqa: ANN401
+    def method(self: 'BaseComponent', s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the function."""
         return laws(s)
 
@@ -61,7 +61,7 @@ def _caller_module() -> str:
     return frame.f_globals.get('__name__', __name__) if frame is not None else __name__
 
 
-class Component(BaseEstimator):
+class BaseComponent(BaseEstimator):
     """Base of every part of a system: elements, groups, interactions, and systems.
 
     A component type declares its variables and roles as class attributes made by `state`, `parameter`, and `role`.
@@ -86,11 +86,11 @@ class Component(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
-        >>> class Pendulum(Element):
+        >>> from skcomplex.core.components import ElementComponent
+        >>> class PendulumComponent(ElementComponent):
         ...     theta: float = state(0.0, order=2)
-        >>> bob = Pendulum('bob', theta=0.1, theta_d1=0.5)
-        >>> bob.theta_d1, hasattr(Pendulum, 'theta_d1')
+        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5)
+        >>> bob.theta_d1, hasattr(PendulumComponent, 'theta_d1')
         (0.5, False)
     """
 
@@ -140,7 +140,7 @@ class Component(BaseEstimator):
             for setting in parameters:
                 if setting.kind not in {setting.VAR_KEYWORD, setting.VAR_POSITIONAL}:
                     found.setdefault(setting.name, setting)
-            if klass is Component or not any(item.kind is item.VAR_KEYWORD for item in parameters):
+            if klass is BaseComponent or not any(item.kind is item.VAR_KEYWORD for item in parameters):
                 break
         return found
 
@@ -187,9 +187,9 @@ class Component(BaseEstimator):
 
         Examples:
             >>> from skcomplex.core.base import state
-            >>> from skcomplex.core.components import Element
-            >>> Lagged = Element.define('Lagged', states={'x': state(0.0, lags=2)})
-            >>> list(Lagged.declarations())
+            >>> from skcomplex.core.components import ElementComponent
+            >>> LaggedComponent = ElementComponent.define('LaggedComponent', states={'x': state(0.0, lags=2)})
+            >>> list(LaggedComponent.declarations())
             ['x', 'x_lag1', 'x_lag2']
         """
         return {name: cast('Variable', declaration_of(field)) for name, field in cls._fields().items()}
@@ -211,8 +211,8 @@ class Component(BaseEstimator):
                 The type neither declares the name nor takes it as a setting with a default.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import Population
-            >>> Population.get_default('n')
+            >>> from skcomplex.models.biology.ecology import PopulationComponent
+            >>> PopulationComponent.get_default('n')
             1.0
         """
         fields = cls._fields()
@@ -251,8 +251,8 @@ class Component(BaseEstimator):
                 A mapping from argument name to value, in sorted order.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import Population
-            >>> Population('rabbits', n=40).get_params()['n']
+            >>> from skcomplex.models.biology.ecology import PopulationComponent
+            >>> PopulationComponent('rabbits', n=40).get_params()['n']
             40
         """
         params: dict[str, Any] = {}

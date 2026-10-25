@@ -9,14 +9,14 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import Encounter, moment
+from ....formalisms.kinetics import EncounterLaw, moment
 
 EVACUATION_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Gibelli 2015', 'Agnelli, Colasuonno, and Knopoff 2015')
 
@@ -218,7 +218,7 @@ def mean_speed(s: Symbols, rooms: int, speeds: int) -> Expression:
     return moment(s.f, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-class Pedestrians(Element):
+class PedestriansComponent(ElementComponent):
     """Density of pedestrians at one site of a crowd, a pair of a room and a speed class.
 
     Args:
@@ -229,15 +229,15 @@ class Pedestrians(Element):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Pedestrians
-        >>> Pedestrians.group('signs', 1, f=1.0).size
+        >>> from skcomplex.models.social.crowds import PedestriansComponent
+        >>> PedestriansComponent.group('signs', 1, f=1.0).size
         1
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Walking(Interaction):
+class WalkingInteraction(BaseInteraction):
     """Walking of pedestrians to the next room on the way out, an encounter with the exit signs.
 
     Args:
@@ -263,19 +263,19 @@ class Walking(Interaction):
             The rate at which pedestrians at the free speed leave a room.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Walking
-        >>> Walking('walking', crowd='crowd', signs='signs').mobility
+        >>> from skcomplex.models.social.crowds import WalkingInteraction
+        >>> WalkingInteraction('walking', crowd='crowd', signs='signs').mobility
         0.5
     """
 
     crowd: str = role()
     signs: str = role()
-    branching: int = parameter(default=2, domain=Domain.POSITIVE)
-    depth: int = parameter(default=2, domain=Domain.POSITIVE)
-    speeds: int = parameter(default=3, domain=Domain.POSITIVE)
-    mobility: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    branching: int = parameter(default=2, domain=NumericDomain.POSITIVE)
+    depth: int = parameter(default=2, domain=NumericDomain.POSITIVE)
+    speeds: int = parameter(default=3, domain=NumericDomain.POSITIVE)
+    mobility: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the crowd with the exit signs.
 
         Args:
@@ -288,10 +288,10 @@ class Walking(Interaction):
         """
         building = building_of(int(self.branching), int(self.depth))
         pattern, table = walking_table(building, 0, int(self.speeds))
-        return [Encounter(s.crowd.f, s.signs.f, pattern * s.mobility, table)]
+        return [EncounterLaw(s.crowd.f, s.signs.f, pattern * s.mobility, table)]
 
 
-class Crowding(Interaction):
+class CrowdingInteraction(BaseInteraction):
     """Encounters that slow pedestrians down in crowded rooms, and the exit signs that speed them up again.
 
     Two pedestrians in the same room meet at the rate `crowding`, and the candidate slows down one speed class. A
@@ -321,19 +321,19 @@ class Crowding(Interaction):
             The rate at which pedestrians speed up again.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Crowding
-        >>> Crowding('crowding', crowd='crowd', signs='signs').crowding
+        >>> from skcomplex.models.social.crowds import CrowdingInteraction
+        >>> CrowdingInteraction('crowding', crowd='crowd', signs='signs').crowding
         2.0
     """
 
     crowd: str = role()
     signs: str = role()
-    rooms: int = parameter(default=7, domain=Domain.POSITIVE)
-    speeds: int = parameter(default=3, domain=Domain.POSITIVE)
-    crowding: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    recovery: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    rooms: int = parameter(default=7, domain=NumericDomain.POSITIVE)
+    speeds: int = parameter(default=3, domain=NumericDomain.POSITIVE)
+    crowding: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    recovery: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the slowing encounters within rooms and the recovery with the exit signs.
 
         Args:
@@ -348,14 +348,14 @@ class Crowding(Interaction):
         slow_pattern, slow_table = crowding_table(rooms, speeds, -1)
         fast_pattern, fast_table = crowding_table(rooms, speeds, 1)
         return [
-            Encounter(s.crowd.f, s.crowd.f, slow_pattern * s.crowding, slow_table),
-            Encounter(s.crowd.f, s.signs.f, fast_pattern * s.recovery, fast_table),
+            EncounterLaw(s.crowd.f, s.crowd.f, slow_pattern * s.crowding, slow_table),
+            EncounterLaw(s.crowd.f, s.signs.f, fast_pattern * s.recovery, fast_table),
         ]
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
     """Return the number of rooms and of speed classes of a model, from its crowding interaction."""
-    crowding = next(item for item in system.interactions if isinstance(item, Crowding))
+    crowding = next(item for item in system.interactions if isinstance(item, CrowdingInteraction))
     return int(crowding.rooms), int(crowding.speeds)
 
 
@@ -444,11 +444,17 @@ def evacuation(
     crowd_space = LatticeSpace((rooms + 1, speeds), boundary='fixed')
     return System(
         components=[
-            Group('crowd', element=Pedestrians, on='sites', space=crowd_space, values={'f': initial.ravel()}),
-            Pedestrians.group('signs', 1, f=1.0),
+            GroupComponent(
+                'crowd',
+                element=PedestriansComponent,
+                on='sites',
+                space=crowd_space,
+                values={'f': initial.ravel()},
+            ),
+            PedestriansComponent.group('signs', 1, f=1.0),
         ],
         interactions=[
-            Walking(
+            WalkingInteraction(
                 'walking',
                 crowd='crowd',
                 signs='signs',
@@ -457,7 +463,7 @@ def evacuation(
                 speeds=speeds,
                 mobility=mobility,
             ),
-            Crowding(
+            CrowdingInteraction(
                 'crowding',
                 crowd='crowd',
                 signs='signs',

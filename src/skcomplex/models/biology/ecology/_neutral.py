@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class NeutralSpecies(Element):
+class NeutralSpeciesComponent(ElementComponent):
     """Species whose individuals are born and die at rates that do not depend on the species, of neutral theory.
 
     Births occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and deaths at the rate `d0 + d1 n`,
@@ -36,18 +36,18 @@ class NeutralSpecies(Element):
             The per capita death rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import NeutralSpecies
-        >>> NeutralSpecies.group('trees', 50).size
+        >>> from skcomplex.models.biology.ecology import NeutralSpeciesComponent
+        >>> NeutralSpeciesComponent.group('trees', 50).size
         50
     """
 
-    n: float = state(default=10.0, domain=Domain.NONNEGATIVE_INTEGER)
-    b0: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
-    d0: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    b0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    d0: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the birth and death events.
 
         Args:
@@ -59,8 +59,8 @@ class NeutralSpecies(Element):
                 The laws of the component.
         """
         return [
-            Jump(s.b0 + s.b1 * s.n, {s.n: 1}),
-            Jump(where(s.n > 0, s.d0, 0) + s.d1 * s.n, {s.n: -1}),
+            JumpLaw(s.b0 + s.b1 * s.n, {s.n: 1}),
+            JumpLaw(where(s.n > 0, s.d0, 0) + s.d1 * s.n, {s.n: -1}),
         ]
 
 
@@ -113,4 +113,4 @@ def neutral_macroecology(
         >>> neutral_macroecology(20).elements[0].size
         20
     """
-    return System(components=[NeutralSpecies.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])
+    return System(components=[NeutralSpeciesComponent.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])

@@ -1,7 +1,7 @@
 """Study models through many runs: designs, scenarios, replicates, sensitivity analysis, and calibration."""
 
 from ._calibration import CalibrationResult, calibrate
-from ._designs import Design, Grid, LatinHypercube, RandomDesign, Rows, SobolDesign
+from ._designs import BaseDesign, GridDesign, LatinHypercubeDesign, RandomDesign, RowsDesign, SobolDesign
 from ._results import ExperimentResult, RunResult
 from ._runner import Experiment
 from ._scenarios import Scenario
@@ -10,15 +10,15 @@ from ._sources import Source, resolve_source
 from ._tasks import Output, Task, run_task
 
 __all__: list[str] = [
+    'BaseDesign',
     'CalibrationResult',
-    'Design',
     'Experiment',
     'ExperimentResult',
-    'Grid',
-    'LatinHypercube',
+    'GridDesign',
+    'LatinHypercubeDesign',
     'Output',
     'RandomDesign',
-    'Rows',
+    'RowsDesign',
     'RunResult',
     'Scenario',
     'SensitivityResult',

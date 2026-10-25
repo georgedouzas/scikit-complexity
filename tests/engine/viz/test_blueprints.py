@@ -4,26 +4,26 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
-from skcomplex.core.components import Element
+from skcomplex.core.components import ElementComponent
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import (
     AgentsVisual,
+    BaseVisual,
     ImageVisual,
     PointsVisual,
     RerunObserver,
     ScalarsVisual,
-    Visual,
     default_blueprint,
     primary_view,
     save_blueprint,
 )
-from skcomplex.formalisms.fields import Field
+from skcomplex.formalisms.fields import FieldComponent
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import Population
-from skcomplex.models.physics.heat import Heat
+from skcomplex.models.biology.ecology import PopulationComponent
+from skcomplex.models.physics.heat import HeatComponent
 
 
 def _views(blueprint):
@@ -58,7 +58,7 @@ def test_views_of_builtin_visuals():
 def test_views_of_user_visual_are_empty_by_default():
     """Test that a visual that declares no views is left out of the layout."""
     problem = compile_system(create('lotka_volterra'))
-    assert Visual().views(problem.elements[0], problem) == []
+    assert BaseVisual().views(problem.elements[0], problem) == []
 
 
 def test_views_of_points_log_other_states_as_series():
@@ -83,12 +83,14 @@ def test_default_blueprint_shows_one_dimensional_points_over_whole_run():
 
 def test_default_blueprint_shows_other_states_of_points_over_whole_run():
     """Test that the time series view of the other states of two-dimensional points shows the whole run."""
-    Walker = Element.define(
-        'Walker',
+    WalkerComponent = ElementComponent.define(
+        'WalkerComponent',
         states={'x': state(0.0, vector=True), 'energy': 0.0},
         visual=VisualSpec('points', {'position': 'x'}),
     )
-    blueprint = default_blueprint(System(components=[Walker.group('walkers', 3)], space=ContinuousSpace(n_dim=2)))
+    blueprint = default_blueprint(
+        System(components=[WalkerComponent.group('walkers', 3)], space=ContinuousSpace(n_dim=2)),
+    )
     assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
     assert _whole_run_series(blueprint)
 
@@ -123,9 +125,9 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 def test_default_blueprint_splits_series_by_six():
     """Test that a type with more than six series is split over several views."""
-    system = System(components=[Population(f'p{index}') for index in range(8)])
+    system = System(components=[PopulationComponent(f'p{index}') for index in range(8)])
     names = [str(view.name) for view in _views(default_blueprint(system))]
-    assert names == ['Population 1', 'Population 2']
+    assert names == ['PopulationComponent 1', 'PopulationComponent 2']
 
 
 def test_default_blueprint_with_parameters():
@@ -236,5 +238,5 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
-    field = Field('plate', Heat, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
+    field = FieldComponent('plate', HeatComponent, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
     assert compile_system(System(components=[field])).elements[0].visual.kind == 'sites'

@@ -24,23 +24,23 @@ from ...core.base import (
     symbol,
     symbols_of,
 )
-from ...core.components import Group
+from ...core.components import GroupComponent
 from ...core.laws import (
-    Boundary,
-    Equation,
-    Event,
-    Jump,
-    Law,
-    Noise,
+    BaseLaw,
+    BoundaryLaw,
+    EquationLaw,
+    EventLaw,
+    JumpLaw,
+    NoiseLaw,
     Objective,
-    Rate,
-    Update,
+    RateLaw,
+    UpdateLaw,
     has_trait,
     is_registered,
     law_classes,
     values_of,
 )
-from ...core.space import Space
+from ...core.space import BaseSpace
 from ...core.system import System
 from ._declarations import Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, PairSearch
@@ -50,7 +50,7 @@ from ._observables import Observer, lowerable_observables
 from ._specs import KernelSpec, component_of, group_space, specs_of, target_references
 from ._tree import Node
 
-type OwnerRule = Callable[[KernelSpec, Law, set[str]], str | None]
+type OwnerRule = Callable[[KernelSpec, BaseLaw, set[str]], str | None]
 
 OWNER_RULES = Registry[OwnerRule]('owner rule')
 
@@ -59,27 +59,27 @@ def _check_registered(spec: KernelSpec, declared: object) -> None:
     """Raise an error for a law of a class that neither the shared core nor a formalism registered."""
     laws = declared if isinstance(declared, list | tuple) else []
     for law in laws:
-        if isinstance(law, Law) and not is_registered(law):
+        if isinstance(law, BaseLaw) and not is_registered(law):
             error_msg = (
-                f'{spec.owner} returns a {type(law).__name__} law, a law class that no formalism registered. A '
+                f'{spec.owner} returns a {type(law).__name__}, a law class that no formalism registered. A '
                 f'formalism must register {type(law).__name__} with `register(Formalism(..., laws=(...)))` before a '
                 'system holds its laws.'
             )
             raise UnregisteredLawError(error_msg)
 
 
-def _changed_target(spec: KernelSpec, law: Law) -> object:
+def _changed_target(spec: KernelSpec, law: BaseLaw) -> object:
     """Return the target of a law, or the first state a jump changes."""
-    if isinstance(law, Jump):
+    if isinstance(law, JumpLaw):
         return next(iter(law.changes))
     target = getattr(law, 'target', None)
     if target is None:
-        error_msg = f'A {type(law).__name__} law of {spec.owner} changes no state of its component.'
+        error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
         raise ValidationError(error_msg)
     return target
 
 
-def _handle_uses(law: Law, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
+def _handle_uses(law: BaseLaw, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
     """Return the Wiener handles that a law uses outside the process of a noise law."""
     if not handles:
         return ()
@@ -100,7 +100,7 @@ def _state_reads(spec: KernelSpec, value: object) -> frozenset[tuple[str, int]]:
 
 def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> dict[str, Any]:
     """Return the processes, driven states, and read states of every target component of a noise law."""
-    if not isinstance(law, Noise):
+    if not isinstance(law, NoiseLaw):
         return {}
     targets = components_of(law.target)
     values = (
@@ -116,9 +116,9 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
 
 def _component_kind(node: Node) -> ComponentKind:
     """Return the kind of the component of a node."""
-    if isinstance(node.component, Group) and node.component.variable:
+    if isinstance(node.component, GroupComponent) and node.component.variable:
         return ComponentKind.VARIABLE_GROUP
-    if isinstance(node.component, Group):
+    if isinstance(node.component, GroupComponent):
         parts = {'sites': ComponentKind.SITE_GROUP, 'edges': ComponentKind.EDGE_GROUP}
         parts['hyperedges'] = ComponentKind.HYPEREDGE_GROUP
         return parts.get(node.component.on or '', node.component.component_kind)
@@ -181,7 +181,7 @@ def register_owner(rule: OwnerRule) -> None:
     OWNER_RULES.register(rule, rule)
 
 
-def law_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str:
+def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
     """Return the path of the element or group whose state a law changes, or that a registered rule names.
 
     Equations, events, and objectives belong to their component.
@@ -208,12 +208,12 @@ def law_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str:
         owner = OWNER_RULES.resolve(key)(spec, law, agents)
         if owner is not None:
             return owner
-    if isinstance(law, Equation | Event | Objective):
+    if isinstance(law, EquationLaw | EventLaw | Objective):
         return spec.owner
     return target_references(_changed_target(spec, law), spec)[0].entry.name.rpartition('.')[0]
 
 
-def kind_of(law: Law) -> type:
+def kind_of(law: BaseLaw) -> type:
     """Return the class of a law that decides its form, with every noise law counted as a noise law.
 
     Args:
@@ -224,10 +224,10 @@ def kind_of(law: Law) -> type:
         kind:
             The class.
     """
-    return Noise if isinstance(law, Noise) else type(law)
+    return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
 
-def declared_laws(spec: KernelSpec, component: object) -> list[Law]:
+def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
     Args:
@@ -254,10 +254,10 @@ def declared_laws(spec: KernelSpec, component: object) -> list[Law]:
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
         error_msg = f'`laws` of {spec.owner} must return a list of {", ".join(names[:-1])}, or {names[-1]} laws.'
         raise ValidationError(error_msg)
-    if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, Rate) for law in declared):
+    if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
-    edge_kinds = (Rate, Noise, Jump, Update, Boundary)
+    edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, BoundaryLaw)
     if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):
         error_msg = (
             f'Interaction {spec.owner} over neighbours returns laws other than Rate, Noise, Jump, Update, or Boundary '
@@ -349,11 +349,11 @@ class CensusRecord:
 
     path: str
     owner: str
-    law: Law
+    law: BaseLaw
     targets: tuple[Entry, ...]
     vectors: frozenset[str]
     component: ComponentKind
-    space: Space | None
+    space: BaseSpace | None
     processes: tuple[ProcessKey | None, ...] = ()
     driven: tuple[tuple[str, int], ...] = ()
     reads: tuple[frozenset[tuple[str, int]], ...] = ()

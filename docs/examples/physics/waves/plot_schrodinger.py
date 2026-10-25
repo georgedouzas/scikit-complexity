@@ -15,7 +15,7 @@ import numpy as np
 from skcomplex.engine.analysis import purity
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4
+from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create, run
 
 MODEL = 'schrodinger'
@@ -33,7 +33,7 @@ simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
 # its trace stays 1.
 
 spacing = 40.0 / 128
-fields = Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4(dt=0.01)).run(until=4.0).trajectory_
+fields = Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).run(until=4.0).trajectory_
 operators = Simulation(create(MODEL, n_sites=128, formulation='operators'), dt=0.5).run(until=4.0).trajectory_
 density = (fields['packet.u'] ** 2 + fields['packet.w'] ** 2) * spacing
 probability = np.abs(operators['schrodinger.state']) ** 2

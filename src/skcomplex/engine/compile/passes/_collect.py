@@ -8,11 +8,11 @@ from typing import cast
 from .._census import declared_laws
 from .._compilation import Compilation
 from .._declarations import Block
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import KernelSpec, component_of
 
 
-class CollectPass(Pass):
+class CollectPass(BasePass):
     """Pass that collects the declared laws of every kernel spec, with no laws set apart yet."""
 
     reads = ('specs',)

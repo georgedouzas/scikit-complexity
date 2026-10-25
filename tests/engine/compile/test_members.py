@@ -8,25 +8,25 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import ValidationError, role
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Jump, Rate, Update, shift_member
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, shift_member
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.physics.statistical_mechanics import (
-    ParticleSite,
-    ZeroRangeHop,
-    ZeroRangeHops,
+    ParticleSiteComponent,
+    ZeroRangeHopInteraction,
+    ZeroRangeHopsInteraction,
     zero_range_process,
 )
 
-Car = Element.define('Car', states={'x': 0.0, 'ahead': 0.0})
+CarComponent = ElementComponent.define('CarComponent', states={'x': 0.0, 'ahead': 0.0})
 
 
-class LookAhead(Interaction):
+class LookAheadInteraction(BaseInteraction):
     """Update of every car to the position of the car a number of places ahead."""
 
     cars: str = role()
@@ -49,10 +49,10 @@ class LookAhead(Interaction):
     def laws(self, s):
         """Return the update of the read position."""
         value = shift_member(s.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
-        return [Update(s.cars.ahead, value)]
+        return [UpdateLaw(s.cars.ahead, value)]
 
 
-class Ring(Interaction):
+class RingInteraction(BaseInteraction):
     """Coupling of every member of a ring to the members on either side."""
 
     cars: str = role()
@@ -60,14 +60,14 @@ class Ring(Interaction):
     def laws(self, s):
         """Return the rate of a member from its neighbours on the ring."""
         x = s.cars.x
-        return [Rate(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
+        return [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
 
 
 def _ahead(backend='numpy', **settings):
     """Return the read positions of a group of four cars after one update."""
     system = System(
-        components=[Car.group('cars', 4, x=[10.0, 11.0, 12.0, 13.0])],
-        interactions=[LookAhead('look', cars='cars', **settings)],
+        components=[CarComponent.group('cars', 4, x=[10.0, 11.0, 12.0, 13.0])],
+        interactions=[LookAheadInteraction('look', cars='cars', **settings)],
     )
     problem = compile_system(system, backend=backend)
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
@@ -94,8 +94,11 @@ def test_shift_member_runs_the_same_on_both_backends():
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
     for backend in ('numpy', 'numba'):
-        system = System(components=[Car.group('cars', 1000, x=x)], interactions=[Ring('ring', cars='cars')])
-        simulation = Simulation(system, solver=RK4(dt=0.01), dt=0.5, backend=backend).run(until=2.0)
+        system = System(
+            components=[CarComponent.group('cars', 1000, x=x)],
+            interactions=[RingInteraction('ring', cars='cars')],
+        )
+        simulation = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend).run(until=2.0)
         assert simulation.problem_.backend == backend
         trajectories.append(simulation.trajectory_['cars.x'])
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
@@ -103,7 +106,7 @@ def test_shift_member_runs_the_same_on_both_backends():
 
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
-    system = System(components=[Car('car', x=1.0)], interactions=[LookAhead('look', cars='car')])
+    system = System(components=[CarComponent('car', x=1.0)], interactions=[LookAheadInteraction('look', cars='car')])
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
         compile_system(system)
 
@@ -111,10 +114,10 @@ def test_shift_member_of_a_single_element_raises_error():
 def test_shift_member_rejects_unknown_boundary():
     """Test that the boundary of an offset read is periodic, reflecting, or fixed."""
     with pytest.raises(ValidationError, match="'open'"):
-        shift_member(Car.group('cars', 2).size, 1, boundary='open')
+        shift_member(CarComponent.group('cars', 2).size, 1, boundary='open')
 
 
-class Hop(Interaction):
+class HopInteraction(BaseInteraction):
     """Hop of one particle from every site to the next one along the group order, at a rate equal to the occupation."""
 
     sites: str = role()
@@ -133,16 +136,16 @@ class Hop(Interaction):
     def laws(self, s):
         """Return the hop to the next site."""
         n = s.sites.n
-        return [Jump(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
+        return [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
 
 
-Site = Element.define('Site', states={'n': 0.0})
+SiteComponent = ElementComponent.define('SiteComponent', states={'n': 0.0})
 
 
 def _hopping(occupations, boundary='periodic'):
     """Return a group of sites whose particles hop to the next site."""
-    sites = Site.group('sites', len(occupations), n=np.asarray(occupations, dtype=float))
-    return System(components=[sites], interactions=[Hop('hop', sites='sites', boundary=boundary)])
+    sites = SiteComponent.group('sites', len(occupations), n=np.asarray(occupations, dtype=float))
+    return System(components=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -171,13 +174,13 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     """Test that a zero-range process of offset jumps and one of per-link interactions have one mean profile."""
     occupations = np.zeros(20)
     occupations[0] = 40.0
-    sites = ParticleSite.lattice('sites', LatticeSpace(20), n=occupations)
+    sites = ParticleSiteComponent.lattice('sites', LatticeSpace(20), n=occupations)
     links = [
-        ZeroRangeHop(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % 20}]'], q=0.5)
+        ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % 20}]'], q=0.5)
         for index in range(20)
     ]
     systems = [
-        System(components=[sites], interactions=[ZeroRangeHops('hops', sites='sites', q=0.5)]),
+        System(components=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
         System(components=[sites], interactions=links),
     ]
     profiles = []

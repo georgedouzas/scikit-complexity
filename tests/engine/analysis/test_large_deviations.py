@@ -7,8 +7,8 @@ import pytest
 from scipy import special
 
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Jump
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import JumpLaw
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import (
     block_generating_function,
@@ -85,13 +85,17 @@ def test_block_generating_function_needs_two_blocks():
         block_generating_function([1.0, 2.0], [0.5], 5)
 
 
-Counter = Element.define('Counter', states={'n': 0.0}, laws=lambda s: [Jump(1.0, {s.n: 1})])
+CounterComponent = ElementComponent.define(
+    'CounterComponent',
+    states={'n': 0.0},
+    laws=lambda s: [JumpLaw(1.0, {s.n: 1})],
+)
 
 
 def test_cloning_estimates_the_poisson_generating_function():
     """Test that cloning a Poisson counter of rate 1 at s = 0.5 is within 2% of `exp(0.5) - 1`."""
     estimate = cloning(
-        System(components=[Counter('counter')]),
+        System(components=[CounterComponent('counter')]),
         'counter.n',
         0.5,
         population=300,
@@ -104,7 +108,7 @@ def test_cloning_estimates_the_poisson_generating_function():
 
 def test_cloning_takes_a_function_of_the_segment():
     """Test that a function of each segment's trajectory gives the same estimate as the counter's name."""
-    system = System(components=[Counter('counter')])
+    system = System(components=[CounterComponent('counter')])
     by_name = cloning(system, 'counter.n', -0.5, population=50, until=3.0, random_state=1)
     by_function = cloning(
         system,
@@ -119,7 +123,7 @@ def test_cloning_takes_a_function_of_the_segment():
 
 def test_cloning_warns_of_a_collapsed_population_and_rejects_bad_settings():
     """Test that a strong tilt on few clones warns, and that a duration off the interval grid raises an error."""
-    system = System(components=[Counter('counter')])
+    system = System(components=[CounterComponent('counter')])
     with pytest.warns(RuntimeWarning, match='effective population'):
         cloning(system, 'counter.n', 4.0, population=5, until=2.0, random_state=0)
     with pytest.raises(AnalysisError, match='multiple of the interval'):

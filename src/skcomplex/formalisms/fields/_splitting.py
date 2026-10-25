@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression
 from ...engine.compile import Reference, Source
-from ._components import Field
+from ._components import FieldComponent
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')
 
@@ -45,7 +45,7 @@ class LinearTerm:
 
     target: Reference
     source: Reference
-    place: Field
+    place: FieldComponent
     chain: Chain
     coefficient: Expression
     references: Mapping[Expression, Reference]
@@ -109,7 +109,7 @@ def linear_terms(
     value: object,
     target: Reference,
     references: Mapping[Expression, Reference],
-    fields: Mapping[str, Field],
+    fields: Mapping[str, FieldComponent],
 ) -> list[LinearTerm]:
     """Return the linear terms with constant coefficients of the rate of a field state.
 

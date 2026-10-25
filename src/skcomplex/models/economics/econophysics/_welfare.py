@@ -8,14 +8,14 @@ from functools import partial
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, total
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, total
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import Encounter, moment
+from ....formalisms.kinetics import EncounterLaw, moment
 
 WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
 
@@ -193,7 +193,7 @@ def wealth_observables(classes: int) -> list[Observable]:
     ]
 
 
-class WealthClass(Element):
+class WealthClassComponent(ElementComponent):
     """Density of the population at one wealth class, a member of a distribution over wealth classes.
 
     Args:
@@ -204,15 +204,15 @@ class WealthClass(Element):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import WealthClass
-        >>> WealthClass.group('wealth', 9, f=1 / 9).size
+        >>> from skcomplex.models.economics.econophysics import WealthClassComponent
+        >>> WealthClassComponent.group('wealth', 9, f=1 / 9).size
         9
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class WealthExchange(Interaction):
+class WealthExchangeInteraction(BaseInteraction):
     """Conservative encounters between wealth classes, with cooperation and competition.
 
     Args:
@@ -235,18 +235,18 @@ class WealthExchange(Interaction):
             The probability of the move that widens it.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import WealthExchange
-        >>> WealthExchange('exchange', population='wealth').competition
+        >>> from skcomplex.models.economics.econophysics import WealthExchangeInteraction
+        >>> WealthExchangeInteraction('exchange', population='wealth').competition
         0.3
     """
 
     population: str = role()
-    classes: int = parameter(default=9, domain=Domain.POSITIVE)
-    eta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    cooperation: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    competition: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=9, domain=NumericDomain.POSITIVE)
+    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    cooperation: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    competition: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the population with itself.
 
         Args:
@@ -258,10 +258,10 @@ class WealthExchange(Interaction):
                 The laws of the component.
         """
         table = exchange_table(int(self.classes), s.cooperation, s.competition)
-        return [Encounter(s.population.f, s.population.f, s.eta, table)]
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
 
 
-class WelfarePolicy(Interaction):
+class WelfarePolicyInteraction(BaseInteraction):
     """Welfare policy that taxes the richest classes and helps the poorest, a micro-scale external action.
 
     The policy is an encounter whose field role binds a group with a fixed density, so it acts on the transitions of
@@ -284,17 +284,17 @@ class WelfarePolicy(Interaction):
             The rate at which the policy moves the richest classes down and the poorest up.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import WelfarePolicy
-        >>> WelfarePolicy('welfare', population='wealth', policy='state').tax
+        >>> from skcomplex.models.economics.econophysics import WelfarePolicyInteraction
+        >>> WelfarePolicyInteraction('welfare', population='wealth', policy='state').tax
         0.1
     """
 
     population: str = role()
     policy: str = role()
-    classes: int = parameter(default=9, domain=Domain.POSITIVE)
-    tax: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=9, domain=NumericDomain.POSITIVE)
+    tax: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the population with the policy.
 
         Args:
@@ -306,7 +306,7 @@ class WelfarePolicy(Interaction):
                 The laws of the component.
         """
         pattern, table = policy_table(int(self.classes))
-        return [Encounter(s.population.f, s.policy.f, pattern * s.tax, table)]
+        return [EncounterLaw(s.population.f, s.policy.f, pattern * s.tax, table)]
 
 
 @register_model(
@@ -361,11 +361,17 @@ def kinetic_wealth_welfare(
         ['exchange', 'welfare']
     """
     initial = np.exp(-((wealth_classes(classes) - 0.5) ** 2) / 0.05)
-    components: list[Group] = [
-        Group('wealth', element=WealthClass, size=classes, on='sites', values={'f': initial / initial.sum()}),
+    components: list[GroupComponent] = [
+        GroupComponent(
+            'wealth',
+            element=WealthClassComponent,
+            size=classes,
+            on='sites',
+            values={'f': initial / initial.sum()},
+        ),
     ]
-    interactions: list[Interaction] = [
-        WealthExchange(
+    interactions: list[BaseInteraction] = [
+        WealthExchangeInteraction(
             'exchange',
             population='wealth',
             classes=classes,
@@ -375,8 +381,10 @@ def kinetic_wealth_welfare(
         ),
     ]
     if tax > 0:
-        components.append(WealthClass.group('state', 1, f=1.0))
-        interactions.append(WelfarePolicy('welfare', population='wealth', policy='state', classes=classes, tax=tax))
+        components.append(WealthClassComponent.group('state', 1, f=1.0))
+        interactions.append(
+            WelfarePolicyInteraction('welfare', population='wealth', policy='state', classes=classes, tax=tax),
+        )
     return System(
         components=components,
         interactions=interactions,

@@ -13,13 +13,13 @@ regrows, while adoptive therapy with IL-2 above the book's treatment levels clea
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'kirschner_panetta'
 
-solver = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL, alpha_a=0.02)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).run(until=1000)

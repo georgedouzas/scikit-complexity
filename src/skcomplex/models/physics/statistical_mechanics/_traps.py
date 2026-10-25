@@ -9,15 +9,15 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols, draw, uniform
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols, draw, uniform
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class TrapWalker(Element):
+class TrapWalkerComponent(ElementComponent):
     """Walker in a trap of depth `E`, which escapes after an exponential time of mean `tau0 exp(E / T)`.
 
     On escape the walker falls into a new trap of the fully connected landscape, at a uniformly random place in the
@@ -40,18 +40,18 @@ class TrapWalker(Element):
             The escape time from a trap of zero depth.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import TrapWalker
-        >>> TrapWalker('walker', T=0.5).T
+        >>> from skcomplex.models.physics.statistical_mechanics import TrapWalkerComponent
+        >>> TrapWalkerComponent('walker', T=0.5).T
         0.5
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)})
     x: npt.ArrayLike = state(default=0.5, vector=True)
-    E: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    T: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    E: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    T: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the escapes after activated waiting times.
 
         Args:
@@ -64,7 +64,7 @@ class TrapWalker(Element):
         """
         reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
         waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
-        return [Jump(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
+        return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
 
 
 @register_model(
@@ -109,7 +109,7 @@ def trap_model(
         0.8
     """
     rng = np.random.default_rng(random_state)
-    walkers = TrapWalker.group(
+    walkers = TrapWalkerComponent.group(
         'walkers',
         n_walkers,
         x=rng.random((n_walkers, 2)),

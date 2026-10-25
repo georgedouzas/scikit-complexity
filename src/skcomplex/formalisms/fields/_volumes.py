@@ -15,8 +15,8 @@ from sage.all__sagemath_symbolics import SR, solve
 from ...core.base import Expression, ValidationError, symbol
 from ...core.space import LatticeSpace
 from ...engine.compile import Reference, Source, numpy_function
-from ._components import Field
-from ._laws import Flux
+from ._components import FieldComponent
+from ._laws import FluxLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -251,9 +251,9 @@ class FiniteVolume:
 
 
 def compile_volumes(
-    laws: Sequence[tuple[Flux, Reference]],
+    laws: Sequence[tuple[FluxLaw, Reference]],
     references: Mapping[Expression, Reference],
-    place: Field,
+    place: FieldComponent,
     owner: str,
 ) -> FiniteVolume:
     """Return the conservation laws of one finite-volume field.

@@ -7,14 +7,14 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
@@ -22,7 +22,7 @@ def _cell(agent: AgentView) -> tuple[int, ...]:
     return tuple(int(item) for item in np.atleast_1d(cast('Any', agent.location)))
 
 
-class Pasture(Element):
+class PastureComponent(ElementComponent):
     """Patch of grass that regrows logistically every week, `G' = G + g G (1 - G)`.
 
     Args:
@@ -36,16 +36,16 @@ class Pasture(Element):
             The weekly growth rate `g` of the grass.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Pasture
-        >>> Pasture.group('pasture', 4, growth=0.1).size
+        >>> from skcomplex.models.biology.ecology import PastureComponent
+        >>> PastureComponent.group('pasture', 4, growth=0.1).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)})
-    grass: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    growth: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    grass: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    growth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth rule.
 
         Args:
@@ -56,7 +56,7 @@ class Pasture(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.regrow)]
+        return [RuleLaw(self.regrow)]
 
     def regrow(self, agent: AgentView, model: ModelView) -> None:
         """Grow the grass by one week of logistic growth.
@@ -72,7 +72,7 @@ class Pasture(Element):
         agent.grass += agent.growth * agent.grass * (1 - agent.grass)
 
 
-class Cow(Element):
+class CowComponent(ElementComponent):
     """Cow of the meadow, which the grazing and herding interactions feed and move every week.
 
     Args:
@@ -83,16 +83,16 @@ class Cow(Element):
             The grass a cow eats in a week.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Cow
-        >>> Cow.group('cows', 10).size
+        >>> from skcomplex.models.biology.ecology import CowComponent
+        >>> CowComponent.group('cows', 10).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.4})
-    bite: float = parameter(default=0.75, domain=Domain.NONNEGATIVE)
+    bite: float = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
 
 
-class Grazing(Interaction):
+class GrazingInteraction(BaseInteraction):
     """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
 
     Args:
@@ -106,15 +106,15 @@ class Grazing(Interaction):
             The path of the group of patches.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Grazing
-        >>> Grazing('grazing', cows='cows', pasture='pasture').pasture
+        >>> from skcomplex.models.biology.ecology import GrazingInteraction
+        >>> GrazingInteraction('grazing', cows='cows', pasture='pasture').pasture
         'pasture'
     """
 
     cows: str = role()
     pasture: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the grazing rule.
 
         Args:
@@ -125,7 +125,7 @@ class Grazing(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.graze)]
+        return [RuleLaw(self.graze)]
 
     def graze(self, model: ModelView) -> None:
         """Make every cow eat grass from the patch of its cell.
@@ -141,7 +141,7 @@ class Grazing(Interaction):
                 patch.grass = max(patch.grass - cow.bite, 0.0)
 
 
-class Herding(Interaction):
+class HerdingInteraction(BaseInteraction):
     """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
 
     Args:
@@ -158,16 +158,16 @@ class Herding(Interaction):
             The least grass a patch needs for a cow to move there.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Herding
-        >>> Herding('herding', cows='cows', pasture='pasture').threshold
+        >>> from skcomplex.models.biology.ecology import HerdingInteraction
+        >>> HerdingInteraction('herding', cows='cows', pasture='pasture').threshold
         0.9
     """
 
     cows: str = role()
     pasture: str = role()
-    threshold: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
+    threshold: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the herding rule.
 
         Args:
@@ -178,7 +178,7 @@ class Herding(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.herd)]
+        return [RuleLaw(self.herd)]
 
     def herd(self, model: ModelView) -> None:
         """Move every cow to the nearest free patch with enough grass, and remove the cows that find none.
@@ -269,12 +269,12 @@ def meadow_capacity(
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
         components=[
-            Pasture.group('pasture', len(cells), variable=True, location=cells, growth=growth),
-            Cow.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
+            PastureComponent.group('pasture', len(cells), variable=True, location=cells, growth=growth),
+            CowComponent.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
         ],
         interactions=[
-            Grazing('grazing', cows='cows', pasture='pasture'),
-            Herding('herding', cows='cows', pasture='pasture', threshold=threshold),
+            GrazingInteraction('grazing', cows='cows', pasture='pasture'),
+            HerdingInteraction('herding', cows='cows', pasture='pasture', threshold=threshold),
         ],
         space=LatticeSpace((width, height), boundary='fixed'),
     )

@@ -5,9 +5,9 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element, Group
-from ....core.laws import Law, Symbols, Update, neighbors, total, where
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, total, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -23,7 +23,7 @@ def _degree(node: Symbols) -> object:
     return neighbors(1)
 
 
-class Link(Element):
+class LinkComponent(ElementComponent):
     """Edge of a growing network, which holds no state of its own.
 
     Args:
@@ -31,13 +31,13 @@ class Link(Element):
             The label of the edge group.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Link
-        >>> Link('links').label
+        >>> from skcomplex.models.mathematics.networks import LinkComponent
+        >>> LinkComponent('links').label
         'links'
     """
 
 
-class Vertex(Element):
+class VertexComponent(ElementComponent):
     """Node of a growing network, with its age in steps and its degree.
 
     New nodes start with age 0, and the degree is read from the edges at the start of every step.
@@ -53,16 +53,16 @@ class Vertex(Element):
             The number of edges of the node.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Vertex
-        >>> Vertex('nodes').age
+        >>> from skcomplex.models.mathematics.networks import VertexComponent
+        >>> VertexComponent('nodes').age
         0.0
     """
 
     visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the ageing and the degree of the node.
 
         Args:
@@ -73,10 +73,10 @@ class Vertex(Element):
             laws:
                 The laws of the component.
         """
-        return [Update(s.age, s.age + 1), Update(s.degree, neighbors(1))]
+        return [UpdateLaw(s.age, s.age + 1), UpdateLaw(s.degree, neighbors(1))]
 
 
-class TriadVertex(Vertex):
+class TriadVertexComponent(VertexComponent):
     """Node of a Holme-Kim network, which closes triangles with the neighbours of its first contact when it joins.
 
     One step after a node joins with one edge by preferential attachment, it adds `extra` edges. Each new end is a
@@ -97,16 +97,16 @@ class TriadVertex(Vertex):
             The number of edges a node adds after its first one.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import TriadVertex
-        >>> TriadVertex('nodes', triad=0.5).triad
+        >>> from skcomplex.models.mathematics.networks import TriadVertexComponent
+        >>> TriadVertexComponent('nodes', triad=0.5).triad
         0.5
     """
 
-    near: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    triad: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    extra: int = parameter(default=1, domain=Domain.NONNEGATIVE_INTEGER)
+    near: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    triad: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    extra: int = parameter(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the ageing, the degree, the marks next to the newest node, and the edges of triad formation.
 
         Args:
@@ -127,12 +127,12 @@ class TriadVertex(Vertex):
 
         return [
             *super().laws(s),
-            Update(s.near, neighbors(where(s.other.age < 0.5, 1, 0))),  # noqa: PLR2004
-            Update(add_edge(edges=int(self.extra), toward=weight), where(s.age < 0.5, 1, 0)),  # noqa: PLR2004
+            UpdateLaw(s.near, neighbors(where(s.other.age < 0.5, 1, 0))),  # noqa: PLR2004
+            UpdateLaw(add_edge(edges=int(self.extra), toward=weight), where(s.age < 0.5, 1, 0)),  # noqa: PLR2004
         ]
 
 
-class CopyingVertex(Vertex):
+class CopyingVertexComponent(VertexComponent):
     """Node of a vertex-copying network, which holds the inverse of its degree for the copying of its edges.
 
     Args:
@@ -143,14 +143,14 @@ class CopyingVertex(Vertex):
             The inverse of the degree, which only the neighbours of the node read.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import CopyingVertex
-        >>> CopyingVertex('nodes').inverse
+        >>> from skcomplex.models.mathematics.networks import CopyingVertexComponent
+        >>> CopyingVertexComponent('nodes').inverse
         1.0
     """
 
-    inverse: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    inverse: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the ageing, the degree, and its inverse.
 
         Args:
@@ -161,10 +161,10 @@ class CopyingVertex(Vertex):
             laws:
                 The laws of the component.
         """
-        return [*super().laws(s), Update(s.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))]
+        return [*super().laws(s), UpdateLaw(s.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))]
 
 
-class Attachment(Element):
+class AttachmentComponent(ElementComponent):
     """Arrival of one node per step, joined to `edges` nodes drawn by preferential attachment.
 
     Args:
@@ -175,14 +175,14 @@ class Attachment(Element):
             The number of edges of every new node.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Attachment
-        >>> Attachment('growth', edges=3).edges
+        >>> from skcomplex.models.mathematics.networks import AttachmentComponent
+        >>> AttachmentComponent('growth', edges=3).edges
         3
     """
 
-    edges: int = parameter(default=2, domain=Domain.NONNEGATIVE_INTEGER)
+    edges: int = parameter(default=2, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the arrival of a node with its edges.
 
         Args:
@@ -193,10 +193,10 @@ class Attachment(Element):
             laws:
                 The laws of the component.
         """
-        return [Update(add_node(edges=int(self.edges), toward=_degree), 1)]
+        return [UpdateLaw(add_node(edges=int(self.edges), toward=_degree), 1)]
 
 
-class Copying(Element):
+class CopyingComponent(ElementComponent):
     """Arrival of one node per step whose edges copy the edges of random prototypes.
 
     Every edge of a new node joins a uniformly random node with probability `randomness`, and otherwise a random
@@ -214,15 +214,15 @@ class Copying(Element):
             The probability that an edge joins a random node instead of copying.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import Copying
-        >>> Copying('growth', randomness=0.1).randomness
+        >>> from skcomplex.models.mathematics.networks import CopyingComponent
+        >>> CopyingComponent('growth', randomness=0.1).randomness
         0.1
     """
 
-    edges: int = parameter(default=3, domain=Domain.NONNEGATIVE_INTEGER)
-    randomness: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    edges: int = parameter(default=3, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    randomness: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the arrival of a node with its copied edges.
 
         Args:
@@ -239,12 +239,12 @@ class Copying(Element):
             """Return the chance that a copied edge or a random edge reaches a candidate node."""
             return randomness + (1 - randomness) * neighbors(node.other.inverse)
 
-        return [Update(add_node(edges=int(self.edges), toward=weight), 1)]
+        return [UpdateLaw(add_node(edges=int(self.edges), toward=weight), 1)]
 
 
-def _nodes(element: type[Vertex], capacity: int, **values: object) -> Group:
+def _nodes(element: type[VertexComponent], capacity: int, **values: object) -> GroupComponent:
     """Return the variable group on the nodes of a growing network, whose seed nodes start at age 1."""
-    return Group(
+    return GroupComponent(
         'nodes',
         element=element,
         on='sites',
@@ -255,9 +255,9 @@ def _nodes(element: type[Vertex], capacity: int, **values: object) -> Group:
     )
 
 
-def _grown(nodes: Group, growth: Element, space: NetworkSpace, capacity: int) -> System:
+def _grown(nodes: GroupComponent, growth: ElementComponent, space: NetworkSpace, capacity: int) -> System:
     """Return a growing network of a group on its nodes, a variable edge group, and the arrival of nodes."""
-    links = Group('links', element=Link, on='edges', variable=True, capacity=capacity)
+    links = GroupComponent('links', element=LinkComponent, on='edges', variable=True, capacity=capacity)
     return System(components=[nodes, links, growth], space=space, time=DiscreteTime())
 
 
@@ -295,8 +295,8 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
         23
     """
     space = NetworkSpace.complete(seed_nodes)
-    nodes = _nodes(Vertex, n_nodes)
-    return _grown(nodes, Attachment('growth', edges=edges), space, edges * n_nodes + seed_nodes**2)
+    nodes = _nodes(VertexComponent, n_nodes)
+    return _grown(nodes, AttachmentComponent('growth', edges=edges), space, edges * n_nodes + seed_nodes**2)
 
 
 @register_model(
@@ -332,11 +332,11 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
     Examples:
         >>> from skcomplex.models.mathematics.networks import holme_kim
         >>> holme_kim(20).components[0].element.__name__
-        'TriadVertex'
+        'TriadVertexComponent'
     """
     space = NetworkSpace.complete(seed_nodes)
-    nodes = _nodes(TriadVertex, n_nodes, triad=triad, extra=edges - 1)
-    return _grown(nodes, Attachment('growth', edges=1), space, edges * n_nodes + seed_nodes**2)
+    nodes = _nodes(TriadVertexComponent, n_nodes, triad=triad, extra=edges - 1)
+    return _grown(nodes, AttachmentComponent('growth', edges=1), space, edges * n_nodes + seed_nodes**2)
 
 
 @register_model(
@@ -374,6 +374,6 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
         0.2
     """
     space = NetworkSpace.complete(seed_nodes)
-    nodes = _nodes(CopyingVertex, n_nodes)
-    growth = Copying('growth', edges=edges, randomness=randomness)
+    nodes = _nodes(CopyingVertexComponent, n_nodes)
+    growth = CopyingComponent('growth', edges=edges, randomness=randomness)
     return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2)

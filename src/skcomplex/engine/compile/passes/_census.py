@@ -7,11 +7,11 @@ from typing import cast
 
 from .._census import census_of
 from .._compilation import Compilation
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._tree import Node
 
 
-class CensusPass(Pass):
+class CensusPass(BasePass):
     """Pass that takes the census of the laws of the system, keeping going past failing components."""
 
     reads = ('nodes',)

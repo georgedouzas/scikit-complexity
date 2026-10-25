@@ -7,15 +7,15 @@ from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class Gene(Element):
+class GeneComponent(ElementComponent):
     """Gene whose messenger RNA decays, is translated into protein, and whose protein decays.
 
     The mRNA count `m` decays at rate `delta * m`, translation adds protein at rate `b * m`, and the protein count `p`
@@ -47,16 +47,16 @@ class Gene(Element):
                 The decay rate of the protein.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import Gene
-        >>> Gene('lacI', p=20.0).p
+        >>> from skcomplex.models.biology.systems_biology import GeneComponent
+        >>> GeneComponent('lacI', p=20.0).p
         20.0
     """
 
-    m: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    p: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    delta: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    b: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.2, domain=Domain.POSITIVE)
+    m: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    p: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    delta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    b: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class Gene(Element):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the decay of mRNA, the translation, and the decay of the protein.
 
         Args:
@@ -80,11 +80,11 @@ class Gene(Element):
                 The laws of the component.
         """
         if self.stochastic:
-            return [Jump(s.delta * s.m, {s.m: -1}), Jump(s.b * s.m, {s.p: 1}), Jump(s.beta * s.p, {s.p: -1})]
-        return [Rate(s.m, -s.delta * s.m), Rate(s.p, s.b * s.m - s.beta * s.p)]
+            return [JumpLaw(s.delta * s.m, {s.m: -1}), JumpLaw(s.b * s.m, {s.p: 1}), JumpLaw(s.beta * s.p, {s.p: -1})]
+        return [RateLaw(s.m, -s.delta * s.m), RateLaw(s.p, s.b * s.m - s.beta * s.p)]
 
 
-class Repression(Interaction):
+class RepressionInteraction(BaseInteraction):
     """Transcription of a target gene repressed by the protein of a repressor gene, a Hill function of its count.
 
     The target gains mRNA at rate `alpha0 + alpha / (1 + (p / K)^n)`, where `p` is the repressor protein. In stochastic
@@ -120,17 +120,17 @@ class Repression(Interaction):
                 The Hill coefficient of repression.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import Repression
-        >>> Repression('repression', repressor='tetR', target='cI', n=2.0).n
+        >>> from skcomplex.models.biology.systems_biology import RepressionInteraction
+        >>> RepressionInteraction('repression', repressor='tetR', target='cI', n=2.0).n
         2.0
     """
 
     repressor: str = role()
     target: str = role()
-    alpha: float = parameter(default=40.0, domain=Domain.NONNEGATIVE)
-    alpha0: float = parameter(default=0.04, domain=Domain.NONNEGATIVE)
-    K: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    n: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    alpha: float = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
+    alpha0: float = parameter(default=0.04, domain=NumericDomain.NONNEGATIVE)
+    K: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -142,7 +142,7 @@ class Repression(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the repressed transcription `alpha0 + alpha / (1 + (p / K)^n)`.
 
         Args:
@@ -155,15 +155,15 @@ class Repression(Interaction):
         """
         rate = s.alpha0 + s.alpha / (1 + (s.repressor.p / s.K) ** s.n)
         if self.stochastic:
-            return [Jump(rate, {s.target.m: 1})]
-        return [Rate(s.target.m, rate)]
+            return [JumpLaw(rate, {s.target.m: 1})]
+        return [RateLaw(s.target.m, rate)]
 
 
 def _circuit(
     proteins: Sequence[float],
     edges: Sequence[tuple[int, int]],
-    gene: Gene,
-    repression: Callable[..., Repression],
+    gene: GeneComponent,
+    repression: Callable[..., RepressionInteraction],
 ) -> System:
     """Return copies of a gene with initial protein counts, where the first gene of each edge represses the second."""
     genes = [
@@ -238,8 +238,8 @@ def repressilator(
         >>> [interaction.repressor for interaction in repressilator().interactions]
         ['gene_2', 'gene_0', 'gene_1']
     """
-    gene = Gene('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
-    repression = partial(Repression, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
+    gene = GeneComponent('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
+    repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
     return _circuit(proteins, [(2, 0), (0, 1), (1, 2)], gene, repression)
 
 
@@ -303,8 +303,8 @@ def toggle_switch(
         >>> [element.p for element in toggle_switch((0.0, 50.0)).elements]
         [0.0, 50.0]
     """
-    gene = Gene('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
-    repression = partial(Repression, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
+    gene = GeneComponent('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
+    repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
     return _circuit(proteins, [(1, 0), (0, 1)], gene, repression)
 
 
@@ -365,8 +365,8 @@ def negative_autoregulation(
         >>> negative_autoregulation().interactions[0].repressor
         'gene'
     """
-    gene = Gene('gene', p=p, b=b, beta=beta, delta=delta, stochastic=stochastic)
-    feedback = Repression(
+    gene = GeneComponent('gene', p=p, b=b, beta=beta, delta=delta, stochastic=stochastic)
+    feedback = RepressionInteraction(
         'autoregulation',
         repressor='gene',
         target='gene',

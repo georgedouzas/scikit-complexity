@@ -5,12 +5,12 @@
 
 from collections.abc import Mapping, Sequence
 
-from ....core.base import Domain, parameter, role
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, role
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ._populations import LogisticGrowth, Mortality, Population, Predation
+from ._populations import LogisticGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
 WEB_GROWTH = {'frogs': (1.0, 100.0), 'mice': (1.2, 100.0)}
@@ -23,7 +23,7 @@ WEB_LINKS = (
 )
 
 
-class Competition(Interaction):
+class CompetitionInteraction(BaseInteraction):
     """Lotka-Volterra competition of two species for the same resources.
 
     Each species grows logistically, and the other species fills its carrying capacity in proportion to a competition
@@ -58,21 +58,21 @@ class Competition(Interaction):
             The effect of one member of the first population on the second, relative to one of its own.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Competition
-        >>> Competition('competition', first='deer', second='elk', alpha12=0.5).alpha12
+        >>> from skcomplex.models.biology.ecology import CompetitionInteraction
+        >>> CompetitionInteraction('competition', first='deer', second='elk', alpha12=0.5).alpha12
         0.5
     """
 
     first: str = role()
     second: str = role()
-    r1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    K1: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    K2: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    alpha12: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    alpha21: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    r1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K1: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    K2: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    alpha12: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    alpha21: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the logistic rates with the competitor in the crowding term.
 
         Args:
@@ -85,12 +85,12 @@ class Competition(Interaction):
         """
         first, second = s.first.n, s.second.n
         return [
-            Rate(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
-            Rate(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
+            RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
+            RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
         ]
 
 
-class Mutualism(Interaction):
+class MutualismInteraction(BaseInteraction):
     """Mutualism with a handling time, where encounters feed both species, `a b n1 n2 / (1 + a T n)` each.
 
     The benefit to each species saturates with the abundance of its partner, as the handling time `T` limits how much
@@ -116,18 +116,18 @@ class Mutualism(Interaction):
             The handling time `T` of the resource of the partner.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Mutualism
-        >>> Mutualism('pollination', first='orchids', second='bees', handling=0.5).handling
+        >>> from skcomplex.models.biology.ecology import MutualismInteraction
+        >>> MutualismInteraction('pollination', first='orchids', second='bees', handling=0.5).handling
         0.5
     """
 
     first: str = role()
     second: str = role()
-    a: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    handling: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    handling: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the saturating benefits `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
 
         Args:
@@ -141,8 +141,8 @@ class Mutualism(Interaction):
         first, second = s.first.n, s.second.n
         encounters = s.a * s.b * first * second
         return [
-            Rate(first, encounters / (1 + s.a * s.handling * second)),
-            Rate(second, encounters / (1 + s.a * s.handling * first)),
+            RateLaw(first, encounters / (1 + s.a * s.handling * second)),
+            RateLaw(second, encounters / (1 + s.a * s.handling * first)),
         ]
 
 
@@ -204,9 +204,9 @@ def competition(
         0.2
     """
     return System(
-        components=[Population('first', n=first), Population('second', n=second)],
+        components=[PopulationComponent('first', n=first), PopulationComponent('second', n=second)],
         interactions=[
-            Competition(
+            CompetitionInteraction(
                 'competition',
                 first='first',
                 second='second',
@@ -282,11 +282,11 @@ def mutualism(
         ['growth_first', 'growth_second', 'mutualism']
     """
     return System(
-        components=[Population('first', n=first), Population('second', n=second)],
+        components=[PopulationComponent('first', n=first), PopulationComponent('second', n=second)],
         interactions=[
-            LogisticGrowth('growth_first', target='first', r=r1, K=K1),
-            LogisticGrowth('growth_second', target='second', r=r2, K=K2),
-            Mutualism('mutualism', first='first', second='second', a=a, b=b, handling=handling),
+            LogisticGrowthInteraction('growth_first', target='first', r=r1, K=K1),
+            LogisticGrowthInteraction('growth_second', target='second', r=r2, K=K2),
+            MutualismInteraction('mutualism', first='first', second='second', a=a, b=b, handling=handling),
         ],
     )
 
@@ -336,11 +336,15 @@ def food_webs(
     growth = WEB_GROWTH if growth is None else growth
     mortality = WEB_MORTALITY if mortality is None else mortality
     links = WEB_LINKS if links is None else links
-    interactions: list[Interaction] = [
-        LogisticGrowth(f'growth_{name}', target=name, r=r, K=K) for name, (r, K) in growth.items()
+    interactions: list[BaseInteraction] = [
+        LogisticGrowthInteraction(f'growth_{name}', target=name, r=r, K=K) for name, (r, K) in growth.items()
     ]
-    interactions += [Mortality(f'death_{name}', target=name, d=d) for name, d in mortality.items()]
+    interactions += [MortalityInteraction(f'death_{name}', target=name, d=d) for name, d in mortality.items()]
     interactions += [
-        Predation(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b) for predator, prey, a, b in links
+        PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
+        for predator, prey, a, b in links
     ]
-    return System(components=[Population(name, n=n) for name, n in populations.items()], interactions=interactions)
+    return System(
+        components=[PopulationComponent(name, n=n) for name, n in populations.items()],
+        interactions=interactions,
+    )

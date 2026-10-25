@@ -9,13 +9,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -49,7 +49,7 @@ def _value_at_risk(agent: AgentView) -> float:
     return float(agent.h * agent.value)
 
 
-class Bank(Element):
+class BankComponent(ElementComponent):
     """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
 
     Args:
@@ -66,16 +66,16 @@ class Bank(Element):
             The economic value, the bank's share of all interbank lending.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import Bank
-        >>> Bank.group('banks', 3, h=[1.0, 0.0, 0.0]).size
+        >>> from skcomplex.models.economics.finance import BankComponent
+        >>> BankComponent.group('banks', 3, h=[1.0, 0.0, 0.0]).size
         3
     """
 
-    h: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    status: float = state(default=UNDISTRESSED, domain=Domain.NONNEGATIVE_INTEGER)
-    value: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    h: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    status: float = state(default=UNDISTRESSED, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    value: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the cascade updates every bank at once.
 
         Args:
@@ -89,7 +89,7 @@ class Bank(Element):
         return []
 
 
-class DebtRankCascade(Interaction):
+class DebtRankCascadeInteraction(BaseInteraction):
     """Synchronous spread of distress, `h_i = min(1, h_i + sum_j W_ji h_j)` over the distressed banks `j`.
 
     A bank whose distress becomes positive turns distressed, and a distressed bank turns inactive after one step, so
@@ -109,8 +109,8 @@ class DebtRankCascade(Interaction):
                 The path of the group of banks.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import DebtRankCascade
-        >>> DebtRankCascade('cascade', banks='banks', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
+        >>> from skcomplex.models.economics.finance import DebtRankCascadeInteraction
+        >>> DebtRankCascadeInteraction('cascade', banks='banks', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
         [[0.0, 0.5], [0.0, 0.0]]
     """
 
@@ -126,7 +126,7 @@ class DebtRankCascade(Interaction):
         super().__init__(label, **values)
         self.impact = impact
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the cascade rule.
 
         Args:
@@ -137,7 +137,7 @@ class DebtRankCascade(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.spread)]
+        return [RuleLaw(self.spread)]
 
     def spread(self, model: ModelView) -> None:
         """Advance the distress and the states of every bank by one step.
@@ -219,8 +219,8 @@ def debtrank(
     h = np.zeros(size)
     h[list(distressed)] = psi
     status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-    banks = Bank.group('banks', size, h=h, status=status, value=_economic_values(matrix))
+    banks = BankComponent.group('banks', size, h=h, status=status, value=_economic_values(matrix))
     return System(
         components=[banks],
-        interactions=[DebtRankCascade('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
+        interactions=[DebtRankCascadeInteraction('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
     )

@@ -7,14 +7,14 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 ROAD_WIDTH = 1.0
 
@@ -31,7 +31,7 @@ def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | N
     return next((car for car in model.agents(agent.group) if int(car.rank) == rank and car != agent), None)
 
 
-class Motorist(Element):
+class MotoristComponent(ElementComponent):
     """Car of Charbonneau's traffic model, which brakes when it is closer than a safe distance to the car ahead.
 
     Args:
@@ -60,21 +60,21 @@ class Motorist(Element):
             The largest speed.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Motorist
-        >>> Motorist.group('cars', 3, x=[0.0, 10.0, 20.0]).size
+        >>> from skcomplex.models.engineering.traffic import MotoristComponent
+        >>> MotoristComponent.group('cars', 3, x=[0.0, 10.0, 20.0]).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'position': 'x', 'color_by': 'v'})
     x: float = state(default=0.0)
-    v: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    rank: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    safe_distance: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    braking: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    acceleration: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    speed_limit: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    v: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    rank: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    safe_distance: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    braking: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    acceleration: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    speed_limit: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the speed adjustment rule.
 
         Args:
@@ -85,7 +85,7 @@ class Motorist(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.adjust)]
+        return [RuleLaw(self.adjust)]
 
     def adjust(self, agent: AgentView, model: ModelView) -> None:
         """Brake when the car ahead is closer than the safe distance and accelerate otherwise.
@@ -110,7 +110,7 @@ class Motorist(Element):
         agent.v = float(np.clip(agent.v + change, 0.0, agent.speed_limit))
 
 
-class CarelessBraking(Interaction):
+class CarelessBrakingInteraction(BaseInteraction):
     """Model rule of Charbonneau's traffic model: a random driver brakes now and then, and every car moves.
 
     Every step, with probability `probability`, one random driver brakes by the braking of its group whatever the
@@ -130,16 +130,16 @@ class CarelessBraking(Interaction):
             The smallest distance a car keeps to the car ahead.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import CarelessBraking
-        >>> CarelessBraking('bozo', cars='cars').probability
+        >>> from skcomplex.models.engineering.traffic import CarelessBrakingInteraction
+        >>> CarelessBrakingInteraction('bozo', cars='cars').probability
         0.1
     """
 
     cars: str = role()
-    probability: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    gap: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    probability: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    gap: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of random braking and motion.
 
         Args:
@@ -150,7 +150,7 @@ class CarelessBraking(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.drive)]
+        return [RuleLaw(self.drive)]
 
     def drive(self, model: ModelView) -> None:
         """Make a random driver brake with the interaction's probability, then move every car.
@@ -172,7 +172,7 @@ class CarelessBraking(Interaction):
             car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
 
 
-class Driver(Element):
+class DriverComponent(ElementComponent):
     """Driver on a ring road who accelerates as much as allowed and stops when the speed would cause a collision.
 
     The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
@@ -205,21 +205,21 @@ class Driver(Element):
             The relative amplitude of the random error of speed.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import Driver
-        >>> Driver.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
+        >>> from skcomplex.models.engineering.traffic import DriverComponent
+        >>> DriverComponent.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
         2
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'speed'})
-    speed: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    rank: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    speed: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    rank: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     acceleration: float = parameter(default=1.0)
     min_acc: float = parameter(default=-10.0)
     max_acc: float = parameter(default=1.0)
-    speed_limit: float = parameter(default=40.0, domain=Domain.POSITIVE)
-    eps: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
+    speed_limit: float = parameter(default=40.0, domain=NumericDomain.POSITIVE)
+    eps: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the driving rule.
 
         Args:
@@ -230,7 +230,7 @@ class Driver(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.drive)]
+        return [RuleLaw(self.drive)]
 
     def drive(self, agent: AgentView, model: ModelView) -> None:
         """Choose the speed from the distance to the car ahead and move along the ring.
@@ -301,7 +301,7 @@ def charbonneau_traffic(
     """
     rng = np.random.default_rng(random_state)
     positions = np.cumsum(rng.uniform(3.0, 17.0, n_cars))
-    cars = Motorist.group(
+    cars = MotoristComponent.group(
         'cars',
         n_cars,
         x=positions,
@@ -310,7 +310,10 @@ def charbonneau_traffic(
         safe_distance=safe_distance,
         speed_limit=speed_limit,
     )
-    return System(components=[cars], interactions=[CarelessBraking('braking', cars='cars', probability=probability)])
+    return System(
+        components=[cars],
+        interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=probability)],
+    )
 
 
 @register_model(
@@ -354,7 +357,7 @@ def ring_road_drivers(
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)
-    drivers = Driver.group(
+    drivers = DriverComponent.group(
         'drivers',
         n_cars,
         location=[(float(position), ROAD_WIDTH / 2) for position in positions],

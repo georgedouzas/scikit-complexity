@@ -1,5 +1,5 @@
 """Share the solver of the evolution model tests."""
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 
-PRECISE = ScipyODE(method='DOP853', rtol=1e-12, atol=1e-14)
+PRECISE = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-14)

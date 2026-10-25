@@ -9,11 +9,11 @@ from typing import Any, cast
 import numpy as np
 
 from ...engine.compile import (
-    Backend,
+    BaseBackend,
+    BasePass,
     Compilation,
     Declarations,
     Laws,
-    Pass,
     Problem,
     Vector,
     member_count,
@@ -27,7 +27,7 @@ from ._laws import is_encounter
 def _compiled_encounters(
     specs: Laws,
     declarations: Declarations,
-    backend: str | Backend,
+    backend: str | BaseBackend,
 ) -> tuple[CompiledEncounter, ...]:
     """Return the encounter laws of every component, lowered for their members."""
     if not any(is_encounter(law) for _, laws in specs for law in laws):
@@ -66,7 +66,7 @@ class KineticProblem(Problem):
     encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
 
 
-class CompileEncountersPass(Pass):
+class CompileEncountersPass(BasePass):
     """Pass that compiles the encounter laws before reductions prune the groups they read, and takes them out."""
 
     reads = ('drawn', 'layout')
@@ -85,7 +85,7 @@ class CompileEncountersPass(Pass):
         compilation.drawn = [(spec, [law for law in laws if not is_encounter(law)]) for spec, laws in specs]
 
 
-class EncounterFunctionsPass(Pass):
+class EncounterFunctionsPass(BasePass):
     """Pass that adds the gain and loss rates of encounter laws to the drift."""
 
     reads = ('functions', 'encounters', 'layout')
@@ -105,7 +105,7 @@ class EncounterFunctionsPass(Pass):
         )
 
 
-class EncounterJacobianPass(Pass):
+class EncounterJacobianPass(BasePass):
     """Pass that drops the exact Jacobian of a problem with encounter laws, whose rates it does not derive."""
 
     reads = ('jacobian', 'encounters')
@@ -122,7 +122,7 @@ class EncounterJacobianPass(Pass):
             compilation.jacobian = None
 
 
-class EncounterProblemPass(Pass):
+class EncounterProblemPass(BasePass):
     """Pass that makes the problem of a system with encounter laws a kinetic problem that holds them."""
 
     reads = ('problem', 'encounters')

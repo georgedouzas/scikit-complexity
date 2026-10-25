@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnalysisError, Categorical, Domain, Form
+from ...core.base import AnalysisError, CategoricalDomain, Form, NumericDomain
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.system import System
 from ..compile import Problem, compile_system, observables_of
@@ -20,7 +20,7 @@ from ..runtime import Trajectory
 from ._kinds import ANALYSES, AnalysisEntry, DataKind
 
 type Array = npt.NDArray[np.float64]
-DISCRETE_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
+DISCRETE_DOMAINS = (NumericDomain.INTEGER, NumericDomain.NONNEGATIVE_INTEGER, NumericDomain.BOOLEAN)
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
@@ -53,7 +53,7 @@ def _lattice_names(problem: Problem) -> list[str]:
 def _is_discrete(problem: Problem, name: str) -> bool:
     """Check whether a state takes discrete values."""
     domain = problem.states.entry(name).domain
-    return isinstance(domain, Categorical) or domain in DISCRETE_DOMAINS
+    return isinstance(domain, CategoricalDomain) or domain in DISCRETE_DOMAINS
 
 
 def _path_names(problem: Problem) -> list[str]:

@@ -6,7 +6,7 @@ from skcomplex.core.space import ContinuousTime
 from skcomplex.engine.analysis import Series, fit_sindy
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE, resolve_solver
+from skcomplex.engine.solvers import ScipyODESolver, resolve_solver
 from skcomplex.models import create
 
 LORENZ_TERMS = {
@@ -22,7 +22,7 @@ LORENZ_TERMS = {
 
 def _lorenz_trajectory():
     """Return a noise-free trajectory of the Lorenz model, sampled every 0.002 for 10 time units."""
-    solver = ScipyODE(method='DOP853', rtol=1e-10, atol=1e-10)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     return Simulation(create('lorenz'), solver=solver, dt=0.002).run(until=10.0).trajectory_
 
 
@@ -45,7 +45,7 @@ def test_fit_sindy_surrogate_validates_with_ode_solver():
     report = validate(model.system)
     assert not report.errors
     assert isinstance(model.system.time, ContinuousTime)
-    assert isinstance(resolve_solver(compile_system(model.system), 'auto'), ScipyODE)
+    assert isinstance(resolve_solver(compile_system(model.system), 'auto'), ScipyODESolver)
 
 
 def test_fit_sindy_surrogate_follows_trajectory():

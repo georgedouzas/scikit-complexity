@@ -5,16 +5,16 @@
 
 from typing import Any
 
-from ....core.base import Domain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse_train, where
+from ....core.base import NumericDomain, ValidationError, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 
 
-class AdaptiveResponder(Element):
+class AdaptiveResponderComponent(ElementComponent):
     """System that counters episodes of demand on a critical parameter and pays for its response in four costs.
 
     The excursion of the critical parameter follows `de/dt = (1 - a) s(t) - c e - k0 e`, where the stimulus `s` is a
@@ -97,28 +97,28 @@ class AdaptiveResponder(Element):
                 The cost per unit time of a unit of extra capacity or of anticipation.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import AdaptiveResponder
-        >>> AdaptiveResponder('organism').period
+        >>> from skcomplex.models.biology.physiology import AdaptiveResponderComponent
+        >>> AdaptiveResponderComponent('organism').period
         10.0
     """
 
     e: float = state(default=0.0)
-    c: float = state(default=0.2, domain=Domain.NONNEGATIVE)
+    c: float = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
     S: float = state(default=1.0)
-    response_cost: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    restore_cost: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    repair_cost: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    prepare_cost: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    eta: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    anticipation: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    c0: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=50.0, domain=Domain.POSITIVE)
-    k0: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    kappa: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    price: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    theta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    repair: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    upkeep: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    response_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    restore_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    repair_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    prepare_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    eta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    anticipation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    c0: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=50.0, domain=NumericDomain.POSITIVE)
+    k0: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    kappa: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    price: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    theta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    repair: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    upkeep: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -136,7 +136,7 @@ class AdaptiveResponder(Element):
         self.period = period
         self.start = start
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the excursion, the capacity, the reserves, and the four costs.
 
         Args:
@@ -150,13 +150,13 @@ class AdaptiveResponder(Element):
         stimulus = pulse_train(s.t, self.period, self.width, self.height, start=self.start)
         effort = s.c * s.e
         return [
-            Rate(s.e, (1 - s.anticipation) * stimulus - effort - s.k0 * s.e),
-            Rate(s.c, s.eta * s.e**2 - (s.c - s.c0) / s.tau),
-            Rate(s.S, -effort + s.kappa * (1 - s.S)),
-            Rate(s.response_cost, effort),
-            Rate(s.restore_cost, s.price * s.kappa * (1 - s.S)),
-            Rate(s.repair_cost, s.repair * where(s.e > s.theta, s.e - s.theta, 0)),
-            Rate(s.prepare_cost, s.upkeep * (s.c - s.c0 + s.anticipation)),
+            RateLaw(s.e, (1 - s.anticipation) * stimulus - effort - s.k0 * s.e),
+            RateLaw(s.c, s.eta * s.e**2 - (s.c - s.c0) / s.tau),
+            RateLaw(s.S, -effort + s.kappa * (1 - s.S)),
+            RateLaw(s.response_cost, effort),
+            RateLaw(s.restore_cost, s.price * s.kappa * (1 - s.S)),
+            RateLaw(s.repair_cost, s.repair * where(s.e > s.theta, s.e - s.theta, 0)),
+            RateLaw(s.prepare_cost, s.upkeep * (s.c - s.c0 + s.anticipation)),
         ]
 
 
@@ -215,7 +215,7 @@ def adaptive_response_costs(
         error_msg = f'Unknown strategy {strategy!r}. Use one of {", ".join(STRATEGIES)}.'
         raise ValidationError(error_msg)
     eta, anticipation = STRATEGIES[strategy]
-    organism = AdaptiveResponder(
+    organism = AdaptiveResponderComponent(
         'organism',
         eta=eta,
         anticipation=anticipation,

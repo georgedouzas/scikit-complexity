@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Update, neighbors
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import UpdateLaw, neighbors
 from skcomplex.core.space import Adjacency, Layer, NetworkSpace, neighbor_pairs
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -148,16 +148,16 @@ def test_reductions_read_the_edges_of_their_layer(backend):
     contact, work = nx.path_graph(4), nx.Graph([(0, 3), (1, 2)])
     work.add_nodes_from(range(4))
     space = NetworkSpace(contact, layers=[Layer('work', work)])
-    Layered = Element.define(
-        'Layered',
+    LayeredComponent = ElementComponent.define(
+        'LayeredComponent',
         states={'y': 0.0, 'contacts': 0.0, 'colleagues': 0.0},
         laws=lambda s: [
-            Update(s.contacts, neighbors(s.other.y)),
-            Update(s.colleagues, neighbors(s.other.y, over=space.layers[0])),
+            UpdateLaw(s.contacts, neighbors(s.other.y)),
+            UpdateLaw(s.colleagues, neighbors(s.other.y, over=space.layers[0])),
         ],
     )
     values = np.array([1.0, 10.0, 100.0, 1000.0])
-    system = System(components=[Layered.lattice('g', space, y=values)])
+    system = System(components=[LayeredComponent.lattice('g', space, y=values)])
     problem = compile_system(system, backend=backend)
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(after, 'g.contacts').tolist() == [10.0, 101.0, 1010.0, 100.0]

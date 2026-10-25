@@ -9,13 +9,13 @@ from typing import Any, ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Boundary, Law, Noise, Rate, Symbols, delayed, where
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, Symbols, delayed, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9
@@ -42,7 +42,7 @@ def _angle_between(first: float, second: float) -> float:
     return abs((first - second + math.pi) % (2 * math.pi) - math.pi)
 
 
-class LightSensitiveRobot(Element):
+class LightSensitiveRobotComponent(ElementComponent):
     """Robot in a Gaussian light field that slows down in light, reacting to the light it measured a delay ago.
 
     The robot moves at the speed `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses
@@ -87,20 +87,20 @@ class LightSensitiveRobot(Element):
                 The radius of the well.
 
     Examples:
-        >>> from skcomplex.models.engineering.robotics import LightSensitiveRobot
-        >>> LightSensitiveRobot('robot', delay=5.0).delay
+        >>> from skcomplex.models.engineering.robotics import LightSensitiveRobotComponent
+        >>> LightSensitiveRobotComponent('robot', delay=5.0).delay
         5.0
     """
 
     x: float = state(default=0.0)
     y: float = state(default=0.0)
     phi: float = state(default=0.0)
-    V0: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    V_inf: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    I0: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    r0: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    R: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    V0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    V_inf: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    I0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    R: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -112,7 +112,7 @@ class LightSensitiveRobot(Element):
         super().__init__(label, **values)
         self.delay = delay
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the motion at the light-dependent speed, the rotational noise, and the reflecting wall.
 
         Args:
@@ -127,15 +127,15 @@ class LightSensitiveRobot(Element):
         speed = s.V_inf + (s.V0 - s.V_inf) * exp(-sensed)
         reach = where(sqrt(s.x**2 + s.y**2) > s.R, sqrt(s.x**2 + s.y**2), s.R)
         return [
-            Rate(s.x, speed * cos(s.phi)),
-            Rate(s.y, speed * sin(s.phi)),
-            Noise(s.phi, sqrt(2 / s.tau)),
-            Boundary(s.x, s.x * s.R / reach),
-            Boundary(s.y, s.y * s.R / reach),
+            RateLaw(s.x, speed * cos(s.phi)),
+            RateLaw(s.y, speed * sin(s.phi)),
+            NoiseLaw(s.phi, sqrt(2 / s.tau)),
+            BoundaryLaw(s.x, s.x * s.R / reach),
+            BoundaryLaw(s.y, s.y * s.R / reach),
         ]
 
 
-class SwarmRobot(Element):
+class SwarmRobotComponent(ElementComponent):
     """Robot of the swarmtaxis algorithm, which keeps in radio contact with the swarm and avoids its neighbours.
 
     Every step the robot counts the robots within its radio range. When it loses a connection and has fewer than
@@ -186,24 +186,24 @@ class SwarmRobot(Element):
             The side of the square arena, whose walls stop the robot.
 
     Examples:
-        >>> from skcomplex.models.engineering.robotics import SwarmRobot
-        >>> SwarmRobot.group('robots', 2, location=[(1.0, 1.0), (2.0, 1.0)]).size
+        >>> from skcomplex.models.engineering.robotics import SwarmRobotComponent
+        >>> SwarmRobotComponent.group('robots', 2, location=[(1.0, 1.0), (2.0, 1.0)]).size
         2
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)})
     heading: float = state(default=0.0)
-    connections: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    illuminated: float = state(default=1.0, domain=Domain.BOOLEAN)
-    speed: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    radio_range: float = parameter(default=4.0, domain=Domain.POSITIVE)
-    alpha: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    avoid_illuminated: float = parameter(default=1.5, domain=Domain.NONNEGATIVE)
-    avoid_shadowed: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    shadow_angle: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    connections: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    illuminated: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    speed: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    radio_range: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    alpha: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    avoid_illuminated: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    avoid_shadowed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    shadow_angle: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
     beacon_x: float = parameter(default=95.0)
     beacon_y: float = parameter(default=50.0)
-    arena: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    arena: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
     def _is_shadowed(self, agent: AgentView, neighbors: list[AgentView]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
@@ -233,7 +233,7 @@ class SwarmRobot(Element):
         _, nearest = min(close, key=lambda pair: pair[0])
         return _bearing(x - _position(nearest)[0], y - _position(nearest)[1])
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the swarmtaxis rule.
 
         Args:
@@ -244,7 +244,7 @@ class SwarmRobot(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.move)]
+        return [RuleLaw(self.move)]
 
     def move(self, agent: AgentView, model: ModelView) -> None:
         """Update the connections, the shadow, and the heading, and move forward.
@@ -329,7 +329,7 @@ def light_seeking_robots(
         4
     """
     headings = np.linspace(0.0, 2 * np.pi, n_robots, endpoint=False)
-    robots = LightSensitiveRobot.group(
+    robots = LightSensitiveRobotComponent.group(
         'robots',
         n_robots,
         x=np.zeros(n_robots),
@@ -407,7 +407,7 @@ def swarmtaxis(
     rng = np.random.default_rng(random_state)
     start = np.array([size / 5, size / 2])
     points = np.clip(start + rng.normal(0.0, spread, (n_robots, 2)), 0.0, size)
-    robots = SwarmRobot.group(
+    robots = SwarmRobotComponent.group(
         'robots',
         n_robots,
         location=[tuple(map(float, point)) for point in points],

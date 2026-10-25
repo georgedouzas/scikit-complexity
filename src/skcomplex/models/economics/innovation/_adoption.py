@@ -10,13 +10,13 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -50,7 +50,7 @@ def _seed_network(incomes: Array, classes: Array, shape: tuple[int, int], thresh
     return owners
 
 
-class Household(Element):
+class HouseholdComponent(ElementComponent):
     """Household whose income grows every year and that gets a phone when it can afford one and a neighbour has one.
 
     Args:
@@ -73,19 +73,19 @@ class Household(Element):
             The income from which a household can afford a phone.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import Household
-        >>> Household.group('households', 4, threshold=1.5).size
+        >>> from skcomplex.models.economics.innovation import HouseholdComponent
+        >>> HouseholdComponent.group('households', 4, threshold=1.5).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'phone', 'color_range': (0.0, 1.0)})
-    income: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    phone: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    social_class: float = state(default=MIDDLE, domain=Domain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.02, domain=Domain.REAL)
-    threshold: float = parameter(default=1.2, domain=Domain.NONNEGATIVE)
+    income: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    phone: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    social_class: float = state(default=MIDDLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    growth: float = parameter(default=0.02, domain=NumericDomain.REAL)
+    threshold: float = parameter(default=1.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the yearly rule.
 
         Args:
@@ -96,7 +96,7 @@ class Household(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.adopt)]
+        return [RuleLaw(self.adopt)]
 
     def adopt(self, agent: AgentView, model: ModelView) -> None:
         """Grow the income and get a phone if it is affordable and a neighbour has one.
@@ -175,7 +175,7 @@ def phone_adoption(
     incomes /= incomes.mean()
     owners = _seed_network(incomes, classes, (width, height), threshold, initial_share)
     locations = [(column, row) for column in range(width) for row in range(height)]
-    households = Household.group(
+    households = HouseholdComponent.group(
         'households',
         len(locations),
         location=locations,

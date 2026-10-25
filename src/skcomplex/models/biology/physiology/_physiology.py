@@ -7,22 +7,22 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate, delayed
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, delayed
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import RK4Solver
+from ....formalisms.fields import FieldComponent, laplacian
 
-FitzHughNagumo = Element.define(
-    'FitzHughNagumo',
+FitzHughNagumoComponent = ElementComponent.define(
+    'FitzHughNagumoComponent',
     states={'u': 0.0, 'v': 0.0},
     parameters={'D': 1.0, 'a': 0.7, 'b': 0.8, 'epsilon': 0.02},
     laws=lambda s: [
-        Rate(s.u, s.D * laplacian(s.u) + s.u - s.u**3 / 3 - s.v),
-        Rate(s.v, s.epsilon * (s.u + s.a - s.b * s.v)),
+        RateLaw(s.u, s.D * laplacian(s.u) + s.u - s.u**3 / 3 - s.v),
+        RateLaw(s.v, s.epsilon * (s.u + s.a - s.b * s.v)),
     ],
 )
 
@@ -31,7 +31,7 @@ FitzHughNagumo = Element.define(
     field='biology/physiology',
     tags=('field', 'excitable media', 'spirals', 'pde'),
     references=('FitzHugh 1961', 'Nagumo, Arimoto, and Yoshizawa 1962', 'Gros 2015'),
-    defaults={'until': 200.0, 'dt': 2.0, 'solver': RK4(dt=0.05)},
+    defaults={'until': 200.0, 'dt': 2.0, 'solver': RK4Solver(dt=0.05)},
 )
 def fitzhugh_nagumo(
     shape: Sequence[int] = (100, 100),
@@ -76,14 +76,14 @@ def fitzhugh_nagumo(
     v[:, : columns // 2] = 1.0
     values = {'u': u, 'v': v, 'D': D, 'a': a, 'b': b, 'epsilon': epsilon}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(components=[Field('medium', FitzHughNagumo, space, values=values)])
+    return System(components=[FieldComponent('medium', FitzHughNagumoComponent, space, values=values)])
 
 
-MackeyGlass = Element.define(
-    'MackeyGlass',
-    states={'x': state(default=0.5, domain=Domain.NONNEGATIVE)},
-    parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': parameter(default=17.0, domain=Domain.POSITIVE)},
-    laws=lambda s: [Rate(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
+MackeyGlassComponent = ElementComponent.define(
+    'MackeyGlassComponent',
+    states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
+    parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': parameter(default=17.0, domain=NumericDomain.POSITIVE)},
+    laws=lambda s: [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
 )
 
 
@@ -130,4 +130,4 @@ def mackey_glass(
         >>> mackey_glass(tau=6.0).elements[0].tau
         6.0
     """
-    return System(components=[MackeyGlass('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])
+    return System(components=[MackeyGlassComponent('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])

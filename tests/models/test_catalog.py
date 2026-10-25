@@ -80,3 +80,10 @@ def test_listing_matches_registration():
         entry = describe(listing.name)
         listed = (listing.name, listing.field, listing.description, listing.tags)
         assert (entry.name, entry.field, entry.description, entry.tags) == listed, listing.name
+
+
+def test_engine_resolves_a_listed_model_without_its_module_imported():
+    """Test that the model registry of the engine imports the module of a listed model when it resolves its name."""
+    code = "import skcomplex.models\nfrom skcomplex.engine.runtime import MODELS\nMODELS.resolve('pendulum')"
+    subfields = [name for name in _loaded(code) if name.startswith('skcomplex.models.')]
+    assert 'skcomplex.models.physics.mechanics' in subfields

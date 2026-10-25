@@ -14,7 +14,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import IMEXEuler
+from skcomplex.formalisms.fields import IMEXEulerSolver
 from skcomplex.models import create, describe
 
 MODEL = 'heat_l_shape'
@@ -28,7 +28,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 system = create(MODEL)
-simulation = Simulation(system, dt=0.1, solver=IMEXEuler(dt=0.05), observers=[observer]).run(until=2.0)
+simulation = Simulation(system, dt=0.1, solver=IMEXEulerSolver(dt=0.05), observers=[observer]).run(until=2.0)
 
 # %%
 # Approach to the steady state

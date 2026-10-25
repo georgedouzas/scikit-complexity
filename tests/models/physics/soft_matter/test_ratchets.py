@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models.physics.soft_matter import (
     flashing_ratchet,
     tilted_periodic_potential,
@@ -31,7 +31,7 @@ def _washboard_velocity(f, *, U0, L, kT, gamma, n_points=400):
 def test_tilted_periodic_potential_current(f):
     """Test that the mean velocity matches the exact steady current of the tilted periodic potential."""
     system = tilted_periodic_potential(500, f=f, U0=0.5, L=1.0, kT=0.5)
-    simulation = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.005), random_state=0).run(until=30)
+    simulation = Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.005), random_state=0).run(until=30)
     positions = simulation.trajectory_['particles.x'][..., 0]
     velocities = (positions[-1] - positions[5]) / 25
     error = velocities.std() / math.sqrt(velocities.size)
@@ -44,7 +44,7 @@ def test_flashing_ratchet_current():
     currents = []
     for asymmetry in (0.1, 0.5):
         system = flashing_ratchet(300, asymmetry=asymmetry, rate=1.0, duration=40.0, random_state=1)
-        simulation = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.004), random_state=0).run(until=40)
+        simulation = Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=0).run(until=40)
         velocities = simulation.trajectory_['particles.x'][-1, :, 0] / 40
         currents.append((velocities.mean(), velocities.std() / math.sqrt(velocities.size)))
     (asymmetric, asymmetric_error), (symmetric, symmetric_error) = currents

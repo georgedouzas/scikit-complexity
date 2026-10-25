@@ -9,15 +9,15 @@ from typing import ClassVar, cast
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.particles import PairPotential, Particle
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.particles import PairPotentialInteraction, ParticleComponent
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
@@ -33,7 +33,7 @@ def _limited(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
     return velocity * min(max(speed, low), high) / speed
 
 
-class Boid(Element):
+class BoidComponent(ElementComponent):
     """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
 
     Every step a boid sees the boids within `radius`. Cohesion steers it toward their center, separation away from
@@ -78,23 +78,23 @@ class Boid(Element):
             The height of the torus.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Boid
-        >>> Boid.group('flock', 10, location=(5.0, 5.0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import BoidComponent
+        >>> BoidComponent.group('flock', 10, location=(5.0, 5.0)).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'vx'})
     vx: float = state(default=1.0)
     vy: float = state(default=0.0)
-    radius: float = parameter(default=5.0, domain=Domain.POSITIVE)
-    separation_radius: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    cohesion: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    separation: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    alignment: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    min_speed: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    max_speed: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    width: float = parameter(default=30.0, domain=Domain.POSITIVE)
-    height: float = parameter(default=30.0, domain=Domain.POSITIVE)
+    radius: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    separation_radius: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    cohesion: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    separation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    alignment: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    min_speed: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    max_speed: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    width: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    height: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
 
     def _steering(self, agent: AgentView, neighbours: list[AgentView], size: np.ndarray) -> np.ndarray:
         """Return the change of velocity from cohesion, separation, and alignment."""
@@ -109,7 +109,7 @@ class Boid(Element):
             + agent.alignment * (velocities.mean(axis=0) - (agent.vx, agent.vy))
         )
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the flocking rule.
 
         Args:
@@ -120,7 +120,7 @@ class Boid(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.flock)]
+        return [RuleLaw(self.flock)]
 
     def flock(self, agent: AgentView, model: ModelView) -> None:
         """Steer by the three rules, limit the speed, and move.
@@ -142,7 +142,7 @@ class Boid(Element):
         agent.move_to(tuple(np.mod(np.asarray(cast('tuple[float, float]', agent.location)) + velocity, size)))
 
 
-class SelfPropulsion(Interaction):
+class SelfPropulsionInteraction(BaseInteraction):
     """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v / m`, which drives particles to speed `sqrt(alpha / beta)`.
 
     Args:
@@ -159,16 +159,16 @@ class SelfPropulsion(Interaction):
             The friction at high speed.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import SelfPropulsion
-        >>> SelfPropulsion('flight', target='birds', alpha=1.5).alpha
+        >>> from skcomplex.models.biology.collective_behaviour import SelfPropulsionInteraction
+        >>> SelfPropulsionInteraction('flight', target='birds', alpha=1.5).alpha
         1.5
     """
 
     target: str = role()
-    alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the velocity change `(alpha - beta |v|²) v / m`.
 
         Args:
@@ -180,10 +180,10 @@ class SelfPropulsion(Interaction):
                 The laws of the component.
         """
         velocity = s.target.v
-        return [Rate(velocity, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity / s.target.m)]
+        return [RateLaw(velocity, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity / s.target.m)]
 
 
-class MorsePotential(PairPotential):
+class MorsePotentialInteraction(PairPotentialInteraction):
     """Attraction at long range and repulsion at short range, `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
 
     Args:
@@ -215,15 +215,15 @@ class MorsePotential(PairPotential):
             The range of the repulsion.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import MorsePotential
-        >>> MorsePotential('flocking', first='birds', second='birds', cutoff=10.0).l_a
+        >>> from skcomplex.models.biology.collective_behaviour import MorsePotentialInteraction
+        >>> MorsePotentialInteraction('flocking', first='birds', second='birds', cutoff=10.0).l_a
         2.0
     """
 
-    C_a: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    l_a: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    C_r: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    l_r: float = parameter(default=0.5, domain=Domain.POSITIVE)
+    C_a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    l_a: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    C_r: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    l_r: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
@@ -296,7 +296,7 @@ def boids(
     """
     rng = np.random.default_rng(random_state)
     headings = rng.uniform(0.0, 2 * math.pi, n_boids)
-    flock = Boid.group(
+    flock = BoidComponent.group(
         'flock',
         n_boids,
         location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 2))],
@@ -370,8 +370,8 @@ def bird_swarm(
     """
     rng = np.random.default_rng(random_state)
     positions, velocities = rng.uniform(-3.0, 3.0, (n_birds, 2)), rng.normal(0.0, 1.0, (n_birds, 2))
-    birds = Particle.group('birds', n_birds, x=positions, v=velocities)
-    potential = MorsePotential(
+    birds = ParticleComponent.group('birds', n_birds, x=positions, v=velocities)
+    potential = MorsePotentialInteraction(
         'flocking',
         first='birds',
         second='birds',
@@ -381,5 +381,5 @@ def bird_swarm(
         C_r=C_r,
         l_r=l_r,
     )
-    flight = SelfPropulsion('flight', target='birds', alpha=alpha, beta=beta)
+    flight = SelfPropulsionInteraction('flight', target='birds', alpha=alpha, beta=beta)
     return System(components=[birds], interactions=[potential, flight], space=ContinuousSpace(n_dim=2))

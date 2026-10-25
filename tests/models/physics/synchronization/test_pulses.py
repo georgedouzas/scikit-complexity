@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import describe
 from skcomplex.models.physics.synchronization import (
     mirollo_strogatz,
@@ -31,7 +31,7 @@ def test_winfree_oscillators_die_under_strong_coupling(K, dead):
         built := winfree(20, K=K),
         60.0,
         1.0,
-        solver=ScipyODE(),
+        solver=ScipyODESolver(),
         observables=describe('winfree').observables_of(built),
     )
     theta = _series(trajectory, 'oscillators.theta')[0]
@@ -44,7 +44,7 @@ def test_mirollo_strogatz_oscillators_fire_in_unison():
     """Test that the integrate-and-fire oscillators, members of one group, end up firing in unison."""
     system = mirollo_strogatz(6)
     assert system.elements[0].size == 6
-    trajectory = _run(system, 30.0, 0.1, solver=ScipyODE())
+    trajectory = _run(system, 30.0, 0.1, solver=ScipyODESolver())
     charges = _series(trajectory, 'oscillators.x')[0]
     assert np.ptp(charges[-1]) < 1e-9
     assert np.ptp(charges[0]) > 0.1

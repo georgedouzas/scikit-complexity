@@ -9,13 +9,13 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Extremal
+from ....formalisms.lattices import ExtremalLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -29,7 +29,7 @@ def _renew(fitness: Array, random: Array) -> Array:
     return random
 
 
-class Species(Element):
+class SpeciesComponent(ElementComponent):
     """Species of the Bak-Sneppen model, with a fitness in the unit interval that depends on its neighbours.
 
     Every update replaces the fitness of the least fit species and of its neighbours by new uniform random numbers, and
@@ -52,12 +52,12 @@ class Species(Element):
                 The initial fitness.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import Species
-        >>> Species('species').updates
+        >>> from skcomplex.models.biology.evolution import SpeciesComponent
+        >>> SpeciesComponent('species').updates
         200
     """
 
-    fitness: float = state(default=0.5, domain=Domain.NONNEGATIVE)
+    fitness: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -71,7 +71,7 @@ class Species(Element):
         self.updates = updates
         self.neighbors = neighbors
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the extremal update of the least fit species and its neighbours.
 
         Args:
@@ -83,7 +83,7 @@ class Species(Element):
                 The laws of the component.
         """
         neighborhood = SPECIES_NEIGHBORHOODS[self.neighbors]
-        return [Extremal(s.fitness, neighborhood, _renew, repeat=self.updates, label='extinction')]
+        return [ExtremalLaw(s.fitness, neighborhood, _renew, repeat=self.updates, label='extinction')]
 
 
 @register_model(
@@ -130,7 +130,7 @@ def bak_sneppen(
     space = LatticeSpace(size) if graph is None else NetworkSpace(graph)
     count = space.size if isinstance(space, LatticeSpace) else space.graph.number_of_nodes()
     fitness = np.random.default_rng(random_state).random(count)
-    species = Species.lattice(
+    species = SpeciesComponent.lattice(
         'species',
         space,
         visual=FITNESS_VISUAL if graph is None else FITNESS_SITES,

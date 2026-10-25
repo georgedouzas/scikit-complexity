@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ...core.base import Expression, Form
-from ...core.laws import Event, Law
+from ...core.laws import BaseLaw, EventLaw
 from ...core.system import System
-from ._backends import Backend
+from ._backends import BaseBackend
 from ._census import Census
 from ._declarations import Block, Declarations
 from ._jacobians import ExactJacobian
@@ -18,13 +18,13 @@ from ._kernels import Lowered, Output
 from ._planner import _Plan
 from ._problem import Problem, _MarkovMatrix
 from ._reductions import ReductionPass
-from ._renewals import RenewalLaw
+from ._renewals import BoundRenewal
 from ._specs import KernelSpec
 from ._stochastic import DrawLowering, MatrixLaw
 from ._tree import Node
 
-type Laws = list[tuple[KernelSpec, list[Law]]]
-type BlockLaws = list[tuple[KernelSpec, list[Law], Block]]
+type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
+type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], Block]]
 
 INPUTS = ('system', 'backend', 'solver', 'owners', 'held')
 PLANNING = frozenset({'nodes', 'census', 'plan'})
@@ -155,7 +155,7 @@ class Compilation:
     """
 
     system: System
-    backend: str | Backend = 'auto'
+    backend: str | BaseBackend = 'auto'
     solver: object = 'auto'
     owners: frozenset[str] | None = None
     held: tuple[str, ...] = ()
@@ -187,8 +187,8 @@ class Compilation:
     problem: Problem | None = None
     delays: list[dict[str, Any]] = field(default_factory=list)
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
-    events: list[tuple[KernelSpec, Event]] = field(default_factory=list)
-    renewals: list[RenewalLaw] = field(default_factory=list)
+    events: list[tuple[KernelSpec, EventLaw]] = field(default_factory=list)
+    renewals: list[BoundRenewal] = field(default_factory=list)
     outputs: dict[int, list[Output]] = field(default_factory=dict)
     facts: dict[str, Any] = field(default_factory=dict)
     done: set[object] = field(default_factory=set)

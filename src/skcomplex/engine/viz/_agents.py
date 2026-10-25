@@ -10,20 +10,20 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace, Space
+from ...core.space import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
 from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _network_layout, _radius_of
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 PATH_COLOR = (86, 180, 233)
 PATH_WIDTH = 1.0
 VIEW_MARGIN = 0.05
 
 
-class AgentsVisual(Visual):
+class AgentsVisual(BaseVisual):
     """Visual that logs the agents of a group as one batch per frame, colored by a state.
 
     Agents on a grid or in a continuous space are logged as `Points2D` at their cell centres or positions, and agents
@@ -89,7 +89,7 @@ class AgentsVisual(Visual):
         self._span = _widened(self._span, values)
         return colors_of(values, *self._span)
 
-    def _radius(self, space: Space | None, positions: npt.NDArray[np.float64]) -> float:
+    def _radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
         if self.radius is not None:
             return float(self.radius)
@@ -124,7 +124,7 @@ class AgentsVisual(Visual):
         recording: rr.RecordingStream,
         path: str,
         snapshot: AgentSnapshot,
-        space: Space | None,
+        space: BaseSpace | None,
     ) -> None:
         """Log the agents of a group at one frame.
 

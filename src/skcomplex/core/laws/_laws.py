@@ -21,7 +21,7 @@ from ..base import (
     Trait,
     ValidationError,
 )
-from ._law import Law, register_laws
+from ._law import BaseLaw, register_laws
 
 type Target = Expression | SymbolicVector
 type Process = str | tuple[str, ...] | Expression | SymbolicVector | None
@@ -69,7 +69,7 @@ def _is_process(process: object) -> bool:
     return isinstance(process, tuple) and bool(process) and all(isinstance(item, str) for item in process)
 
 
-def _check_clock_options(jump: 'Jump') -> None:
+def _check_clock_options(jump: 'JumpLaw') -> None:
     """Raise an error for a jump that takes an option of the clock it does not use."""
     if jump.waiting is not None and jump.changes:
         given, fix = 'changes', 'Give the new values of the states as `reset`.'
@@ -112,9 +112,9 @@ class Call:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Call, Rate
+        >>> from skcomplex.core.laws import Call, RateLaw
         >>> n = symbol('n')
-        >>> law = Rate(n, Call(lambda t, n: 2 * n, n))
+        >>> law = RateLaw(n, Call(lambda t, n: 2 * n, n))
         >>> law.value.arguments
         (n,)
     """
@@ -128,7 +128,7 @@ class Call:
 
 
 @dataclass(frozen=True)
-class Rate(Law):
+class RateLaw(BaseLaw):
     """Contribution to the highest time derivative of a state, the first for states of order 1.
 
     Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations. On
@@ -147,9 +147,9 @@ class Rate(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.laws import RateLaw
         >>> n = symbol('n')
-        >>> Rate(n, 2 * n).value
+        >>> RateLaw(n, 2 * n).value
         2*n
     """
 
@@ -167,11 +167,11 @@ class Rate(Law):
 
     def __post_init__(self) -> None:
         """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
 
 
 @dataclass(frozen=True)
-class Noise(Law):
+class NoiseLaw(BaseLaw):
     """Amplitude of a Wiener process that drives the highest time derivative of a state.
 
     Without a process, every component of the target and every member of a group gets its own independent Wiener
@@ -212,13 +212,13 @@ class Noise(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Noise
+        >>> from skcomplex.core.laws import NoiseLaw
         >>> price = symbol('price')
-        >>> Noise(price, 0.2 * price).value
+        >>> NoiseLaw(price, 0.2 * price).value
         0.2*price
-        >>> Noise(price, 0.2 * price, process='market').process
+        >>> NoiseLaw(price, 0.2 * price, process='market').process
         'market'
-        >>> Noise(symbol('rho'), 0.1, conserved=True).conserved
+        >>> NoiseLaw(symbol('rho'), 0.1, conserved=True).conserved
         True
     """
 
@@ -239,7 +239,7 @@ class Noise(Law):
 
     def __post_init__(self) -> None:
         """Check the value, the convention, and the process of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
             raise ValidationError(error_msg)
@@ -258,7 +258,7 @@ class Noise(Law):
 
 
 @dataclass(frozen=True)
-class Jump(Law):
+class JumpLaw(BaseLaw):
     """Random event that changes states, on an exponential clock of a given rate or on a clock of drawn waiting times.
 
     With a `rate`, the event fires at the times of a Poisson process of that propensity and changes states by fixed
@@ -297,22 +297,22 @@ class Jump(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Jump, shift_member
+        >>> from skcomplex.core.laws import JumpLaw, shift_member
         >>> s, i = symbol('s'), symbol('i')
-        >>> Jump(0.1 * s * i, {s: -1, i: 1}).changes[i]
+        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).changes[i]
         1
         >>> n = symbol('n')
-        >>> Jump(n, {n: -1, shift_member(n, 1): 1}).changes[shift_member(n, 1)]
+        >>> JumpLaw(n, {n: -1, shift_member(n, 1): 1}).changes[shift_member(n, 1)]
         1
         >>> from skcomplex.core.laws import draw
-        >>> Jump(waiting=draw('wait', 'expon'), reset={n: 0}).reset[n]
+        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).reset[n]
         0
     """
 
     @property
-    def renewal(self) -> 'Renewal | None':
+    def renewal(self) -> 'RenewalLaw | None':
         """Renewal the compiler runs for a jump on a clock of waiting times, or `None` for an exponential clock."""
-        return None if self.waiting is None else Renewal(self.waiting, self.reset, self.label)
+        return None if self.waiting is None else RenewalLaw(self.waiting, self.reset, self.label)
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP
     time_class: ClassVar[LawClass] = LawClass.EVENT
@@ -348,7 +348,7 @@ class Jump(Law):
 
 
 @dataclass(frozen=True)
-class Update(Law):
+class UpdateLaw(BaseLaw):
     """Next value of a state after one discrete time step.
 
     Args:
@@ -360,9 +360,9 @@ class Update(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Update
+        >>> from skcomplex.core.laws import UpdateLaw
         >>> x = symbol('x')
-        >>> Update(x, 3.7 * x * (1 - x)).target
+        >>> UpdateLaw(x, 3.7 * x * (1 - x)).target
         x
     """
 
@@ -376,11 +376,11 @@ class Update(Law):
 
     def __post_init__(self) -> None:
         """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
 
 
 @dataclass(frozen=True)
-class Transition(Law):
+class TransitionLaw(BaseLaw):
     """Step of a discrete-time Markov chain, a state over a finite alphabet drawn from a row of a transition matrix.
 
     The state's current value selects the row, and the next value is drawn from it. The state takes a categorical
@@ -400,9 +400,9 @@ class Transition(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Transition
+        >>> from skcomplex.core.laws import TransitionLaw
         >>> x, q = symbol('x'), symbol('q')
-        >>> Transition(x, [[q, 1 - q], [0.4, 0.6]]).matrix[0]
+        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).matrix[0]
         (q, -q + 1)
     """
 
@@ -423,7 +423,7 @@ class Transition(Law):
 
 
 @dataclass(frozen=True)
-class Emission(Law):
+class EmissionLaw(BaseLaw):
     """Observation of a hidden Markov source, a state drawn from the row of an emission matrix a hidden state selects.
 
     The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
@@ -445,9 +445,9 @@ class Emission(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Emission
+        >>> from skcomplex.core.laws import EmissionLaw
         >>> symbol_, hidden = symbol('symbol'), symbol('hidden')
-        >>> len(Emission(symbol_, hidden, [[0.7, 0.3], [0.2, 0.8]]).matrix)
+        >>> len(EmissionLaw(symbol_, hidden, [[0.7, 0.3], [0.2, 0.8]]).matrix)
         2
     """
 
@@ -469,7 +469,7 @@ class Emission(Law):
 
 
 @dataclass(frozen=True)
-class Boundary(Law):
+class BoundaryLaw(BaseLaw):
     """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
 
     Boundary laws do not change the form of a system, so they combine with every other law kind.
@@ -483,9 +483,9 @@ class Boundary(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Boundary, mod
+        >>> from skcomplex.core.laws import BoundaryLaw, mod
         >>> x = symbol('x')
-        >>> Boundary(x, mod(x, 1)).value
+        >>> BoundaryLaw(x, mod(x, 1)).value
         mod(x, 1)
     """
 
@@ -499,11 +499,11 @@ class Boundary(Law):
 
     def __post_init__(self) -> None:
         """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
 
 
 @dataclass(frozen=True)
-class Objective(Law):
+class Objective(BaseLaw):
     """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
 
     Under continuous time the value of a run is the integral of the running value `expression` over the run plus the
@@ -556,7 +556,7 @@ class Objective(Law):
 
 
 @dataclass(frozen=True)
-class Event(Law):
+class EventLaw(BaseLaw):
     """Discrete event: when a guard crosses zero, states take new values, or the run ends.
 
     Solvers locate the crossing within their tolerance. Events do not change the form of a system, so they combine with
@@ -580,9 +580,9 @@ class Event(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Event
+        >>> from skcomplex.core.laws import EventLaw
         >>> height, velocity = symbol('height'), symbol('velocity')
-        >>> Event(height, {velocity: -0.8 * velocity}, direction=-1).direction
+        >>> EventLaw(height, {velocity: -0.8 * velocity}, direction=-1).direction
         -1
     """
 
@@ -599,8 +599,8 @@ class Event(Law):
 
 
 @dataclass(frozen=True)
-class Renewal(Law):
-    """Renewal of states after waiting times drawn anew at every renewal, which the compiler runs for a waiting `Jump`.
+class RenewalLaw(BaseLaw):
+    """Renewal of states after waiting times drawn anew at every renewal, run for a waiting `JumpLaw`.
 
     Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then
     draws the next waiting time from the states after the reset. Draws in the waiting time and the reset take a fresh
@@ -636,7 +636,7 @@ class Renewal(Law):
 
 
 @dataclass(frozen=True, init=False)
-class Equation(Law):
+class EquationLaw(BaseLaw):
     """Implicit relation in which the highest time derivatives of states appear, such as Newton's second law.
 
     The compiler solves all equations of a system jointly for the highest derivatives, which must appear linearly, and
@@ -652,9 +652,9 @@ class Equation(Law):
     Examples:
         >>> from sage.all__sagemath_symbolics import sin
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Equation, derivative
+        >>> from skcomplex.core.laws import EquationLaw, derivative
         >>> theta, g, l = symbol('theta'), symbol('g'), symbol('l')
-        >>> Equation(l * derivative(theta, 2) == -g * sin(theta)).rhs
+        >>> EquationLaw(l * derivative(theta, 2) == -g * sin(theta)).rhs
         -g*sin(theta)
     """
 
@@ -681,15 +681,15 @@ class Equation(Law):
 
 
 register_laws(
-    Rate,
-    Noise,
-    Jump,
-    Update,
-    Transition,
-    Emission,
-    Boundary,
+    RateLaw,
+    NoiseLaw,
+    JumpLaw,
+    UpdateLaw,
+    TransitionLaw,
+    EmissionLaw,
+    BoundaryLaw,
     Objective,
-    Event,
-    Renewal,
-    Equation,
+    EventLaw,
+    RenewalLaw,
+    EquationLaw,
 )

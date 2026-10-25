@@ -5,17 +5,17 @@
 
 from typing import Any
 
-from ....core.base import Domain, parameter, role
+from ....core.base import NumericDomain, parameter, role
 from ....core.components import Wiener
-from ....core.interactions import Interaction
-from ....core.laws import Law, Noise, Rate, Symbols
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ._assets import Asset
+from ....engine.solvers import EulerMaruyamaSolver
+from ._assets import AssetComponent
 
 
-class CorrelatedGeometricBrownianMotion(Interaction):
+class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
     """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a Wiener element.
 
     Args:
@@ -41,15 +41,15 @@ class CorrelatedGeometricBrownianMotion(Interaction):
                 The volatility.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotion
-        >>> CorrelatedGeometricBrownianMotion('gbm', target='stock', market='market', index=1).index
+        >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
+        >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market='market', index=1).index
         1
     """
 
     target: str = role()
     market: str = role()
-    mu: float = parameter(default=0.05, domain=Domain.REAL)
-    sigma: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
+    sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -61,7 +61,7 @@ class CorrelatedGeometricBrownianMotion(Interaction):
         super().__init__(label, **values)
         self.index = index
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S` on process `index` of the market.
 
         Args:
@@ -73,14 +73,14 @@ class CorrelatedGeometricBrownianMotion(Interaction):
                 The laws of the component.
         """
         price = s.target.price
-        return [Rate(price, s.mu * price), Noise(price, s.sigma * price, process=s.market.dW[self.index])]
+        return [RateLaw(price, s.mu * price), NoiseLaw(price, s.sigma * price, process=s.market.dW[self.index])]
 
 
 @register_model(
     field='economics/finance',
     tags=('asset', 'sde', 'correlated noise'),
     references=('Black and Scholes 1973', 'Merton 1973'),
-    defaults={'until': 1.0, 'dt': 0.01, 'solver': EulerMaruyama(dt=1e-3)},
+    defaults={'until': 1.0, 'dt': 0.01, 'solver': EulerMaruyamaSolver(dt=1e-3)},
 )
 def correlated_geometric_brownian_motion(
     prices: tuple[float, float] = (100.0, 100.0),
@@ -119,11 +119,11 @@ def correlated_geometric_brownian_motion(
     labels = ('first', 'second')
     return System(
         components=[
-            *(Asset(label, price=price) for label, price in zip(labels, prices, strict=True)),
+            *(AssetComponent(label, price=price) for label, price in zip(labels, prices, strict=True)),
             Wiener('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]]),
         ],
         interactions=[
-            CorrelatedGeometricBrownianMotion(
+            CorrelatedGeometricBrownianMotionInteraction(
                 f'{label}_motion',
                 target=label,
                 market='market',

@@ -3,34 +3,34 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, parameter, role, state, symbol
-from skcomplex.core.components import Element, Group
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.base import NumericDomain, ValidationError, parameter, role, state, symbol
+from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.kinetics import Encounter, moment
+from skcomplex.formalisms.kinetics import EncounterLaw, moment
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
 PROFILE = np.array([0.05, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05, 0.03, 0.02])
 
 
-class Density(Element):
+class DensityComponent(ElementComponent):
     """Density of particles at one activity value."""
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Recorder(Element):
+class RecorderComponent(ElementComponent):
     """Element whose rate is the mean activity of a distribution."""
 
     y: float = state(default=0.0)
 
 
-class Upward(Interaction):
+class UpwardInteraction(BaseInteraction):
     """Encounters that move a candidate one class up with probability one half."""
 
     population: str = role()
@@ -42,10 +42,10 @@ class Upward(Interaction):
         for candidate in range(CLASSES):
             table[candidate, :, min(candidate + 1, CLASSES - 1)] += 0.5
             table[candidate, :, candidate] += 0.5
-        return [Encounter(s.population.f, s.population.f, s.eta, table)]
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
 
 
-class ReadMean(Interaction):
+class ReadMeanInteraction(BaseInteraction):
     """Rate of a recorder equal to the mean activity of a distribution, a moment read inside a law."""
 
     recorder: str = role()
@@ -53,7 +53,7 @@ class ReadMean(Interaction):
 
     def laws(self, s):
         """Return the rate."""
-        return [Rate(s.recorder.y, moment(s.population.f, 1, ACTIVITIES, normalized=True))]
+        return [RateLaw(s.recorder.y, moment(s.population.f, 1, ACTIVITIES, normalized=True))]
 
 
 def density(s):
@@ -81,8 +81,8 @@ OBSERVABLES = [
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
     return System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE})],
-        interactions=[Upward('upward', population='wealth')],
+        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE})],
+        interactions=[UpwardInteraction('upward', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -123,8 +123,11 @@ def test_mean_activity_is_recorded_at_every_frame():
 def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
     system = System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE}), Recorder('recorder')],
-        interactions=[ReadMean('read', recorder='recorder', population='wealth')],
+        components=[
+            GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE}),
+            RecorderComponent('recorder'),
+        ],
+        interactions=[ReadMeanInteraction('read', recorder='recorder', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -137,18 +140,18 @@ def test_law_reads_a_moment():
 def test_moment_inside_a_group_law_is_shared():
     """Test that a moment read by every member of the reduced group gives every member the same value."""
 
-    class Relax(Interaction):
+    class RelaxInteraction(BaseInteraction):
         """Relaxation of every class toward the mean activity, a moment that every member reads."""
 
         population: str = role()
 
         def laws(self, s):
             """Return the rate."""
-            return [Rate(s.population.f, moment(s.population.f, 1, ACTIVITIES))]
+            return [RateLaw(s.population.f, moment(s.population.f, 1, ACTIVITIES))]
 
     system = System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE})],
-        interactions=[Relax('relax', population='wealth')],
+        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE})],
+        interactions=[RelaxInteraction('relax', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )

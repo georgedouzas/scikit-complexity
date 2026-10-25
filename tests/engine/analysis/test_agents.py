@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from scipy.spatial import cKDTree
 
-from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Law, Symbols
+from skcomplex.core.base import AnalysisError, NumericDomain, VisualSpec, state
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import BaseLaw, Symbols
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import (
@@ -28,19 +28,19 @@ from skcomplex.engine.analysis import (
     structure_factor,
 )
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.agents import AgentView, ModelView, Rule
+from skcomplex.formalisms.agents import AgentView, ModelView, RuleLaw
 from skcomplex.models import run
 
 
-class GridWalker(Element):
+class GridWalkerComponent(ElementComponent):
     """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
-    steps: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stepping rule."""
-        return [Rule(self.step)]
+        return [RuleLaw(self.step)]
 
     def step(self, agent: AgentView, model: ModelView) -> None:
         """Move to a random neighbouring cell."""
@@ -49,15 +49,15 @@ class GridWalker(Element):
         agent.steps += 1
 
 
-class Diffuser(Element):
+class DiffuserComponent(ElementComponent):
     """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
-    steps: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the stepping rule."""
-        return [Rule(self.step)]
+        return [RuleLaw(self.step)]
 
     def step(self, agent: AgentView, model: ModelView) -> None:
         """Take a Gaussian step and wrap into the square."""
@@ -213,11 +213,11 @@ def test_coarse_grain_density():
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
     continuous = System(
-        components=[Diffuser.group('particles', 300)],
+        components=[DiffuserComponent.group('particles', 300)],
         space=ContinuousSpace(20.0, 20.0, boundary='periodic'),
     )
     grid = System(
-        components=[GridWalker.group('walkers', 300)],
+        components=[GridWalkerComponent.group('walkers', 300)],
         space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):

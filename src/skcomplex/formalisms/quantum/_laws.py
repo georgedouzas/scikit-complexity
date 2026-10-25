@@ -13,7 +13,7 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
-from ...core.laws import Law
+from ...core.laws import BaseLaw
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -226,7 +226,7 @@ class Operator:
 
 
 @dataclass(frozen=True)
-class Generator(Law):
+class GeneratorLaw(BaseLaw):
     """Law that adds an operator to the Hamiltonian of a quantum system, with `ħ = 1`.
 
     Args:
@@ -239,10 +239,10 @@ class Generator(Law):
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.formalisms.quantum import Generator, LocalOperator, Operator
+        >>> from skcomplex.formalisms.quantum import GeneratorLaw, LocalOperator, Operator
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-        >>> Generator(Operator({(('q', z),): 0.5}))
-        Generator(operator=0.5*q.z)
+        >>> GeneratorLaw(Operator({(('q', z),): 0.5}))
+        GeneratorLaw(operator=0.5*q.z)
     """
 
     law_kind: ClassVar[LawKind] = LawKind.GENERATOR
@@ -261,7 +261,7 @@ class Generator(Law):
 
 
 @dataclass(frozen=True)
-class Dissipator(Law):
+class DissipatorLaw(BaseLaw):
     """Law that adds a Lindblad dissipator with a collapse operator and a rate, which makes a quantum system open.
 
     The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)`.
@@ -279,9 +279,9 @@ class Dissipator(Law):
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.formalisms.quantum import Dissipator, LocalOperator, Operator
+        >>> from skcomplex.formalisms.quantum import DissipatorLaw, LocalOperator, Operator
         >>> minus = LocalOperator('minus', qutip.sigmam())
-        >>> Dissipator(Operator({(('q', minus),): 1}), 0.1).rate
+        >>> DissipatorLaw(Operator({(('q', minus),): 1}), 0.1).rate
         0.1
     """
 

@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Objective, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Objective, RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.control import Pontryagin
-from ._chemotherapy import BOOK, TumourImmuneChemotherapy
+from ....formalisms.control import PontryaginSolver
+from ._chemotherapy import BOOK, TumourImmuneChemotherapyComponent
 
 MAX_DOSE = 1.0
 
@@ -28,10 +28,10 @@ def _immune_ratio(s: Symbols) -> Expression:
     return ratio
 
 
-class OptimalChemotherapy(TumourImmuneChemotherapy):
+class OptimalChemotherapyComponent(TumourImmuneChemotherapyComponent):
     """Immune, tumour, and normal cells under a chemotherapy whose infusion rate is a bounded control input.
 
-    The cells and the drug follow the model of de Pillis and Radunskaya, `TumourImmuneChemotherapy`, with the
+    The cells and the drug follow the model of de Pillis and Radunskaya, `TumourImmuneChemotherapyComponent`, with the
     infusion rate `u` between 0 and its largest dose. The oncologist minimises the tumour burden and the toxicity of
     the drug, `∫ (A + w u^2 / 2) dt + A(T)`, where the terminal term weighs the tumour left at the end of the
     treatment.
@@ -59,15 +59,15 @@ class OptimalChemotherapy(TumourImmuneChemotherapy):
             The weight of the squared infusion rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OptimalChemotherapy
-        >>> OptimalChemotherapy('patient', w=0.5).w
+        >>> from skcomplex.models.biology.oncology import OptimalChemotherapyComponent
+        >>> OptimalChemotherapyComponent('patient', w=0.5).w
         0.5
     """
 
     u: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
-    w: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    w: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of the cells and of the drug, and the cost of the treatment.
 
         Args:
@@ -81,7 +81,7 @@ class OptimalChemotherapy(TumourImmuneChemotherapy):
         return [*super().laws(s), Objective(s.A + s.w * s.u**2 / 2, terminal=s.A, label='cost')]
 
 
-class OptimalImmunotherapy(Element):
+class OptimalImmunotherapyComponent(ElementComponent):
     """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.
 
     The Kirschner-Panetta model in scaled units, with the effector and tumour cells in units of `10^5` and IL-2 in
@@ -149,31 +149,31 @@ class OptimalImmunotherapy(Element):
             The weight of the squared IL-2 injection rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OptimalImmunotherapy
-        >>> OptimalImmunotherapy('site').rho1
+        >>> from skcomplex.models.biology.oncology import OptimalImmunotherapyComponent
+        >>> OptimalImmunotherapyComponent('site').rho1
         0.1245
     """
 
-    x: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    y: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    z: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    x: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    y: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    z: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     u1: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
     u2: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
-    alpha_a: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.03, domain=Domain.NONNEGATIVE)
-    rho1: float = parameter(default=0.1245, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.18, domain=Domain.POSITIVE)
-    b: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    rho2: float = parameter(default=0.025, domain=Domain.NONNEGATIVE)
-    alpha3: float = parameter(default=0.01, domain=Domain.POSITIVE)
-    du: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    a1: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=3.5, domain=Domain.NONNEGATIVE)
-    w1: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    w2: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    alpha_a: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
+    rho1: float = parameter(default=0.1245, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.18, domain=NumericDomain.POSITIVE)
+    b: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    rho2: float = parameter(default=0.025, domain=NumericDomain.NONNEGATIVE)
+    alpha3: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    du: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    a1: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=3.5, domain=NumericDomain.NONNEGATIVE)
+    w1: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    w2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of effector cells, tumour cells, and IL-2, and the cost of the treatment.
 
         Args:
@@ -187,9 +187,9 @@ class OptimalImmunotherapy(Element):
         x, y, z = s.x, s.y, s.z
         cost = y + s.w1 * s.u1**2 / 2 + s.w2 * s.u2**2 / 2
         return [
-            Rate(x, s.alpha_a * y - s.d1 * x + s.a1 * s.u1 + s.rho1 * x * z / (1 + z)),
-            Rate(y, s.r1 * y * (1 - s.b * y) - s.c1 * x * y / (1 + y)),
-            Rate(z, s.a2 * s.u2 + s.rho2 * x * y / (s.alpha3 + y) - s.du * z),
+            RateLaw(x, s.alpha_a * y - s.d1 * x + s.a1 * s.u1 + s.rho1 * x * z / (1 + z)),
+            RateLaw(y, s.r1 * y * (1 - s.b * y) - s.c1 * x * y / (1 + y)),
+            RateLaw(z, s.a2 * s.u2 + s.rho2 * x * y / (s.alpha3 + y) - s.du * z),
             Objective(cost, terminal=y, label='cost'),
         ]
 
@@ -198,7 +198,7 @@ class OptimalImmunotherapy(Element):
     field='biology/oncology',
     tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
     references=(BOOK, 'de Pillis and Radunskaya 2001'),
-    defaults={'until': 30.0, 'dt': 0.25, 'solver': Pontryagin()},
+    defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver()},
     observables=lambda system: [Observable('tumour_share', _tumour_share)],
 )
 def optimal_chemotherapy(
@@ -236,14 +236,14 @@ def optimal_chemotherapy(
         >>> optimal_chemotherapy(w=1.0).components[0].w
         1.0
     """
-    return System(components=[OptimalChemotherapy('patient', E=E, A=A, N=N, w=w)])
+    return System(components=[OptimalChemotherapyComponent('patient', E=E, A=A, N=N, w=w)])
 
 
 @register_model(
     field='biology/oncology',
     tags=('optimal control', 'immunotherapy', 'adoptive therapy', 'IL-2', 'pontryagin', 'ode'),
     references=(BOOK, 'Kirschner and Panetta 1998'),
-    defaults={'until': 50.0, 'dt': 0.5, 'solver': Pontryagin(nodes=1001)},
+    defaults={'until': 50.0, 'dt': 0.5, 'solver': PontryaginSolver(nodes=1001)},
     observables=lambda system: [Observable('immune_ratio', _immune_ratio)],
 )
 def optimal_immunotherapy(
@@ -285,4 +285,4 @@ def optimal_immunotherapy(
         >>> optimal_immunotherapy(w1=0.5).components[0].w1
         0.5
     """
-    return System(components=[OptimalImmunotherapy('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])
+    return System(components=[OptimalImmunotherapyComponent('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])

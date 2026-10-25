@@ -10,8 +10,8 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ...core.base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
-from ...core.components import Element, Group, probe_laws
-from ...core.laws import Law
+from ...core.components import ElementComponent, GroupComponent, probe_laws
+from ...core.laws import BaseLaw
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -92,24 +92,26 @@ def runs_rules(component: object) -> bool:
 
     Returns:
         runs_rules:
-            Whether the component is a variable group, or an element or group whose own laws include a `Rule`.
+            Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
 
     Examples:
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.formalisms.agents import Rule, runs_rules
-        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
-        >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.formalisms.agents import RuleLaw, runs_rules
+        >>> WalkerComponent = ElementComponent.define(
+        ...     'WalkerComponent', laws=lambda s: [RuleLaw(lambda agent, model: None)]
+        ... )
+        >>> runs_rules(WalkerComponent('walker')), runs_rules(ElementComponent.define('Plain')('plain'))
         (True, False)
     """
-    if isinstance(component, Group) and component.variable:
+    if isinstance(component, GroupComponent) and component.variable:
         return True
-    if not isinstance(component, Element | Group):
+    if not isinstance(component, ElementComponent | GroupComponent):
         return False
-    return any(isinstance(law, Rule) for law in probe_laws(component) or [])
+    return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
 
 
 @dataclass(frozen=True)
-class Rule(Law):
+class RuleLaw(BaseLaw):
     """Behaviour written as code, run once per step for every member of an agent group, or once per step for a model.
 
     An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
@@ -125,8 +127,8 @@ class Rule(Law):
             default phase.
 
     Examples:
-        >>> from skcomplex.formalisms.agents import Rule
-        >>> rule = Rule(lambda agent, model: None)
+        >>> from skcomplex.formalisms.agents import RuleLaw
+        >>> rule = RuleLaw(lambda agent, model: None)
         >>> callable(rule.function)
         True
     """
@@ -141,7 +143,7 @@ class Rule(Law):
 
 
 @dataclass(frozen=True)
-class Match(Law):
+class MatchLaw(BaseLaw):
     """Pairing of the members of one agent group, or of two, every step, which the rules of the step read.
 
     The core pairs members uniformly at random. Any other pairing, such as stable matching, an order book, or an
@@ -173,8 +175,8 @@ class Match(Law):
             The capacity is not a positive integer.
 
     Examples:
-        >>> from skcomplex.formalisms.agents import Match
-        >>> Match('buyers', 'sellers', label='trades').capacity
+        >>> from skcomplex.formalisms.agents import MatchLaw
+        >>> MatchLaw('buyers', 'sellers', label='trades').capacity
         1
     """
 
@@ -204,6 +206,6 @@ class Match(Law):
         model.storage[f'match:{self.label}'] = pairing(left, right, model.rng, self.capacity)
 
     @property
-    def rule(self) -> Rule:
+    def rule(self) -> RuleLaw:
         """Rule the agent stepper runs, which stores the pairs of the step."""
-        return Rule(self._pair, phase=self.phase)
+        return RuleLaw(self._pair, phase=self.phase)

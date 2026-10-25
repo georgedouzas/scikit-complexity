@@ -19,7 +19,7 @@ from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -27,7 +27,7 @@ MODEL = 'living_crystals'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = EulerMaruyama(dt=0.002)
+solver = EulerMaruyamaSolver(dt=0.002)
 simulation = Simulation(system, solver=solver, dt=0.2, observers=[observer], random_state=0).run(until=40)
 
 # %%

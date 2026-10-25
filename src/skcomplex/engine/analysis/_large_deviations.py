@@ -346,11 +346,13 @@ def cloning(
 
     Examples:
         >>> from skcomplex.engine.analysis import cloning
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Jump
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import JumpLaw
         >>> from skcomplex.core.system import System
-        >>> Counter = Element.define('Counter', states={'n': 0.0}, laws=lambda s: [Jump(1.0, {s.n: 1})])
-        >>> system = System(components=[Counter('counter')])
+        >>> CounterComponent = ElementComponent.define(
+        ...     'CounterComponent', states={'n': 0.0}, laws=lambda s: [JumpLaw(1.0, {s.n: 1})]
+        ... )
+        >>> system = System(components=[CounterComponent('counter')])
         >>> estimate = cloning(system, 'counter.n', 0.5, population=100, until=5.0, random_state=0)
         >>> bool(abs(estimate.scgf - (np.exp(0.5) - 1)) < 0.15)
         True

@@ -1,6 +1,15 @@
 """Shared vocabulary of the framework: errors, domains, declarations, forms, support, and registries."""
 
-from ._domains import AnyDomain, Categorical, Domain, HilbertFamily, HilbertSpace, Structure, Tensor, wrap_angle
+from ._domains import (
+    AnyDomain,
+    CategoricalDomain,
+    HilbertDomain,
+    HilbertFamilyDomain,
+    NumericDomain,
+    Structure,
+    TensorDomain,
+    wrap_angle,
+)
 from ._errors import (
     AnalysisError,
     ArgumentError,
@@ -77,16 +86,15 @@ __all__: list[str] = [
     'BackendWarning',
     'Binding',
     'CapacityError',
-    'Categorical',
+    'CategoricalDomain',
     'ComponentKind',
     'ConservationError',
-    'Domain',
     'DomainKind',
     'ExperimentError',
     'Expression',
     'Form',
-    'HilbertFamily',
-    'HilbertSpace',
+    'HilbertDomain',
+    'HilbertFamilyDomain',
     'HilbertSpaceError',
     'HorizonError',
     'IncompatibleLawsError',
@@ -94,6 +102,7 @@ __all__: list[str] = [
     'LawClass',
     'LawKind',
     'NoiseKind',
+    'NumericDomain',
     'OrderKind',
     'ParameterError',
     'PipelineError',
@@ -111,7 +120,7 @@ __all__: list[str] = [
     'Structure',
     'Supports',
     'SymbolicVector',
-    'Tensor',
+    'TensorDomain',
     'Term',
     'TimeKind',
     'Trait',

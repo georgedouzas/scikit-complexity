@@ -8,13 +8,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -41,7 +41,7 @@ def _master_step(  # noqa: PLR0917
     return center + gain - loss
 
 
-class Microstate(Element):
+class MicrostateComponent(ElementComponent):
     """State of a discrete master equation on a ring, with a probability `P` and a potential `U`.
 
     Every step the probability moves to each neighbouring state `B` from a state `A` with the Glauber probability
@@ -65,17 +65,17 @@ class Microstate(Element):
             The attempt probability of a move to each neighbour, at most 1/2.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Microstate
-        >>> Microstate('state').w
+        >>> from skcomplex.models.physics.statistical_mechanics import MicrostateComponent
+        >>> MicrostateComponent('state').w
         0.5
     """
 
-    P: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
     U: float = state(default=0.0)
-    beta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    w: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    beta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    w: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the master equation step.
 
         Args:
@@ -86,10 +86,10 @@ class Microstate(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.P, Neighborhood.radius(), _master_step, reads=(s.P, s.U))]
+        return [LocalRuleLaw(s.P, Neighborhood.radius(), _master_step, reads=(s.P, s.U))]
 
 
-class Zone(Element):
+class ZoneComponent(ElementComponent):
     """Small zone of a two-phase apparatus that exchanges particles with the rest of it.
 
     Every one of the `Na` particles enters the zone at the rate `k p` and leaves it at the rate `k (1 - p)`, where
@@ -112,17 +112,17 @@ class Zone(Element):
             The rate of exchange.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Zone
-        >>> Zone('zone').Na
+        >>> from skcomplex.models.physics.statistical_mechanics import ZoneComponent
+        >>> ZoneComponent('zone').Na
         100.0
     """
 
-    N: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    Na: float = parameter(default=100.0, domain=Domain.NONNEGATIVE)
-    p: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    N: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    Na: float = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
+    p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the entries into and exits from the zone.
 
         Args:
@@ -134,12 +134,12 @@ class Zone(Element):
                 The laws of the component.
         """
         return [
-            Jump(s.k * s.p * (s.Na - s.N), {s.N: 1}),
-            Jump(s.k * (1 - s.p) * s.N, {s.N: -1}),
+            JumpLaw(s.k * s.p * (s.Na - s.N), {s.N: 1}),
+            JumpLaw(s.k * (1 - s.p) * s.N, {s.N: -1}),
         ]
 
 
-class OrderParameter(Element):
+class OrderParameterComponent(ElementComponent):
     """Order parameter of Landau theory relaxing down its free energy, `dphi/dt = -Gamma dF/dphi`.
 
     The free energy is `F = a (T - Tc) phi^2 / 2 + b phi^4 / 4 - h phi`.
@@ -170,20 +170,20 @@ class OrderParameter(Element):
             The kinetic coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import OrderParameter
-        >>> OrderParameter('magnet').Tc
+        >>> from skcomplex.models.physics.statistical_mechanics import OrderParameterComponent
+        >>> OrderParameterComponent('magnet').Tc
         1.0
     """
 
     phi: float = state(default=0.1)
-    a: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    b: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    T: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    Tc: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    T: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    Tc: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     h: float = parameter(default=0.0)
-    Gamma: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    Gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the relaxation down the gradient of the free energy.
 
         Args:
@@ -195,7 +195,7 @@ class OrderParameter(Element):
                 The laws of the component.
         """
         force = s.a * (s.T - s.Tc) * s.phi + s.b * s.phi**3 - s.h
-        return [Rate(s.phi, -s.Gamma * force)]
+        return [RateLaw(s.phi, -s.Gamma * force)]
 
 
 @register_model(
@@ -242,7 +242,7 @@ def discrete_master_equation(
     probability = np.zeros(n_states)
     probability[0] = 1.0
     space = LatticeSpace(n_states)
-    return System(components=[Microstate.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
+    return System(components=[MicrostateComponent.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
 
 
 @register_model(
@@ -285,7 +285,7 @@ def two_phase_zone_exchange(
         >>> two_phase_zone_exchange(5).elements[0].size
         5
     """
-    return System(components=[Zone.group('zones', n_zones, Na=Na, p=p, k=k)])
+    return System(components=[ZoneComponent.group('zones', n_zones, Na=Na, p=p, k=k)])
 
 
 @register_model(
@@ -340,4 +340,4 @@ def landau_relaxation(
         >>> landau_relaxation(T=2.0).elements[0].T
         2.0
     """
-    return System(components=[OrderParameter('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])
+    return System(components=[OrderParameterComponent('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])

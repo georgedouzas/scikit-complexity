@@ -7,8 +7,8 @@ from collections.abc import Sequence
 
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
-from ._reactions import Binding, Dissociation, Species
+from ....engine.solvers import ScipyODESolver
+from ._reactions import BindingInteraction, DissociationInteraction, SpeciesComponent
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9
@@ -23,7 +23,7 @@ def _count_binding_sites(radius: float, protein_radius: float) -> float:
     field='chemistry/kinetics',
     tags=('nanomedicine', 'protein corona', 'mass action', 'ode', 'Vroman effect'),
     references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Dell\'Orco et al. 2010'),
-    defaults={'until': 10800.0, 'dt': 60.0, 'solver': ScipyODE(method='LSODA', rtol=1e-8, atol=1e-12)},
+    defaults={'until': 10800.0, 'dt': 60.0, 'solver': ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)},
 )
 def nanoparticle_corona(
     nanoparticle: float = 18.0,
@@ -78,15 +78,15 @@ def nanoparticle_corona(
         >>> round(nanoparticle_corona().interactions[0].k, 7)
         0.0006144
     """
-    elements = [Species('nanoparticle', n=nanoparticle)]
-    interactions: list[Binding | Dissociation] = []
+    elements = [SpeciesComponent('nanoparticle', n=nanoparticle)]
+    interactions: list[BindingInteraction | DissociationInteraction] = []
     rows = zip(PROTEINS, proteins, corona, protein_radii, association, dissociation, strict=True)
     for name, free, bound, protein_radius, alpha, delta in rows:
         complex_ = f'{name}_corona'
-        elements += [Species(name, n=free), Species(complex_, n=bound)]
+        elements += [SpeciesComponent(name, n=free), SpeciesComponent(complex_, n=bound)]
         k = _count_binding_sites(radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
         interactions += [
-            Binding(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),
-            Dissociation(f'{name}_release', complex=complex_, first='nanoparticle', second=name, k=delta),
+            BindingInteraction(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),
+            DissociationInteraction(f'{name}_release', complex=complex_, first='nanoparticle', second=name, k=delta),
         ]
     return System(components=elements, interactions=interactions)

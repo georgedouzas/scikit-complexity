@@ -3,26 +3,26 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, SolverError, parameter, role, state
-from skcomplex.core.components import Element, Group
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.base import NumericDomain, SolverError, parameter, role, state
+from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.experiments import Experiment
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
+from skcomplex.formalisms.kinetics import DestructionLaw, EncounterLaw, KineticSolver, ProliferationLaw
 
 CLASSES = 9
 HORIZON = 2.0
 PARTICLES = (1_000, 10_000, 100_000)
 
 
-class Density(Element):
+class DensityComponent(ElementComponent):
     """Density of particles at one activity value."""
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
 def _table():
@@ -35,7 +35,7 @@ def _table():
     return table
 
 
-class Exchange(Interaction):
+class ExchangeInteraction(BaseInteraction):
     """Conservative encounters of a population with itself."""
 
     population: str = role()
@@ -43,10 +43,10 @@ class Exchange(Interaction):
 
     def laws(self, s):
         """Return the encounter."""
-        return [Encounter(s.population.f, s.population.f, s.eta, _table())]
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, _table())]
 
 
-class Turnover(Interaction):
+class TurnoverInteraction(BaseInteraction):
     """Proliferation and destruction of a population by encounters with a fixed field."""
 
     population: str = role()
@@ -54,17 +54,17 @@ class Turnover(Interaction):
 
     def laws(self, s):
         """Return the proliferation and the destruction."""
-        return [Proliferation(s.population.f, s.field.f, 0.6), Destruction(s.population.f, s.field.f, 0.2)]
+        return [ProliferationLaw(s.population.f, s.field.f, 0.6), DestructionLaw(s.population.f, s.field.f, 0.2)]
 
 
-class Decay(Interaction):
+class DecayInteraction(BaseInteraction):
     """Decay of a density written as a rate law."""
 
     population: str = role()
 
     def laws(self, s):
         """Return the rate."""
-        return [Rate(s.population.f, -s.population.f)]
+        return [RateLaw(s.population.f, -s.population.f)]
 
 
 def _profile():
@@ -77,8 +77,8 @@ def _profile():
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
     return System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': _profile()})],
-        interactions=[Exchange('exchange', population='wealth'), *others],
+        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
+        interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -101,7 +101,7 @@ def _mean_error(system, particles, solution, replicates):
         replicates=replicates,
         until=HORIZON,
         dt=HORIZON,
-        solver=ParticleKinetics(n=particles, dt=0.002),
+        solver=KineticSolver(n=particles, dt=0.002),
         outputs=[error],
         random_state=0,
     )
@@ -120,7 +120,7 @@ def test_particles_converge_to_the_ode_solution():
 
 def test_particles_keep_the_density_of_conservative_encounters():
     """Test that conservative encounters keep the number of particles, so the total density stays exact."""
-    trajectory = Simulation(_system(), dt=0.5, solver=ParticleKinetics(n=2000), random_state=1).run(until=2).trajectory_
+    trajectory = Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1).run(until=2).trajectory_
     totals = np.asarray(trajectory['wealth.f']).sum(axis=1)
     np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
     assert np.all(np.asarray(trajectory['wealth.f']) >= 0)
@@ -130,24 +130,24 @@ def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
     system = System(
         components=[
-            Group('wealth', element=Density, on='sites', values={'f': _profile()}),
-            Group('field', element=Density, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
+            GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()}),
+            GroupComponent('field', element=DensityComponent, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
         ],
-        interactions=[Turnover('turnover', population='wealth', field='field')],
+        interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    simulation = Simulation(system, dt=1.0, solver=ParticleKinetics(n=50_000), random_state=2).run(until=1)
+    simulation = Simulation(system, dt=1.0, solver=KineticSolver(n=50_000), random_state=2).run(until=1)
     total = float(np.sum(simulation.trajectory_['wealth.f'][-1]))
     assert total == pytest.approx(np.exp(0.4), rel=0.02)
 
 
 def test_particle_solver_rejects_rate_laws_in_validation():
     """Test that validation reports a rate law with the particle solver and lists the solvers that run it."""
-    system = _system(Decay('decay', population='wealth'))
+    system = _system(DecayInteraction('decay', population='wealth'))
     report = validate(system, solver='particles')
     issue = next(item for item in report.errors if item.code == 'solver-unsupported')
-    assert 'ParticleKinetics does not support the laws rate' in issue.message
+    assert 'KineticSolver does not support the laws rate' in issue.message
     assert 'rk4' in issue.fix
     assert 'scipy' in issue.fix
     assert validate(_system(), solver='particles').ok
@@ -155,6 +155,6 @@ def test_particle_solver_rejects_rate_laws_in_validation():
 
 def test_particle_solver_rejects_rate_laws_when_run():
     """Test that the particle solver refuses a compiled problem with rate laws."""
-    problem = compile_system(_system(Decay('decay', population='wealth')))
+    problem = compile_system(_system(DecayInteraction('decay', population='wealth')))
     with pytest.raises(SolverError, match='encounter laws alone'):
-        ParticleKinetics().initialize(problem, np.random.default_rng(0))
+        KineticSolver().initialize(problem, np.random.default_rng(0))

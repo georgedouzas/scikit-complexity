@@ -19,14 +19,14 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.fields import ETDRK4
+from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 
 MODEL = 'kuramoto_sivashinsky'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=ETDRK4(dt=0.25), dt=0.5, observers=[observer]).run(until=149.5)
+simulation = Simulation(system, solver=ETDRK4Solver(dt=0.25), dt=0.5, observers=[observer]).run(until=149.5)
 
 # %%
 # The cell size set by the linear instability
@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=ETDRK4(dt=0.25), dt=0.5, observers=[obser
 # wavenumber, set the cell size near `2 pi sqrt 2 = 8.9`, and fall off exponentially above `q = 1`, where the modes
 # decay.
 
-run = Simulation(create(MODEL), solver=ETDRK4(dt=0.25), dt=1.0).run(until=1000)
+run = Simulation(create(MODEL), solver=ETDRK4Solver(dt=0.25), dt=1.0).run(until=1000)
 field = run.trajectory_['line.u'][200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])

@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import atan2, cos, sin
 
-from skcomplex.core.base import Domain, ValidationError, state, symbol, vector
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import NEIGHBOR_REDUCTIONS, Rate, Update, neighborhoods_in, neighbors, uniform
+from skcomplex.core.base import NumericDomain, ValidationError, state, symbol, vector
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import NEIGHBOR_REDUCTIONS, RateLaw, UpdateLaw, neighborhoods_in, neighbors, uniform
 from skcomplex.core.space import (
     Cone,
     ContinuousSpace,
@@ -24,7 +24,7 @@ from skcomplex.core.space import (
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 
 BACKENDS = ('numpy', 'numba')
 GAMMA = 0.5
@@ -33,10 +33,10 @@ CRITICAL = 2 * GAMMA
 
 def _reducing(over, kind, *, weight=None, **states):
     """Return an element type whose state `out` is the reduction of the neighbour's `y` over a neighbourhood."""
-    return Element.define(
-        'Reducing',
+    return ElementComponent.define(
+        'ReducingComponent',
         states={'out': 0.0, 'y': 0.0, **states},
-        laws=lambda s: [Update(s.out, neighbors(s.other.y, over=over, reduce=kind, weight=weight))],
+        laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.y, over=over, reduce=kind, weight=weight))],
     )
 
 
@@ -103,10 +103,10 @@ def test_reduction_over_a_network_matches_its_definition(kind, backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     """Test that a weight of the member and the neighbour weighs every neighbour in a normalized mean."""
-    weighted = Element.define(
-        'Weighted',
+    weighted = ElementComponent.define(
+        'WeightedComponent',
         states={'out': 0.0, 'y': 0.0},
-        laws=lambda s: [Update(s.out, neighbors(s.other.y, reduce='normalized-mean', weight=s.y + s.other.y))],
+        laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.y, reduce='normalized-mean', weight=s.y + s.other.y))],
     )
     values = np.array([1.0, 2.0, 3.0, 4.0])
     system = System(components=[weighted.group('g', 4, y=values)], space=NetworkSpace(nx.path_graph(4)))
@@ -189,7 +189,7 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
         Cone(radius, angle, heading='phi'),
         'count',
         x=state(vector=True, position=True),
-        phi=state(0.0, domain=Domain.ANGLE),
+        phi=state(0.0, domain=NumericDomain.ANGLE),
     )
     space = ContinuousSpace(side, side, boundary='periodic')
     system = System(components=[reducing.group('g', 90, x=positions, y=values, phi=headings)], space=space)
@@ -205,10 +205,10 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_neighbour_positions_are_read_by_minimum_image(backend):
     """Test that the position of a neighbour across a periodic edge is its image nearest to the member."""
-    reading = Element.define(
-        'Reading',
+    reading = ElementComponent.define(
+        'ReadingComponent',
         states={'out': 0.0, 'x': state(vector=True, position=True)},
-        laws=lambda s: [Update(s.out, neighbors(s.other.x[0] - s.x[0], over=Radius(1.0)))],
+        laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.x[0] - s.x[0], over=Radius(1.0)))],
     )
     positions = np.array([[0.2, 0.5], [9.9, 0.5]])
     space = ContinuousSpace(10.0, 10.0, boundary='periodic')
@@ -218,12 +218,12 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
 
 def test_interaction_reduces_over_the_neighbours_of_its_group():
     """Test that an interaction reads the neighbours of the group bound to its role through `s.target.other`."""
-    diffusion = Interaction.define(
-        'Diffusion',
+    diffusion = BaseInteraction.define(
+        'DiffusionInteraction',
         roles=['target'],
-        laws=lambda s: [Rate(s.target.y, neighbors(s.target.other.y - s.target.y))],
+        laws=lambda s: [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))],
     )
-    plain = Element.define('Plain', states={'y': 0.0})
+    plain = ElementComponent.define('PlainComponent', states={'y': 0.0})
     system = System(
         components=[plain.group('g', 3, y=[0.0, 1.0, 4.0])],
         interactions=[diffusion('d', target='g')],
@@ -235,7 +235,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
 
 def test_neighbour_symbols_outside_a_reduction_are_rejected():
     """Test that a law reading `s.other` outside a neighbourhood reduction raises an error that names `neighbors`."""
-    stray = Element.define('Stray', states={'y': 0.0}, laws=lambda s: [Rate(s.y, s.other.y)])
+    stray = ElementComponent.define('StrayComponent', states={'y': 0.0}, laws=lambda s: [RateLaw(s.y, s.other.y)])
     system = System(components=[stray.group('g', 3)], space=NetworkSpace(nx.path_graph(3)))
     with pytest.raises(ValidationError, match='neighbors'):
         compile_system(system)
@@ -272,25 +272,25 @@ def test_validate_reports_a_cone_without_a_heading():
 
 def test_validate_accepts_a_cone_along_the_velocity():
     """Test that a cone reads the vector velocity of the position as the heading of every member."""
-    moving = Element.define(
-        'Moving',
+    moving = ElementComponent.define(
+        'MovingComponent',
         states={
             'out': 0.0,
             'y': 0.0,
             'x': state(vector=True, position=True),
             'v': state(vector=True, velocity_of='x'),
         },
-        laws=lambda s: [Rate(s.out, neighbors(s.other.y, over=Cone(1.0, 1.0)))],
+        laws=lambda s: [RateLaw(s.out, neighbors(s.other.y, over=Cone(1.0, 1.0)))],
     )
     system = System(components=[moving.group('g', 5)], space=ContinuousSpace(2.0, 2.0))
     assert validate(system).ok
 
 
-Oscillator = Element.define(
-    'Oscillator',
+OscillatorComponent = ElementComponent.define(
+    'OscillatorComponent',
     states={'theta': 0.0},
     parameters={'omega': 0.0, 'K': 1.0},
-    laws=lambda s: [Rate(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))],
+    laws=lambda s: [RateLaw(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))],
 )
 
 
@@ -299,7 +299,7 @@ def _kuramoto(coupling, size=1000):
     quantiles = (np.arange(size) + 0.5) / size
     omega = GAMMA * np.tan(math.pi * (quantiles - 0.5))
     theta = np.random.default_rng(1).uniform(0, 2 * math.pi, size)
-    oscillators = Oscillator.group('oscillators', size, theta=theta, omega=omega, K=coupling)
+    oscillators = OscillatorComponent.group('oscillators', size, theta=theta, omega=omega, K=coupling)
     return System(components=[oscillators], space=NetworkSpace(nx.complete_graph(size)))
 
 
@@ -311,8 +311,8 @@ def _order(phases):
 @pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
-    below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4(dt=0.1), backend='numba').run(10.0)
-    above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4(dt=0.1), backend='numba').run(10.0)
+    below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
+    above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
     weak, strong = _order(below.trajectory_['oscillators.theta']), _order(above.trajectory_['oscillators.theta'])
     assert weak[-5:].max() < 0.1
     assert strong[-5:].min() > 0.7
@@ -322,19 +322,19 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
 def test_kuramoto_agrees_across_backends():
     """Test that the Kuramoto run on a complete graph gives the same phases on NumPy and Numba."""
     runs = [
-        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4(dt=0.1), backend=backend).run(2.0).trajectory_
+        Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend).run(2.0).trajectory_
         for backend in BACKENDS
     ]
     assert np.allclose(runs[0]['oscillators.theta'], runs[1]['oscillators.theta'], rtol=0, atol=1e-12)
 
 
 RADIUS = 1.0
-Mover = Element.define(
-    'Mover',
-    states={'x': state(vector=True, position=True), 'theta': state(0.0, domain=Domain.ANGLE)},
+MoverComponent = ElementComponent.define(
+    'MoverComponent',
+    states={'x': state(vector=True, position=True), 'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'v0': 0.03, 'eta': 0.1},
     laws=lambda s: [
-        Update(
+        UpdateLaw(
             s.theta,
             atan2(
                 neighbors(sin(s.other.theta), over=Radius(RADIUS, center=True)),
@@ -342,7 +342,7 @@ Mover = Element.define(
             )
             + uniform('noise', -s.eta / 2, s.eta / 2),
         ),
-        Update(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
+        UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
     ],
 )
 
@@ -350,7 +350,12 @@ Mover = Element.define(
 def _vicsek(size=400, side=5.0):
     """Return the Vicsek model at high density in a periodic box under discrete time."""
     rng = np.random.default_rng(3)
-    movers = Mover.group('movers', size, x=rng.uniform(0, side, (size, 2)), theta=rng.uniform(-math.pi, math.pi, size))
+    movers = MoverComponent.group(
+        'movers',
+        size,
+        x=rng.uniform(0, side, (size, 2)),
+        theta=rng.uniform(-math.pi, math.pi, size),
+    )
     return System(components=[movers], space=ContinuousSpace(side, side, boundary='periodic'), time=DiscreteTime())
 
 

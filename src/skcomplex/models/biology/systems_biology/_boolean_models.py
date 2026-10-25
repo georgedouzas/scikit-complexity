@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from ....core.base import ValidationError
 from ....core.system import System
 from ....engine.runtime import register_model
-from ._boolean import BooleanFunction, BooleanNode
+from ._boolean import BooleanFunctionInteraction, BooleanNodeComponent
 
 type Rule = Callable[..., bool]
 
@@ -70,9 +70,9 @@ def _rule_network(
     if unknown:
         error_msg = f'Unknown nodes {unknown}. Use names among {list(rules)}.'
         raise ValidationError(error_msg)
-    nodes = [BooleanNode(name, x=int(name in active and name not in knockouts)) for name in rules]
+    nodes = [BooleanNodeComponent(name, x=int(name in active and name not in knockouts)) for name in rules]
     functions = [
-        BooleanFunction(
+        BooleanFunctionInteraction(
             f'function_{name}',
             target=name,
             inputs=list(inputs),
@@ -191,14 +191,16 @@ def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> Sy
     if delay < 0:
         error_msg = f'The delay must be a nonnegative number of steps, not {delay}.'
         raise ValidationError(error_msg)
-    genes = [BooleanNode(name, x=int(value)) for name, value in zip(REPRESSILATOR_GENES, x, strict=True)]
-    relays = [BooleanNode(f'{gene.label}_{step}', x=gene.x) for step in range(1, delay + 1) for gene in genes]
-    functions: list[BooleanFunction] = []
+    genes = [BooleanNodeComponent(name, x=int(value)) for name, value in zip(REPRESSILATOR_GENES, x, strict=True)]
+    relays = [BooleanNodeComponent(f'{gene.label}_{step}', x=gene.x) for step in range(1, delay + 1) for gene in genes]
+    functions: list[BooleanFunctionInteraction] = []
     for repressor, target in zip(REPRESSILATOR_GENES, (*REPRESSILATOR_GENES[1:], REPRESSILATOR_GENES[0]), strict=True):
         chain = [repressor, *(f'{repressor}_{step}' for step in range(1, delay + 1))]
         functions.extend(
-            BooleanFunction(f'relay_{relay}', target=relay, inputs=[source], table=(0, 1))
+            BooleanFunctionInteraction(f'relay_{relay}', target=relay, inputs=[source], table=(0, 1))
             for source, relay in itertools.pairwise(chain)
         )
-        functions.append(BooleanFunction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)))
+        functions.append(
+            BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
+        )
     return System(components=[*genes, *relays], interactions=functions)

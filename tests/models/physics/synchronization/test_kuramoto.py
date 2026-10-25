@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import describe
 from skcomplex.models.physics.synchronization import (
     delayed_kuramoto,
@@ -35,7 +35,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
         built := kuramoto(100, K=K),
         40.0,
         1.0,
-        solver=ScipyODE(),
+        solver=ScipyODESolver(),
         observables=describe('kuramoto').observables_of(built),
     )
     order = _series(trajectory, 'order')[0]
@@ -62,7 +62,7 @@ def test_kuramoto_transition(factor, synchronized):
         Simulation(
             built := kuramoto(2000, K=factor * critical),
             dt=0.5,
-            solver=ScipyODE(method='RK45'),
+            solver=ScipyODESolver(method='RK45'),
             observables=describe('kuramoto').observables_of(built),
         )
         .run(until=100)
@@ -83,7 +83,7 @@ def test_kuramoto_sakaguchi_populations_form_a_chimera():
         system,
         200.0,
         5.0,
-        solver=ScipyODE(),
+        solver=ScipyODESolver(),
         observables=describe('kuramoto_sakaguchi_chimera').observables_of(system),
     )
     first, second = _series(trajectory, 'first_order', 'second_order')

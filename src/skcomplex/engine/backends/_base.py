@@ -10,10 +10,10 @@ import numpy as np
 
 from ...core.base import BackendError, Form
 from ..compile import Problem
-from ..solvers import Stepper
+from ..solvers import Solver
 
 
-class ExternalBackend(Stepper):
+class ExternalSolver(Solver):
     """Base class of solvers that translate a compiled problem into a third-party library.
 
     Subclasses set the class variables `name` and `forms`, and implement `check`, `build`, and `advance`. Before the

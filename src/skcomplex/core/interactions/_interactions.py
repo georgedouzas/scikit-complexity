@@ -7,13 +7,13 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
 from ..base import ValidationError, Variable, VariableKind
-from ..components import Component
-from ..laws import Law
+from ..components import BaseComponent
+from ..laws import BaseLaw
 
 BINDINGS = ('members', 'pairs', 'neighbors', 'hyperedges')
 
 
-class Interaction(Component):
+class BaseInteraction(BaseComponent):
     """Base class of laws that couple elements to each other or to the environment.
 
     Subclasses declare their roles with `role` and their parameters with `parameter`, and override `laws`. Inside
@@ -31,17 +31,17 @@ class Interaction(Component):
             The values of the declared parameters and roles, by name.
 
     Examples:
-        >>> from skcomplex.core.base import Domain, parameter, role
-        >>> from skcomplex.core.interactions import Interaction
-        >>> from skcomplex.core.laws import Rate
-        >>> class Growth(Interaction):
+        >>> from skcomplex.core.base import NumericDomain, parameter, role
+        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> from skcomplex.core.laws import RateLaw
+        >>> class GrowthInteraction(BaseInteraction):
         ...     target: str = role()
-        ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
+        ...     r: float = parameter(1.0, domain=NumericDomain.POSITIVE)
         ...
         ...     def laws(self, s):
-        ...         return [Rate(s.target.n, s.r * s.target.n)]
-        >>> Growth('growth', target='rabbits', r=0.5)
-        Growth(label='growth', r=0.5, target='rabbits')
+        ...         return [RateLaw(s.target.n, s.r * s.target.n)]
+        >>> GrowthInteraction('growth', target='rabbits', r=0.5)
+        GrowthInteraction(label='growth', r=0.5, target='rabbits')
 
     The class variable `over` is the binding of the laws: `'members'` runs them for the bound components or members,
     `'pairs'` once per pair of members of the roles `first` and `second` closer than the parameter `cutoff`,
@@ -87,8 +87,8 @@ class Interaction(Component):
                 The type binds its laws over an unknown binding, or declares states or adaptive parameters.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import Predation
-            >>> list(Predation.declarations())[:2]
+            >>> from skcomplex.models.biology.ecology import PredationInteraction
+            >>> list(PredationInteraction.declarations())[:2]
             ['predator', 'prey']
         """
         declarations = super().declarations()
@@ -106,7 +106,7 @@ class Interaction(Component):
         if states:
             error_msg = (
                 f'{cls.__name__} declares the states {", ".join(states)}, but interactions hold no state. Put state on '
-                'couplings in a group on the edges of a network space, `Group(..., on="edges")`.'
+                'couplings in a group on the edges of a network space, `GroupComponent(..., on="edges")`.'
             )
             raise ValidationError(error_msg)
         return declarations
@@ -118,9 +118,9 @@ class Interaction(Component):
         *,
         roles: Sequence[str] = (),
         parameters: Mapping[str, Any] | None = None,
-        laws: Callable[..., list[Law]] | None = None,
+        laws: Callable[..., list[BaseLaw]] | None = None,
         over: str | None = None,
-    ) -> type['Interaction']:
+    ) -> type['BaseInteraction']:
         """Return a new interaction type built from declarations, without writing a class.
 
         The type behaves like a subclass in cloning and parameter introspection. Assign it to a module-level name equal
@@ -147,16 +147,16 @@ class Interaction(Component):
                 The new interaction type, a subclass of the type `define` is called on.
 
         Examples:
-            >>> from skcomplex.core.interactions import Interaction
-            >>> from skcomplex.core.laws import Rate
-            >>> Growth = Interaction.define(
-            ...     'Growth',
+            >>> from skcomplex.core.interactions import BaseInteraction
+            >>> from skcomplex.core.laws import RateLaw
+            >>> GrowthInteraction = BaseInteraction.define(
+            ...     'GrowthInteraction',
             ...     roles=['target'],
             ...     parameters={'r': 1.0},
-            ...     laws=lambda s: [Rate(s.target.n, s.r * s.target.n)],
+            ...     laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
             ... )
-            >>> Growth('growth', target='rabbits', r=0.5)
-            Growth(label='growth', r=0.5, target='rabbits')
+            >>> GrowthInteraction('growth', target='rabbits', r=0.5)
+            GrowthInteraction(label='growth', r=0.5, target='rabbits')
         """
         attributes = {} if over is None else {'over': over}
         return cls._define(name, roles=roles, parameters=parameters, laws=laws, attributes=attributes)

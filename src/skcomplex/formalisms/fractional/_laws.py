@@ -5,15 +5,15 @@
 
 from dataclasses import dataclass, field
 
-from ...core.laws import Noise, Process, Target
+from ...core.laws import NoiseLaw, Process, Target
 
 
 @dataclass(frozen=True, init=False)
-class FractionalNoise(Noise):
+class FractionalNoiseLaw(NoiseLaw):
     """Amplitude of a fractional Brownian motion of a Hurst index that drives the highest time derivative of a state.
 
     The increments are fractional Gaussian noise, correlated over the whole run. A Hurst index of 1/2 gives the
-    process of a `Noise` law, below 1/2 the increments anticorrelate, and above 1/2 they correlate. For other indices
+    process of a `NoiseLaw`, below 1/2 the increments anticorrelate, and above 1/2 they correlate. For other indices
     than 1/2 the amplitude must not depend on any state.
 
     Args:
@@ -31,13 +31,13 @@ class FractionalNoise(Noise):
             The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
         convention:
-            The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`, as for `Noise`.
+            The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`, as for `NoiseLaw`.
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.formalisms.fractional import FractionalNoise
+        >>> from skcomplex.formalisms.fractional import FractionalNoiseLaw
         >>> x, D = symbol('x'), symbol('D')
-        >>> FractionalNoise(x, 2 * D, hurst=0.7).hurst
+        >>> FractionalNoiseLaw(x, 2 * D, hurst=0.7).hurst
         0.7
     """
 

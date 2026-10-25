@@ -8,14 +8,14 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
 
 type Array = npt.NDArray[np.float64]
 
@@ -52,7 +52,7 @@ def landscape(width: int, height: int) -> Array:
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
 
 
-class Patch(Element):
+class PatchComponent(ElementComponent):
     """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
 
     Args:
@@ -72,17 +72,17 @@ class Patch(Element):
             The sugar that grows back in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Patch
-        >>> Patch.group('patches', 4, capacity=2.0).size
+        >>> from skcomplex.models.economics.markets import PatchComponent
+        >>> PatchComponent.group('patches', 4, capacity=2.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)})
-    sugar: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    capacity: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    growback: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    sugar: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    capacity: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    growback: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growback rule in the phase of growth.
 
         Args:
@@ -93,7 +93,7 @@ class Patch(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.grow, phase='growth')]
+        return [RuleLaw(self.grow, phase='growth')]
 
     def grow(self, agent: AgentView, model: ModelView) -> None:
         """Grow sugar back up to the capacity.
@@ -108,7 +108,7 @@ class Patch(Element):
         agent.sugar = min(agent.capacity, agent.sugar + agent.growback)
 
 
-class Forager(Element):
+class ForagerComponent(ElementComponent):
     """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
 
     A forager sees `vision` cells along each of the four lattice directions and moves to the free cell with the most
@@ -132,18 +132,18 @@ class Forager(Element):
             The sugar the forager burns in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Forager
-        >>> Forager.group('foragers', 3, vision=2.0).size
+        >>> from skcomplex.models.economics.markets import ForagerComponent
+        >>> ForagerComponent.group('foragers', 3, vision=2.0).size
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar'})
     patches: ClassVar[str] = 'patches'
-    sugar: float = state(default=10.0, domain=Domain.REAL)
-    vision: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    metabolism: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    sugar: float = state(default=10.0, domain=NumericDomain.REAL)
+    vision: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    metabolism: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the foraging rule in the phase of foraging.
 
         Args:
@@ -154,7 +154,7 @@ class Forager(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.forage, phase='foraging')]
+        return [RuleLaw(self.forage, phase='foraging')]
 
     def _patch_map(self, model: ModelView) -> dict[tuple[int, int], AgentView]:
         """Return the patches by cell, built once per run in the storage of the foragers."""
@@ -219,7 +219,7 @@ def gini(values: npt.ArrayLike) -> float:
     return float(np.sum((2 * ranks - len(array) - 1) * array) / (len(array) * array.sum()))
 
 
-class Census(Institution):
+class CensusInteraction(InstitutionInteraction):
     """Census that reports the population of foragers and the Gini coefficient of their wealth.
 
     Args:
@@ -236,8 +236,8 @@ class Census(Institution):
             The phase the census counts in.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Census
-        >>> Census('census', foragers='foragers').reports
+        >>> from skcomplex.models.economics.markets import CensusInteraction
+        >>> CensusInteraction('census', foragers='foragers').reports
         ('population', 'gini')
     """
 
@@ -322,9 +322,16 @@ def sugarscape(
     rng = np.random.default_rng(random_state)
     capacity = landscape(width, height).ravel()
     cells = [(x, y) for x in range(width) for y in range(height)]
-    patches = Patch.group('patches', len(cells), location=cells, sugar=capacity, capacity=capacity, growback=growback)
+    patches = PatchComponent.group(
+        'patches',
+        len(cells),
+        location=cells,
+        sugar=capacity,
+        capacity=capacity,
+        growback=growback,
+    )
     occupied = rng.choice(len(cells), size=min(n_foragers, len(cells)), replace=False)
-    foragers = Forager.group(
+    foragers = ForagerComponent.group(
         'foragers',
         len(occupied),
         variable=True,
@@ -335,7 +342,7 @@ def sugarscape(
     )
     return System(
         components=[patches, foragers],
-        interactions=[Census('census', foragers='foragers', phase='growth')],
+        interactions=[CensusInteraction('census', foragers='foragers', phase='growth')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
-        time=DiscreteTime(schedule=Phases([Phase('foraging'), Phase('growth')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('foraging'), Phase('growth')])),
     )

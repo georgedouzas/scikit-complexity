@@ -8,19 +8,19 @@ from typing import Any
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols, neighbors
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols, neighbors
 from ....core.space import Adjacency, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import Energy, Move, Sample, Sampler
+from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 
 NODES = 400
 DEGREE = 4
 
 
-class GraphIsingSpin(Element):
+class GraphIsingSpinComponent(ElementComponent):
     """Ising spin on a node of a graph, with local energy `-J s sum(neighbours) - h s` over the node's edges.
 
     The sampler updates the classes of a proper coloring of the graph in turn, so no two neighbours flip together.
@@ -48,15 +48,15 @@ class GraphIsingSpin(Element):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpin
-        >>> GraphIsingSpin('spin').sampler
+        >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpinComponent
+        >>> GraphIsingSpinComponent('spin').sampler
         'metropolis'
     """
 
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
-    temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -68,7 +68,7 @@ class GraphIsingSpin(Element):
         super().__init__(label, **values)
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the neighbour-sum energy, the spin flip, and the colored sampler.
 
         Args:
@@ -80,7 +80,13 @@ class GraphIsingSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum') - s.h * s.spin
-        return [Sample(Energy(energy, Adjacency()), Move.flip(s.spin), Sampler(self.sampler, s.temperature, 'colored'))]
+        return [
+            SampleLaw(
+                Energy(energy, Adjacency()),
+                MoveLaw.flip(s.spin),
+                SamplerLaw(self.sampler, s.temperature, 'colored'),
+            ),
+        ]
 
 
 @register_model(
@@ -142,5 +148,13 @@ def graph_ising(
     size = graph.number_of_nodes()
     spins = np.ones(size) if initial == 'up' else rng.choice([-1.0, 1.0], size=size)
     space = NetworkSpace(graph)
-    group = GraphIsingSpin.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
+    group = GraphIsingSpinComponent.lattice(
+        'spins',
+        space,
+        spin=spins,
+        J=J,
+        h=h,
+        temperature=temperature,
+        sampler=sampler,
+    )
     return System(components=[group])

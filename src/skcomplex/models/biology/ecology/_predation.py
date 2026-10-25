@@ -7,23 +7,23 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, role
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Rate, Symbols, Update, where
+from ....core.base import Expression, NumericDomain, parameter, role
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, Symbols, UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
-from ._populations import ExponentialGrowth, Mortality, Population, Predation
+from ....engine.solvers import ScipyODESolver
+from ._populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
 
 
-def _change(target: Expression, rate: Expression, step: int, *, stochastic: bool) -> Law:
+def _change(target: Expression, rate: Expression, step: int, *, stochastic: bool) -> BaseLaw:
     """Return the law that changes a population at a rate, by single individuals in stochastic mode."""
     if stochastic:
-        return Jump(rate, {target: step})
-    return Rate(target, step * rate)
+        return JumpLaw(rate, {target: step})
+    return RateLaw(target, step * rate)
 
 
-class RosenzweigMacArthur(Interaction):
+class RosenzweigMacArthurInteraction(BaseInteraction):
     """Rosenzweig-MacArthur predation of fast prey by slow predators, whose prey crowding grows at a constant rate.
 
     In units of the predators' time scale, `kappa dx/dt = x (1 - phi x) - x y / (1 + eta x)` and
@@ -56,20 +56,20 @@ class RosenzweigMacArthur(Interaction):
             The rate at which the crowding rises.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import RosenzweigMacArthur
-        >>> RosenzweigMacArthur('predation', prey='prey', predators='predators', rate=0.01).rate
+        >>> from skcomplex.models.biology.ecology import RosenzweigMacArthurInteraction
+        >>> RosenzweigMacArthurInteraction('predation', prey='prey', predators='predators', rate=0.01).rate
         0.01
     """
 
     prey: str = role()
     predators: str = role()
-    kappa: float = parameter(default=0.01, domain=Domain.POSITIVE)
-    eta: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    phi: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    phi_end: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    rate: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    kappa: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    eta: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    phi: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    phi_end: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    rate: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rates of the prey and the predators under the ramp of the crowding.
 
         Args:
@@ -83,10 +83,10 @@ class RosenzweigMacArthur(Interaction):
         x, y = s.prey.n, s.predators.n
         crowding = where(s.phi + s.rate * s.t < s.phi_end, s.phi + s.rate * s.t, s.phi_end)
         feeding = x * y / (1 + s.eta * x)
-        return [Rate(x, (x * (1 - crowding * x) - feeding) / s.kappa), Rate(y, feeding - y)]
+        return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
 
-class Parasitism(Interaction):
+class ParasitismInteraction(BaseInteraction):
     """Nicholson-Bailey parasitism of hosts by parasitoids in discrete generations.
 
     Parasitoids search at random, so a host escapes with probability `exp(-a P)`, giving `H' = k H exp(-a P)` and
@@ -112,18 +112,18 @@ class Parasitism(Interaction):
             The number of viable eggs a parasitoid lays in a host.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Parasitism
-        >>> Parasitism('parasitism', host='moths', parasitoid='wasps', k=2.0).k
+        >>> from skcomplex.models.biology.ecology import ParasitismInteraction
+        >>> ParasitismInteraction('parasitism', host='moths', parasitoid='wasps', k=2.0).k
         2.0
     """
 
     host: str = role()
     parasitoid: str = role()
-    k: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    a: float = parameter(default=0.05, domain=Domain.POSITIVE)
-    c: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    a: float = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    c: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the next generations `k H exp(-a P)` and `c H (1 - exp(-a P))`.
 
         Args:
@@ -136,10 +136,10 @@ class Parasitism(Interaction):
         """
         hosts, parasitoids = s.host.n, s.parasitoid.n
         escape = exp(-s.a * parasitoids)
-        return [Update(hosts, s.k * hosts * escape), Update(parasitoids, s.c * hosts * (1 - escape))]
+        return [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
 
 
-class PredatorPreyEvents(Interaction):
+class PredatorPreyEventsInteraction(BaseInteraction):
     """Births, crowding, saturating predation, and deaths of prey and predators as events of single individuals.
 
     Prey are born at the rate `r x` and die of crowding at the rate `r x^2 / K`. Predators kill prey at the Holling
@@ -181,19 +181,19 @@ class PredatorPreyEvents(Interaction):
                 The death rate of the predators.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PredatorPreyEvents
-        >>> PredatorPreyEvents('events', prey='voles', predators='weasels', K=200.0).K
+        >>> from skcomplex.models.biology.ecology import PredatorPreyEventsInteraction
+        >>> PredatorPreyEventsInteraction('events', prey='voles', predators='weasels', K=200.0).K
         200.0
     """
 
     prey: str = role()
     predators: str = role()
-    r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    K: float = parameter(default=200.0, domain=Domain.POSITIVE)
-    a: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    h: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    e: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    m: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
+    a: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    h: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    e: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    m: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -205,7 +205,7 @@ class PredatorPreyEvents(Interaction):
         super().__init__(label, **values)
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the five channels of births and deaths.
 
         Args:
@@ -232,7 +232,7 @@ class PredatorPreyEvents(Interaction):
     field='biology/ecology',
     tags=('predator-prey', 'ode', 'tipping', 'rate-induced tipping', 'slow-fast'),
     references=('Rosenzweig and MacArthur 1963', 'Datseris and Parlitz 2022'),
-    defaults={'until': 150.0, 'dt': 0.5, 'solver': ScipyODE(rtol=1e-8, atol=1e-300)},
+    defaults={'until': 150.0, 'dt': 0.5, 'solver': ScipyODESolver(rtol=1e-8, atol=1e-300)},
 )
 def rosenzweig_macarthur(
     prey: float | None = None,
@@ -252,7 +252,7 @@ def rosenzweig_macarthur(
 
     In a collapse the prey fall to about `1e-30`, far below any absolute tolerance, and an error of either sign there
     decides whether they return or, below zero, run into the pole of the feeding at `x = -1 / eta`. The registered
-    solver therefore controls the relative error only, with `ScipyODE(rtol=1e-8, atol=1e-300)`.
+    solver therefore controls the relative error only, with `ScipyODESolver(rtol=1e-8, atol=1e-300)`.
 
     Args:
         prey:
@@ -290,9 +290,9 @@ def rosenzweig_macarthur(
     prey = 1 / (1 - eta) if prey is None else prey
     predators = (1 - phi * prey) * (1 + eta * prey) if predators is None else predators
     return System(
-        components=[Population('prey', n=prey), Population('predators', n=predators)],
+        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
         interactions=[
-            RosenzweigMacArthur(
+            RosenzweigMacArthurInteraction(
                 'predation',
                 prey='prey',
                 predators='predators',
@@ -350,8 +350,8 @@ def nicholson_bailey(
         3.0
     """
     return System(
-        components=[Population('hosts', n=hosts), Population('parasitoids', n=parasitoids)],
-        interactions=[Parasitism('parasitism', host='hosts', parasitoid='parasitoids', k=k, a=a, c=c)],
+        components=[PopulationComponent('hosts', n=hosts), PopulationComponent('parasitoids', n=parasitoids)],
+        interactions=[ParasitismInteraction('parasitism', host='hosts', parasitoid='parasitoids', k=k, a=a, c=c)],
     )
 
 
@@ -413,13 +413,13 @@ def lotka_volterra_with_harvesting(
         ['prey_harvest', 'predator_harvest']
     """
     return System(
-        components=[Population('prey', n=prey), Population('predators', n=predators)],
+        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
         interactions=[
-            ExponentialGrowth('growth', target='prey', r=r),
-            Predation('predation', predator='predators', prey='prey', a=a, b=b),
-            Mortality('death', target='predators', d=d),
-            Mortality('prey_harvest', target='prey', d=prey_harvest),
-            Mortality('predator_harvest', target='predators', d=predator_harvest),
+            ExponentialGrowthInteraction('growth', target='prey', r=r),
+            PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
+            MortalityInteraction('death', target='predators', d=d),
+            MortalityInteraction('prey_harvest', target='prey', d=prey_harvest),
+            MortalityInteraction('predator_harvest', target='predators', d=predator_harvest),
         ],
     )
 
@@ -486,9 +486,9 @@ def stochastic_predator_prey(
         1000.0
     """
     return System(
-        components=[Population('prey', n=prey), Population('predators', n=predators)],
+        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
         interactions=[
-            PredatorPreyEvents(
+            PredatorPreyEventsInteraction(
                 'events',
                 prey='prey',
                 predators='predators',

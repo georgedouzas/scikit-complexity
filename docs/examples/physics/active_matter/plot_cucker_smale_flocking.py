@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -24,7 +24,7 @@ MODEL = 'cucker_smale_flocking'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-solver = RK4(dt=0.05)
+solver = RK4Solver(dt=0.05)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=20)
 
 # %%

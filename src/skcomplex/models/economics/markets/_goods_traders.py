@@ -10,14 +10,14 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Invariant, Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Invariant, Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._exchange import NeighborPairing, cobb_douglas, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
@@ -45,7 +45,7 @@ def _goods_observables(system: System) -> list[Observable]:
     ]
 
 
-class GoodsTrader(Element):
+class GoodsTraderComponent(ElementComponent):
     """Trader who holds goods, values them with Cobb-Douglas weights, and wanders to a random neighbouring cell.
 
     Args:
@@ -74,21 +74,21 @@ class GoodsTrader(Element):
             The probability that the trader moves in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import GoodsTrader
-        >>> GoodsTrader.group('traders', 4, sugar=5.0).size
+        >>> from skcomplex.models.economics.markets import GoodsTraderComponent
+        >>> GoodsTraderComponent.group('traders', 4, sugar=5.0).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)})
-    sugar: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    spice: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    salt: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    sugar_weight: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    spice_weight: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    salt_weight: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    mobility: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    sugar: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    spice: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    salt: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    sugar_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    spice_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    salt_weight: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    mobility: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the wandering rule of the phase of moves.
 
         Args:
@@ -99,7 +99,7 @@ class GoodsTrader(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.wander, phase='move')]
+        return [RuleLaw(self.wander, phase='move')]
 
     def wander(self, agent: AgentView, model: ModelView) -> None:
         """Move to a random neighbouring cell with the probability of the mobility.
@@ -117,7 +117,7 @@ class GoodsTrader(Element):
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
-class Exchange(Interaction):
+class ExchangeInteraction(BaseInteraction):
     """Bilateral barter between traders, paired every step by the matching law.
 
     Every pair barters small quantities of every pair of goods at the geometric mean of their marginal rates of
@@ -147,8 +147,8 @@ class Exchange(Interaction):
                 The path of the group of traders.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Exchange
-        >>> Exchange('exchange', traders='traders').reports
+        >>> from skcomplex.models.economics.markets import ExchangeInteraction
+        >>> ExchangeInteraction('exchange', traders='traders').reports
         ('price', 'dispersion', 'volume')
     """
 
@@ -181,8 +181,8 @@ class Exchange(Interaction):
                 The laws of the component.
         """
         return [
-            Match('traders', pairing=self.pairing, label='partners', phase='trade'),
-            Rule(self.trade, phase='trade'),
+            MatchLaw('traders', pairing=self.pairing, label='partners', phase='trade'),
+            RuleLaw(self.trade, phase='trade'),
             *(Invariant(f'total {good}', functools.partial(_total, good), tolerance=1e-6) for good in self.goods),
         ]
 
@@ -283,11 +283,18 @@ def goods_traders(
     holdings = rng.uniform(low, high, (n_traders, goods))
     values: dict[str, Any] = {GOODS[index]: holdings[:, index] for index in range(goods)}
     values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
-    traders = GoodsTrader.group('traders', n_traders, variable=True, location=locations, mobility=mobility, **values)
+    traders = GoodsTraderComponent.group(
+        'traders',
+        n_traders,
+        variable=True,
+        location=locations,
+        mobility=mobility,
+        **values,
+    )
     return System(
         components=[traders],
         interactions=[
-            Exchange(
+            ExchangeInteraction(
                 'exchange',
                 traders='traders',
                 goods=GOODS[:goods],
@@ -296,5 +303,5 @@ def goods_traders(
             ),
         ],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(schedule=Phases([Phase('move'), Phase('trade')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('move'), Phase('trade')])),
     )

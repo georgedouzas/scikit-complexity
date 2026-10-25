@@ -7,16 +7,16 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class Resident(Element):
+class ResidentComponent(ElementComponent):
     """Resident of the Schelling model, who moves to an empty cell while too few neighbours share its kind.
 
     Args:
@@ -30,16 +30,16 @@ class Resident(Element):
             The smallest share of neighbours of the same kind that keeps a resident in place.
 
     Examples:
-        >>> from skcomplex.models.social.segregation import Resident
-        >>> Resident.group('residents', 10, kind=1.0)
-        Group('residents', element=Resident, size=10)
+        >>> from skcomplex.models.social.segregation import ResidentComponent
+        >>> ResidentComponent.group('residents', 10, kind=1.0)
+        GroupComponent('residents', element=ResidentComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})
-    kind: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    threshold: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    kind: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    threshold: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the relocation rule.
 
         Args:
@@ -50,7 +50,7 @@ class Resident(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.relocate)]
+        return [RuleLaw(self.relocate)]
 
     def relocate(self, agent: AgentView, model: ModelView) -> None:
         """Move to a random empty cell while the share of similar neighbours is below the threshold.
@@ -118,5 +118,5 @@ def schelling(
     rng = np.random.default_rng(random_state)
     size = int(width * height * density)
     kinds = (rng.random(size) < minority).astype(float)
-    residents = Resident.group('residents', size, kind=kinds, threshold=threshold)
+    residents = ResidentComponent.group('residents', size, kind=kinds, threshold=threshold)
     return System(components=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))

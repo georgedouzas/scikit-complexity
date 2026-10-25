@@ -11,19 +11,19 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import Domain
+from ...core.base import NumericDomain
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 MIN_HISTORY = 64
 MAX_HISTORY = 256
 SPACE_TIME = 'space_time'
 
 
-class ImageVisual(Visual):
+class ImageVisual(BaseVisual):
     """Visual that logs every state of a lattice group as an image colored by value, or a tensor in 3D and more.
 
     A one-dimensional lattice also logs a space-time image under `<path>/space_time/<state>`, with one row per logged
@@ -135,7 +135,7 @@ class ImageVisual(Visual):
             if magnitudes.ndim == 1:
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                cyclic = frame.problem.states.entry(name).domain is Domain.ANGLE
+                cyclic = frame.problem.states.entry(name).domain is NumericDomain.ANGLE
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)

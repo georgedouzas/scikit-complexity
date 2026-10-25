@@ -3,10 +3,10 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.physiology import two_compartment_pharmacokinetics
 
-PRECISE = ScipyODE(rtol=1e-10, atol=1e-14)
+PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-14)
 
 
 def _rates(k10, k12, k21):

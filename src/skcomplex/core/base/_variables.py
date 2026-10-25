@@ -13,7 +13,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ._domains import AnyDomain, Domain
+from ._domains import AnyDomain, NumericDomain
 
 METADATA_KEY = 'skcomplex'
 
@@ -87,7 +87,7 @@ class Variable:
     """
 
     kind: VariableKind
-    domain: AnyDomain = Domain.REAL
+    domain: AnyDomain = NumericDomain.REAL
     vector: bool = False
     order: float = 1
     lags: int = 0
@@ -168,7 +168,7 @@ def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, 
             The companion fields, empty for a first-order state without lags.
     """
     fields = {}
-    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
+    domain = NumericDomain.COMPLEX if declaration.domain is NumericDomain.COMPLEX else NumericDomain.REAL
     for index in range(1, declaration.derivatives + 1):
         value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
         companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
@@ -183,7 +183,7 @@ def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, 
 def state(
     default: Any = 0.0,
     *,
-    domain: AnyDomain = Domain.REAL,
+    domain: AnyDomain = NumericDomain.REAL,
     vector: bool = False,
     order: float = 1,
     lags: int = 0,
@@ -249,11 +249,11 @@ def state(
             are more initial values than companions.
 
     Examples:
-        >>> from skcomplex.core.base import Domain, state
-        >>> from skcomplex.core.components import Element
-        >>> class Population(Element):
-        ...     n: float = state(1.0, domain=Domain.NONNEGATIVE)
-        >>> Population('rabbits', n=40).n
+        >>> from skcomplex.core.base import NumericDomain, state
+        >>> from skcomplex.core.components import ElementComponent
+        >>> class PopulationComponent(ElementComponent):
+        ...     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
+        >>> PopulationComponent('rabbits', n=40).n
         40
     """
     order = _normalized_order(order)
@@ -303,7 +303,7 @@ def declaration_of(value: object) -> Variable | None:
 def parameter(
     default: Any = dataclasses.MISSING,
     *,
-    domain: AnyDomain = Domain.REAL,
+    domain: AnyDomain = NumericDomain.REAL,
     vector: bool = False,
     per: str | None = None,
     adaptive: bool = False,
@@ -348,21 +348,21 @@ def parameter(
             with a lower bound above the upper one.
 
     Examples:
-        >>> from skcomplex.core.base import Domain, parameter, role
-        >>> from skcomplex.core.interactions import Interaction
-        >>> class Growth(Interaction):
-        ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
-        >>> Growth('growth', r=0.5).r
+        >>> from skcomplex.core.base import NumericDomain, parameter, role
+        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> class GrowthInteraction(BaseInteraction):
+        ...     r: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+        >>> GrowthInteraction('growth', r=0.5).r
         0.5
-        >>> class Regulation(Interaction):
+        >>> class RegulationInteraction(BaseInteraction):
         ...     inputs: list[str] = role(variadic=True)
         ...     weights: list[float] = parameter(per='inputs')
-        >>> Regulation('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
+        >>> RegulationInteraction('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
         [1.0, -1.0]
-        >>> from skcomplex.core.components import Element
-        >>> class Fishery(Element):
+        >>> from skcomplex.core.components import ElementComponent
+        >>> class FisheryComponent(ElementComponent):
         ...     effort: float = parameter(0.5, adaptive=True, bounds=(0.0, 1.0))
-        >>> Fishery('fishery').effort
+        >>> FisheryComponent('fishery').effort
         0.5
     """
     if bounds is not None:
@@ -397,17 +397,17 @@ def role(*, variadic: bool = False) -> Any:
 
     Examples:
         >>> from skcomplex.core.base import role
-        >>> from skcomplex.core.interactions import Interaction
-        >>> class Mortality(Interaction):
+        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> class MortalityInteraction(BaseInteraction):
         ...     target: str = role()
-        >>> Mortality('death', target='foxes').target
+        >>> MortalityInteraction('death', target='foxes').target
         'foxes'
-        >>> Mortality('death', target='foxes[3]').target
+        >>> MortalityInteraction('death', target='foxes[3]').target
         'foxes[3]'
-        >>> class Sum(Interaction):
+        >>> class SumInteraction(BaseInteraction):
         ...     target: str = role()
         ...     inputs: list[str] = role(variadic=True)
-        >>> Sum('sum', target='total', inputs=['a', 'nodes[3]']).inputs
+        >>> SumInteraction('sum', target='total', inputs=['a', 'nodes[3]']).inputs
         ['a', 'nodes[3]']
     """
     return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic))
@@ -430,9 +430,9 @@ def declared_fields(component: Any) -> dict[str, Any]:
 
     Examples:
         >>> from skcomplex.core.base import declared_fields, state
-        >>> class Pendulum:
+        >>> class PendulumComponent:
         ...     theta = state(0.1, order=2)
-        >>> list(declared_fields(Pendulum))
+        >>> list(declared_fields(PendulumComponent))
         ['theta', 'theta_d1']
     """
     cls = component if isinstance(component, type) else type(component)

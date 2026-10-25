@@ -8,13 +8,13 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Update, where
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import UpdateLaw, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import Field
+from ....formalisms.fields import FieldComponent
 
 type Window = tuple[float, float, float, float]
 
@@ -22,19 +22,19 @@ ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
 JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
-QuadraticMap = Element.define(
-    'QuadraticMap',
+QuadraticMapComponent = ElementComponent.define(
+    'QuadraticMapComponent',
     states={
-        'z': state(0.0, domain=Domain.COMPLEX),
-        'n': state(0.0, domain=Domain.NONNEGATIVE_INTEGER),
+        'z': state(0.0, domain=NumericDomain.COMPLEX),
+        'n': state(0.0, domain=NumericDomain.NONNEGATIVE_INTEGER),
     },
     parameters={
-        'c': parameter(0.0, domain=Domain.COMPLEX),
-        'radius': parameter(2.0, domain=Domain.POSITIVE),
+        'c': parameter(0.0, domain=NumericDomain.COMPLEX),
+        'radius': parameter(2.0, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Update(s.z, where(abs(s.z) <= s.radius, s.z**2 + s.c, s.z)),
-        Update(s.n, s.n + where(abs(s.z) <= s.radius, 1, 0)),
+        UpdateLaw(s.z, where(abs(s.z) <= s.radius, s.z**2 + s.c, s.z)),
+        UpdateLaw(s.n, s.n + where(abs(s.z) <= s.radius, 1, 0)),
     ],
 )
 
@@ -52,7 +52,9 @@ def _escape_field(shape: Sequence[int], z: object, c: object, radius: float) -> 
     """Return the field of the quadratic map over a lattice from the initial points and the constants."""
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
-    return System(components=[Field('plane', QuadraticMap, space, values=values, visual=ESCAPE_IMAGE)])
+    return System(
+        components=[FieldComponent('plane', QuadraticMapComponent, space, values=values, visual=ESCAPE_IMAGE)],
+    )
 
 
 @register_model(

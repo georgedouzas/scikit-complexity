@@ -2,9 +2,9 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
+from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SampleLaw, SamplerLaw
 from ._passes import CHECKS, OWNER_RULES, STEPWISE_FORMS, LatticeProblemPass, UnpackSamplesPass
-from ._solvers import LatticeStepper, MonteCarlo
+from ._solvers import LatticeSolver, MonteCarloSolver
 from ._steps import (
     CompiledDrive,
     CompiledExtremal,
@@ -23,34 +23,34 @@ __all__: list[str] = [
     'CompiledMonteCarlo',
     'CompiledRelaxation',
     'CompiledRule',
-    'Drive',
+    'DriveLaw',
     'Energy',
-    'Extremal',
+    'ExtremalLaw',
     'ExtremalRecord',
     'LatticeProblemPass',
+    'LatticeSolver',
     'LatticeState',
     'LatticeStep',
-    'LatticeStepper',
-    'LocalRule',
-    'MonteCarlo',
-    'Move',
-    'Relaxation',
+    'LocalRuleLaw',
+    'MonteCarloSolver',
+    'MoveLaw',
+    'RelaxationLaw',
     'RelaxationRecord',
-    'Sample',
-    'Sampler',
+    'SampleLaw',
+    'SamplerLaw',
     'UnpackSamplesPass',
 ]
 
 register(
     Formalism(
         'lattices',
-        laws=(LocalRule, Drive, Relaxation, Energy, Move, Sampler, Sample, Extremal),
+        laws=(LocalRuleLaw, DriveLaw, RelaxationLaw, Energy, MoveLaw, SamplerLaw, SampleLaw, ExtremalLaw),
         passes=(UnpackSamplesPass(), LatticeProblemPass()),
         forms=(Form.LATTICE, Form.MONTE_CARLO),
         stepwise_forms=STEPWISE_FORMS,
         owners=OWNER_RULES,
-        solvers={'lattice': LatticeStepper, 'monte-carlo': MonteCarlo},
-        defaults=(LatticeStepper, MonteCarlo),
+        solvers={'lattice': LatticeSolver, 'monte-carlo': MonteCarloSolver},
+        defaults=(LatticeSolver, MonteCarloSolver),
         checks=CHECKS,
     ),
 )

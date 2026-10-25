@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.physics.mechanics import (
     ballistic_pendulum,
     cart_pendulum,
@@ -65,7 +65,7 @@ def test_parametric_pendulum_resonates_at_twice_its_frequency():
 
 def test_magnetic_pendulum_comes_to_rest_near_a_magnet():
     """Test that the damped magnetic pendulum stops near one of the magnets."""
-    trajectory = _run(magnetic_pendulum(), 100.0, 5.0, solver=ScipyODE())
+    trajectory = _run(magnetic_pendulum(), 100.0, 5.0, solver=ScipyODESolver())
     position, velocity = (array[-1] for array in _series(trajectory, 'bob.x', 'bob.v'))
     magnets = np.stack([np.cos(2 * np.pi * np.arange(3) / 3), np.sin(2 * np.pi * np.arange(3) / 3)], axis=1)
     assert np.linalg.norm(velocity) < 1e-3

@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Rate, Sink, Symbols, Transfer, lookup, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, RateLaw, Sink, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -82,7 +82,7 @@ def _positive(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-def _cocoa_laws(s: Symbols) -> list[Law]:
+def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
     """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
     cocoa_yield = Auxiliary(
         'cocoa_yield',
@@ -98,22 +98,22 @@ def _cocoa_laws(s: Symbols) -> list[Law]:
         cocoa_yield,
         profit,
         profitability,
-        Transfer(
+        TransferLaw(
             s.forest,
             s.area,
             _positive(desired - s.area) / s.adjustment_time * s.forest / (s.forest + s.area),
             label='planting',
         ),
-        Transfer(
+        TransferLaw(
             s.area,
             s.abandoned,
             s.area * lookup(cocoa_yield.symbol, YIELD_EFFECT) * lookup(profit.symbol, PROFIT_EFFECT) / s.abandon_time,
             label='abandonment',
         ),
-        Transfer(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
-        Transfer(s.abandoned, Sink('oil_palm'), conversion * s.abandoned / s.conversion_time, label='conversion'),
-        Rate(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
-        Rate(
+        TransferLaw(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
+        TransferLaw(s.abandoned, Sink('oil_palm'), conversion * s.abandoned / s.conversion_time, label='conversion'),
+        RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
+        RateLaw(
             s.insects,
             s.insect_growth * unprotected * s.shade_removal / FULL_INDEX * s.insects * (1 - s.insects / FULL_INDEX)
             - s.insect_control * s.subsidy * s.insects,
@@ -121,28 +121,28 @@ def _cocoa_laws(s: Symbols) -> list[Law]:
     ]
 
 
-Plantation = Element.define(
-    'Plantation',
+PlantationComponent = ElementComponent.define(
+    'PlantationComponent',
     states={
-        'forest': state(default=490.0, domain=Domain.NONNEGATIVE, quantity='land'),
-        'area': state(default=10.0, domain=Domain.NONNEGATIVE, quantity='land'),
-        'abandoned': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='land'),
-        'shade_removal': state(default=5.0, domain=Domain.NONNEGATIVE),
-        'insects': state(default=1.0, domain=Domain.NONNEGATIVE),
+        'forest': state(default=490.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
+        'area': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
+        'abandoned': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
+        'shade_removal': state(default=5.0, domain=NumericDomain.NONNEGATIVE),
+        'insects': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
     },
     parameters={
-        'yield_normal': parameter(default=5.0, domain=Domain.NONNEGATIVE),
-        'price': parameter(default=40.0, domain=Domain.NONNEGATIVE),
-        'cost': parameter(default=100.0, domain=Domain.NONNEGATIVE),
-        'thinning_cost': parameter(default=20.0, domain=Domain.NONNEGATIVE),
-        'adjustment_time': parameter(default=3.0, domain=Domain.POSITIVE),
-        'abandon_time': parameter(default=4.0, domain=Domain.POSITIVE),
-        'conversion_time': parameter(default=3.0, domain=Domain.POSITIVE),
-        'palm_margin': parameter(default=0.4, domain=Domain.POSITIVE),
-        'thinning_time': parameter(default=8.0, domain=Domain.POSITIVE),
-        'insect_growth': parameter(default=0.6, domain=Domain.NONNEGATIVE),
-        'insect_control': parameter(default=0.3, domain=Domain.NONNEGATIVE),
-        'subsidy': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'yield_normal': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
+        'price': parameter(default=40.0, domain=NumericDomain.NONNEGATIVE),
+        'cost': parameter(default=100.0, domain=NumericDomain.NONNEGATIVE),
+        'thinning_cost': parameter(default=20.0, domain=NumericDomain.NONNEGATIVE),
+        'adjustment_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'abandon_time': parameter(default=4.0, domain=NumericDomain.POSITIVE),
+        'conversion_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'palm_margin': parameter(default=0.4, domain=NumericDomain.POSITIVE),
+        'thinning_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
+        'insect_growth': parameter(default=0.6, domain=NumericDomain.NONNEGATIVE),
+        'insect_control': parameter(default=0.3, domain=NumericDomain.NONNEGATIVE),
+        'subsidy': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_cocoa_laws,
 )
@@ -202,7 +202,7 @@ def cocoa(
         >>> cocoa(subsidy=1.0).elements[0].subsidy
         1.0
     """
-    plantation = Plantation(
+    plantation = PlantationComponent(
         'cocoa',
         area=area,
         price=price,

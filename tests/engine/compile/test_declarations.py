@@ -19,14 +19,14 @@ from skcomplex.core.base import (
     TimeKind,
     vocabulary,
 )
-from skcomplex.core.laws import Rate, Update, law_classes
+from skcomplex.core.laws import RateLaw, UpdateLaw, law_classes
 from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.engine.compile import BACKENDS, SOLVERS, missing_declarations
-from skcomplex.engine.solvers import Stepper
-from skcomplex.formalisms.agents import Rule
-from skcomplex.formalisms.fields import Field, Mesh
-from skcomplex.formalisms.lattices import Sampler
-from skcomplex.formalisms.quantum import Generator
+from skcomplex.engine.solvers import Solver
+from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.formalisms.fields import FieldComponent, MeshSpace
+from skcomplex.formalisms.lattices import SamplerLaw
+from skcomplex.formalisms.quantum import GeneratorLaw
 
 INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 
@@ -54,25 +54,25 @@ def test_every_primitive_solver_and_backend_declares():
 def test_missing_solver_declaration_is_named(monkeypatch):
     """Test that a solver registered without a support declaration is named by the declaration check."""
 
-    class Undeclared(Stepper):
-        """Stepper without a support declaration."""
+    class UndeclaredSolver(Solver):
+        """Solver without a support declaration."""
 
         form = Form.ODE
 
-    registry = Registry[type[Stepper]]('solver')
-    registry.register((Form.ODE, 'undeclared'), Undeclared)
+    registry = Registry[type[Solver]]('solver')
+    registry.register((Form.ODE, 'undeclared'), UndeclaredSolver)
     monkeypatch.setattr(validation, 'solver_registry', lambda: registry)
-    assert missing_declarations() == ["The solver 'undeclared' (Undeclared) declares no support."]
+    assert missing_declarations() == ["The solver 'undeclared' (UndeclaredSolver) declares no support."]
 
 
 @pytest.mark.parametrize(
     ('law', 'kind', 'law_class'),
     [
-        (Rate, LawKind.RATE, LawClass.CONTINUOUS),
-        (Update, LawKind.UPDATE, LawClass.DISCRETE),
-        (Rule, LawKind.RULE, LawClass.DISCRETE),
-        (Sampler, LawKind.SAMPLE, LawClass.DISCRETE),
-        (Generator, LawKind.GENERATOR, LawClass.CONTINUOUS),
+        (RateLaw, LawKind.RATE, LawClass.CONTINUOUS),
+        (UpdateLaw, LawKind.UPDATE, LawClass.DISCRETE),
+        (RuleLaw, LawKind.RULE, LawClass.DISCRETE),
+        (SamplerLaw, LawKind.SAMPLE, LawClass.DISCRETE),
+        (GeneratorLaw, LawKind.GENERATOR, LawClass.CONTINUOUS),
     ],
 )
 def test_law_kinds_and_classes(law, kind, law_class):
@@ -83,10 +83,10 @@ def test_law_kinds_and_classes(law, kind, law_class):
 
 def test_law_requirements():
     """Test that rates need continuous time and numeric domains, and Monte Carlo laws need a lattice or network."""
-    assert Rate.requires.accepts('time', TimeKind.CONTINUOUS)
-    assert not Rate.requires.accepts('time', TimeKind.DISCRETE)
-    assert not Rate.requires.accepts('domains', DomainKind.CATEGORICAL)
-    assert Sampler.requires.space == {SpaceKind.LATTICE, SpaceKind.NETWORK}
+    assert RateLaw.requires.accepts('time', TimeKind.CONTINUOUS)
+    assert not RateLaw.requires.accepts('time', TimeKind.DISCRETE)
+    assert not RateLaw.requires.accepts('domains', DomainKind.CATEGORICAL)
+    assert SamplerLaw.requires.space == {SpaceKind.LATTICE, SpaceKind.NETWORK}
     assert Requires().accepts('space', SpaceKind.MESH)
 
 
@@ -96,7 +96,7 @@ def test_law_requirements():
         (LatticeSpace, SpaceKind.LATTICE),
         (NetworkSpace, SpaceKind.NETWORK),
         (ContinuousSpace, SpaceKind.CONTINUOUS),
-        (Mesh, SpaceKind.MESH),
+        (MeshSpace, SpaceKind.MESH),
     ],
 )
 def test_space_kinds(space, kind):
@@ -106,7 +106,7 @@ def test_space_kinds(space, kind):
 
 def test_field_is_a_site_group():
     """Test that fields declare one member per site."""
-    assert str(Field.component_kind) == 'site-group'
+    assert str(FieldComponent.component_kind) == 'site-group'
 
 
 def test_solver_support_names_missing_terms():

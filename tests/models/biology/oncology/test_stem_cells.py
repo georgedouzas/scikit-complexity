@@ -1,6 +1,6 @@
 """Test the `_stem_cells` module of `skcomplex.models.biology.oncology`."""
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import (
     bone_marrow_blood_leukaemia,
     leukaemia_stem_cells,
@@ -29,7 +29,7 @@ def test_bone_marrow_blood_leukaemia_blasts_crowd_out_normal_cells():
         bone_marrow_blood_leukaemia(),
         until=2000.0,
         dt=10.0,
-        solver=ScipyODE(method='BDF'),
+        solver=ScipyODESolver(method='BDF'),
     )
     assert trajectory['patient.ABM'][-1] > 10 * trajectory['patient.NBM'][-1]
     assert trajectory['patient.NPB'][-1] < 1e-3 * trajectory['patient.NPB'][0]

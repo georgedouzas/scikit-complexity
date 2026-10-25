@@ -17,7 +17,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
-from skcomplex.models.biology.oncology import TumourImmuneChemotherapy
+from skcomplex.models.biology.oncology import TumourImmuneChemotherapyComponent
 
 MODEL = 'optimal_chemotherapy'
 
@@ -39,7 +39,9 @@ simulation = Simulation(
 # first days, the tumour should end at less than half its untreated size, while the normal cells recover once the
 # infusion tapers off.
 
-untreated = Simulation(System(components=[TumourImmuneChemotherapy('patient')]), dt=0.25).run(until=30).trajectory_
+untreated = (
+    Simulation(System(components=[TumourImmuneChemotherapyComponent('patient')]), dt=0.25).run(until=30).trajectory_
+)
 trajectory = simulation.trajectory_
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated['patient.A'], label='untreated')

@@ -7,13 +7,13 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import ModelView, Rule
+from ....formalisms.agents import ModelView, RuleLaw
 
 N_FIRMS = 2
 
@@ -23,7 +23,7 @@ def _price(s: Symbols) -> Expression:
     return s.market.a - s.market.b * s.total
 
 
-class Duopolist(Element):
+class DuopolistComponent(ElementComponent):
     """Firm of a Cournot duopoly, described by its output and its constant marginal cost.
 
     Args:
@@ -37,15 +37,15 @@ class Duopolist(Element):
             The marginal cost.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Duopolist
-        >>> Duopolist.group('firms', 2, output=[100.0, 100.0]).size
+        >>> from skcomplex.models.economics.markets import DuopolistComponent
+        >>> DuopolistComponent.group('firms', 2, output=[100.0, 100.0]).size
         2
     """
 
-    output: float = state(default=50.0, domain=Domain.NONNEGATIVE)
-    cost: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    output: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since the market sets the outputs of both firms at once.
 
         Args:
@@ -59,7 +59,7 @@ class Duopolist(Element):
         return []
 
 
-class CournotAdjustment(Interaction):
+class CournotAdjustmentInteraction(BaseInteraction):
     """Simultaneous best responses of two firms to their beliefs about the rival's last output.
 
     Under the inverse demand `P = a - b Q`, each firm sets `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the
@@ -82,17 +82,17 @@ class CournotAdjustment(Interaction):
             The largest relative error of a firm's belief about the rival's output.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import CournotAdjustment
-        >>> CournotAdjustment('market', firms='firms', error=0.1).error
+        >>> from skcomplex.models.economics.markets import CournotAdjustmentInteraction
+        >>> CournotAdjustmentInteraction('market', firms='firms', error=0.1).error
         0.1
     """
 
     firms: str = role()
-    a: float = parameter(default=1500.0, domain=Domain.POSITIVE)
-    b: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    error: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    a: float = parameter(default=1500.0, domain=NumericDomain.POSITIVE)
+    b: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    error: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule that sets both outputs.
 
         Args:
@@ -103,7 +103,7 @@ class CournotAdjustment(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.respond)]
+        return [RuleLaw(self.respond)]
 
     def respond(self, model: ModelView) -> None:
         """Set the output of each firm to its best response to its belief about the other's last output.
@@ -167,8 +167,8 @@ def cournot_duopoly(
         >>> cournot_duopoly(error=0.01).interactions[0].error
         0.01
     """
-    firms = Duopolist.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
+    firms = DuopolistComponent.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
     return System(
         components=[firms],
-        interactions=[CournotAdjustment('market', firms='firms', a=a, b=b, error=error)],
+        interactions=[CournotAdjustmentInteraction('market', firms='firms', a=a, b=b, error=error)],
     )

@@ -143,7 +143,7 @@ class Automaton:
     """Cellular automaton on a finite universe: a periodic lattice, a finite quotient of a group, or a ball.
 
     The automaton maps a configuration, one integer value from `0` to `states - 1` per site, to the configuration whose
-    value at every site is the rule applied to the values of the neighbourhood of the site, as `LocalRule` laws do.
+    value at every site is the rule applied to the values of the neighbourhood of the site, as `LocalRuleLaw`s do.
     Sites outside a lattice with fixed edges or outside a ball read the fill value of the space.
 
     Args:

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.neuroscience import integrate_and_fire, izhikevich
 
 
@@ -22,7 +22,7 @@ def test_izhikevich_regular_spiking():
 
 def test_integrate_and_fire_period():
     """Test that the leaky integrate-and-fire neuron spikes with the analytic period at tight solver tolerances."""
-    solver = ScipyODE(rtol=1e-9, atol=1e-11)
+    solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
     trajectory = Simulation(integrate_and_fire(), dt=0.1, solver=solver).run(until=100).trajectory_
     intervals = np.diff([0.0] + [event.time for event in trajectory.events])
     assert intervals == pytest.approx(10 * math.log(20 / 5), abs=1e-5)

@@ -5,17 +5,17 @@
 
 import numpy as np
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Law, Noise, Rate, Symbols, both, pulse_train, where
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols, both, pulse_train, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import EulerMaruyamaSolver
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-def _frictional_block_laws(s: Symbols) -> list[Law]:
+def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
     """Return the springs, the Coulomb friction with sticking, and the shaking of a block of the chain."""
     force = s.k * laplacian(s.x) - s.anchor * s.x
     moving = abs(s.v) > s.v_stick
@@ -23,25 +23,25 @@ def _frictional_block_laws(s: Symbols) -> list[Law]:
     stuck = both(abs(s.v) <= s.v_stick, abs(force) < s.mu_s)
     shaking = pulse_train(s.t, s.shake_time + s.relax_time, s.shake_time)
     return [
-        Rate(s.x, where(moving, s.v, 0)),
-        Rate(s.v, where(stuck, 0, (force - s.mu_d * direction) / s.m)),
-        Noise(s.v, s.amplitude * shaking / s.m),
+        RateLaw(s.x, where(moving, s.v, 0)),
+        RateLaw(s.v, where(stuck, 0, (force - s.mu_d * direction) / s.m)),
+        NoiseLaw(s.v, s.amplitude * shaking / s.m),
     ]
 
 
-FrictionalBlock = Element.define(
-    'FrictionalBlock',
+FrictionalBlockComponent = ElementComponent.define(
+    'FrictionalBlockComponent',
     states={'x': 0.0, 'v': 0.0},
     parameters={
-        'm': parameter(default=1.0, domain=Domain.POSITIVE),
-        'k': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'anchor': parameter(default=0.0, domain=Domain.NONNEGATIVE),
-        'mu_s': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'mu_d': parameter(default=0.8, domain=Domain.NONNEGATIVE),
-        'amplitude': parameter(default=2.0, domain=Domain.NONNEGATIVE),
-        'shake_time': parameter(default=2.0, domain=Domain.POSITIVE),
-        'relax_time': parameter(default=8.0, domain=Domain.POSITIVE),
-        'v_stick': parameter(default=0.02, domain=Domain.POSITIVE),
+        'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'k': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'anchor': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
+        'mu_s': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'mu_d': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
+        'amplitude': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
+        'shake_time': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'relax_time': parameter(default=8.0, domain=NumericDomain.POSITIVE),
+        'v_stick': parameter(default=0.02, domain=NumericDomain.POSITIVE),
     },
     laws=_frictional_block_laws,
 )
@@ -51,7 +51,7 @@ FrictionalBlock = Element.define(
     field='physics/soft_matter',
     tags=('field', 'sde', 'friction', 'granular matter', 'blocked states'),
     references=('Bertin 2021', 'Edwards and Oakeshott 1989', 'Bertin, Dauchot, and Droz 2004'),
-    defaults={'until': 200.0, 'dt': 10.0, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 200.0, 'dt': 10.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def shaken_spring_block(
     n_blocks: int = 50,
@@ -115,9 +115,9 @@ def shaken_spring_block(
         >>> shaken_spring_block(5).elements[0].size
         5
     """
-    chain = Field(
+    chain = FieldComponent(
         'chain',
-        FrictionalBlock,
+        FrictionalBlockComponent,
         LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={

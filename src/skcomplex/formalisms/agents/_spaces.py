@@ -25,7 +25,7 @@ class Phase:
 
     Args:
         name:
-            The name of the phase, which rules name in `Rule(function, phase=name)`.
+            The name of the phase, which rules name in `RuleLaw(function, phase=name)`.
 
         activation:
             The activation policy.
@@ -58,7 +58,7 @@ class Phase:
             raise ValueError(error_msg)
 
 
-class Phases(Schedule):
+class PhasesSchedule(Schedule):
     """Schedule of a discrete time that runs named phases in order in every step.
 
     Args:
@@ -66,8 +66,8 @@ class Phases(Schedule):
             The phases, each with its rules and activation policy.
 
     Examples:
-        >>> from skcomplex.formalisms.agents import Phase, Phases
-        >>> [phase.name for phase in Phases([Phase('produce'), Phase('trade')]).phases]
+        >>> from skcomplex.formalisms.agents import Phase, PhasesSchedule
+        >>> [phase.name for phase in PhasesSchedule([Phase('produce'), Phase('trade')]).phases]
         ['produce', 'trade']
     """
 

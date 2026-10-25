@@ -8,10 +8,10 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -31,7 +31,7 @@ def _opposite(node: Symbols) -> object:
     return 1 - node.opinion
 
 
-class Tie(Element):
+class TieComponent(ElementComponent):
     """Edge of a coevolving network, which holds no state of its own.
 
     Args:
@@ -39,18 +39,18 @@ class Tie(Element):
             The label of the edge group.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Tie
-        >>> Tie('ties').label
+        >>> from skcomplex.models.social.opinion_dynamics import TieComponent
+        >>> TieComponent('ties').label
         'ties'
     """
 
 
-class CoevolvingVoter(Element):
+class CoevolvingVoterComponent(ElementComponent):
     """Voter of a coevolving network, with a binary opinion, its degree, and its number of discordant neighbours.
 
     Every step a voter is active with probability `activity` and picks a random neighbour. When the neighbour
     disagrees, the voter copies its opinion with probability `1 - rewiring`, and otherwise the interaction
-    `Separation` moves the edge to a random voter who agrees with it.
+    `SeparationInteraction` moves the edge to a random voter who agrees with it.
 
     Args:
         label:
@@ -69,18 +69,18 @@ class CoevolvingVoter(Element):
             The probability that an active voter with a discordant neighbour rewires instead of copying.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CoevolvingVoter
-        >>> CoevolvingVoter('voters', rewiring=0.3).rewiring
+        >>> from skcomplex.models.social.opinion_dynamics import CoevolvingVoterComponent
+        >>> CoevolvingVoterComponent('voters', rewiring=0.3).rewiring
         0.3
     """
 
     visual: ClassVar[VisualSpec] = OPINION_VISUAL
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    activity: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    rewiring: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    activity: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    rewiring: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the degree and the copying of a discordant neighbour's opinion.
 
         Args:
@@ -95,12 +95,12 @@ class CoevolvingVoter(Element):
         discordant = neighbors(abs(s.other.opinion - s.opinion))
         copying = s.activity * (1 - s.rewiring) * discordant / (degree + SMALLEST_DEGREE)
         return [
-            Update(s.degree, degree),
-            Update(s.opinion, where(uniform('u') < copying, 1 - s.opinion, s.opinion)),
+            UpdateLaw(s.degree, degree),
+            UpdateLaw(s.opinion, where(uniform('u') < copying, 1 - s.opinion, s.opinion)),
         ]
 
 
-class Separation(Interaction):
+class SeparationInteraction(BaseInteraction):
     """Rewiring of discordant edges: the end that acts keeps the edge and moves its other end to a like-minded node.
 
     An end acts on an edge with probability `activity / degree` per step, and rewires a discordant edge with
@@ -117,8 +117,8 @@ class Separation(Interaction):
             The path of the variable group on the edges.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Separation
-        >>> Separation('separation', voters='voters', ties='ties').ties
+        >>> from skcomplex.models.social.opinion_dynamics import SeparationInteraction
+        >>> SeparationInteraction('separation', voters='voters', ties='ties').ties
         'ties'
     """
 
@@ -126,7 +126,7 @@ class Separation(Interaction):
     voters: str = role()
     ties: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rewiring of a discordant edge by either end.
 
         Args:
@@ -141,20 +141,20 @@ class Separation(Interaction):
         by_source = source.activity * source.rewiring / (source.degree + SMALLEST_DEGREE)
         by_target = target.activity * target.rewiring / (target.degree + SMALLEST_DEGREE)
         return [
-            Update(rewire(keep='source', toward=_same), by_source * source.opinion * (1 - target.opinion)),
-            Update(rewire(keep='source', toward=_opposite), by_source * (1 - source.opinion) * target.opinion),
-            Update(rewire(keep='target', toward=_same), by_target * target.opinion * (1 - source.opinion)),
-            Update(rewire(keep='target', toward=_opposite), by_target * (1 - target.opinion) * source.opinion),
+            UpdateLaw(rewire(keep='source', toward=_same), by_source * source.opinion * (1 - target.opinion)),
+            UpdateLaw(rewire(keep='source', toward=_opposite), by_source * (1 - source.opinion) * target.opinion),
+            UpdateLaw(rewire(keep='target', toward=_same), by_target * target.opinion * (1 - source.opinion)),
+            UpdateLaw(rewire(keep='target', toward=_opposite), by_target * (1 - target.opinion) * source.opinion),
         ]
 
 
-class ClubMember(Element):
+class ClubMemberComponent(ElementComponent):
     """Agent that is in a club (spin 1) or out of it (spin 0), aligned by a heat bath with the agents it knows.
 
     Every step an agent reconsiders with probability `deciding` and then joins with probability
     `1 / (1 + exp(-2 β h))`, where the field `h` counts the acquaintances in the club minus those out of it, plus the
-    appeal of the club. The interaction `Separation` dissolves acquaintances between a member and an outsider and
-    reforms them towards an agent of the same side.
+    appeal of the club. The interaction `SeparationInteraction` dissolves acquaintances between a member and an outsider
+    and reforms them towards an agent of the same side.
 
     Args:
         label:
@@ -182,21 +182,21 @@ class ClubMember(Element):
             The probability that a reconsidered acquaintance across the club boundary dissolves and reforms.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ClubMember
-        >>> ClubMember('agents', beta=2.0).beta
+        >>> from skcomplex.models.social.opinion_dynamics import ClubMemberComponent
+        >>> ClubMemberComponent('agents', beta=2.0).beta
         2.0
     """
 
     visual: ClassVar[VisualSpec] = OPINION_VISUAL
-    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    appeal: float = parameter(default=0.0, domain=Domain.REAL)
-    deciding: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    activity: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    rewiring: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    appeal: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    deciding: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    activity: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    rewiring: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the degree and the heat-bath choice of joining the club.
 
         Args:
@@ -210,12 +210,15 @@ class ClubMember(Element):
         field = neighbors(2 * s.other.opinion - 1) + s.appeal
         joining = 1 / (1 + exp(-2 * s.beta * field))
         choice = where(uniform('u') < joining, 1, 0)
-        return [Update(s.degree, neighbors(1)), Update(s.opinion, where(uniform('d') < s.deciding, choice, s.opinion))]
+        return [
+            UpdateLaw(s.degree, neighbors(1)),
+            UpdateLaw(s.opinion, where(uniform('d') < s.deciding, choice, s.opinion)),
+        ]
 
 
-def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarray, **values: object) -> System:
+def _coevolving(element: type[ElementComponent], space: NetworkSpace, opinions: np.ndarray, **values: object) -> System:
     """Return a coevolving network of agents with opinions and its variable ties, rewired by separation."""
-    agents = Group(
+    agents = GroupComponent(
         'voters',
         element=element,
         on='sites',
@@ -224,8 +227,8 @@ def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarra
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )
-    ties = Group('ties', element=Tie, on='edges', variable=True)
-    separation = Separation('separation', voters='voters', ties='ties')
+    ties = GroupComponent('ties', element=TieComponent, on='edges', variable=True)
+    separation = SeparationInteraction('separation', voters='voters', ties='ties')
     return System(components=[agents, ties], interactions=[separation], space=space, time=DiscreteTime())
 
 
@@ -279,7 +282,7 @@ def coevolving_voter(
     rng = np.random.default_rng(random_state)
     space = NetworkSpace.erdos_renyi(n_voters, mean_degree / (n_voters - 1), seed=rng)
     opinions = (rng.random(n_voters) < 0.5).astype(float)  # noqa: PLR2004
-    return _coevolving(CoevolvingVoter, space, opinions, rewiring=rewiring, activity=activity)
+    return _coevolving(CoevolvingVoterComponent, space, opinions, rewiring=rewiring, activity=activity)
 
 
 @register_model(
@@ -331,9 +334,9 @@ def join_a_club(
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import join_a_club
         >>> join_a_club(30).components[0].element.__name__
-        'ClubMember'
+        'ClubMemberComponent'
     """
     rng = np.random.default_rng(random_state)
     space = NetworkSpace.erdos_renyi(n_agents, mean_degree / (n_agents - 1), seed=rng)
     opinions = (rng.random(n_agents) < 0.5).astype(float)  # noqa: PLR2004
-    return _coevolving(ClubMember, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)
+    return _coevolving(ClubMemberComponent, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)

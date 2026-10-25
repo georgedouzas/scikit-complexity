@@ -5,20 +5,20 @@
 
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import Domain, parameter
-from ....core.interactions import Interaction
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter
+from ....core.interactions import BaseInteraction
+from ....core.laws import RateLaw
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import Particle
-from ..realizations.particles import HarmonicPotential, LinearDrag, Spring
+from ....formalisms.particles import ParticleComponent
+from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
-HarmonicForce = Interaction.define(
-    'HarmonicForce',
+HarmonicForceInteraction = BaseInteraction.define(
+    'HarmonicForceInteraction',
     roles=['target'],
-    parameters={'F': 0.0, 'omega': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)],
+    parameters={'F': 0.0, 'omega': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)],
 )
 
 
@@ -109,15 +109,15 @@ def two_mass_spring_damper(
     """
     rest1, rest2 = l1, l1 + l2
     return System(
-        components=[Particle('first', x=x1, v=0.0, m=m1), Particle('second', x=x2, v=0.0, m=m2)],
+        components=[ParticleComponent('first', x=x1, v=0.0, m=m1), ParticleComponent('second', x=x2, v=0.0, m=m2)],
         interactions=[
-            HarmonicPotential('left_spring', target='first', k=k1, center=rest1),
-            HarmonicPotential('right_spring', target='second', k=k2, center=rest2),
-            Spring('middle_spring', first='first', second='second', k=k, length=l2),
-            LinearDrag('first_damper', target='first', gamma=b1),
-            LinearDrag('second_damper', target='second', gamma=b2),
-            HarmonicForce('first_force', target='first', F=F1, omega=omega1),
-            HarmonicForce('second_force', target='second', F=F2, omega=omega2),
+            HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
+            HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),
+            SpringInteraction('middle_spring', first='first', second='second', k=k, length=l2),
+            LinearDragInteraction('first_damper', target='first', gamma=b1),
+            LinearDragInteraction('second_damper', target='second', gamma=b2),
+            HarmonicForceInteraction('first_force', target='first', F=F1, omega=omega1),
+            HarmonicForceInteraction('second_force', target='second', F=F2, omega=omega2),
         ],
         space=ContinuousSpace(n_dim=1),
     )

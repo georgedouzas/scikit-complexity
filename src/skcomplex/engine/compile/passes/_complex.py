@@ -8,11 +8,11 @@ from typing import cast
 
 from .._compilation import BlockLaws, Compilation
 from .._complex import split_law
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._specs import state_name
 
 
-class LowerComplexPass(Pass):
+class LowerComplexPass(BasePass):
     """Pass that splits every law of a complex state into the laws of its real and imaginary parts."""
 
     reads = ('collected',)

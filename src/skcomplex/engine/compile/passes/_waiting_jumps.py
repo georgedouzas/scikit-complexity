@@ -9,25 +9,25 @@ from typing import cast
 
 import numpy as np
 
-from ....core.base import Domain, Expression, Form, components_of, symbol
-from ....core.laws import Jump, Law, Noise, Rate
-from ....core.laws._laws import Renewal
+from ....core.base import Expression, Form, NumericDomain, components_of, symbol
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw
+from ....core.laws._laws import RenewalLaw
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._problem import Problem
-from .._renewals import CompiledRenewal, RenewalLaw, compile_renewal
+from .._renewals import BoundRenewal, CompiledRenewal, compile_renewal
 from .._specs import KernelSpec
 
 
-def _renewal_group(spec: KernelSpec, law: Renewal) -> str:
+def _renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
     """Return the path of the element or group whose states a renewal law resets, or the law's component."""
     targets = [item for target in (law.reset or {}) for item in components_of(target)]
     reference = spec.references.get(targets[0]) if targets else None
     return spec.owner if reference is None else reference.entry.name.rpartition('.')[0]
 
 
-def _declare_renewal(spec: KernelSpec, law: Renewal, declarations: Declarations, label: str) -> RenewalLaw:
+def _declare_renewal(spec: KernelSpec, law: RenewalLaw, declarations: Declarations, label: str) -> BoundRenewal:
     """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
     group = _renewal_group(spec, law)
     rows = spec.rows
@@ -35,24 +35,31 @@ def _declare_renewal(spec: KernelSpec, law: Renewal, declarations: Declarations,
     entry = declarations.declare_state(
         f'{group}.{sanitized}~renewals',
         np.zeros(rows),
-        Domain.NONNEGATIVE_INTEGER,
+        NumericDomain.NONNEGATIVE_INTEGER,
         (rows,) if rows > 1 else (),
         rows if rows > 1 else None,
     )
-    return RenewalLaw(spec, law, label, group, entry, symbol(f'renewals_{sanitized}', Domain.NONNEGATIVE_INTEGER))
+    return BoundRenewal(
+        spec,
+        law,
+        label,
+        group,
+        entry,
+        symbol(f'renewals_{sanitized}', NumericDomain.NONNEGATIVE_INTEGER),
+    )
 
 
-def _renewal_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
+def _renewal_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
     """Return the group a renewal or a jump on a clock of waiting times renews, or `None` for another law."""
     del agents
-    if isinstance(law, Jump) and law.renewal is not None:
+    if isinstance(law, JumpLaw) and law.renewal is not None:
         law = law.renewal
-    return _renewal_group(spec, law) if isinstance(law, Renewal) else None
+    return _renewal_group(spec, law) if isinstance(law, RenewalLaw) else None
 
 
-def _declared_renewals(spec: KernelSpec, laws: list[Law], declarations: Declarations) -> list[RenewalLaw]:
+def _declared_renewals(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BoundRenewal]:
     """Return the renewal laws of a spec, each with the hidden state that counts its renewals, after declaring it."""
-    renewals = [law for law in laws if isinstance(law, Renewal)]
+    renewals = [law for law in laws if isinstance(law, RenewalLaw)]
     declared = []
     for law in renewals:
         position = renewals.index(law)
@@ -62,7 +69,7 @@ def _declared_renewals(spec: KernelSpec, laws: list[Law], declarations: Declarat
 
 
 def _compile_renewals(
-    renewals: list[RenewalLaw],
+    renewals: list[BoundRenewal],
     time: Expression,
     owners: frozenset[str] | None,
 ) -> tuple[CompiledRenewal, ...]:
@@ -83,7 +90,7 @@ def _compile_renewals(
     )
 
 
-class UnpackRenewalsPass(Pass):
+class UnpackRenewalsPass(BasePass):
     """Pass that replaces every jump on a clock of waiting times by the renewal the steppers run for it."""
 
     reads = ('collected',)
@@ -97,12 +104,16 @@ class UnpackRenewalsPass(Pass):
                 The compilation state.
         """
         compilation.collected = [
-            (spec, [law.renewal if isinstance(law, Jump) and law.renewal is not None else law for law in laws], block)
+            (
+                spec,
+                [law.renewal if isinstance(law, JumpLaw) and law.renewal is not None else law for law in laws],
+                block,
+            )
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
 
 
-class DeclareRenewalsPass(Pass):
+class DeclareRenewalsPass(BasePass):
     """Pass that declares the hidden state that counts the renewals of every renewal law, once delays are lowered."""
 
     reads = ('delayed', 'layout')
@@ -120,7 +131,7 @@ class DeclareRenewalsPass(Pass):
             compilation.renewals += _declared_renewals(spec, laws, declarations)
 
 
-class SetRenewalsApartPass(Pass):
+class SetRenewalsApartPass(BasePass):
     """Pass that takes the renewal laws out of the laws lowered into kernels, since they compile on their own."""
 
     reads = ('reduced',)
@@ -134,12 +145,12 @@ class SetRenewalsApartPass(Pass):
                 The compilation state.
         """
         compilation.reduced = [
-            (spec, [law for law in laws if not isinstance(law, Renewal)])
+            (spec, [law for law in laws if not isinstance(law, RenewalLaw)])
             for spec, laws in cast('Laws', compilation.reduced)
         ]
 
 
-class RenewalProblemPass(Pass):
+class RenewalProblemPass(BasePass):
     """Pass that adds the compiled renewal laws and the symbols of their counts to the problem."""
 
     reads = ('problem', 'renewals', 'layout')
@@ -163,6 +174,6 @@ class RenewalProblemPass(Pass):
 
 
 PASSES = (UnpackRenewalsPass(), DeclareRenewalsPass(), SetRenewalsApartPass(), RenewalProblemPass())
-STEPWISE_FORMS: dict[frozenset[type], Form] = {frozenset({Renewal}): Form.RENEWAL}
-COMBINED = {Renewal: frozenset({Rate, Noise})}
+STEPWISE_FORMS: dict[frozenset[type], Form] = {frozenset({RenewalLaw}): Form.RENEWAL}
+COMBINED = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
 OWNER_RULES = (_renewal_owner,)

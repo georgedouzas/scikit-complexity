@@ -3,24 +3,24 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, parameter, role, state
-from skcomplex.core.components import Element, Group
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.base import NumericDomain, ValidationError, parameter, role, state
+from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.formalisms import registered_formalisms
-from skcomplex.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
+from skcomplex.formalisms.kinetics import DestructionLaw, EncounterLaw, KineticSolver, ProliferationLaw
 
 CLASSES = 9
 
 
-class Density(Element):
+class DensityComponent(ElementComponent):
     """Density of particles at one activity value."""
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
 def _exchange_table(size, share=0.5):
@@ -37,7 +37,7 @@ def _exchange_table(size, share=0.5):
 def _exchange(table):
     """Return an interaction of conservative encounters of a population with itself, with a transition table."""
 
-    class Exchange(Interaction):
+    class ExchangeInteraction(BaseInteraction):
         """Conservative encounters of a population with itself."""
 
         population: str = role()
@@ -45,12 +45,12 @@ def _exchange(table):
 
         def laws(self, s):
             """Return the encounter."""
-            return [Encounter(s.population.f, s.population.f, s.eta, table)]
+            return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
 
-    return Exchange
+    return ExchangeInteraction
 
 
-class Growth(Interaction):
+class GrowthInteraction(BaseInteraction):
     """Proliferation of a population by encounters with a field population, and its destruction by them."""
 
     population: str = role()
@@ -61,8 +61,8 @@ class Growth(Interaction):
     def laws(self, s):
         """Return the proliferation and the destruction."""
         return [
-            Proliferation(s.population.f, s.field.f, s.mu),
-            Destruction(s.population.f, s.field.f, s.kill),
+            ProliferationLaw(s.population.f, s.field.f, s.mu),
+            DestructionLaw(s.population.f, s.field.f, s.kill),
         ]
 
 
@@ -76,7 +76,7 @@ def _profile(size=CLASSES):
 def _wealth_system(table=None, time=None, space=None):
     """Return a system of one density on an activity lattice with conservative encounters."""
     return System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': _profile()})],
+        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
         interactions=[
             _exchange(table if table is not None else _exchange_table(CLASSES))('exchange', population='wealth'),
         ],
@@ -125,7 +125,7 @@ def test_encounter_rate_reads_its_parameter():
 def test_parameter_in_transition_table_is_evaluated():
     """Test that a transition table written with a parameter takes the parameter's value."""
 
-    class Biased(Interaction):
+    class BiasedInteraction(BaseInteraction):
         """Encounter whose transition probability is a parameter."""
 
         population: str = role()
@@ -137,11 +137,11 @@ def test_parameter_in_transition_table_is_evaluated():
             for candidate in range(CLASSES):
                 table[candidate, :, min(candidate + 1, CLASSES - 1)] += s.q
                 table[candidate, :, candidate] += 1 - s.q
-            return [Encounter(s.population.f, s.population.f, 1.0, table)]
+            return [EncounterLaw(s.population.f, s.population.f, 1.0, table)]
 
     system = System(
-        components=[Group('wealth', element=Density, on='sites', values={'f': _profile()})],
-        interactions=[Biased('bias', population='wealth')],
+        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
+        interactions=[BiasedInteraction('bias', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -159,10 +159,10 @@ def test_proliferation_and_destruction_change_the_density():
     """Test that proliferation adds and destruction removes density at the declared rates."""
     system = System(
         components=[
-            Group('cells', element=Density, on='sites', values={'f': _profile()}),
-            Group('signal', element=Density, on='sites', values={'f': np.full(CLASSES, 0.1)}),
+            GroupComponent('cells', element=DensityComponent, on='sites', values={'f': _profile()}),
+            GroupComponent('signal', element=DensityComponent, on='sites', values={'f': np.full(CLASSES, 0.1)}),
         ],
-        interactions=[Growth('growth', population='cells', field='signal', mu=0.5, kill=0.2)],
+        interactions=[GrowthInteraction('growth', population='cells', field='signal', mu=0.5, kill=0.2)],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -179,10 +179,17 @@ def test_encounter_reads_a_field_on_a_grid_of_another_size():
     """Test that a candidate density reads a field density on an activity grid of another size."""
     system = System(
         components=[
-            Group('cells', element=Density, on='sites', size=CLASSES, values={'f': _profile()}),
-            Group('signal', element=Density, on='sites', size=3, space=LatticeSpace(3), values={'f': 0.1}),
+            GroupComponent('cells', element=DensityComponent, on='sites', size=CLASSES, values={'f': _profile()}),
+            GroupComponent(
+                'signal',
+                element=DensityComponent,
+                on='sites',
+                size=3,
+                space=LatticeSpace(3),
+                values={'f': 0.1},
+            ),
         ],
-        interactions=[Growth('growth', population='signal', field='cells')],
+        interactions=[GrowthInteraction('growth', population='signal', field='cells')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
@@ -213,14 +220,14 @@ def test_encounter_in_discrete_time_is_reported():
 def test_rk4_runs_encounters():
     """Test that a fixed-step Runge-Kutta solver runs encounters like the default solver."""
     first = Simulation(_wealth_system(), dt=1.0).run(until=5).trajectory_['wealth.f'][-1]
-    second = Simulation(_wealth_system(), dt=1.0, solver=RK4(dt=0.01)).run(until=5).trajectory_['wealth.f'][-1]
+    second = Simulation(_wealth_system(), dt=1.0, solver=RK4Solver(dt=0.01)).run(until=5).trajectory_['wealth.f'][-1]
     np.testing.assert_allclose(first, second, atol=1e-5)
 
 
 def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
     system = System(
-        components=[Group('wealth', element=Density, size=CLASSES, values={'f': _profile()})],
+        components=[GroupComponent('wealth', element=DensityComponent, size=CLASSES, values={'f': _profile()})],
         interactions=[_exchange(_exchange_table(CLASSES))('exchange', population='wealth')],
         time=ContinuousTime(),
     )
@@ -231,6 +238,6 @@ def test_encounter_without_a_lattice_is_reported():
 def test_kinetics_formalism_lists_encounter_laws_and_solver():
     """Test that the kinetics formalism registers the encounter laws, their passes, their check, and DSMC."""
     (kinetics,) = [item for item in registered_formalisms() if item.name == 'kinetics']
-    assert kinetics.laws == (Encounter, Proliferation, Destruction)
-    assert kinetics.solvers == {'particles': ParticleKinetics}
+    assert kinetics.laws == (EncounterLaw, ProliferationLaw, DestructionLaw)
+    assert kinetics.solvers == {'particles': KineticSolver}
     assert (len(kinetics.passes), len(kinetics.checks)) == (4, 1)

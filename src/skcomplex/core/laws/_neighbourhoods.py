@@ -142,15 +142,16 @@ def neighbors(
 
         >>> import networkx as nx
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Rate, neighbors
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import RateLaw, neighbors
         >>> from skcomplex.core.space import NetworkSpace
         >>> from skcomplex.core.system import System
-        >>> Relaxing = Element.define(
-        ...     'Relaxing', states={'u': 0.0}, laws=lambda s: [Rate(s.u, neighbors(s.other.u - s.u))],
+        >>> RelaxingComponent = ElementComponent.define(
+        ...     'RelaxingComponent', states={'u': 0.0}, laws=lambda s: [RateLaw(s.u, neighbors(s.other.u - s.u))],
         ... )
         >>> system = System(
-        ...     components=[Relaxing.group('chain', 3, u=[0.0, 1.0, 4.0])], space=NetworkSpace(nx.path_graph(3)),
+        ...     components=[RelaxingComponent.group('chain', 3, u=[0.0, 1.0, 4.0])],
+        ...     space=NetworkSpace(nx.path_graph(3)),
         ... )
         >>> problem = compile_system(system)
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()

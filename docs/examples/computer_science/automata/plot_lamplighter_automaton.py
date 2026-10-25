@@ -15,7 +15,7 @@ from skcomplex.core.space import Memory
 from skcomplex.engine.analysis import LinearAutomaton
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.groups import GroupSpace
+from skcomplex.formalisms.groups import CayleySpace
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import lamplighter
 
@@ -34,7 +34,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 # there.
 
 alive = simulation.trajectory_['cells.alive']
-quotient = GroupSpace(lamplighter(), quotient=3)
+quotient = CayleySpace(lamplighter(), quotient=3)
 parity = LinearAutomaton(quotient, Memory(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')

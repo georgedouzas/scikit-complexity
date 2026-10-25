@@ -3,73 +3,73 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, lookup, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
 
-def _contest_laws(s: Symbols) -> list[Law]:
+def _contest_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two competitors that share a budget in proportion to their past success."""
     success = Auxiliary('success', s.a / (s.a + s.b))
     allocation = Auxiliary('allocation', lookup(success.symbol, ALLOCATION_TABLE))
     return [
         success,
         allocation,
-        Transfer(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
-        Transfer(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
-        Transfer(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
-        Transfer(s.b, Sink('depreciation'), s.b / s.lifetime, label='depreciation_b'),
+        TransferLaw(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
+        TransferLaw(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
+        TransferLaw(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
+        TransferLaw(s.b, Sink('depreciation'), s.b / s.lifetime, label='depreciation_b'),
     ]
 
 
-Contest = Element.define(
-    'Contest',
+ContestComponent = ElementComponent.define(
+    'ContestComponent',
     states={
-        'a': state(default=55.0, domain=Domain.NONNEGATIVE, quantity='resources'),
-        'b': state(default=45.0, domain=Domain.NONNEGATIVE, quantity='resources'),
+        'a': state(default=55.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
+        'b': state(default=45.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
     },
     parameters={
-        'budget': parameter(default=10.0, domain=Domain.NONNEGATIVE),
-        'lifetime': parameter(default=10.0, domain=Domain.POSITIVE),
+        'budget': parameter(default=10.0, domain=NumericDomain.NONNEGATIVE),
+        'lifetime': parameter(default=10.0, domain=NumericDomain.POSITIVE),
     },
     laws=_contest_laws,
 )
 
 
-def _burden_laws(s: Symbols) -> list[Law]:
+def _burden_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of a problem that a quick fix relieves while it erodes the capability of a fundamental one."""
     symptom = Auxiliary('symptom', s.desired - s.capability - s.intervention)
     building = distributed_delay(symptom.symbol, conserved=False, time=s.solution_delay) / s.build_time
     return [
         symptom,
-        Transfer(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
-        Transfer(Source('learning'), s.capability, building, label='building'),
-        Transfer(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
+        TransferLaw(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
+        TransferLaw(Source('learning'), s.capability, building, label='building'),
+        TransferLaw(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
     ]
 
 
-Burden = Element.define(
-    'Burden',
+BurdenComponent = ElementComponent.define(
+    'BurdenComponent',
     states={
-        'capability': state(default=0.5, domain=Domain.NONNEGATIVE, quantity='capability'),
-        'intervention': state(default=0.0, domain=Domain.NONNEGATIVE, quantity='intervention'),
+        'capability': state(default=0.5, domain=NumericDomain.NONNEGATIVE, quantity='capability'),
+        'intervention': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='intervention'),
     },
     parameters={
-        'desired': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'fix_rate': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'build_time': parameter(default=5.0, domain=Domain.POSITIVE),
-        'solution_delay': parameter(default=2.0, domain=Domain.POSITIVE),
-        'erosion': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'desired': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'fix_rate': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'build_time': parameter(default=5.0, domain=NumericDomain.POSITIVE),
+        'solution_delay': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'erosion': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_burden_laws,
 )
 
 
-def _escalation_laws(s: Symbols) -> list[Law]:
+def _escalation_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two parties that each build their stock up to a margin above their view of the other's."""
     desired_a = Auxiliary(
         'desired_a',
@@ -84,21 +84,21 @@ def _escalation_laws(s: Symbols) -> list[Law]:
     return [
         desired_a,
         desired_b,
-        Transfer(Source('production'), s.a, build_a, label='build_a'),
-        Transfer(Source('production'), s.b, build_b, label='build_b'),
+        TransferLaw(Source('production'), s.a, build_a, label='build_a'),
+        TransferLaw(Source('production'), s.b, build_b, label='build_b'),
     ]
 
 
-ArmsRace = Element.define(
-    'ArmsRace',
+ArmsRaceComponent = ElementComponent.define(
+    'ArmsRaceComponent',
     states={
-        'a': state(default=10.0, domain=Domain.NONNEGATIVE, quantity='arms'),
-        'b': state(default=10.5, domain=Domain.NONNEGATIVE, quantity='arms'),
+        'a': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
+        'b': state(default=10.5, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
     },
     parameters={
-        'margin': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'adjustment_time': parameter(default=2.0, domain=Domain.POSITIVE),
-        'perception_delay': parameter(default=1.0, domain=Domain.POSITIVE),
+        'margin': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'adjustment_time': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'perception_delay': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_escalation_laws,
 )
@@ -149,7 +149,7 @@ def success_to_the_successful(
         >>> success_to_the_successful(a=60.0).elements[0].a
         60.0
     """
-    return System(components=[Contest('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
+    return System(components=[ContestComponent('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
 
 
 @register_model(
@@ -209,7 +209,7 @@ def shifting_the_burden(
         >>> shifting_the_burden(fix_rate=0.0).elements[0].fix_rate
         0.0
     """
-    burden = Burden(
+    burden = BurdenComponent(
         'burden',
         capability=capability,
         intervention=intervention,
@@ -270,7 +270,7 @@ def escalation(
         >>> escalation(margin=0.2).elements[0].margin
         0.2
     """
-    race = ArmsRace(
+    race = ArmsRaceComponent(
         'race',
         a=a,
         b=b,

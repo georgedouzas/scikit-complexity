@@ -3,15 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class Trader(Element):
+class TraderComponent(ElementComponent):
     """Agent of the Boltzmann wealth model, who gives one unit of wealth to a random agent when it has any.
 
     Args:
@@ -22,14 +22,14 @@ class Trader(Element):
             The initial wealth.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import Trader
-        >>> Trader.group('traders', 100)
-        Group('traders', element=Trader, size=100)
+        >>> from skcomplex.models.economics.econophysics import TraderComponent
+        >>> TraderComponent.group('traders', 100)
+        GroupComponent('traders', element=TraderComponent, size=100)
     """
 
-    wealth: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
+    wealth: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the exchange rule.
 
         Args:
@@ -40,7 +40,7 @@ class Trader(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.give)]
+        return [RuleLaw(self.give)]
 
     def give(self, agent: AgentView, model: ModelView) -> None:
         """Give one unit of wealth to a random agent of the same group.
@@ -82,4 +82,4 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
         >>> boltzmann_wealth(10).elements[0].size
         10
     """
-    return System(components=[Trader.group('traders', n_agents)])
+    return System(components=[TraderComponent.group('traders', n_agents)])

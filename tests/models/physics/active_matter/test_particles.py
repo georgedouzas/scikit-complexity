@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.models.physics.active_matter import (
     active_brownian_particles,
     active_ornstein_uhlenbeck_particles,
@@ -24,7 +24,9 @@ def test_active_brownian_particles_diffuse_with_the_active_coefficient():
     """Test that active Brownian particles spread as `(4 D_t + 2 v^2 / D_r) t` at long times within 5%."""
     speed, D_r, D_t = 3.0, 1.0, 0.1
     model = active_brownian_particles(4000, speed=speed, D_r=D_r, D_t=D_t)
-    trajectory = Simulation(model, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=50).trajectory_
+    trajectory = (
+        Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=50).trajectory_
+    )
     slope = _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10)
     assert slope == pytest.approx(4 * D_t + 2 * speed**2 / D_r, rel=0.05)
 
@@ -32,7 +34,9 @@ def test_active_brownian_particles_diffuse_with_the_active_coefficient():
 def test_chiral_active_particles_diffuse_slower_when_they_turn():
     """Test that chiral particles diffuse with `D_t + v^2 D_r / (2 (D_r^2 + omega^2))`."""
     model = chiral_active_particles(1000, speed=3.0, omega=2.0, D_t=0.1, D_r=0.1)
-    trajectory = Simulation(model, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=40).trajectory_
+    trajectory = (
+        Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
+    )
     slope = _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10)
     assert slope / 4 == pytest.approx(0.1 + 9 * 0.1 / (2 * (0.01 + 4)), rel=0.1)
 
@@ -40,7 +44,9 @@ def test_chiral_active_particles_diffuse_slower_when_they_turn():
 def test_active_ornstein_uhlenbeck_particles_diffuse_with_the_active_coefficient():
     """Test that Ornstein-Uhlenbeck propulsion gives the diffusion coefficient `D` at long times."""
     model = active_ornstein_uhlenbeck_particles(1000, tau=1.0, D=1.0)
-    trajectory = Simulation(model, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=40).trajectory_
+    trajectory = (
+        Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
+    )
     assert _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10) / 4 == pytest.approx(1.0, rel=0.1)
 
 

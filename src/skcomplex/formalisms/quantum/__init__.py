@@ -3,27 +3,27 @@
 from ...core.base import Form
 from .._formalism import Formalism, register
 from ._components import QuantumView, hilbert_state, is_quantum, view_of
-from ._laws import Dissipator, Generator, LocalOperator, Operator, sparse_matrix
+from ._laws import DissipatorLaw, GeneratorLaw, LocalOperator, Operator, sparse_matrix
 from ._observables import expectation
 from ._passes import DEFAULT_MAX_DIMENSION, QuantumPass, QuantumProblem, QuantumTerm, contains_quantum
-from ._solvers import LindbladEvolution, QuantumSolver, QuantumTrajectories, UnitaryEvolution
+from ._solvers import LindbladSolver, QuantumSolver, QuantumTrajectoriesSolver, UnitarySolver
 from ._visuals import ExpectationVisual
 
 __all__: list[str] = [
     'DEFAULT_MAX_DIMENSION',
-    'Dissipator',
+    'DissipatorLaw',
     'ExpectationVisual',
-    'Generator',
-    'LindbladEvolution',
+    'GeneratorLaw',
+    'LindbladSolver',
     'LocalOperator',
     'Operator',
     'QuantumPass',
     'QuantumProblem',
     'QuantumSolver',
     'QuantumTerm',
-    'QuantumTrajectories',
+    'QuantumTrajectoriesSolver',
     'QuantumView',
-    'UnitaryEvolution',
+    'UnitarySolver',
     'contains_quantum',
     'expectation',
     'hilbert_state',
@@ -35,15 +35,15 @@ __all__: list[str] = [
 register(
     Formalism(
         'quantum',
-        laws=(Generator, Dissipator),
+        laws=(GeneratorLaw, DissipatorLaw),
         passes=(QuantumPass(),),
         forms=(Form.QUANTUM,),
         solvers={
-            'unitary': UnitaryEvolution,
-            'lindblad': LindbladEvolution,
-            'quantum_trajectories': QuantumTrajectories,
+            'unitary': UnitarySolver,
+            'lindblad': LindbladSolver,
+            'quantum_trajectories': QuantumTrajectoriesSolver,
         },
-        defaults=(LindbladEvolution,),
+        defaults=(LindbladSolver,),
         visuals={'expectations': ExpectationVisual},
     ),
 )

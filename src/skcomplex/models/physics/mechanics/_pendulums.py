@@ -8,16 +8,16 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Equation, Event, Rate, Symbols, derivative
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import EquationLaw, EventLaw, RateLaw, Symbols, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import Particle, Potential
-from ..realizations.particles import HarmonicPotential, LinearDrag
-from ._mechanics import Pendulum
+from ....formalisms.particles import ParticleComponent, PotentialInteraction
+from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction
+from ._mechanics import PendulumComponent
 
 
 def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
@@ -31,28 +31,28 @@ def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
     return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
 
 
-DoublePendulum = Element.define(
-    'DoublePendulum',
+DoublePendulumComponent = ElementComponent.define(
+    'DoublePendulumComponent',
     states={
-        'theta1': state(default=math.pi / 2, domain=Domain.ANGLE, order=2),
-        'theta2': state(default=math.pi / 2, domain=Domain.ANGLE, order=2),
+        'theta1': state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2),
+        'theta2': state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2),
     },
     parameters={
-        'm1': parameter(default=1.0, domain=Domain.POSITIVE),
-        'm2': parameter(default=1.0, domain=Domain.POSITIVE),
-        'l1': parameter(default=1.0, domain=Domain.POSITIVE),
-        'l2': parameter(default=1.0, domain=Domain.POSITIVE),
-        'g': parameter(default=9.81, domain=Domain.POSITIVE),
+        'm1': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'm2': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'l1': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'l2': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             (s.m1 + s.m2) * s.l1 * derivative(s.theta1, 2)
             + s.m2 * s.l2 * derivative(s.theta2, 2) * cos(s.theta1 - s.theta2)
             + s.m2 * s.l2 * derivative(s.theta2, 1) ** 2 * sin(s.theta1 - s.theta2)
             + (s.m1 + s.m2) * s.g * sin(s.theta1)
             == 0,
         ),
-        Equation(
+        EquationLaw(
             s.l2 * derivative(s.theta2, 2)
             + s.l1 * derivative(s.theta1, 2) * cos(s.theta1 - s.theta2)
             - s.l1 * derivative(s.theta1, 1) ** 2 * sin(s.theta1 - s.theta2)
@@ -63,19 +63,19 @@ DoublePendulum = Element.define(
     visual=VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]}),
 )
 
-PendulumSpring = Interaction.define(
-    'PendulumSpring',
+PendulumSpringInteraction = BaseInteraction.define(
+    'PendulumSpringInteraction',
     roles=['first', 'second'],
-    parameters={'k': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
+    parameters={'k': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.first.theta,
             s.k
             * (s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta))
             * cos(s.first.theta)
             / (s.first.m * s.first.l),
         ),
-        Rate(
+        RateLaw(
             s.second.theta,
             -s.k
             * (s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta))
@@ -85,40 +85,40 @@ PendulumSpring = Interaction.define(
     ],
 )
 
-CartPendulum = Element.define(
-    'CartPendulum',
-    states={'y': state(default=0.0, order=2), 'theta': state(default=0.5, domain=Domain.ANGLE, order=2)},
+CartPendulumComponent = ElementComponent.define(
+    'CartPendulumComponent',
+    states={'y': state(default=0.0, order=2), 'theta': state(default=0.5, domain=NumericDomain.ANGLE, order=2)},
     parameters={
-        'm1': parameter(default=1.0, domain=Domain.POSITIVE),
-        'm2': parameter(default=1.0, domain=Domain.POSITIVE),
-        'l': parameter(default=1.0, domain=Domain.POSITIVE),
-        'g': parameter(default=9.81, domain=Domain.POSITIVE),
+        'm1': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'm2': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
         'F': 0.0,
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             (s.m1 + s.m2) * derivative(s.y, 2)
             + s.m2 * s.l * derivative(s.theta, 2) * cos(s.theta)
             - s.m2 * s.l * derivative(s.theta, 1) ** 2 * sin(s.theta)
             == s.F,
         ),
-        Equation(s.l * derivative(s.theta, 2) + derivative(s.y, 2) * cos(s.theta) + s.g * sin(s.theta) == 0),
+        EquationLaw(s.l * derivative(s.theta, 2) + derivative(s.y, 2) * cos(s.theta) + s.g * sin(s.theta) == 0),
     ],
     visual=VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]}),
 )
 
-ParametricPendulum = Element.define(
-    'ParametricPendulum',
-    states={'theta': state(default=0.1, domain=Domain.ANGLE, order=2)},
+ParametricPendulumComponent = ElementComponent.define(
+    'ParametricPendulumComponent',
+    states={'theta': state(default=0.1, domain=NumericDomain.ANGLE, order=2)},
     parameters={
-        'g': parameter(default=9.81, domain=Domain.POSITIVE),
-        'l': parameter(default=1.0, domain=Domain.POSITIVE),
+        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
+        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
         'epsilon': 0.2,
-        'Omega': parameter(default=2 * math.sqrt(9.81), domain=Domain.NONNEGATIVE),
-        'c': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'Omega': parameter(default=2 * math.sqrt(9.81), domain=NumericDomain.NONNEGATIVE),
+        'c': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             derivative(s.theta, 2)
             + s.c * derivative(s.theta, 1)
             + s.g / s.l * (1 + s.epsilon * cos(s.Omega * s.t)) * sin(s.theta)
@@ -127,19 +127,19 @@ ParametricPendulum = Element.define(
     ],
 )
 
-BallisticPendulum = Element.define(
-    'BallisticPendulum',
-    states={'x': state(default=-1.0, order=2), 'theta': state(default=0.0, domain=Domain.ANGLE, order=2)},
+BallisticPendulumComponent = ElementComponent.define(
+    'BallisticPendulumComponent',
+    states={'x': state(default=-1.0, order=2), 'theta': state(default=0.0, domain=NumericDomain.ANGLE, order=2)},
     parameters={
-        'm': parameter(default=0.01, domain=Domain.POSITIVE),
-        'M': parameter(default=1.0, domain=Domain.POSITIVE),
-        'l': parameter(default=1.0, domain=Domain.POSITIVE),
-        'g': parameter(default=9.81, domain=Domain.POSITIVE),
+        'm': parameter(default=0.01, domain=NumericDomain.POSITIVE),
+        'M': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Rate(s.x, 0),
-        Equation(s.l * derivative(s.theta, 2) == -s.g * sin(s.theta)),
-        Event(
+        RateLaw(s.x, 0),
+        EquationLaw(s.l * derivative(s.theta, 2) == -s.g * sin(s.theta)),
+        EventLaw(
             s.x,
             {
                 derivative(s.x, 1): 0,
@@ -151,26 +151,26 @@ BallisticPendulum = Element.define(
     ],
 )
 
-ClockPendulum = Element.define(
-    'ClockPendulum',
+ClockPendulumComponent = ElementComponent.define(
+    'ClockPendulumComponent',
     states={'theta': state(default=0.2, order=2), 'x': state(default=0.0, order=2)},
     parameters={
-        'm': parameter(default=1.0, domain=Domain.POSITIVE),
-        'l': parameter(default=1.0, domain=Domain.POSITIVE),
-        'M': parameter(default=1.0, domain=Domain.POSITIVE),
-        'g': parameter(default=9.8, domain=Domain.POSITIVE),
-        'rho': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'lam': parameter(default=0.1, domain=Domain.NONNEGATIVE),
-        'theta_c': parameter(default=0.1, domain=Domain.POSITIVE),
+        'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'l': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'M': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'g': parameter(default=9.8, domain=NumericDomain.POSITIVE),
+        'rho': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'lam': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
+        'theta_c': parameter(default=0.1, domain=NumericDomain.POSITIVE),
     },
     laws=lambda s: [
-        Equation(
+        EquationLaw(
             s.m * s.l * derivative(s.theta, 2)
             + 2 * s.lam * sign(abs(s.theta) - s.theta_c) * derivative(s.theta, 1)
             + s.m * s.g * sin(s.theta)
             == -s.m * derivative(s.x, 2) * cos(s.theta),
         ),
-        Equation(
+        EquationLaw(
             (s.M + s.m) * derivative(s.x, 2)
             + 2 * s.rho * derivative(s.x, 1)
             + s.m * s.l * derivative(s.theta, 2) * cos(s.theta)
@@ -180,19 +180,19 @@ ClockPendulum = Element.define(
 )
 
 
-def _support_response(pendulum: Symbols, force: Expression) -> list[Rate]:
+def _support_response(pendulum: Symbols, force: Expression) -> list[RateLaw]:
     """Return the accelerations of a supported pendulum and its support under a horizontal force on the support."""
     inertia = pendulum.M + pendulum.m * sin(pendulum.theta) ** 2
     return [
-        Rate(pendulum.x, force / inertia),
-        Rate(pendulum.theta, -cos(pendulum.theta) * force / (pendulum.l * inertia)),
+        RateLaw(pendulum.x, force / inertia),
+        RateLaw(pendulum.theta, -cos(pendulum.theta) * force / (pendulum.l * inertia)),
     ]
 
 
-SupportSpring = Interaction.define(
-    'SupportSpring',
+SupportSpringInteraction = BaseInteraction.define(
+    'SupportSpringInteraction',
     roles=['first', 'second'],
-    parameters={'k': parameter(default=1.0, domain=Domain.NONNEGATIVE)},
+    parameters={'k': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
         *_support_response(s.first, s.k * (s.second.x - s.first.x)),
         *_support_response(s.second, -s.k * (s.second.x - s.first.x)),
@@ -200,7 +200,7 @@ SupportSpring = Interaction.define(
 )
 
 
-class Magnet(Potential):
+class MagnetInteraction(PotentialInteraction):
     """Magnet below the plane of a pendulum bob, which attracts it with energy `-gamma / sqrt(|x - center|**2 + d**2)`.
 
     Args:
@@ -220,15 +220,15 @@ class Magnet(Potential):
             The height of the bob above the plane of the magnets.
 
     Examples:
-        >>> from skcomplex.models.physics.mechanics import Magnet
-        >>> Magnet('magnet', target='bob', center=[1.0, 0.0]).gamma
+        >>> from skcomplex.models.physics.mechanics import MagnetInteraction
+        >>> MagnetInteraction('magnet', target='bob', center=[1.0, 0.0]).gamma
         1.0
     """
 
     target: str = role()
     center: list[float] = parameter(default=0.0, vector=True)
-    gamma: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `-gamma / sqrt(|x - center|**2 + d**2)`.
@@ -308,7 +308,7 @@ def double_pendulum(
     """
     return System(
         components=[
-            DoublePendulum(
+            DoublePendulumComponent(
                 'pendulum',
                 theta1=theta1,
                 theta2=theta2,
@@ -383,10 +383,10 @@ def coupled_pendulums(
     """
     return System(
         components=[
-            Pendulum('left', theta=theta1, m=m1, l=l1, g=g),
-            Pendulum('right', theta=theta2, m=m2, l=l2, g=g),
+            PendulumComponent('left', theta=theta1, m=m1, l=l1, g=g),
+            PendulumComponent('right', theta=theta2, m=m2, l=l2, g=g),
         ],
-        interactions=[PendulumSpring('spring', first='left', second='right', k=k)],
+        interactions=[PendulumSpringInteraction('spring', first='left', second='right', k=k)],
     )
 
 
@@ -443,7 +443,7 @@ def cart_pendulum(
         >>> cart_pendulum(m1=5.0).elements[0].m1
         5.0
     """
-    return System(components=[CartPendulum('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
+    return System(components=[CartPendulumComponent('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
 
 
 @register_model(
@@ -500,7 +500,16 @@ def parametric_pendulum(
     """
     return System(
         components=[
-            ParametricPendulum('swing', theta=theta, theta_d1=omega, g=g, l=l, epsilon=epsilon, Omega=Omega, c=c),
+            ParametricPendulumComponent(
+                'swing',
+                theta=theta,
+                theta_d1=omega,
+                g=g,
+                l=l,
+                epsilon=epsilon,
+                Omega=Omega,
+                c=c,
+            ),
         ],
     )
 
@@ -559,7 +568,7 @@ def magnetic_pendulum(
     """
     angles = 2 * np.pi * np.arange(n_magnets) / n_magnets
     magnets = [
-        Magnet(
+        MagnetInteraction(
             f'magnet_{index}',
             target='bob',
             center=[round(float(np.cos(angle)), 12), round(float(np.sin(angle)), 12)],
@@ -569,10 +578,10 @@ def magnetic_pendulum(
         for index, angle in enumerate(angles)
     ]
     return System(
-        components=[Particle('bob', x=[x, y], v=[0.0, 0.0])],
+        components=[ParticleComponent('bob', x=[x, y], v=[0.0, 0.0])],
         interactions=[
-            HarmonicPotential('string', target='bob', k=omega**2),
-            LinearDrag('friction', target='bob', gamma=q),
+            HarmonicPotentialInteraction('string', target='bob', k=omega**2),
+            LinearDragInteraction('friction', target='bob', gamma=q),
             *magnets,
         ],
         space=ContinuousSpace(n_dim=2),
@@ -628,7 +637,7 @@ def ballistic_pendulum(
         >>> ballistic_pendulum(distance=2.0).elements[0].x
         -2.0
     """
-    return System(components=[BallisticPendulum('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
+    return System(components=[BallisticPendulumComponent('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
 
 
 @register_model(
@@ -700,7 +709,7 @@ def huygens_clocks(
         2
     """
     clocks = [
-        ClockPendulum(
+        ClockPendulumComponent(
             f'clock_{index}',
             theta=theta if index == 0 else 0.0,
             m=m,
@@ -714,7 +723,7 @@ def huygens_clocks(
         for index in range(n_clocks)
     ]
     springs = [
-        SupportSpring(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=k)
+        SupportSpringInteraction(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=k)
         for index in range(n_clocks - 1)
     ]
     return System(components=clocks, interactions=springs)

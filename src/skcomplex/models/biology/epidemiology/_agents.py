@@ -8,13 +8,13 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
@@ -34,7 +34,7 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
     return health
 
 
-class Person(Element):
+class PersonComponent(ElementComponent):
     """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
 
     A person walks to a neighbouring cell with probability `d`, or `lockdown_d` during the lockdown, which lasts
@@ -81,23 +81,23 @@ class Person(Element):
             The probability of moving during the lockdown.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Person
-        >>> Person.group('people', 100).size
+        >>> from skcomplex.models.biology.epidemiology import PersonComponent
+        >>> PersonComponent.group('people', 100).size
         100
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)})
-    health: float = state(default=SUSCEPTIBLE, domain=Domain.NONNEGATIVE_INTEGER)
-    clock: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    d: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=0.6, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    mu: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    incubation: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    lockdown_start: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    lockdown_length: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    lockdown_d: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    health: float = state(default=SUSCEPTIBLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    d: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    mu: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    incubation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lockdown_start: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lockdown_length: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lockdown_d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def _infect(self, agent: AgentView, model: ModelView) -> None:
         """Infect every susceptible person of the cell with probability `beta`."""
@@ -123,7 +123,7 @@ class Person(Element):
         elif agent.health == RECOVERED and model.rng.random() < agent.alpha:
             agent.health = SUSCEPTIBLE
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -134,7 +134,7 @@ class Person(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Walk, infect the cell when infectious, and advance the disease.
@@ -155,7 +155,7 @@ class Person(Element):
         self._progress(agent, model)
 
 
-class Walker(Element):
+class WalkerComponent(ElementComponent):
     """Random walker that carries a deadly disease, of Charbonneau's epidemic model.
 
     A living walker moves to a neighbouring cell or node with probability `travel`. A sick walker infects every
@@ -182,19 +182,19 @@ class Walker(Element):
             The probability of moving at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Walker
-        >>> Walker.group('walkers', 10).size
+        >>> from skcomplex.models.biology.epidemiology import WalkerComponent
+        >>> WalkerComponent.group('walkers', 10).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)})
-    health: float = state(default=HEALTHY, domain=Domain.NONNEGATIVE_INTEGER)
-    remaining: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    infection: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    travel: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    health: float = state(default=HEALTHY, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    remaining: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
+    infection: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    travel: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -205,7 +205,7 @@ class Walker(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.walk)]
+        return [RuleLaw(self.walk)]
 
     def walk(self, agent: AgentView, model: ModelView) -> None:
         """Walk, and when sick, infect the walkers of the cell and age towards death.
@@ -231,7 +231,7 @@ class Walker(Element):
             agent.health = DECEASED
 
 
-class Traveller(Element):
+class TravellerComponent(ElementComponent):
     """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
 
     An infected traveller infects every susceptible traveller of its node with probability `tau`, recovers after
@@ -258,19 +258,19 @@ class Traveller(Element):
             The probability of moving to a neighbouring node at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import Traveller
-        >>> Traveller.group('travellers', 10).size
+        >>> from skcomplex.models.biology.epidemiology import TravellerComponent
+        >>> TravellerComponent.group('travellers', 10).size
         10
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)})
-    health: float = state(default=SUSCEPTIBLE, domain=Domain.NONNEGATIVE_INTEGER)
-    clock: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    days: float = parameter(default=14.0, domain=Domain.POSITIVE)
-    m: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    health: float = state(default=SUSCEPTIBLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    days: float = parameter(default=14.0, domain=NumericDomain.POSITIVE)
+    m: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -281,7 +281,7 @@ class Traveller(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Infect and recover when infected, then travel.
@@ -388,7 +388,7 @@ def agent_based_sir(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers(0, [width, height], size=(people, 2))
-    group = Person.group(
+    group = PersonComponent.group(
         'people',
         people,
         location=[tuple(int(item) for item in cell) for cell in cells],
@@ -473,7 +473,7 @@ def random_walker_epidemics(
         locations = [nodes[int(pick)] for pick in rng.integers(0, len(nodes), size=walkers)]
         space = NetworkSpace(graph)
     health = _initial_health(walkers, 1, rng, SICK)
-    group = Walker.group(
+    group = WalkerComponent.group(
         'walkers',
         walkers,
         location=locations,
@@ -538,7 +538,7 @@ def network_sir(
     graph = nx.barabasi_albert_graph(20, 2, seed=0) if graph is None else graph
     nodes = list(nx.nodes(graph))
     size = residents * len(nodes)
-    group = Traveller.group(
+    group = TravellerComponent.group(
         'travellers',
         size,
         location=[node for node in nodes for _ in range(residents)],

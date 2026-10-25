@@ -27,7 +27,7 @@ def _scale(name: str, bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: A
     raise ValidationError(error_msg)
 
 
-class Design(BaseEstimator):
+class BaseDesign(BaseEstimator):
     """Base class of designs, which give rows of values by factory argument or dotted path.
 
     Designs concatenate with `+`, which runs the rows of both, and cross with `*`, which runs every pair of rows.
@@ -42,16 +42,16 @@ class Design(BaseEstimator):
         """
         return [{}]
 
-    def __add__(self, other: 'Design') -> 'Design':
+    def __add__(self, other: 'BaseDesign') -> 'BaseDesign':
         """Return the design that runs the rows of both designs."""
-        return Rows([*self.rows(), *other.rows()])
+        return RowsDesign([*self.rows(), *other.rows()])
 
-    def __mul__(self, other: 'Design') -> 'Design':
+    def __mul__(self, other: 'BaseDesign') -> 'BaseDesign':
         """Return the design that runs every combination of a row of each design."""
-        return Rows([{**first, **second} for first in self.rows() for second in other.rows()])
+        return RowsDesign([{**first, **second} for first in self.rows() for second in other.rows()])
 
 
-class _Sampled(Design):
+class _SampledDesign(BaseDesign):
     """Design of `n` rows sampled over bounds or distributions."""
 
     def __init__(self, n: int, *, random_state: int | None = None, **bounds: Any) -> None:  # noqa: ANN401
@@ -82,7 +82,7 @@ class _Sampled(Design):
         return [{name: float(column[row]) for name, column in columns.items()} for row in range(self.n)]
 
 
-class Rows(Design):
+class RowsDesign(BaseDesign):
     """Design given by its rows.
 
     Args:
@@ -90,8 +90,8 @@ class Rows(Design):
             One mapping from factory argument or dotted path to value per row.
 
     Examples:
-        >>> from skcomplex.engine.experiments import Rows
-        >>> Rows([{'growth.r': 0.5}, {'growth.r': 1.0}]).rows()
+        >>> from skcomplex.engine.experiments import RowsDesign
+        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).rows()
         [{'growth.r': 0.5}, {'growth.r': 1.0}]
     """
 
@@ -114,7 +114,7 @@ class Rows(Design):
         return [dict(row) for row in self.rows_]
 
 
-class Grid(Design):
+class GridDesign(BaseDesign):
     """Design of every combination of the given values.
 
     Args:
@@ -122,8 +122,8 @@ class Grid(Design):
             The values of each factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.engine.experiments import Grid
-        >>> len(Grid(r=[0.5, 1.0], K=[100, 200, 300]).rows())
+        >>> from skcomplex.engine.experiments import GridDesign
+        >>> len(GridDesign(r=[0.5, 1.0], K=[100, 200, 300]).rows())
         6
     """
 
@@ -146,7 +146,7 @@ class Grid(Design):
         return [dict(zip(names, combination, strict=True)) for combination in itertools.product(*self.values.values())]
 
 
-class RandomDesign(_Sampled):
+class RandomDesign(_SampledDesign):
     """Design of independent random samples, uniform between bounds or drawn from SciPy distributions.
 
     Args:
@@ -166,7 +166,7 @@ class RandomDesign(_Sampled):
     """
 
 
-class LatinHypercube(_Sampled):
+class LatinHypercubeDesign(_SampledDesign):
     """Design of a Latin hypercube sample, one sample in every stratum of every dimension.
 
     Args:
@@ -180,8 +180,8 @@ class LatinHypercube(_Sampled):
             A pair `(low, high)` or a SciPy distribution per factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.engine.experiments import LatinHypercube
-        >>> rows = LatinHypercube(4, r=(0.0, 1.0), random_state=0).rows()
+        >>> from skcomplex.engine.experiments import LatinHypercubeDesign
+        >>> rows = LatinHypercubeDesign(4, r=(0.0, 1.0), random_state=0).rows()
         >>> sorted(int(row['r'] * 4) for row in rows)
         [0, 1, 2, 3]
     """
@@ -191,7 +191,7 @@ class LatinHypercube(_Sampled):
         return qmc.LatinHypercube(d=len(self.bounds), seed=self.random_state).random(self.n)
 
 
-class SobolDesign(_Sampled):
+class SobolDesign(_SampledDesign):
     """Design of a scrambled Sobol sequence, a low-discrepancy sample, best with `n` a power of 2.
 
     Args:

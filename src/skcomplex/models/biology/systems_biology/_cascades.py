@@ -6,17 +6,17 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ....core.base import Domain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, pulse
+from ....core.base import NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 
 
-class GProtein(Element):
+class GProteinComponent(ElementComponent):
     """G protein activated by a hormone pulse and inactivated by its own GTPase, the timer that ends the signal.
 
     The active fraction follows `dg/dt = k_on H(t) (1 - g) - k_gtp g`, where the hormone `H(t)` is a rectangular pulse
@@ -45,19 +45,19 @@ class GProtein(Element):
             The duration of the hormone pulse.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GProtein
-        >>> GProtein('g_protein').k_gtp
+        >>> from skcomplex.models.biology.systems_biology import GProteinComponent
+        >>> GProteinComponent('g_protein').k_gtp
         0.5
     """
 
-    g: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    k_on: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    k_gtp: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    hormone: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    start: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    width: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    g: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    k_on: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k_gtp: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    hormone: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    start: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    width: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the activation by the hormone pulse and the inactivation by GTP hydrolysis.
 
         Args:
@@ -69,10 +69,10 @@ class GProtein(Element):
                 The laws of the component.
         """
         hormone = pulse(s.t, s.start, s.width, s.hormone)
-        return [Rate(s.g, s.k_on * hormone * (1 - s.g) - s.k_gtp * s.g)]
+        return [RateLaw(s.g, s.k_on * hormone * (1 - s.g) - s.k_gtp * s.g)]
 
 
-class CascadeStage(Element):
+class CascadeStageComponent(ElementComponent):
     """Stage of a signalling cascade, an active enzyme or a messenger, which is inactivated at a constant rate.
 
     Args:
@@ -86,15 +86,15 @@ class CascadeStage(Element):
             The inactivation rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import CascadeStage
-        >>> CascadeStage('camp', beta=2.0).beta
+        >>> from skcomplex.models.biology.systems_biology import CascadeStageComponent
+        >>> CascadeStageComponent('camp', beta=2.0).beta
         2.0
     """
 
-    x: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    beta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the inactivation `-beta x`.
 
         Args:
@@ -105,10 +105,10 @@ class CascadeStage(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.x, -s.beta * s.x)]
+        return [RateLaw(s.x, -s.beta * s.x)]
 
 
-class Activation(Interaction):
+class ActivationInteraction(BaseInteraction):
     """Activation of a cascade stage by the active form of the stage above it, at the rate `alpha` times its amount.
 
     Args:
@@ -131,14 +131,14 @@ class Activation(Interaction):
                 The activation rate per unit of the activating stage.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import Activation
-        >>> Activation('activation', upstream='camp', downstream='protein_kinase_a', alpha=5.0).alpha
+        >>> from skcomplex.models.biology.systems_biology import ActivationInteraction
+        >>> ActivationInteraction('activation', upstream='camp', downstream='protein_kinase_a', alpha=5.0).alpha
         5.0
     """
 
     upstream: str = role()
     downstream: str = role()
-    alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -150,7 +150,7 @@ class Activation(Interaction):
         super().__init__(label, **values)
         self.state_name = state_name
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the activation `alpha` times the active upstream amount.
 
         Args:
@@ -161,7 +161,7 @@ class Activation(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.downstream.x, s.alpha * getattr(s.upstream, self.state_name))]
+        return [RateLaw(s.downstream.x, s.alpha * getattr(s.upstream, self.state_name))]
 
 
 @register_model(
@@ -230,11 +230,11 @@ def hormone_cascade_amplifier(
     if len(alpha) != len(STAGES) or len(beta) != len(STAGES):
         error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
         raise ValidationError(error_msg)
-    g_protein = GProtein('g_protein', k_on=k_on, k_gtp=k_gtp, hormone=hormone, start=start, width=width)
-    stages = [CascadeStage(label, beta=rate) for label, rate in zip(STAGES, beta, strict=True)]
+    g_protein = GProteinComponent('g_protein', k_on=k_on, k_gtp=k_gtp, hormone=hormone, start=start, width=width)
+    stages = [CascadeStageComponent(label, beta=rate) for label, rate in zip(STAGES, beta, strict=True)]
     upstreams = ('g_protein', *STAGES[:-1])
     activations = [
-        Activation(
+        ActivationInteraction(
             f'activation_of_{label}',
             upstream=upstream,
             downstream=label,

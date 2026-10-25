@@ -26,9 +26,9 @@ from ...core.base import (
 )
 from ...core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ...engine.compile import LATTICE_BOUNDARIES, Problem, Vector, numpy_function, spectral_multiplier
-from ...engine.solvers import Stepper, step_count
+from ...engine.solvers import Solver, step_count
 from ._lowering import mesh_laplacian
-from ._spaces import Mesh
+from ._spaces import MeshSpace
 
 CONTOUR_POINTS = 64
 TIME = symbol('t')
@@ -91,7 +91,7 @@ def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
     for name, axis in reversed(term.chain):
         operator = (
             _mesh_operator(place.space, name)
-            if isinstance(place.space, Mesh)
+            if isinstance(place.space, MeshSpace)
             else _lattice_operator(name, axis, place, term.source)
         )
         matrix = operator @ matrix
@@ -137,7 +137,7 @@ def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
     return _SpectralBlock(dimensions, [_rows(reference) for reference in states.values()], matrix)
 
 
-def _mesh_operator(space: Mesh, name: str) -> csr_matrix:
+def _mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
     """Return the finite element Laplacian of a mesh."""
     if name != 'laplacian':
         error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
@@ -183,7 +183,7 @@ class _SpectralBlock:
         self.inverse(np.einsum('...ij,...j->...i', operator, self.transform(x)), out)
 
 
-class _SplitStepper(Stepper):
+class _SplitSolver(Solver):
     """Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder."""
 
     supports: ClassVar[Supports] = Supports(
@@ -225,11 +225,11 @@ class _SplitStepper(Stepper):
         if not problem.linear:
             error_msg = (
                 f'{type(self).__name__} splits the rates of fields into linear and nonlinear parts, but the problem '
-                'has no linear terms with constant coefficients. Use ScipyODE or RK4.'
+                'has no linear terms with constant coefficients. Use ScipyODESolver or RK4Solver.'
             )
             raise SolverError(error_msg)
         if problem.delays or problem.events:
-            error_msg = f'{type(self).__name__} does not integrate delays or events. Use ScipyODE or RK4.'
+            error_msg = f'{type(self).__name__} does not integrate delays or events. Use ScipyODESolver or RK4Solver.'
             raise SolverError(error_msg)
         self._parameters: Vector | None = None
         self._last: tuple[float, Vector, float] | None = None
@@ -400,7 +400,7 @@ class SplitOperator:
         return out
 
 
-class IMEXEuler(_SplitStepper):
+class IMEXEulerSolver(_SplitSolver):
     """Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order.
 
     Every step solves `(I - h L) x_{n+1} = x_n + h N(x_n)`, with sparse solves for finite differences and finite
@@ -414,9 +414,9 @@ class IMEXEuler(_SplitStepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.heat import heat_diffusion
-        >>> from skcomplex.formalisms.fields import IMEXEuler
+        >>> from skcomplex.formalisms.fields import IMEXEulerSolver
         >>> problem = compile_system(heat_diffusion((16, 16)))
-        >>> stepper = IMEXEuler(dt=1.0)
+        >>> stepper = IMEXEulerSolver(dt=1.0)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 10.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
@@ -428,7 +428,7 @@ class IMEXEuler(_SplitStepper):
         return self.operator_.solve(h, x + h * self._remainder(t, x, p))
 
 
-class IMEX2(_SplitStepper):
+class IMEX2Solver(_SplitSolver):
     """Crank-Nicolson Adams-Bashforth scheme of second order: trapezoidal linear part and extrapolated remainder.
 
     Every step solves `(I - h L / 2) x_{n+1} = (I + h L / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one
@@ -440,8 +440,8 @@ class IMEX2(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.formalisms.fields import IMEX2
-        >>> IMEX2(dt=0.1).dt
+        >>> from skcomplex.formalisms.fields import IMEX2Solver
+        >>> IMEX2Solver(dt=0.1).dt
         0.1
     """
 
@@ -461,7 +461,7 @@ class IMEX2(_SplitStepper):
         return self.operator_.solve(h / 2, x + h / 2 * self.operator_.apply(x) + h * extrapolated)
 
 
-class CrankNicolson(_SplitStepper):
+class CrankNicolsonSolver(_SplitSolver):
     """Crank-Nicolson for the linear part with a Heun predictor-corrector for the remainder, of second order.
 
     The predictor takes a Crank-Nicolson step with the remainder at the start, and the corrector repeats it with the
@@ -472,8 +472,8 @@ class CrankNicolson(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.formalisms.fields import CrankNicolson
-        >>> CrankNicolson(dt=0.5).dt
+        >>> from skcomplex.formalisms.fields import CrankNicolsonSolver
+        >>> CrankNicolsonSolver(dt=0.5).dt
         0.5
     """
 
@@ -486,7 +486,7 @@ class CrankNicolson(_SplitStepper):
         return self.operator_.solve(h / 2, explicit + h * average)
 
 
-class ETDRK4(_SplitStepper):
+class ETDRK4Solver(_SplitSolver):
     """Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews, for spectral fields.
 
     The linear part is integrated exactly per Fourier mode and the remainder by a fourth-order scheme, with the
@@ -498,15 +498,15 @@ class ETDRK4(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.formalisms.fields import ETDRK4
-        >>> ETDRK4(dt=0.25).dt
+        >>> from skcomplex.formalisms.fields import ETDRK4Solver
+        >>> ETDRK4Solver(dt=0.25).dt
         0.25
     """
 
     def _built(self, p: Vector) -> None:
         """Check that the linear part is spectral and forget its coefficients."""
         if self.operator_.sparse is not None:
-            error_msg = 'ETDRK4 needs the linear part on spectral fields. Use IMEX2 or CrankNicolson.'
+            error_msg = 'ETDRK4Solver needs the linear part on spectral fields. Use IMEX2Solver or CrankNicolsonSolver.'
             raise SolverError(error_msg)
         self._coefficients: dict[float, list[list[Complex]]] = {}
 
@@ -544,7 +544,7 @@ class ETDRK4(_SplitStepper):
         return self._map(0, h, x) + self._map(3, h, n_x) + 2 * self._map(4, h, n_a + n_b) + self._map(5, h, n_c)
 
 
-class SSPRK(Stepper):
+class SSPRKSolver(Solver):
     """Strong-stability-preserving Runge-Kutta of order 2 or 3, with steps from the CFL condition of conservation laws.
 
     The schemes of Shu and Osher are convex combinations of Euler steps, so they keep the total variation bound of a
@@ -566,9 +566,9 @@ class SSPRK(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.fluids import burgers
-        >>> from skcomplex.formalisms.fields import SSPRK
+        >>> from skcomplex.formalisms.fields import SSPRKSolver
         >>> problem = compile_system(burgers(64))
-        >>> stepper = SSPRK()
+        >>> stepper = SSPRKSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
@@ -613,7 +613,7 @@ class SSPRK(Stepper):
         """
         super().initialize(problem, rng)
         if self.order not in {2, 3}:
-            error_msg = f'SSPRK has order 2 or 3, not {self.order}.'
+            error_msg = f'SSPRKSolver has order 2 or 3, not {self.order}.'
             raise SolverError(error_msg)
         self.spacing_ = min((min(volume.spacings) for volume in problem.volumes), default=None)
 

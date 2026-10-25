@@ -9,14 +9,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import Jump, Law, Noise, Rate, Symbols, Update, draw, normal
+from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4, EulerMaruyama
-from ....formalisms.fractional import FractionalEulerMaruyama, FractionalNoise
+from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
+from ....formalisms.fractional import FractionalEulerMaruyamaSolver, FractionalNoiseLaw
 
 POINTS = VisualSpec('points', {'position': 'x'})
 
@@ -28,7 +28,7 @@ def _direction(name: str, size: int) -> list[Expression]:
     return [component / length for component in components]
 
 
-class ContinuousTimeWalker(Element):
+class ContinuousTimeWalkerComponent(ElementComponent):
     """Walker that waits a power-law time `tau0 r^(-1 / alpha)` for `r` uniform, then jumps by a Gaussian step.
 
     Args:
@@ -48,18 +48,18 @@ class ContinuousTimeWalker(Element):
             The standard deviation of the jumps along every axis.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import ContinuousTimeWalker
-        >>> ContinuousTimeWalker('walker', alpha=0.7).alpha
+        >>> from skcomplex.models.physics.soft_matter import ContinuousTimeWalkerComponent
+        >>> ContinuousTimeWalkerComponent('walker', alpha=0.7).alpha
         0.7
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
-    alpha: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    sigma: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    sigma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the jumps after power-law waiting times.
 
         Args:
@@ -72,7 +72,7 @@ class ContinuousTimeWalker(Element):
         """
         jumps = [item + normal(f'jump{index}', 0, s.sigma) for index, item in enumerate(s.x)]
         return [
-            Jump(
+            JumpLaw(
                 waiting=draw('wait', 'pareto', b=s.alpha, scale=s.tau0),
                 reset=dict(zip(s.x, jumps, strict=True)),
                 label='jumps',
@@ -80,7 +80,7 @@ class ContinuousTimeWalker(Element):
         ]
 
 
-class LevyWalker(Element):
+class LevyWalkerComponent(ElementComponent):
     """Walker that flies at constant speed in a random direction for a power-law flight time, then turns.
 
     Args:
@@ -103,19 +103,19 @@ class LevyWalker(Element):
             The speed of every flight.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyWalker
-        >>> LevyWalker('walker', speed=2.0).speed
+        >>> from skcomplex.models.physics.soft_matter import LevyWalkerComponent
+        >>> LevyWalkerComponent('walker', speed=2.0).speed
         2.0
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
     v: npt.ArrayLike = state(default=0.0, vector=True)
-    sigma: float = parameter(default=1.5, domain=Domain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    speed: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    sigma: float = parameter(default=1.5, domain=NumericDomain.POSITIVE)
+    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    speed: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the flight at constant velocity and the turns after power-law flight times.
 
         Args:
@@ -128,8 +128,8 @@ class LevyWalker(Element):
         """
         turn = [s.speed * item for item in _direction('direction', len(list(s.v)))]
         return [
-            Rate(s.x, s.v),
-            Jump(
+            RateLaw(s.x, s.v),
+            JumpLaw(
                 waiting=draw('flight', 'pareto', b=s.sigma, scale=s.tau0),
                 reset=dict(zip(s.v, turn, strict=True)),
                 label='turns',
@@ -137,7 +137,7 @@ class LevyWalker(Element):
         ]
 
 
-class TransientWalker(Element):
+class TransientWalkerComponent(ElementComponent):
     """Brownian walker whose diffusion coefficient `D` is redrawn after waiting times of mean `D^(-gamma)`.
 
     The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
@@ -160,18 +160,18 @@ class TransientWalker(Element):
             The exponent of the mean waiting time `D^(-gamma)`.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import TransientWalker
-        >>> TransientWalker('walker', gamma=2.0).gamma
+        >>> from skcomplex.models.physics.soft_matter import TransientWalkerComponent
+        >>> TransientWalkerComponent('walker', gamma=2.0).gamma
         2.0
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)})
     x: npt.ArrayLike = state(default=0.0, vector=True)
-    D: float = state(default=0.5, domain=Domain.POSITIVE)
-    sigma: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    gamma: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    D: float = state(default=0.5, domain=NumericDomain.POSITIVE)
+    sigma: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the diffusion and the renewals of the diffusion coefficient.
 
         Args:
@@ -184,12 +184,12 @@ class TransientWalker(Element):
         """
         waiting = draw('wait', 'expon', scale=s.D ** (-s.gamma))
         return [
-            Noise(s.x, sqrt(2 * s.D)),
-            Jump(waiting=waiting, reset={s.D: draw('coefficient', 'beta', a=s.sigma, b=1)}, label='changes'),
+            NoiseLaw(s.x, sqrt(2 * s.D)),
+            JumpLaw(waiting=waiting, reset={s.D: draw('coefficient', 'beta', a=s.sigma, b=1)}, label='changes'),
         ]
 
 
-class FractionalWalker(Element):
+class FractionalWalkerComponent(ElementComponent):
     """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
 
     Args:
@@ -206,17 +206,17 @@ class FractionalWalker(Element):
             The Hurst index, below 1/2 for anticorrelated and above 1/2 for correlated increments.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import FractionalWalker
-        >>> FractionalWalker('walker', H=0.3).H
+        >>> from skcomplex.models.physics.soft_matter import FractionalWalkerComponent
+        >>> FractionalWalkerComponent('walker', H=0.3).H
         0.3
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
-    D: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    H: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    D: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    H: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fractional noise.
 
         Args:
@@ -227,10 +227,10 @@ class FractionalWalker(Element):
             laws:
                 The laws of the component.
         """
-        return [FractionalNoise(s.x, sqrt(2 * s.D), hurst=s.H)]
+        return [FractionalNoiseLaw(s.x, sqrt(2 * s.D), hurst=s.H)]
 
 
-class LevyFlier(Element):
+class LevyFlierComponent(ElementComponent):
     """Walker that jumps at every step by a length of power-law tail `l^(-1 - mu)` in a random direction.
 
     Args:
@@ -247,17 +247,17 @@ class LevyFlier(Element):
             The shortest jump length.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyFlier
-        >>> LevyFlier('walker', mu=1.2).mu
+        >>> from skcomplex.models.physics.soft_matter import LevyFlierComponent
+        >>> LevyFlierComponent('walker', mu=1.2).mu
         1.2
     """
 
     visual: ClassVar[VisualSpec] = POINTS
     x: npt.ArrayLike = state(default=0.0, vector=True)
-    mu: float = parameter(default=1.2, domain=Domain.POSITIVE)
-    l0: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    mu: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
+    l0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the jumps of power-law lengths.
 
         Args:
@@ -270,7 +270,7 @@ class LevyFlier(Element):
         """
         length = draw('length', 'pareto', b=s.mu, scale=s.l0)
         jumps = [item + length * step for item, step in zip(s.x, _direction('direction', len(list(s.x))), strict=True)]
-        return [Update(s.x, vector(jumps))]
+        return [UpdateLaw(s.x, vector(jumps))]
 
 
 @register_model(
@@ -317,7 +317,7 @@ def continuous_time_random_walk(
         >>> continuous_time_random_walk(10, alpha=0.7).elements[0].values['alpha']
         0.7
     """
-    walkers = ContinuousTimeWalker.group(
+    walkers = ContinuousTimeWalkerComponent.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -332,7 +332,7 @@ def continuous_time_random_walk(
     field='physics/soft_matter',
     tags=('anomalous diffusion', 'renewal process', 'superdiffusion', 'random walk'),
     references=('Argun et al. 2021', 'Zaburdaev, Denisov, and Klafter 2015', 'Shlesinger, West, and Klafter 1987'),
-    defaults={'until': 500.0, 'dt': 2.5, 'solver': RK4(dt=0.5)},
+    defaults={'until': 500.0, 'dt': 2.5, 'solver': RK4Solver(dt=0.5)},
 )
 def levy_walk(
     n_walkers: int = 500,
@@ -378,7 +378,7 @@ def levy_walk(
     """
     directions = np.random.default_rng(random_state).standard_normal((n_walkers, n_dim))
     velocities = speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
-    walkers = LevyWalker.group(
+    walkers = LevyWalkerComponent.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -394,7 +394,7 @@ def levy_walk(
     field='physics/soft_matter',
     tags=('anomalous diffusion', 'renewal process', 'heterogeneity', 'sde'),
     references=('Argun et al. 2021', 'Massignan et al. 2014'),
-    defaults={'until': 500.0, 'dt': 2.5, 'solver': EulerMaruyama(dt=0.5)},
+    defaults={'until': 500.0, 'dt': 2.5, 'solver': EulerMaruyamaSolver(dt=0.5)},
 )
 def annealed_transient_time_motion(
     n_walkers: int = 500,
@@ -437,7 +437,7 @@ def annealed_transient_time_motion(
         2.0
     """
     coefficients = np.random.default_rng(random_state).beta(sigma, 1.0, n_walkers)
-    walkers = TransientWalker.group(
+    walkers = TransientWalkerComponent.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -452,7 +452,7 @@ def annealed_transient_time_motion(
     field='physics/soft_matter',
     tags=('anomalous diffusion', 'fractional noise', 'long memory', 'sde'),
     references=('Argun et al. 2021', 'Mandelbrot and Van Ness 1968'),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': FractionalEulerMaruyama(dt=0.01)},
+    defaults={'until': 10.0, 'dt': 0.05, 'solver': FractionalEulerMaruyamaSolver(dt=0.01)},
 )
 def fractional_brownian_motion(
     n_walkers: int = 500,
@@ -488,7 +488,7 @@ def fractional_brownian_motion(
         >>> fractional_brownian_motion(10, H=0.7).elements[0].values['H']
         0.7
     """
-    walkers = FractionalWalker.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
+    walkers = FractionalWalkerComponent.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
     return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
@@ -532,5 +532,5 @@ def levy_flight(
         >>> levy_flight(10, mu=1.5).elements[0].values['mu']
         1.5
     """
-    walkers = LevyFlier.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
+    walkers = LevyFlierComponent.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
     return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))

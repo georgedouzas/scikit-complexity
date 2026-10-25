@@ -7,13 +7,13 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 PREY = 'prey'
 
@@ -24,7 +24,7 @@ def _step(agent: AgentView, model: ModelView) -> None:
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
-class Prey(Element):
+class PreyComponent(ElementComponent):
     """Prey that walks at random and gives birth in cells it does not share with other prey.
 
     Args:
@@ -35,15 +35,15 @@ class Prey(Element):
             The probability of giving birth at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Prey
-        >>> Prey.group('rabbits', 200).size
+        >>> from skcomplex.models.biology.ecology import PreyComponent
+        >>> PreyComponent.group('rabbits', 200).size
         200
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.3})
-    birth: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    birth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -54,7 +54,7 @@ class Prey(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live)]
+        return [RuleLaw(self.live)]
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Walk, then give birth when no other prey shares the new cell.
@@ -71,7 +71,7 @@ class Prey(Element):
             agent.create()
 
 
-class Predator(Element):
+class PredatorComponent(ElementComponent):
     """Predator that walks at random, eats prey of the group `prey` in its cell, breeds after a meal, and dies.
 
     Args:
@@ -85,16 +85,16 @@ class Predator(Element):
             The probability of dying at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Predator
-        >>> Predator.group('foxes', 50).size
+        >>> from skcomplex.models.biology.ecology import PredatorComponent
+        >>> PredatorComponent.group('foxes', 50).size
         50
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.4})
-    conversion: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    death: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    conversion: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    death: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the hunting rule.
 
         Args:
@@ -105,7 +105,7 @@ class Predator(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.hunt)]
+        return [RuleLaw(self.hunt)]
 
     def hunt(self, agent: AgentView, model: ModelView) -> None:
         """Walk, eat one prey of the new cell and breed after it, then die at random.
@@ -188,8 +188,8 @@ def agent_based_lotka_volterra(
     locations = [tuple(int(item) for item in cell) for cell in cells]
     return System(
         components=[
-            Prey.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
-            Predator.group(
+            PreyComponent.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
+            PredatorComponent.group(
                 'predators',
                 predators,
                 variable=True,

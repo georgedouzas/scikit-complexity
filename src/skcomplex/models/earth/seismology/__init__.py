@@ -1,11 +1,11 @@
 """Seismology: earthquakes on loaded faults."""
 
-from ._faults import Fault, earthquakes
-from ._spring_blocks import SpringBlock, burridge_knopoff
+from ._faults import FaultComponent, earthquakes
+from ._spring_blocks import SpringBlockComponent, burridge_knopoff
 
 __all__: list[str] = [
-    'Fault',
-    'SpringBlock',
+    'FaultComponent',
+    'SpringBlockComponent',
     'burridge_knopoff',
     'earthquakes',
 ]

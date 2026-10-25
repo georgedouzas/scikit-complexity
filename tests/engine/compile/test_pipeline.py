@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.base import PipelineError
 from skcomplex.core.system import System
-from skcomplex.engine.compile import Compilation, Pass, compile_system, order_passes, run_passes
+from skcomplex.engine.compile import BasePass, Compilation, compile_system, order_passes, run_passes
 from skcomplex.models import create
 
 
@@ -18,7 +18,7 @@ def _pass(name, reads, writes, log=None):
         if log is not None:
             log.append(name)
 
-    return type(name, (Pass,), {'reads': reads, 'writes': writes, 'run': run, '__doc__': name})()
+    return type(name, (BasePass,), {'reads': reads, 'writes': writes, 'run': run, '__doc__': name})()
 
 
 def _names(passes):
@@ -40,10 +40,10 @@ def test_order_passes_keeps_the_given_order_of_refiners():
     """Test that refiners of one field that the fields leave unordered run in the order they are given."""
     passes = [
         _pass('Produce', (), ('lowered',)),
-        _pass('Second', ('lowered',), ('lowered',)),
-        _pass('First', ('lowered',), ('lowered',)),
+        _pass('SecondComponent', ('lowered',), ('lowered',)),
+        _pass('FirstComponent', ('lowered',), ('lowered',)),
     ]
-    assert _names(order_passes(passes)) == ['Produce', 'Second', 'First']
+    assert _names(order_passes(passes)) == ['Produce', 'SecondComponent', 'FirstComponent']
 
 
 def test_order_passes_names_a_missing_input():
@@ -76,7 +76,7 @@ def test_run_passes_runs_only_what_a_field_needs():
         _pass('Problem', ('lowered',), ('problem',), log),
         _pass('Lower', ('layout',), ('lowered',), log),
         _pass('Layout', ('system',), ('layout',), log),
-        _pass('Other', ('system',), ('census',), log),
+        _pass('OtherComponent', ('system',), ('census',), log),
     ]
     compilation = Compilation(System())
     run_passes(compilation, passes, until='lowered')

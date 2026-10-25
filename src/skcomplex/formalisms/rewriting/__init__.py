@@ -2,13 +2,13 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._components import HostGraph, Patch, Word, structure_of
+from ._components import HostGraphComponent, PatchComponent, WordComponent, structure_of
 from ._geometry import WordGeometry
 from ._interactions import Rewrite, Rewriting
-from ._laws import Affine, GraphProduction, Module, Production, Prototile, RewritingLaw, Substitution
+from ._laws import Affine, GraphProductionLaw, Module, ProductionLaw, Prototile, RewritingLaw, SubstitutionLaw
 from ._passes import CompiledGraph, CompiledPatch, RewritingPass, RewritingProblem, compile_rewriting
-from ._solvers import Rewriter
-from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ._solvers import RewritingSolver
+from ._structures import GraphStructure, PatchStructure, StructureDomain, WordStructure
 from ._visuals import GeometryVisual
 from ._words import CompiledWord
 
@@ -18,23 +18,23 @@ __all__: list[str] = [
     'CompiledPatch',
     'CompiledWord',
     'GeometryVisual',
-    'GraphProduction',
+    'GraphProductionLaw',
     'GraphStructure',
-    'HostGraph',
+    'HostGraphComponent',
     'Module',
-    'Patch',
+    'PatchComponent',
     'PatchStructure',
-    'Production',
+    'ProductionLaw',
     'Prototile',
     'Rewrite',
-    'Rewriter',
     'Rewriting',
     'RewritingLaw',
     'RewritingPass',
     'RewritingProblem',
-    'Structure',
-    'Substitution',
-    'Word',
+    'RewritingSolver',
+    'StructureDomain',
+    'SubstitutionLaw',
+    'WordComponent',
     'WordGeometry',
     'WordStructure',
     'compile_rewriting',
@@ -44,12 +44,12 @@ __all__: list[str] = [
 register(
     Formalism(
         'rewriting',
-        laws=(Production, Substitution, GraphProduction),
-        components=(Word, Patch, HostGraph, Rewriting, Rewrite),
+        laws=(ProductionLaw, SubstitutionLaw, GraphProductionLaw),
+        components=(WordComponent, PatchComponent, HostGraphComponent, Rewriting, Rewrite),
         passes=(RewritingPass(),),
         forms=(Form.REWRITING,),
-        solvers={'rewriter': Rewriter},
-        defaults=(Rewriter,),
+        solvers={'rewriter': RewritingSolver},
+        defaults=(RewritingSolver,),
         visuals={'geometry': GeometryVisual},
     ),
 )

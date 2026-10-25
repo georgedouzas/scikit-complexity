@@ -10,20 +10,29 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4, SSPRK, Field, Flux, divergence, gradient, inverse_laplacian, laplacian
+from ....formalisms.fields import (
+    ETDRK4Solver,
+    FieldComponent,
+    FluxLaw,
+    SSPRKSolver,
+    divergence,
+    gradient,
+    inverse_laplacian,
+    laplacian,
+)
 
 type Array = npt.NDArray[np.float64]
 
-KuramotoSivashinsky = Element.define(
-    'KuramotoSivashinsky',
+KuramotoSivashinskyComponent = ElementComponent.define(
+    'KuramotoSivashinskyComponent',
     states={'u': 0.0},
-    laws=lambda s: [Rate(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
+    laws=lambda s: [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
 )
 
 
@@ -31,7 +40,7 @@ KuramotoSivashinsky = Element.define(
     field='physics/fluids',
     tags=('field', 'chaos', 'spectral', 'stiff', 'pde'),
     references=('Kuramoto 1978', 'Sivashinsky 1977', 'Kassam and Trefethen 2005'),
-    defaults={'until': 150.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.25)},
+    defaults={'until': 150.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.25)},
 )
 def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> System:
     """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`, spatiotemporally chaotic.
@@ -65,7 +74,11 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     positions = np.arange(1, modes + 1) * spacing
     values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
     space = LatticeSpace(modes, spacing=spacing)
-    return System(components=[Field('line', KuramotoSivashinsky, space, values=values, discretization='spectral')])
+    return System(
+        components=[
+            FieldComponent('line', KuramotoSivashinskyComponent, space, values=values, discretization='spectral'),
+        ],
+    )
 
 
 def _velocity(omega: Any) -> tuple[Any, Any]:  # noqa: ANN401
@@ -74,7 +87,7 @@ def _velocity(omega: Any) -> tuple[Any, Any]:  # noqa: ANN401
     return slopes[1], -slopes[0]
 
 
-class Vorticity(Element):
+class VorticityComponent(ElementComponent):
     """Vorticity of an incompressible two-dimensional flow, `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
 
     The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
@@ -94,16 +107,16 @@ class Vorticity(Element):
             The forcing of the vorticity.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import Vorticity
-        >>> Vorticity('site').nu
+        >>> from skcomplex.models.physics.fluids import VorticityComponent
+        >>> VorticityComponent('site').nu
         0.001
     """
 
     omega: float = state(default=0.0)
-    nu: float = parameter(default=1e-3, domain=Domain.NONNEGATIVE)
+    nu: float = parameter(default=1e-3, domain=NumericDomain.NONNEGATIVE)
     f: float = parameter(default=0.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the vorticity equation.
 
         Args:
@@ -115,10 +128,10 @@ class Vorticity(Element):
                 The laws of the component.
         """
         u, w = _velocity(s.omega)
-        return [Rate(s.omega, -divergence([u * s.omega, w * s.omega]) + s.nu * laplacian(s.omega) + s.f)]
+        return [RateLaw(s.omega, -divergence([u * s.omega, w * s.omega]) + s.nu * laplacian(s.omega) + s.f)]
 
 
-class Boussinesq(Element):
+class BoussinesqComponent(ElementComponent):
     """Vorticity and temperature of Boussinesq convection, in units of the thermal diffusion time.
 
     The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
@@ -142,17 +155,17 @@ class Boussinesq(Element):
             The Prandtl number.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import Boussinesq
-        >>> Boussinesq('site').Ra
+        >>> from skcomplex.models.physics.fluids import BoussinesqComponent
+        >>> BoussinesqComponent('site').Ra
         1000.0
     """
 
     omega: float = state(default=0.0)
     theta: float = state(default=0.0)
-    Ra: float = parameter(default=1000.0, domain=Domain.NONNEGATIVE)
-    Pr: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    Ra: float = parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE)
+    Pr: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the vorticity and temperature equations.
 
         Args:
@@ -166,25 +179,25 @@ class Boussinesq(Element):
         u, w = _velocity(s.omega)
         buoyancy = gradient(s.theta, 2)[0]
         return [
-            Rate(
+            RateLaw(
                 s.omega,
                 -divergence([u * s.omega, w * s.omega]) + s.Pr * laplacian(s.omega) + s.Ra * s.Pr * buoyancy,
             ),
-            Rate(s.theta, -divergence([u * s.theta, w * s.theta]) + w + laplacian(s.theta)),
+            RateLaw(s.theta, -divergence([u * s.theta, w * s.theta]) + w + laplacian(s.theta)),
         ]
 
 
-Burgers = Element.define(
-    'Burgers',
+BurgersComponent = ElementComponent.define(
+    'BurgersComponent',
     states={'u': 0.0},
-    laws=lambda s: [Flux(s.u, s.u**2 / 2)],
+    laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
 )
 
-ShallowWater = Element.define(
-    'ShallowWater',
-    states={'h': state(default=1.0, domain=Domain.POSITIVE), 'q': 0.0},
+ShallowWaterComponent = ElementComponent.define(
+    'ShallowWaterComponent',
+    states={'h': state(default=1.0, domain=NumericDomain.POSITIVE), 'q': 0.0},
     parameters={'g': 9.81},
-    laws=lambda s: [Flux(s.h, s.q), Flux(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)],
+    laws=lambda s: [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)],
 )
 
 
@@ -249,7 +262,7 @@ def incompressible_flow(
     Examples:
         >>> from skcomplex.models.physics.fluids import incompressible_flow
         >>> incompressible_flow((16, 16), buoyancy={'Ra': 800.0, 'Pr': 1.0}).elements[0].element.__name__
-        'Boussinesq'
+        'BoussinesqComponent'
     """
     shape = tuple(int(item) for item in shape)
     space = LatticeSpace(shape, spacing=tuple(length / count for length, count in zip(size, shape, strict=True)))
@@ -257,18 +270,18 @@ def incompressible_flow(
     if vorticity is not None:
         values['omega'] = np.asarray(vorticity, dtype=float)
     if buoyancy is None:
-        element: type[Element] = Vorticity
+        element: type[ElementComponent] = VorticityComponent
         values['nu'] = nu
         if forcing is not None:
             values['f'] = np.asarray(forcing, dtype=float)
     else:
-        element = Boussinesq
+        element = BoussinesqComponent
         values.update({key: float(value) for key, value in buoyancy.items()})
         if temperature is not None:
             values['theta'] = np.asarray(temperature, dtype=float)
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
     symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
-    field = Field('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
+    field = FieldComponent('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
     return System(components=[field])
 
 
@@ -276,7 +289,7 @@ def incompressible_flow(
     field='physics/fluids',
     tags=('field', 'turbulence', 'spectral', 'pde'),
     references=('Kraichnan 1967', 'Satz 2022'),
-    defaults={'until': 20.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.05)},
+    defaults={'until': 20.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.05)},
 )
 def decaying_turbulence(
     shape: Sequence[int] = (64, 64),
@@ -321,7 +334,7 @@ def decaying_turbulence(
     field='physics/fluids',
     tags=('field', 'convection', 'instability', 'spectral', 'pde'),
     references=('Rayleigh 1916', 'Chandrasekhar 1961', 'Mihailović et al. 2023'),
-    defaults={'until': 10.0, 'dt': 0.5, 'solver': ETDRK4(dt=0.005)},
+    defaults={'until': 10.0, 'dt': 0.5, 'solver': ETDRK4Solver(dt=0.005)},
 )
 def rayleigh_benard(
     Ra: float = 1000.0,
@@ -334,8 +347,8 @@ def rayleigh_benard(
 
     The layer has height 1 and width `2 sqrt(2)`, the wavelength of the critical mode, and convection sets in above
     `Ra = 27 pi^4 / 4`, about 657.5. The lattice holds twice the layer's height with odd states, which gives the
-    free-slip walls. The registered step `ETDRK4(dt=0.005)` is stable up to about `Ra = 4000`, and faster convection
-    needs a smaller step, such as `ETDRK4(dt=0.0025)` at `Ra = 5000`.
+    free-slip walls. The registered step `ETDRK4Solver(dt=0.005)` is stable up to about `Ra = 4000`, and faster
+    convection needs a smaller step, such as `ETDRK4Solver(dt=0.0025)` at `Ra = 5000`.
 
     Args:
         Ra:
@@ -376,7 +389,7 @@ def rayleigh_benard(
     field='physics/fluids',
     tags=('field', 'shocks', 'conservation law', 'finite volume', 'pde'),
     references=('Burgers 1948', 'LeVeque 2002'),
-    defaults={'until': 2.0, 'dt': 0.1, 'solver': SSPRK()},
+    defaults={'until': 2.0, 'dt': 0.1, 'solver': SSPRKSolver()},
 )
 def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> System:
     """Return the inviscid Burgers equation on a periodic interval of length 2 pi, whose sine steepens into a shock.
@@ -407,14 +420,16 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
     centers = (np.arange(n) + 0.5) * spacing
     values = {'u': mean + amplitude * np.sin(centers)}
     space = LatticeSpace(n, spacing=spacing)
-    return System(components=[Field('line', Burgers, space, values=values, discretization='finite-volume')])
+    return System(
+        components=[FieldComponent('line', BurgersComponent, space, values=values, discretization='finite-volume')],
+    )
 
 
 @register_model(
     field='physics/fluids',
     tags=('field', 'waves', 'shocks', 'conservation law', 'finite volume', 'pde'),
     references=('Stoker 1957', 'LeVeque 2002'),
-    defaults={'until': 0.5, 'dt': 0.05, 'solver': SSPRK()},
+    defaults={'until': 0.5, 'dt': 0.05, 'solver': SSPRKSolver()},
 )
 def shallow_water(
     n: int = 400,
@@ -458,5 +473,12 @@ def shallow_water(
     space = LatticeSpace(n, spacing=length / n)
     values = {'h': depth, 'q': np.zeros(n), 'g': g}
     boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
-    field = Field('channel', ShallowWater, space, boundary=boundary, values=values, discretization='finite-volume')
+    field = FieldComponent(
+        'channel',
+        ShallowWaterComponent,
+        space,
+        boundary=boundary,
+        values=values,
+        discretization='finite-volume',
+    )
     return System(components=[field])

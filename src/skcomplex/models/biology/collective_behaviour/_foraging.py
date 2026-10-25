@@ -7,29 +7,29 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
-from ....formalisms.fields import Field, laplacian
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
+from ....formalisms.fields import FieldComponent, laplacian
 
 PHEROMONE = 'ground/pheromone.level'
 
-Pheromone = Element.define(
-    'Pheromone',
-    states={'level': state(default=0.0, domain=Domain.NONNEGATIVE)},
+PheromoneComponent = ElementComponent.define(
+    'PheromoneComponent',
+    states={'level': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
-        'D': parameter(default=0.05, domain=Domain.NONNEGATIVE),
-        'evaporation': parameter(default=0.05, domain=Domain.NONNEGATIVE),
+        'D': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
+        'evaporation': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
     },
-    laws=lambda s: [Rate(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)],
+    laws=lambda s: [RateLaw(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)],
 )
 
 
-class Ant(Element):
+class AntComponent(ElementComponent):
     """Ant that searches for food guided by pheromone and carries food home, marking the way with pheromone.
 
     A searching ant moves to a neighbouring cell with a probability that grows with its pheromone and, by `outward`,
@@ -68,23 +68,23 @@ class Ant(Element):
             The pheromone an ant deposits per step home.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import Ant
-        >>> Ant.group('ants', 5, location=(0, 0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import AntComponent
+        >>> AntComponent.group('ants', 5, location=(0, 0)).size
         5
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)})
-    carrying: float = state(default=0.0, domain=Domain.BOOLEAN)
+    carrying: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
     nest_x: float = parameter(default=5.0)
     nest_y: float = parameter(default=10.0)
     food_x: float = parameter(default=34.0)
     food_y: float = parameter(default=10.0)
-    food_radius: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    attraction: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    outward: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    deposit: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    food_radius: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    attraction: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    outward: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    deposit: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the foraging rule.
 
         Args:
@@ -95,7 +95,7 @@ class Ant(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.forage)]
+        return [RuleLaw(self.forage)]
 
     def forage(self, agent: AgentView, model: ModelView) -> None:
         """Search for food along pheromone, or carry food home and mark the way.
@@ -181,7 +181,7 @@ def pheromone_foraging(
         ['colony', 'ground']
     """
     nest, food = (5, height // 2), (width - 6, height // 2)
-    ants = Ant.group(
+    ants = AntComponent.group(
         'ants',
         n_ants,
         location=nest,
@@ -191,9 +191,9 @@ def pheromone_foraging(
         food_y=float(food[1]),
         attraction=attraction,
     )
-    pheromone = Field(
+    pheromone = FieldComponent(
         'pheromone',
-        Pheromone,
+        PheromoneComponent,
         LatticeSpace((width, height)),
         boundary={'level': 'zero-flux'},
         values={'D': D, 'evaporation': evaporation},

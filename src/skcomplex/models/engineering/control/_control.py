@@ -5,12 +5,12 @@
 
 from sage.all__sagemath_symbolics import cos, pi, sin
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Rate, Symbols, derivative, step, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, Symbols, derivative, step, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
+from ....engine.solvers import RK4Solver
 
 HOURS_PER_DAY = 24.0
 DISTURBANCE_TIME = 10.0
@@ -54,18 +54,18 @@ def _energy_of_satellite(s: Symbols) -> Expression:
     return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
 
 
-Room = Element.define(
-    'Room',
+RoomComponent = ElementComponent.define(
+    'RoomComponent',
     states={'T': 10.0},
     parameters={
         'setting': 18.0,
-        'furnace': parameter(default=5.0, domain=Domain.NONNEGATIVE),
-        'leak': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'furnace': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
+        'leak': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
         'outside': 10.0,
-        'swing': parameter(default=0.0, domain=Domain.NONNEGATIVE),
+        'swing': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.T,
             where(s.setting - s.T > s.furnace, s.furnace, where(s.setting > s.T, s.setting - s.T, 0))
             - s.leak * (s.T - s.outside - s.swing * cos(2 * pi * (s.t - HOURS_PER_DAY / 2) / HOURS_PER_DAY)),
@@ -73,53 +73,53 @@ Room = Element.define(
     ],
 )
 
-ControlledProcess = Element.define(
-    'ControlledProcess',
+ControlledProcessComponent = ElementComponent.define(
+    'ControlledProcessComponent',
     states={'y': 0.0, 'integral': 0.0},
     parameters={
-        'tau': parameter(default=1.0, domain=Domain.POSITIVE),
+        'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE),
         'gain': parameter(default=1.0),
-        'Kp': parameter(default=2.0, domain=Domain.NONNEGATIVE),
-        'Ki': parameter(default=1.0, domain=Domain.NONNEGATIVE),
-        'Kd': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'Kp': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
+        'Ki': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
+        'Kd': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
         'setpoint': 1.0,
         'change': 0.0,
         'disturbance': -0.5,
     },
     laws=lambda s: [
-        Rate(
+        RateLaw(
             s.y,
             (-s.y + s.gain * (s.Kp * _error(s) + s.Ki * s.integral) + s.disturbance * step(s.t, DISTURBANCE_TIME))
             / (s.tau + s.gain * s.Kd),
         ),
-        Rate(s.integral, _error(s)),
+        RateLaw(s.integral, _error(s)),
     ],
 )
 
-SwingingPendulum = Element.define(
-    'SwingingPendulum',
+SwingingPendulumComponent = ElementComponent.define(
+    'SwingingPendulumComponent',
     states={'theta': state(default=0.0, order=2), 'f': state(default=0.0, order=2)},
     parameters={
-        'omega': parameter(default=1.5652475842498528, domain=Domain.POSITIVE),
-        'mu': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'omega': parameter(default=1.5652475842498528, domain=NumericDomain.POSITIVE),
+        'mu': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(s.theta, -(s.omega**2) * sin(s.theta) - _swing_up_control(s) * cos(s.theta)),
-        Rate(s.f, _swing_up_control(s)),
+        RateLaw(s.theta, -(s.omega**2) * sin(s.theta) - _swing_up_control(s) * cos(s.theta)),
+        RateLaw(s.f, _swing_up_control(s)),
     ],
 )
 
-Satellite = Element.define(
-    'Satellite',
-    states={'s': state(default=0.314, domain=Domain.POSITIVE, order=2), 'theta': 0.0},
+SatelliteComponent = ElementComponent.define(
+    'SatelliteComponent',
+    states={'s': state(default=0.314, domain=NumericDomain.POSITIVE, order=2), 'theta': 0.0},
     parameters={
-        'Lz': parameter(default=0.7, domain=Domain.POSITIVE),
-        'epsilon': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'Lz': parameter(default=0.7, domain=NumericDomain.POSITIVE),
+        'epsilon': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
         'H_final': -0.2,
     },
     laws=lambda s: [
-        Rate(s.s, s.Lz**2 / s.s**3 - 1 / s.s**2 - s.epsilon * _thrust_direction(s)),
-        Rate(s.theta, s.Lz / s.s**2),
+        RateLaw(s.s, s.Lz**2 / s.s**3 - 1 / s.s**2 - s.epsilon * _thrust_direction(s)),
+        RateLaw(s.theta, s.Lz / s.s**2),
     ],
 )
 
@@ -174,7 +174,7 @@ def thermostat(
         >>> thermostat(leak=0.3).elements[0].leak
         0.3
     """
-    room = Room('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
+    room = RoomComponent('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
     return System(components=[room])
 
 
@@ -241,7 +241,7 @@ def pid_loop(
         >>> pid_loop(Ki=0.0).elements[0].Ki
         0.0
     """
-    process = ControlledProcess(
+    process = ControlledProcessComponent(
         'process',
         y=y,
         integral=0.0,
@@ -261,7 +261,7 @@ def pid_loop(
     field='engineering/control',
     tags=('control', 'bang-bang', 'pendulum', 'energy', 'ode'),
     references=('Åström and Furuta 2000', 'Dilão 2023'),
-    defaults={'until': 100.0, 'dt': 0.1, 'solver': RK4(dt=0.01)},
+    defaults={'until': 100.0, 'dt': 0.1, 'solver': RK4Solver(dt=0.01)},
 )
 def pendulum_swing_up(
     theta: float = 0.0,
@@ -298,7 +298,7 @@ def pendulum_swing_up(
         >>> pendulum_swing_up(mu=0.2).elements[0].mu
         0.2
     """
-    pendulum = SwingingPendulum('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
+    pendulum = SwingingPendulumComponent('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
     return System(components=[pendulum])
 
 
@@ -306,7 +306,7 @@ def pendulum_swing_up(
     field='engineering/control',
     tags=('control', 'orbits', 'celestial mechanics', 'ode'),
     references=('Dilão et al. 2022', 'Dilão 2023'),
-    defaults={'until': 20.0, 'dt': 0.05, 'solver': RK4(dt=0.005)},
+    defaults={'until': 20.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.005)},
     observables=lambda system: [Observable('energy', _energy_of_satellite)],
 )
 def satellite_transfer(
@@ -355,5 +355,13 @@ def satellite_transfer(
         >>> satellite_transfer().elements[0].Lz
         0.7
     """
-    satellite = Satellite('satellite', s=s, s_d1=velocity, theta=theta, Lz=Lz, epsilon=epsilon, H_final=H_final)
+    satellite = SatelliteComponent(
+        'satellite',
+        s=s,
+        s_d1=velocity,
+        theta=theta,
+        Lz=Lz,
+        epsilon=epsilon,
+        H_final=H_final,
+    )
     return System(components=[satellite])

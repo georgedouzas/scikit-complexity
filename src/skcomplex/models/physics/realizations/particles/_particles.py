@@ -7,10 +7,16 @@
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from .....core.base import Domain, Expression, SymbolicVector, parameter, role
-from .....core.interactions import Interaction
-from .....core.laws import Law, Noise, Rate, Symbols
-from .....formalisms.particles import LammpsFix, PairPotential, Potential, register_lammps_fix, register_lammps_pair
+from .....core.base import Expression, NumericDomain, SymbolicVector, parameter, role
+from .....core.interactions import BaseInteraction
+from .....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
+from .....formalisms.particles import (
+    LammpsFix,
+    PairPotentialInteraction,
+    PotentialInteraction,
+    register_lammps_fix,
+    register_lammps_pair,
+)
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
@@ -19,7 +25,7 @@ def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
     return sqrt(difference.dot_product(difference))
 
 
-class ConstantForce(Interaction):
+class ConstantForceInteraction(BaseInteraction):
     """Constant force on a particle.
 
     Args:
@@ -33,15 +39,15 @@ class ConstantForce(Interaction):
             The force vector. A number applies to every component.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import ConstantForce
-        >>> ConstantForce('gravity', target='ball', F=[0, -9.81]).F
+        >>> from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
+        >>> ConstantForceInteraction('gravity', target='ball', F=[0, -9.81]).F
         [0, -9.81]
     """
 
     target: str = role()
     F: npt.ArrayLike = parameter(default=0.0, vector=True)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the velocity change `F / m`.
 
         Args:
@@ -52,10 +58,10 @@ class ConstantForce(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.v, s.F / s.target.m)]
+        return [RateLaw(s.target.v, s.F / s.target.m)]
 
 
-class LinearDrag(Interaction):
+class LinearDragInteraction(BaseInteraction):
     """Drag force proportional and opposite to the velocity of a particle.
 
     Args:
@@ -69,15 +75,15 @@ class LinearDrag(Interaction):
             The drag coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import LinearDrag
-        >>> LinearDrag('air', target='ball', gamma=0.1).gamma
+        >>> from skcomplex.models.physics.realizations.particles import LinearDragInteraction
+        >>> LinearDragInteraction('air', target='ball', gamma=0.1).gamma
         0.1
     """
 
     target: str = role()
-    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the velocity change `-gamma * v / m`.
 
         Args:
@@ -88,10 +94,10 @@ class LinearDrag(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.v, -s.gamma * s.target.v / s.target.m)]
+        return [RateLaw(s.target.v, -s.gamma * s.target.v / s.target.m)]
 
 
-class HarmonicPotential(Potential):
+class HarmonicPotentialInteraction(PotentialInteraction):
     """Harmonic potential that pulls a particle towards a center.
 
     The energy is `k * |x - center|**2 / 2`.
@@ -110,13 +116,13 @@ class HarmonicPotential(Potential):
             The center. A number applies to every component.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import HarmonicPotential
-        >>> HarmonicPotential('trap', target='ball', k=2.0).k
+        >>> from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
+        >>> HarmonicPotentialInteraction('trap', target='ball', k=2.0).k
         2.0
     """
 
     target: str = role()
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     center: npt.ArrayLike = parameter(default=0.0, vector=True)
 
     def energy(self, s: Symbols) -> Expression:
@@ -134,7 +140,7 @@ class HarmonicPotential(Potential):
         return s.k * displacement.dot_product(displacement) / 2
 
 
-class Spring(Potential):
+class SpringInteraction(PotentialInteraction):
     """Spring between two particles.
 
     The energy is `k * (|x_first - x_second| - length)**2 / 2`.
@@ -156,15 +162,15 @@ class Spring(Potential):
             The rest length.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import Spring
-        >>> Spring('spring', first='a', second='b', k=3.0, length=1.0).length
+        >>> from skcomplex.models.physics.realizations.particles import SpringInteraction
+        >>> SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0).length
         1.0
     """
 
     first: str = role()
     second: str = role()
-    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    length: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    length: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `k * (|x_first - x_second| - length)**2 / 2`.
@@ -180,7 +186,7 @@ class Spring(Potential):
         return s.k * (_distance(s.first.x, s.second.x) - s.length) ** 2 / 2
 
 
-class Gravity(Potential):
+class GravityInteraction(PotentialInteraction):
     """Newtonian gravity between two particles.
 
     The energy is `-G * m_first * m_second / |x_first - x_second|`.
@@ -199,14 +205,14 @@ class Gravity(Potential):
             The gravitational constant.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import Gravity
-        >>> Gravity('gravity', first='sun', second='earth', G=1.0).G
+        >>> from skcomplex.models.physics.realizations.particles import GravityInteraction
+        >>> GravityInteraction('gravity', first='sun', second='earth', G=1.0).G
         1.0
     """
 
     first: str = role()
     second: str = role()
-    G: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    G: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `-G * m_first * m_second / |x_first - x_second|`.
@@ -222,7 +228,7 @@ class Gravity(Potential):
         return -s.G * s.first.m * s.second.m / _distance(s.first.x, s.second.x)
 
 
-class LennardJones(PairPotential):
+class LennardJonesInteraction(PairPotentialInteraction):
     """Lennard-Jones pair potential, `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`, without a shift.
 
     Args:
@@ -248,13 +254,13 @@ class LennardJones(PairPotential):
             The distance at which the potential is zero.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import LennardJones
-        >>> LennardJones('lj', first='gas', second='gas', cutoff=2.5).sigma
+        >>> from skcomplex.models.physics.realizations.particles import LennardJonesInteraction
+        >>> LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5).sigma
         1.0
     """
 
-    epsilon: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    sigma: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    epsilon: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    sigma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
@@ -273,7 +279,7 @@ class LennardJones(PairPotential):
         return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
 
 
-class SoftSphere(PairPotential):
+class SoftSphereInteraction(PairPotentialInteraction):
     """Soft repulsion between overlapping spheres, `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
 
     Args:
@@ -296,12 +302,12 @@ class SoftSphere(PairPotential):
             The stiffness.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import SoftSphere
-        >>> SoftSphere('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
+        >>> from skcomplex.models.physics.realizations.particles import SoftSphereInteraction
+        >>> SoftSphereInteraction('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
         50.0
     """
 
-    k: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `k * (cutoff - r) ** 2 / 2`.
@@ -320,7 +326,7 @@ class SoftSphere(PairPotential):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-class LangevinThermostat(Interaction):
+class LangevinThermostatInteraction(BaseInteraction):
     """Langevin thermostat, which adds a drag `-gamma * v` and a random force that hold particles at a temperature.
 
     Every velocity component follows `dv = -gamma * v / m * dt + sqrt(2 * gamma * temperature) / m * dW`, with the
@@ -341,16 +347,16 @@ class LangevinThermostat(Interaction):
             The friction coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations.particles import LangevinThermostat
-        >>> LangevinThermostat('bath', target='gas', temperature=2.0).temperature
+        >>> from skcomplex.models.physics.realizations.particles import LangevinThermostatInteraction
+        >>> LangevinThermostatInteraction('bath', target='gas', temperature=2.0).temperature
         2.0
     """
 
     target: str = role()
-    temperature: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the drag and the random force on every velocity component.
 
         Args:
@@ -363,8 +369,8 @@ class LangevinThermostat(Interaction):
         """
         velocity, mass = s.target.v, s.target.m
         return [
-            Rate(velocity, -s.gamma * velocity / mass),
-            Noise(velocity, sqrt(2 * s.gamma * s.temperature) / mass),
+            RateLaw(velocity, -s.gamma * velocity / mass),
+            NoiseLaw(velocity, sqrt(2 * s.gamma * s.temperature) / mass),
         ]
 
 
@@ -390,7 +396,7 @@ def _langevin(fix: LammpsFix) -> str:
     return f'fix {fix.name} {fix.group} langevin {temperature} {temperature} {fix.mass() / gamma} {fix.seed()}'
 
 
-register_lammps_pair(LennardJones, 'lj/cut', _lennard_jones)
-register_lammps_fix(ConstantForce, _addforce)
-register_lammps_fix(LinearDrag, _viscous)
-register_lammps_fix(LangevinThermostat, _langevin)
+register_lammps_pair(LennardJonesInteraction, 'lj/cut', _lennard_jones)
+register_lammps_fix(ConstantForceInteraction, _addforce)
+register_lammps_fix(LinearDragInteraction, _viscous)
+register_lammps_fix(LangevinThermostatInteraction, _langevin)

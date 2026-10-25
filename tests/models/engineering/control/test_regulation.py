@@ -7,7 +7,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.analysis import controllability, linearize
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
-from skcomplex.models.engineering.control import CartPendulum
+from skcomplex.models.engineering.control import CartPendulumComponent
 
 
 def test_pid_inverted_pendulum_returns_upright():
@@ -21,7 +21,9 @@ def test_pid_inverted_pendulum_returns_upright():
 
 def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
-    trajectory = Simulation(System(components=[CartPendulum('cart', theta=0.1)]), dt=0.1).run(until=1.0).trajectory_
+    trajectory = (
+        Simulation(System(components=[CartPendulumComponent('cart', theta=0.1)]), dt=0.1).run(until=1.0).trajectory_
+    )
     assert trajectory['cart.theta'][-1] > 0.5
 
 

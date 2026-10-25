@@ -8,17 +8,17 @@ from typing import Any
 import numpy as np
 from scipy.optimize import brentq
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
-from ....formalisms.fields import Field, laplacian
+from ....engine.solvers import ScipyODESolver
+from ....formalisms.fields import FieldComponent, laplacian
 
 
-class MinSkeleton(Element):
+class MinSkeletonComponent(ElementComponent):
     """Site of the Min skeleton model, with membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
 
     The reactions are the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the
@@ -67,25 +67,25 @@ class MinSkeleton(Element):
             The nucleotide exchange rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import MinSkeleton
-        >>> MinSkeleton('site').lam
+        >>> from skcomplex.models.biology.systems_biology import MinSkeletonComponent
+        >>> MinSkeletonComponent('site').lam
         6.0
     """
 
-    md: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    mde: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    cdt: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    cdd: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    ce: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Dm: float = parameter(default=0.013, domain=Domain.POSITIVE)
-    Dc: float = parameter(default=60.0, domain=Domain.POSITIVE)
-    k_d: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k_dd: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k_de: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    k_off: float = parameter(default=0.4, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=6.0, domain=Domain.NONNEGATIVE)
+    md: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    mde: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    cdt: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    cdd: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ce: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Dm: float = parameter(default=0.013, domain=NumericDomain.POSITIVE)
+    Dc: float = parameter(default=60.0, domain=NumericDomain.POSITIVE)
+    k_d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k_dd: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k_de: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    k_off: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=6.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reactions and the diffusion of the five species.
 
         Args:
@@ -101,15 +101,15 @@ class MinSkeleton(Element):
         release = s.k_off * s.mde
         exchange = s.lam * s.cdd
         return [
-            Rate(s.md, s.Dm * laplacian(s.md) + attach - recruit),
-            Rate(s.mde, s.Dm * laplacian(s.mde) + recruit - release),
-            Rate(s.cdt, s.Dc * laplacian(s.cdt) - attach + exchange),
-            Rate(s.cdd, s.Dc * laplacian(s.cdd) + release - exchange),
-            Rate(s.ce, s.Dc * laplacian(s.ce) - recruit + release),
+            RateLaw(s.md, s.Dm * laplacian(s.md) + attach - recruit),
+            RateLaw(s.mde, s.Dm * laplacian(s.mde) + recruit - release),
+            RateLaw(s.cdt, s.Dc * laplacian(s.cdt) - attach + exchange),
+            RateLaw(s.cdd, s.Dc * laplacian(s.cdd) + release - exchange),
+            RateLaw(s.ce, s.Dc * laplacian(s.ce) - recruit + release),
         ]
 
 
-def _uniform_state(element: MinSkeleton, total_D: float, total_E: float) -> dict[str, float]:
+def _uniform_state(element: MinSkeletonComponent, total_D: float, total_E: float) -> dict[str, float]:
     """Return the uniform steady state of the skeleton model with the totals of MinD and MinE."""
 
     def others(md: float) -> tuple[float, float, float, float]:
@@ -130,7 +130,7 @@ def _uniform_state(element: MinSkeleton, total_D: float, total_E: float) -> dict
     field='biology/systems_biology',
     tags=('field', 'min proteins', 'mass conserving', 'reaction-diffusion', 'traveling waves', 'pde'),
     references=('Brauns and Marchetti 2024', 'Halatek and Frey 2018', 'Huang, Meir, and Wingreen 2003'),
-    defaults={'until': 400.0, 'dt': 4.0, 'solver': ScipyODE(method='BDF', jacobian='exact')},
+    defaults={'until': 400.0, 'dt': 4.0, 'solver': ScipyODESolver(method='BDF', jacobian='exact')},
 )
 def min_protein_skeleton(
     n_sites: int = 128,
@@ -143,10 +143,10 @@ def min_protein_skeleton(
     """Return the skeleton model of the Min proteins on a periodic line, a mass-conserving reaction-diffusion system.
 
     MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast,
-    with the reactions of `MinSkeleton`. The reactions conserve the totals of MinD and MinE, so only diffusion moves
-    mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal cross-diffusion
-    (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an oscillatory band of
-    wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on.
+    with the reactions of `MinSkeletonComponent`. The reactions conserve the totals of MinD and MinE, so only diffusion
+    moves mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal
+    cross-diffusion (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an
+    oscillatory band of wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on.
     The fast cytosolic diffusion and the fast recruitment make the system stiff, so the catalog registers the implicit
     `BDF` method with the exact Jacobian.
 
@@ -178,10 +178,10 @@ def min_protein_skeleton(
         120.0
     """
     rng = np.random.default_rng(random_state)
-    uniform = _uniform_state(MinSkeleton('site'), total_D, total_E)
+    uniform = _uniform_state(MinSkeletonComponent('site'), total_D, total_E)
     values: dict[str, Any] = {name: np.full(n_sites, value) for name, value in uniform.items()}
     noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, n_sites)
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise
     space = LatticeSpace(n_sites, spacing=length / n_sites)
-    return System(components=[Field('cell', MinSkeleton, space, values=values)])
+    return System(components=[FieldComponent('cell', MinSkeletonComponent, space, values=values)])

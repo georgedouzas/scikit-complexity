@@ -9,13 +9,13 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -27,7 +27,7 @@ def _hebbian_weights(patterns: Array) -> Array:
     return weights
 
 
-class Neuron(Element):
+class NeuronComponent(ElementComponent):
     """Binary neuron of a Hopfield network, which aligns with the sign of its weighted input when it updates.
 
     The neuron sits on its node of a complete graph and holds the weights of its incoming links, one per node.
@@ -43,16 +43,16 @@ class Neuron(Element):
             The weights of the links from every node, an array with one value per node.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import Neuron
-        >>> Neuron.group('neurons', 4, spin=1.0)
-        Group('neurons', element=Neuron, size=4)
+        >>> from skcomplex.models.computer_science.neural_networks import NeuronComponent
+        >>> NeuronComponent.group('neurons', 4, spin=1.0)
+        GroupComponent('neurons', element=NeuronComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})
-    spin: float = state(default=1.0, domain=Domain.INTEGER)
+    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
     weights: object = state(default=0.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the update rule.
 
         Args:
@@ -63,7 +63,7 @@ class Neuron(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.update)]
+        return [RuleLaw(self.update)]
 
     def update(self, agent: AgentView, model: ModelView) -> None:
         """Take the sign of the weighted input from the other neurons, and keep the state when the input is zero.
@@ -132,5 +132,5 @@ def hopfield(
     )
     size = stored.shape[1]
     spins = np.where(rng.random(size) < noise, -stored[0], stored[0])
-    neurons = Neuron.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
+    neurons = NeuronComponent.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
     return System(components=[neurons], space=NetworkSpace(nx.complete_graph(size)))

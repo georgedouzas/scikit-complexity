@@ -16,9 +16,9 @@ import numpy as np
 from matching.games import HospitalResident
 
 from ....core.base import role
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
-from ....formalisms.agents import Rule
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
+from ....formalisms.agents import RuleLaw
 
 type Preference = Callable[[Any, Any], float]
 
@@ -614,7 +614,7 @@ def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
         setattr(agent, name, value)
 
 
-class Market(Interaction):
+class MarketInteraction(BaseInteraction):
     """Market between two agent groups, matched by a protocol and settled by transfers between the agents.
 
     Buyers state the highest price they pay in the state `bid` and the quantity they want in `demand`, and sellers the
@@ -667,8 +667,8 @@ class Market(Interaction):
                 The path of the group of sellers.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import Market, OrderBook
-        >>> Market('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
+        >>> from skcomplex.models.economics.realizations import MarketInteraction, OrderBook
+        >>> MarketInteraction('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
         ('price', 'volume', 'unmatched')
     """
 
@@ -702,7 +702,7 @@ class Market(Interaction):
         self.goods = goods
         self.on_trade = on_trade
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.
 
         Args:
@@ -713,7 +713,7 @@ class Market(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.clear, phase=self.phase)]
+        return [RuleLaw(self.clear, phase=self.phase)]
 
     def orders(self, model: Any) -> tuple[list[Order], list[Order]]:  # noqa: ANN401
         """Return the orders of the buyers and the sellers with something to trade.

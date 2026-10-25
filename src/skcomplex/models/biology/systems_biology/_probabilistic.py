@@ -8,10 +8,10 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Domain, Expression, ValidationError, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, categorical, where
+from ....core.base import Expression, NumericDomain, ValidationError, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols, UpdateLaw, categorical, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._boolean import _pattern
@@ -26,7 +26,7 @@ SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {
 }
 
 
-class ProbabilisticNode(Element):
+class ProbabilisticNodeComponent(ElementComponent):
     """Node of a probabilistic Boolean network, on or off, with the index of the function that set it last.
 
     Args:
@@ -40,16 +40,16 @@ class ProbabilisticNode(Element):
             The index of the candidate function of the last update, 0 at the start.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import ProbabilisticNode
-        >>> ProbabilisticNode('x1', x=1).x
+        >>> from skcomplex.models.biology.systems_biology import ProbabilisticNodeComponent
+        >>> ProbabilisticNodeComponent('x1', x=1).x
         1
     """
 
-    x: float = state(default=0, domain=Domain.BOOLEAN)
-    function: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    x: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    function: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class ProbabilisticFunction(Interaction):
+class ProbabilisticFunctionInteraction(BaseInteraction):
     """Synchronous update of a node by one of several truth tables, drawn with given probabilities at every step.
 
     Each table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and
@@ -69,14 +69,14 @@ class ProbabilisticFunction(Interaction):
             The values of the declared variables, by name:
 
             target:
-                The path of the updated node, a `ProbabilisticNode`.
+                The path of the updated node, a `ProbabilisticNodeComponent`.
 
             inputs:
                 The paths of the input nodes, in the order of the bits of the tables.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import ProbabilisticFunction
-        >>> function = ProbabilisticFunction(
+        >>> from skcomplex.models.biology.systems_biology import ProbabilisticFunctionInteraction
+        >>> function = ProbabilisticFunctionInteraction(
         ...     'f', target='c', inputs=['a', 'b'], tables=((0, 0, 0, 1), (0, 1, 1, 1)), probabilities=(0.7, 0.3)
         ... )
         >>> function.probabilities
@@ -108,7 +108,7 @@ class ProbabilisticFunction(Interaction):
             raise ValidationError(error_msg)
         return sum((_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the update of the target by the drawn table and the record of the drawn index.
 
         Args:
@@ -135,7 +135,7 @@ class ProbabilisticFunction(Interaction):
         value = values[-1]
         for index in range(len(values) - 2, -1, -1):
             value = where(chosen == index, values[index], value)
-        return [Update(s.target.x, value), Update(s.target.function, chosen)]
+        return [UpdateLaw(s.target.x, value), UpdateLaw(s.target.function, chosen)]
 
 
 @register_model(
@@ -178,9 +178,9 @@ def probabilistic_boolean_network(
         (0.6, 0.4)
     """
     chosen = SHMULEVICH_NETWORK if network is None else network
-    nodes = [ProbabilisticNode(name, x=int(name in active)) for name in chosen]
+    nodes = [ProbabilisticNodeComponent(name, x=int(name in active)) for name in chosen]
     functions = [
-        ProbabilisticFunction(
+        ProbabilisticFunctionInteraction(
             f'functions_{name}',
             target=name,
             inputs=list(inputs),

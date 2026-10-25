@@ -8,12 +8,12 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp, log, pi
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse_train
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import ScipyODE
+from ....engine.solvers import ScipyODESolver
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INHIBITOR_CLEARANCE = math.log(2) / 3.9
@@ -34,7 +34,7 @@ def _core_ratio(radius: Expression) -> Expression:
     return _switch(radius, 0.5, 0.333) ** 2.2 - 0.15
 
 
-class AngiogenicTumour(Element):
+class AngiogenicTumourComponent(ElementComponent):
     """Tumour volume, the vascular volume that sets its carrying capacity, and an angiogenesis inhibitor.
 
     The tumour follows `dA/dt = -lambda1 A log(A / Vb)`, the vasculature
@@ -89,21 +89,21 @@ class AngiogenicTumour(Element):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AngiogenicTumour
-        >>> AngiogenicTumour('tumour').xi_s
+        >>> from skcomplex.models.biology.oncology import AngiogenicTumourComponent
+        >>> AngiogenicTumourComponent('tumour').xi_s
         5.85
     """
 
-    A: float = state(default=17347.0, domain=Domain.NONNEGATIVE)
-    Vb: float = state(default=17347.0, domain=Domain.POSITIVE)
-    U: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    lambda1: float = parameter(default=0.192, domain=Domain.POSITIVE)
-    lambda2: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    xi_s: float = parameter(default=5.85, domain=Domain.POSITIVE)
-    xi_i: float = parameter(default=0.00873, domain=Domain.POSITIVE)
-    a: float = parameter(default=0.66, domain=Domain.NONNEGATIVE)
-    du: float = parameter(default=1.3, domain=Domain.POSITIVE)
-    dose: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
+    A: float = state(default=17347.0, domain=NumericDomain.NONNEGATIVE)
+    Vb: float = state(default=17347.0, domain=NumericDomain.POSITIVE)
+    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lambda1: float = parameter(default=0.192, domain=NumericDomain.POSITIVE)
+    lambda2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    xi_s: float = parameter(default=5.85, domain=NumericDomain.POSITIVE)
+    xi_i: float = parameter(default=0.00873, domain=NumericDomain.POSITIVE)
+    a: float = parameter(default=0.66, domain=NumericDomain.NONNEGATIVE)
+    du: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
+    dose: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -119,7 +119,7 @@ class AngiogenicTumour(Element):
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the Gompertz growth of the tumour, the balance of the vasculature, and the inhibitor kinetics.
 
         Args:
@@ -132,13 +132,13 @@ class AngiogenicTumour(Element):
         """
         infusion = s.dose * pulse_train(s.t, self.period, self.width, start=self.start)
         return [
-            Rate(s.A, -s.lambda1 * s.A * log(s.A / s.Vb)),
-            Rate(s.Vb, -s.lambda2 * s.Vb + s.xi_s * s.A - s.xi_i * s.Vb * s.A ** (2 / 3) - s.a * s.Vb * s.U),
-            Rate(s.U, infusion - s.du * s.U),
+            RateLaw(s.A, -s.lambda1 * s.A * log(s.A / s.Vb)),
+            RateLaw(s.Vb, -s.lambda2 * s.Vb + s.xi_s * s.A - s.xi_i * s.Vb * s.A ** (2 / 3) - s.a * s.Vb * s.U),
+            RateLaw(s.U, infusion - s.du * s.U),
         ]
 
 
-class VascularizedSpheroid(Element):
+class VascularizedSpheroidComponent(ElementComponent):
     """Tumour spheroid with a live core, a live periphery, a necrotic core, and the vasculature of core and periphery.
 
     The radius grows as `dAr/dt = r1 g(Ap / Vp)`, with `g` a sigmoid of the peripheral cell density. The core volume
@@ -257,41 +257,41 @@ class VascularizedSpheroid(Element):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VascularizedSpheroid
-        >>> VascularizedSpheroid('tumour').Ap
+        >>> from skcomplex.models.biology.oncology import VascularizedSpheroidComponent
+        >>> VascularizedSpheroidComponent('tumour').Ap
         495.0
     """
 
-    Ar: float = state(default=13.0, domain=Domain.POSITIVE)
-    Ac: float = state(default=3.0, domain=Domain.NONNEGATIVE)
-    Ap: float = state(default=495.0, domain=Domain.NONNEGATIVE)
-    An: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Vbc: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Vbp: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    U: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=1.2, domain=Domain.POSITIVE)
-    r2: float = parameter(default=12.0, domain=Domain.POSITIVE)
-    r3: float = parameter(default=0.06, domain=Domain.NONNEGATIVE)
-    m: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    p1: float = parameter(default=1.0, domain=Domain.REAL)
-    p2: float = parameter(default=4e5, domain=Domain.REAL)
-    p3: float = parameter(default=0.2, domain=Domain.REAL)
-    p4: float = parameter(default=0.45, domain=Domain.REAL)
-    p_g: float = parameter(default=4e5, domain=Domain.REAL)
-    kappa1: float = parameter(default=0.17, domain=Domain.REAL)
-    kappa2: float = parameter(default=-45000.0, domain=Domain.REAL)
-    kappa3: float = parameter(default=-0.04, domain=Domain.REAL)
-    kappa4: float = parameter(default=-0.06, domain=Domain.REAL)
-    kappa_g: float = parameter(default=55000.0, domain=Domain.REAL)
-    theta1: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    theta2: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    beta: float = parameter(default=1.2, domain=Domain.POSITIVE)
-    xi_e: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    rv_ref: float = parameter(default=0.005, domain=Domain.POSITIVE)
-    Vx: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    du: float = parameter(default=INHIBITOR_CLEARANCE, domain=Domain.POSITIVE)
-    dose: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
+    Ar: float = state(default=13.0, domain=NumericDomain.POSITIVE)
+    Ac: float = state(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    Ap: float = state(default=495.0, domain=NumericDomain.NONNEGATIVE)
+    An: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Vbc: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Vbp: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
+    r2: float = parameter(default=12.0, domain=NumericDomain.POSITIVE)
+    r3: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
+    m: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    p1: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    p2: float = parameter(default=4e5, domain=NumericDomain.REAL)
+    p3: float = parameter(default=0.2, domain=NumericDomain.REAL)
+    p4: float = parameter(default=0.45, domain=NumericDomain.REAL)
+    p_g: float = parameter(default=4e5, domain=NumericDomain.REAL)
+    kappa1: float = parameter(default=0.17, domain=NumericDomain.REAL)
+    kappa2: float = parameter(default=-45000.0, domain=NumericDomain.REAL)
+    kappa3: float = parameter(default=-0.04, domain=NumericDomain.REAL)
+    kappa4: float = parameter(default=-0.06, domain=NumericDomain.REAL)
+    kappa_g: float = parameter(default=55000.0, domain=NumericDomain.REAL)
+    theta1: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    theta2: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    beta: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
+    xi_e: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    rv_ref: float = parameter(default=0.005, domain=NumericDomain.POSITIVE)
+    Vx: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    du: float = parameter(default=INHIBITOR_CLEARANCE, domain=NumericDomain.POSITIVE)
+    dose: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -307,7 +307,7 @@ class VascularizedSpheroid(Element):
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth of the radius, the cell balances, the vascular balances, and the inhibitor kinetics.
 
         Args:
@@ -335,13 +335,13 @@ class VascularizedSpheroid(Element):
         internalization = s.r3 * s.Ar**s.beta * transfer * s.Vbp
         infusion = s.dose * pulse_train(s.t, self.period, self.width, start=self.start)
         return [
-            Rate(s.Ar, growth),
-            Rate(s.Ac, transfer * s.Ap - necrosis),
-            Rate(s.Ap, -transfer * s.Ap + proliferation),
-            Rate(s.An, necrosis),
-            Rate(s.Vbc, internalization + angiogenesis),
-            Rate(s.Vbp, s.Vx * volume_increment - internalization + angiogenesis),
-            Rate(s.U, infusion - s.du * s.U),
+            RateLaw(s.Ar, growth),
+            RateLaw(s.Ac, transfer * s.Ap - necrosis),
+            RateLaw(s.Ap, -transfer * s.Ap + proliferation),
+            RateLaw(s.An, necrosis),
+            RateLaw(s.Vbc, internalization + angiogenesis),
+            RateLaw(s.Vbp, s.Vx * volume_increment - internalization + angiogenesis),
+            RateLaw(s.U, infusion - s.du * s.U),
         ]
 
 
@@ -422,7 +422,7 @@ def hahnfeldt(
         >>> hahnfeldt(dose=0.0).elements[0].dose
         0.0
     """
-    tumour = AngiogenicTumour(
+    tumour = AngiogenicTumourComponent(
         'tumour',
         A=A,
         Vb=Vb,
@@ -444,7 +444,7 @@ def hahnfeldt(
     field='biology/oncology',
     tags=('anti-angiogenic therapy', 'ode', 'angiogenesis', 'necrosis', 'dosing'),
     references=(BOOK_REFERENCE, 'Csercsik et al. 2017'),
-    defaults={'until': 60.0, 'dt': 0.2, 'solver': ScipyODE(method='LSODA', rtol=1e-8, atol=1e-8)},
+    defaults={'until': 60.0, 'dt': 0.2, 'solver': ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)},
 )
 def vascular_core_periphery(
     *,
@@ -500,7 +500,7 @@ def vascular_core_periphery(
         >>> vascular_core_periphery(dose=0.0).elements[0].dose
         0.0
     """
-    tumour = VascularizedSpheroid(
+    tumour = VascularizedSpheroidComponent(
         'tumour',
         Vx=Vx,
         xi_e=xi_e,

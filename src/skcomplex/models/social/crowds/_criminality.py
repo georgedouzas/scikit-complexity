@@ -8,14 +8,14 @@ from functools import partial
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, Expression, parameter, role, state
-from ....core.components import Element, Group
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.components import ElementComponent, GroupComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.kinetics import Encounter, moment
+from ....formalisms.kinetics import EncounterLaw, moment
 
 CRIMINAL_THRESHOLD = 0.5
 CRIMINALITY_REFERENCES = ('Bellomo et al. 2017', 'Bellomo, Colasuonno, Knopoff, and Soler 2015')
@@ -161,7 +161,7 @@ def security_density(s: Symbols, forces: int) -> Expression:
     return moment(s.f, 0, np.arange(forces, dtype=float))
 
 
-class Citizens(Element):
+class CitizensComponent(ElementComponent):
     """Density of citizens at one criminality class, a member of a distribution over criminality.
 
     Args:
@@ -172,15 +172,15 @@ class Citizens(Element):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Citizens
-        >>> Citizens.group('citizens', 5, f=0.2).size
+        >>> from skcomplex.models.social.crowds import CitizensComponent
+        >>> CitizensComponent.group('citizens', 5, f=0.2).size
         5
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class SecurityAgents(Element):
+class SecurityAgentsComponent(ElementComponent):
     """Density of security agents at one efficacy class, with the share of new recruits that join the class.
 
     Args:
@@ -194,16 +194,16 @@ class SecurityAgents(Element):
             The share of new recruits that join the efficacy class.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import SecurityAgents
-        >>> SecurityAgents.group('security', 3, share=[0.5, 0.3, 0.2]).size
+        >>> from skcomplex.models.social.crowds import SecurityAgentsComponent
+        >>> SecurityAgentsComponent.group('security', 3, share=[0.5, 0.3, 0.2]).size
         3
     """
 
-    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    share: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    share: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class CriminalContagion(Interaction):
+class CriminalContagionInteraction(BaseInteraction):
     """Conservative encounters between citizens, in which crime attracts and honesty redeems.
 
     Args:
@@ -226,18 +226,18 @@ class CriminalContagion(Interaction):
             The probability that a citizen who meets a more honest one moves one class down.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import CriminalContagion
-        >>> CriminalContagion('contagion', citizens='citizens').attraction
+        >>> from skcomplex.models.social.crowds import CriminalContagionInteraction
+        >>> CriminalContagionInteraction('contagion', citizens='citizens').attraction
         0.3
     """
 
     citizens: str = role()
-    classes: int = parameter(default=5, domain=Domain.POSITIVE)
-    eta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    attraction: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    redemption: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
+    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    attraction: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    redemption: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the citizens with themselves.
 
         Args:
@@ -249,10 +249,10 @@ class CriminalContagion(Interaction):
                 The laws of the component.
         """
         table = contagion_table(int(self.classes), s.attraction, s.redemption)
-        return [Encounter(s.citizens.f, s.citizens.f, s.eta, table)]
+        return [EncounterLaw(s.citizens.f, s.citizens.f, s.eta, table)]
 
 
-class Deterrence(Interaction):
+class DeterrenceInteraction(BaseInteraction):
     """Encounters of citizens with security forces, which move criminal citizens toward honesty.
 
     Args:
@@ -275,18 +275,18 @@ class Deterrence(Interaction):
             The rate at which the most effective agents deter a criminal citizen.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Deterrence
-        >>> Deterrence('deterrence', citizens='citizens', security='security').deterrence
+        >>> from skcomplex.models.social.crowds import DeterrenceInteraction
+        >>> DeterrenceInteraction('deterrence', citizens='citizens', security='security').deterrence
         2.0
     """
 
     citizens: str = role()
     security: str = role()
-    classes: int = parameter(default=5, domain=Domain.POSITIVE)
-    forces: int = parameter(default=3, domain=Domain.POSITIVE)
-    deterrence: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
+    forces: int = parameter(default=3, domain=NumericDomain.POSITIVE)
+    deterrence: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the encounter of the citizens with the security forces.
 
         Args:
@@ -298,10 +298,10 @@ class Deterrence(Interaction):
                 The laws of the component.
         """
         pattern, table = deterrence_table(int(self.classes), int(self.forces))
-        return [Encounter(s.citizens.f, s.security.f, pattern * s.deterrence, table)]
+        return [EncounterLaw(s.citizens.f, s.security.f, pattern * s.deterrence, table)]
 
 
-class Recruitment(Interaction):
+class RecruitmentInteraction(BaseInteraction):
     """Recruitment of security agents in proportion to the mean criminality, a macro-scale external action.
 
     The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean
@@ -327,18 +327,18 @@ class Recruitment(Interaction):
             The retirement rate.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import Recruitment
-        >>> Recruitment('recruitment', citizens='citizens', security='security').retirement
+        >>> from skcomplex.models.social.crowds import RecruitmentInteraction
+        >>> RecruitmentInteraction('recruitment', citizens='citizens', security='security').retirement
         0.1
     """
 
     citizens: str = role()
     security: str = role()
-    classes: int = parameter(default=5, domain=Domain.POSITIVE)
-    recruitment: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    retirement: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
+    recruitment: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    retirement: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate of the security forces.
 
         Args:
@@ -350,7 +350,7 @@ class Recruitment(Interaction):
                 The laws of the component.
         """
         criminality = moment(s.citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
-        return [Rate(s.security.f, s.recruitment * criminality * s.security.share - s.retirement * s.security.f)]
+        return [RateLaw(s.security.f, s.recruitment * criminality * s.security.share - s.retirement * s.security.f)]
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
@@ -457,10 +457,10 @@ def criminality(
     citizens[0], citizens[-1] = 1.0 - criminals, criminals
     return System(
         components=[
-            Group('citizens', element=Citizens, size=classes, on='sites', values={'f': citizens}),
-            Group(
+            GroupComponent('citizens', element=CitizensComponent, size=classes, on='sites', values={'f': citizens}),
+            GroupComponent(
                 'security',
-                element=SecurityAgents,
+                element=SecurityAgentsComponent,
                 size=forces,
                 on='sites',
                 space=LatticeSpace(forces, boundary='fixed'),
@@ -468,14 +468,14 @@ def criminality(
             ),
         ],
         interactions=[
-            CriminalContagion(
+            CriminalContagionInteraction(
                 'contagion',
                 citizens='citizens',
                 classes=classes,
                 attraction=attraction,
                 redemption=redemption,
             ),
-            Deterrence(
+            DeterrenceInteraction(
                 'deterrence',
                 citizens='citizens',
                 security='security',
@@ -483,7 +483,7 @@ def criminality(
                 forces=forces,
                 deterrence=deterrence,
             ),
-            Recruitment(
+            RecruitmentInteraction(
                 'recruitment',
                 citizens='citizens',
                 security='security',

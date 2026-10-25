@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class TwoCompartment(Element):
+class TwoCompartmentComponent(ElementComponent):
     """Drug in a central compartment, where it is eliminated, exchanged with a peripheral compartment.
 
     The central concentration follows `dUc/dt = k21 Up - (k10 + k12) Uc` and the peripheral one
@@ -36,18 +36,18 @@ class TwoCompartment(Element):
             The transfer rate from the peripheral to the central compartment.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import TwoCompartment
-        >>> TwoCompartment('patient').k12
+        >>> from skcomplex.models.biology.physiology import TwoCompartmentComponent
+        >>> TwoCompartmentComponent('patient').k12
         0.0475
     """
 
-    Uc: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    Up: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    k10: float = parameter(default=0.082, domain=Domain.NONNEGATIVE)
-    k12: float = parameter(default=0.0475, domain=Domain.NONNEGATIVE)
-    k21: float = parameter(default=0.00125, domain=Domain.NONNEGATIVE)
+    Uc: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    Up: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    k10: float = parameter(default=0.082, domain=NumericDomain.NONNEGATIVE)
+    k12: float = parameter(default=0.0475, domain=NumericDomain.NONNEGATIVE)
+    k21: float = parameter(default=0.00125, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the exchange between the compartments and the elimination from the central one.
 
         Args:
@@ -59,7 +59,7 @@ class TwoCompartment(Element):
                 The laws of the component.
         """
         transfer = s.k12 * s.Uc - s.k21 * s.Up
-        return [Rate(s.Uc, -transfer - s.k10 * s.Uc), Rate(s.Up, transfer)]
+        return [RateLaw(s.Uc, -transfer - s.k10 * s.Uc), RateLaw(s.Up, transfer)]
 
 
 @register_model(
@@ -106,4 +106,4 @@ def two_compartment_pharmacokinetics(
         >>> two_compartment_pharmacokinetics(c0=5.0).elements[0].Uc
         5.0
     """
-    return System(components=[TwoCompartment('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])
+    return System(components=[TwoCompartmentComponent('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])

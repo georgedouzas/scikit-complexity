@@ -7,17 +7,17 @@ import numpy.typing as npt
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
-from skcomplex.engine.solvers import ScipyODE, Stepper
+from skcomplex.engine.solvers import ScipyODESolver, Solver
 from skcomplex.models import describe
 
-ACCURATE = ScipyODE(method='DOP853', rtol=1e-10, atol=1e-12)
+ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
 def _run(
     system: System,
     until: float,
     dt: float,
-    solver: str | Stepper = ACCURATE,
+    solver: str | Solver = ACCURATE,
     **settings: Any,  # noqa: ANN401
 ) -> Trajectory:
     """Return the trajectory of a system run to a time."""

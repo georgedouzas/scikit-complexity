@@ -10,15 +10,15 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Invariant, Law, Symbols, transfer
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Invariant, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.analysis import gini
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 
 MODES = ('hunter_gatherer', 'monetary')
 PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
@@ -101,7 +101,7 @@ def _shops(left: Sequence[Any], right: Sequence[Any], rng: np.random.Generator, 
     return pairs
 
 
-class Plot(Element):
+class PlotComponent(ElementComponent):
     """Patch of land whose food grows back by a share of its capacity every step, harvested against a resistance.
 
     Args:
@@ -121,17 +121,17 @@ class Plot(Element):
             The share of the capacity that grows back in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Plot
-        >>> Plot('patch').regrowth
+        >>> from skcomplex.models.economics.macroeconomics import PlotComponent
+        >>> PlotComponent('patch').regrowth
         1.0
     """
 
-    food: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    capacity: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    resistance: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    regrowth: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    food: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    capacity: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    resistance: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    regrowth: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regrowth rule in the phase of growth.
 
         Args:
@@ -142,7 +142,7 @@ class Plot(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.grow, phase='growth')]
+        return [RuleLaw(self.grow, phase='growth')]
 
     def grow(self, agent: AgentView, model: ModelView) -> None:
         """Grow food back up to the capacity.
@@ -157,7 +157,7 @@ class Plot(Element):
         agent.food = min(agent.capacity, agent.food + agent.regrowth * agent.capacity)
 
 
-class Settler(Element):
+class SettlerComponent(ElementComponent):
     """Mortal person who eats, ages, raises children, moves, and, in the monetary economy, works and founds firms.
 
     Every step a person eats `need` food and starves when its food runs out, and past `lifespan` it dies of old age
@@ -242,36 +242,36 @@ class Settler(Element):
             One in the monetary economy, zero among hunter-gatherers.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Settler
-        >>> Settler.group('people', 3, variable=True).size
+        >>> from skcomplex.models.economics.macroeconomics import SettlerComponent
+        >>> SettlerComponent.group('people', 3, variable=True).size
         3
     """
 
     food: float = state(default=10.0)
     money: float = state(default=0.0, quantity='money')
     loans: float = state(default=0.0, quantity='credit')
-    age: float = state(default=20.0, domain=Domain.NONNEGATIVE_INTEGER)
+    age: float = state(default=20.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
     parent: float = state(default=-1.0)
     employer: float = state(default=-1.0)
     harvested: float = state(default=0.0)
     born: float = state(default=-100.0)
     fate: float = state(default=ALIVE)
-    fertility: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    exploration: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    enterprise: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    restlessness: float = state(default=0.1, domain=Domain.NONNEGATIVE)
-    labour: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    need: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    maturity: float = parameter(default=15.0, domain=Domain.NONNEGATIVE)
-    lifespan: float = parameter(default=85.0, domain=Domain.NONNEGATIVE)
-    spacing: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    endowment: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    mutation: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    sight: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    reserve: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    monetary: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    fertility: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    exploration: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    enterprise: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    restlessness: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    labour: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    need: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    maturity: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
+    lifespan: float = parameter(default=85.0, domain=NumericDomain.NONNEGATIVE)
+    spacing: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    endowment: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    mutation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    sight: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    reserve: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    monetary: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of living in the phase of living.
 
         Args:
@@ -282,7 +282,7 @@ class Settler(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.live, phase='living')]
+        return [RuleLaw(self.live, phase='living')]
 
     def _feed_child(self, agent: AgentView, model: ModelView) -> None:
         """Take food from the living parent and follow it."""
@@ -352,7 +352,7 @@ class Settler(Element):
         agent.harvested = 0.0
 
 
-class Business(Element):
+class BusinessComponent(ElementComponent):
     """Firm on a patch that harvests with its workers, pays wages with money it borrows, and sells food in its shop.
 
     Every step the workers pool their labour on the firm's patch, the firm pays each the wage, borrowing what it
@@ -406,26 +406,26 @@ class Business(Element):
             The stock above which the firm lowers its price and lays off.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Business
-        >>> Business.group('businesses', 2, variable=True).size
+        >>> from skcomplex.models.economics.macroeconomics import BusinessComponent
+        >>> BusinessComponent.group('businesses', 2, variable=True).size
         2
     """
 
     money: float = state(default=0.0, quantity='money')
     loans: float = state(default=0.0, quantity='credit')
-    stock: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    wage: float = state(default=4.0, domain=Domain.NONNEGATIVE)
-    price: float = state(default=1.0, domain=Domain.POSITIVE)
+    stock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    wage: float = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    price: float = state(default=1.0, domain=NumericDomain.POSITIVE)
     owner: float = state(default=-1.0)
-    workers: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    vacancies: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    revenue: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    interest: float = parameter(default=0.003, domain=Domain.NONNEGATIVE)
-    repayment: float = parameter(default=0.004, domain=Domain.NONNEGATIVE)
-    adjustment: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    stock_limit: float = parameter(default=30.0, domain=Domain.NONNEGATIVE)
+    workers: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    vacancies: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    revenue: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    interest: float = parameter(default=0.003, domain=NumericDomain.NONNEGATIVE)
+    repayment: float = parameter(default=0.004, domain=NumericDomain.NONNEGATIVE)
+    adjustment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    stock_limit: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rule of production in the phase of work.
 
         Args:
@@ -436,7 +436,7 @@ class Business(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.produce, phase='work')]
+        return [RuleLaw(self.produce, phase='work')]
 
     def _borrow(self, agent: AgentView, bank: AgentView, amount: float) -> None:
         """Borrow an amount the bank creates as money and records as a loan."""
@@ -507,7 +507,7 @@ class Business(Element):
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
 
-class CentralBank(Element):
+class CentralBankComponent(ElementComponent):
     """Bank that creates money as loans and pays its interest income to a random person as a dividend.
 
     The money it issued, a negative holding, and the loans it holds sum to zero after every step, so every unit of
@@ -524,15 +524,15 @@ class CentralBank(Element):
             The loans the bank holds.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import CentralBank
-        >>> CentralBank.group('bank', 1).size
+        >>> from skcomplex.models.economics.macroeconomics import CentralBankComponent
+        >>> CentralBankComponent.group('bank', 1).size
         1
     """
 
     money: float = state(default=0.0, quantity='money')
     loans: float = state(default=0.0, quantity='credit')
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the dividend rule in the phase of banking and the invariant of the balance sheet.
 
         Args:
@@ -543,7 +543,10 @@ class CentralBank(Element):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [Rule(self.distribute, phase='banking'), Invariant('balance', _bank_balance, tolerance=1e-6)]
+        laws: list[Any] = [
+            RuleLaw(self.distribute, phase='banking'),
+            Invariant('balance', _bank_balance, tolerance=1e-6),
+        ]
         return laws
 
     def distribute(self, agent: AgentView, model: ModelView) -> None:
@@ -562,7 +565,7 @@ class CentralBank(Element):
             transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
 
 
-class Commons(Interaction):
+class CommonsInteraction(BaseInteraction):
     """Harvest of the hunter-gatherers, who pool the labour of the adults on a patch and share the food equally.
 
     The adults of a patch harvest `min(food, labour - resistance)`, and everyone on the patch, child or adult, gets an
@@ -576,14 +579,14 @@ class Commons(Interaction):
             The path of the group of people.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Commons
-        >>> Commons('commons', people='people').people
+        >>> from skcomplex.models.economics.macroeconomics import CommonsInteraction
+        >>> CommonsInteraction('commons', people='people').people
         'people'
     """
 
     people: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the harvest rule in the phase of work.
 
         Args:
@@ -594,7 +597,7 @@ class Commons(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.harvest, phase='work')]
+        return [RuleLaw(self.harvest, phase='work')]
 
     def harvest(self, model: Any) -> None:  # noqa: ANN401
         """Harvest every occupied patch and share the food among the people on it.
@@ -616,7 +619,7 @@ class Commons(Interaction):
                 person.harvested = harvest / len(group)
 
 
-class LabourMarket(Interaction):
+class LabourMarketInteraction(BaseInteraction):
     """Labour market in which unemployed adults take the best-paying vacancy within their sight.
 
     Args:
@@ -624,12 +627,12 @@ class LabourMarket(Interaction):
             The label of the interaction.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import LabourMarket
-        >>> LabourMarket('jobs').label
+        >>> from skcomplex.models.economics.macroeconomics import LabourMarketInteraction
+        >>> LabourMarketInteraction('jobs').label
         'jobs'
     """
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the matching of vacancies with workers and the rule that hires along the pairs.
 
         Args:
@@ -641,8 +644,8 @@ class LabourMarket(Interaction):
                 The laws of the component.
         """
         laws: list[Any] = [
-            Match('businesses', 'people', pairing=_offers, label='hires', phase='hiring'),
-            Rule(self.hire, 'hiring'),
+            MatchLaw('businesses', 'people', pairing=_offers, label='hires', phase='hiring'),
+            RuleLaw(self.hire, 'hiring'),
         ]
         return laws
 
@@ -659,7 +662,7 @@ class LabourMarket(Interaction):
             firm.vacancies = max(firm.vacancies - 1, 0.0)
 
 
-class FoodMarket(Interaction):
+class FoodMarketInteraction(BaseInteraction):
     """Food market in which people short of food buy from the cheapest stocked shop within their sight.
 
     A buyer takes the food it lacks for `reserve` steps, as much as the stock and its money allow, and pays the price
@@ -670,14 +673,14 @@ class FoodMarket(Interaction):
             The label of the interaction.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import FoodMarket
-        >>> FoodMarket('shops').reports
+        >>> from skcomplex.models.economics.macroeconomics import FoodMarketInteraction
+        >>> FoodMarketInteraction('shops').reports
         ('gdp',)
     """
 
     reports: ClassVar[tuple[str, ...]] = ('gdp',)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the matching of buyers with shops and the rule that trades along the pairs.
 
         Args:
@@ -689,8 +692,8 @@ class FoodMarket(Interaction):
                 The laws of the component.
         """
         laws: list[Any] = [
-            Match('people', 'businesses', pairing=_shops, label='purchases', phase='market'),
-            Rule(self.sell, 'market'),
+            MatchLaw('people', 'businesses', pairing=_shops, label='purchases', phase='market'),
+            RuleLaw(self.sell, 'market'),
         ]
         return laws
 
@@ -713,7 +716,7 @@ class FoodMarket(Interaction):
         model.report('gdp', value)
 
 
-class Census(Interaction):
+class CensusInteraction(BaseInteraction):
     """Census that counts births and deaths and settles the estate of the dead before removing them.
 
     The money and the loans of a dead person go to a random living person of its patch, or of anywhere. When nobody
@@ -728,8 +731,8 @@ class Census(Interaction):
             The path of the group of people.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Census
-        >>> Census('census', people='people').reports
+        >>> from skcomplex.models.economics.macroeconomics import CensusInteraction
+        >>> CensusInteraction('census', people='people').reports
         ('births', 'starvations', 'old_age')
     """
 
@@ -762,7 +765,7 @@ class Census(Interaction):
         for person in dead:
             self._settle(person, living, model)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the counting rule in the phase of the census.
 
         Args:
@@ -773,7 +776,7 @@ class Census(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.count, phase='census')]
+        return [RuleLaw(self.count, phase='census')]
 
 
 @register_model(
@@ -874,7 +877,7 @@ def metaphoria(
     space = LatticeSpace(shape)
     sites = list(np.ndindex(*shape))
     capacity = rng.uniform(0.0, max_food, len(sites))
-    patches = Plot.group(
+    patches = PlotComponent.group(
         'patches',
         len(sites),
         location=sites,
@@ -885,7 +888,7 @@ def metaphoria(
     )
     cells = rng.integers(0, shape, size=(n_people, len(shape)))
     traits: dict[str, Any] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
-    people = Settler.group(
+    people = SettlerComponent.group(
         'people',
         n_people,
         variable=True,
@@ -897,7 +900,7 @@ def metaphoria(
         **traits,
     )
     firms = rng.integers(0, shape, size=(n_firms, len(shape)))
-    businesses = Business.group(
+    businesses = BusinessComponent.group(
         'businesses',
         n_firms,
         variable=True,
@@ -905,16 +908,16 @@ def metaphoria(
         interest=interest,
         repayment=repayment,
     )
-    bank = CentralBank.group('bank', 1, location=(0,) * len(shape))
+    bank = CentralBankComponent.group('bank', 1, location=(0,) * len(shape))
     economy = [businesses, bank] if mode == 'monetary' else []
-    exchange: list[Interaction] = (
-        [Commons('commons', people='people')]
+    exchange: list[BaseInteraction] = (
+        [CommonsInteraction('commons', people='people')]
         if mode == 'hunter_gatherer'
-        else [LabourMarket('jobs'), FoodMarket('shops')]
+        else [LabourMarketInteraction('jobs'), FoodMarketInteraction('shops')]
     )
     return System(
         components=[patches, people, *economy],
-        interactions=[*exchange, Census('census', people='people')],
+        interactions=[*exchange, CensusInteraction('census', people='people')],
         space=space,
-        time=DiscreteTime(schedule=Phases([Phase(name) for name in PHASES])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase(name) for name in PHASES])),
     )

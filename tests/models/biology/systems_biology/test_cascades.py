@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.systems_biology import (
     hormone_cascade_amplifier,
 )
@@ -19,7 +19,7 @@ def test_hormone_cascade_amplifier_multiplies_the_signal_by_the_gains_until_the_
             hormone_cascade_amplifier(k_gtp=k_gtp),
             60.0,
             0.05,
-            ScipyODE(rtol=1e-9, atol=1e-12),
+            ScipyODESolver(rtol=1e-9, atol=1e-12),
         )
         runs[k_gtp] = (trajectory.times, trajectory['g_protein.g'], trajectory['phosphorylase.x'])
     times, signal, output = runs[0.5]

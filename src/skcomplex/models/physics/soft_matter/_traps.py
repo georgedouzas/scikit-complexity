@@ -6,13 +6,13 @@
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -35,7 +35,7 @@ def _mean_position(s: Symbols) -> object:
     return s.visits / s.walkers - 1
 
 
-class TrapSite(Element):
+class TrapSiteComponent(ElementComponent):
     """Site of a line of traps, which holds a walker for its trapping time `tau` before the walker hops to the right.
 
     The walker on a site counts the steps it has spent there with `clock` and hops to the next site after `tau`
@@ -59,17 +59,17 @@ class TrapSite(Element):
             The trapping time of the site.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import TrapSite
-        >>> TrapSite('site', tau=3.0).tau
+        >>> from skcomplex.models.physics.soft_matter import TrapSiteComponent
+        >>> TrapSiteComponent('site', tau=3.0).tau
         3.0
     """
 
-    occupied: float = state(default=0.0, domain=Domain.BOOLEAN)
-    visited: float = state(default=0.0, domain=Domain.BOOLEAN)
-    clock: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    tau: float = state(default=1.0, domain=Domain.POSITIVE)
+    occupied: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    visited: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    tau: float = state(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the deterministic hops of the walkers out of their traps.
 
         Args:
@@ -81,7 +81,7 @@ class TrapSite(Element):
                 The laws of the component.
         """
         targets = (s.occupied, s.visited, s.clock)
-        return [LocalRule(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
+        return [LocalRuleLaw(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
 
 
 def _trap_observables(system: System) -> list[Observable]:
@@ -145,7 +145,7 @@ def biased_trap_walk(
     tau = np.ceil(tau0 * (1 - np.random.default_rng(random_state).random(shape)) ** (-1 / alpha))
     start = np.zeros(shape)
     start[:, 0] = 1.0
-    traps = TrapSite.lattice(
+    traps = TrapSiteComponent.lattice(
         'traps',
         LatticeSpace(shape, boundary='fixed', fill=-1.0),
         visual=VISITED,

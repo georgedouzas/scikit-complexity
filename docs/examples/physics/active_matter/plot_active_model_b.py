@@ -19,7 +19,7 @@ import numpy as np
 
 from skcomplex.engine.analysis import fields_of, structure_factor
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -30,7 +30,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = Simulation(
     system,
     dt=30.0,
-    solver=EulerMaruyama(dt=0.02),
+    solver=EulerMaruyamaSolver(dt=0.02),
     backend='numba',
     observers=[observer],
     random_state=0,

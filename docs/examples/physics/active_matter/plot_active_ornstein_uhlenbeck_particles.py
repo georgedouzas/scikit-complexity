@@ -19,7 +19,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-solver = EulerMaruyama(dt=0.01)
+solver = EulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=20)
 
 # %%

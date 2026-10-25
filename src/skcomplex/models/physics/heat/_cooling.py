@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Rate
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CoffeeCup = Element.define(
-    'CoffeeCup',
+CoffeeCupComponent = ElementComponent.define(
+    'CoffeeCupComponent',
     states={'T': 90.0},
-    parameters={'room': 20.0, 'k': parameter(default=0.1, domain=Domain.NONNEGATIVE)},
-    laws=lambda s: [Rate(s.T, -s.k * (s.T - s.room))],
+    parameters={'room': 20.0, 'k': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
+    laws=lambda s: [RateLaw(s.T, -s.k * (s.T - s.room))],
 )
 
 
@@ -48,4 +48,4 @@ def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> Sy
         >>> cooling_coffee(T=5.0).elements[0].T
         5.0
     """
-    return System(components=[CoffeeCup('coffee', T=T, room=room, k=k)])
+    return System(components=[CoffeeCupComponent('coffee', T=T, room=room, k=k)])

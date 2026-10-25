@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class Queue(Element):
+class QueueComponent(ElementComponent):
     """Queue at a desk, a birth-death process whose length grows by arrivals and shrinks by departures.
 
     Customers arrive at rate `arrival_rate` and leave at rate `service_rate` while the queue is not empty.
@@ -29,16 +29,16 @@ class Queue(Element):
             The rate of departures from a queue that is not empty.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import Queue
-        >>> Queue('desk', arrival_rate=0.8).arrival_rate
+        >>> from skcomplex.models.mathematics.stochastic_processes import QueueComponent
+        >>> QueueComponent('desk', arrival_rate=0.8).arrival_rate
         0.8
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    arrival_rate: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    service_rate: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    arrival_rate: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    service_rate: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the arrivals and the departures.
 
         Args:
@@ -50,8 +50,8 @@ class Queue(Element):
                 The laws of the component.
         """
         return [
-            Jump(s.arrival_rate, {s.n: 1}),
-            Jump(where(s.n > 0, s.service_rate, 0), {s.n: -1}),
+            JumpLaw(s.arrival_rate, {s.n: 1}),
+            JumpLaw(where(s.n > 0, s.service_rate, 0), {s.n: -1}),
         ]
 
 
@@ -97,5 +97,5 @@ def birth_death_queue(
         >>> birth_death_queue(5).elements[0].size
         5
     """
-    queue = Queue.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
+    queue = QueueComponent.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
     return System(components=[queue])

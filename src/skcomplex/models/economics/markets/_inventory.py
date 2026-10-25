@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, step, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _dealer_laws(s: Symbols) -> list[Law]:
+def _dealer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the car dealership."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
     sales = where(s.inventory < demand, s.inventory, demand)
@@ -22,27 +22,27 @@ def _dealer_laws(s: Symbols) -> list[Law]:
         perceived,
         desired,
         orders,
-        Transfer(
+        TransferLaw(
             Source('factory'),
             s.inventory,
             distributed_delay(orders.symbol, order=3, time=s.delivery_delay),
             label='deliveries',
         ),
-        Transfer(s.inventory, Sink('customers'), sales, label='sales'),
+        TransferLaw(s.inventory, Sink('customers'), sales, label='sales'),
     ]
 
 
-CarDealership = Element.define(
-    'CarDealership',
-    states={'inventory': state(default=200.0, domain=Domain.NONNEGATIVE, quantity='cars')},
+CarDealershipComponent = ElementComponent.define(
+    'CarDealershipComponent',
+    states={'inventory': state(default=200.0, domain=NumericDomain.NONNEGATIVE, quantity='cars')},
     parameters={
-        'demand': parameter(default=20.0, domain=Domain.NONNEGATIVE),
-        'demand_step': parameter(default=2.0, domain=Domain.REAL),
-        'step_time': parameter(default=25.0, domain=Domain.NONNEGATIVE),
-        'coverage': parameter(default=10.0, domain=Domain.POSITIVE),
-        'perception_delay': parameter(default=5.0, domain=Domain.POSITIVE),
-        'response_delay': parameter(default=3.0, domain=Domain.POSITIVE),
-        'delivery_delay': parameter(default=5.0, domain=Domain.POSITIVE),
+        'demand': parameter(default=20.0, domain=NumericDomain.NONNEGATIVE),
+        'demand_step': parameter(default=2.0, domain=NumericDomain.REAL),
+        'step_time': parameter(default=25.0, domain=NumericDomain.NONNEGATIVE),
+        'coverage': parameter(default=10.0, domain=NumericDomain.POSITIVE),
+        'perception_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
+        'response_delay': parameter(default=3.0, domain=NumericDomain.POSITIVE),
+        'delivery_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
     },
     laws=_dealer_laws,
 )
@@ -110,7 +110,7 @@ def car_dealer(
         >>> car_dealer(response_delay=6.0).elements[0].response_delay
         6.0
     """
-    dealer = CarDealership(
+    dealer = CarDealershipComponent(
         'dealer',
         inventory=inventory,
         demand=demand,

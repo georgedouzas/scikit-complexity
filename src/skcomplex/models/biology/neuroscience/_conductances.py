@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Event, Law, Rate, Symbols
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -28,7 +28,7 @@ def _resting_gates(v: float) -> dict[str, float]:
     return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in _gate_rates(v).items()}
 
 
-class HodgkinHuxley(Element):
+class HodgkinHuxleyComponent(ElementComponent):
     """Squid giant axon membrane of Hodgkin and Huxley, with sodium, potassium, and leak currents.
 
     The potential follows `C v' = I - g_Na m³ h (v - E_Na) - g_K n⁴ (v - E_K) - g_L (v - E_L)`, and each gate `x` of
@@ -76,25 +76,25 @@ class HodgkinHuxley(Element):
             The applied current.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import HodgkinHuxley
-        >>> HodgkinHuxley('axon', I=10.0).g_na
+        >>> from skcomplex.models.biology.neuroscience import HodgkinHuxleyComponent
+        >>> HodgkinHuxleyComponent('axon', I=10.0).g_na
         120.0
     """
 
     v: float = state(default=-65.0)
-    n: float = state(default=0.3177, domain=Domain.NONNEGATIVE)
-    m: float = state(default=0.0529, domain=Domain.NONNEGATIVE)
-    h: float = state(default=0.5961, domain=Domain.NONNEGATIVE)
-    C: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    g_na: float = parameter(default=120.0, domain=Domain.NONNEGATIVE)
-    g_k: float = parameter(default=36.0, domain=Domain.NONNEGATIVE)
-    g_l: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.3177, domain=NumericDomain.NONNEGATIVE)
+    m: float = state(default=0.0529, domain=NumericDomain.NONNEGATIVE)
+    h: float = state(default=0.5961, domain=NumericDomain.NONNEGATIVE)
+    C: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    g_na: float = parameter(default=120.0, domain=NumericDomain.NONNEGATIVE)
+    g_k: float = parameter(default=36.0, domain=NumericDomain.NONNEGATIVE)
+    g_l: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
     e_na: float = parameter(default=50.0)
     e_k: float = parameter(default=-77.0)
     e_l: float = parameter(default=-54.387)
     I: float = parameter(default=10.0)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the membrane equation, the gate kinetics, and the spike events.
 
         Args:
@@ -107,13 +107,13 @@ class HodgkinHuxley(Element):
         """
         currents = s.g_na * s.m**3 * s.h * (s.v - s.e_na) + s.g_k * s.n**4 * (s.v - s.e_k) + s.g_l * (s.v - s.e_l)
         gates = [
-            Rate(getattr(s, gate), opening * (1 - getattr(s, gate)) - closing * getattr(s, gate))
+            RateLaw(getattr(s, gate), opening * (1 - getattr(s, gate)) - closing * getattr(s, gate))
             for gate, (opening, closing) in _gate_rates(s.v).items()
         ]
-        return [Rate(s.v, (s.I - currents) / s.C), *gates, Event(s.v, None, direction=1, label='spike')]
+        return [RateLaw(s.v, (s.I - currents) / s.C), *gates, EventLaw(s.v, None, direction=1, label='spike')]
 
 
-class FitzHughNagumoNeuron(Element):
+class FitzHughNagumoNeuronComponent(ElementComponent):
     """FitzHugh-Nagumo neuron, a fast potential with a cubic nullcline and a slow linear recovery.
 
     The potential follows `v' = v - v³/3 - w + I` and the recovery `w' = epsilon (v + a - b w)`.
@@ -141,19 +141,19 @@ class FitzHughNagumoNeuron(Element):
             The applied current.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import FitzHughNagumoNeuron
-        >>> FitzHughNagumoNeuron('neuron').epsilon
+        >>> from skcomplex.models.biology.neuroscience import FitzHughNagumoNeuronComponent
+        >>> FitzHughNagumoNeuronComponent('neuron').epsilon
         0.08
     """
 
     v: float = state(default=-1.2)
     w: float = state(default=-0.6)
     a: float = parameter(default=0.7)
-    b: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.08, domain=Domain.POSITIVE)
+    b: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    epsilon: float = parameter(default=0.08, domain=NumericDomain.POSITIVE)
     I: float = parameter(default=0.5)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the fast potential and the slow recovery.
 
         Args:
@@ -164,7 +164,7 @@ class FitzHughNagumoNeuron(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.v, s.v - s.v**3 / 3 - s.w + s.I), Rate(s.w, s.epsilon * (s.v + s.a - s.b * s.w))]
+        return [RateLaw(s.v, s.v - s.v**3 / 3 - s.w + s.I), RateLaw(s.w, s.epsilon * (s.v + s.a - s.b * s.w))]
 
 
 @register_model(
@@ -220,7 +220,7 @@ def hodgkin_huxley(
     gates = _resting_gates(v)
     return System(
         components=[
-            HodgkinHuxley(
+            HodgkinHuxleyComponent(
                 'neuron',
                 v=v,
                 I=I,
@@ -284,4 +284,4 @@ def fitzhugh_nagumo_ode(
         >>> fitzhugh_nagumo_ode(I=0.0).elements[0].I
         0.0
     """
-    return System(components=[FitzHughNagumoNeuron('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])
+    return System(components=[FitzHughNagumoNeuronComponent('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])

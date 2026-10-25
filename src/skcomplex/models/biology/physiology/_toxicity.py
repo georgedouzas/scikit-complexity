@@ -5,14 +5,14 @@
 
 from typing import Any
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse_train, step
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse_train, step
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class DrugToxicity(Element):
+class DrugToxicityComponent(ElementComponent):
     """Drug in the plasma, given in a train of infusions and eliminated, and the toxicity it accumulates.
 
     The plasma concentration follows `dc/dt = u(t) - k c`, where the infusion `u` is `dose` for `width` time units
@@ -50,16 +50,16 @@ class DrugToxicity(Element):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import DrugToxicity
-        >>> DrugToxicity('patient', doses=4).doses
+        >>> from skcomplex.models.biology.physiology import DrugToxicityComponent
+        >>> DrugToxicityComponent('patient', doses=4).doses
         4
     """
 
-    c: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    T: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    eta: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    dose: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    c: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    T: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    eta: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    dose: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -75,7 +75,7 @@ class DrugToxicity(Element):
         self.width = width
         self.doses = doses
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balance of the drug and the accumulation of toxicity.
 
         Args:
@@ -87,7 +87,7 @@ class DrugToxicity(Element):
                 The laws of the component.
         """
         infusion = pulse_train(s.t, self.period, self.width) * (1 - step(s.t, self.doses * self.period))
-        return [Rate(s.c, s.dose * infusion - s.k * s.c), Rate(s.T, s.c - s.eta * s.T)]
+        return [RateLaw(s.c, s.dose * infusion - s.k * s.c), RateLaw(s.T, s.c - s.eta * s.T)]
 
 
 @register_model(
@@ -138,5 +138,5 @@ def drug_toxicity(
         >>> drug_toxicity(eta=0.0).elements[0].eta
         0.0
     """
-    patient = DrugToxicity('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
+    patient = DrugToxicityComponent('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
     return System(components=[patient])

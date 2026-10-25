@@ -19,7 +19,7 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
-from skcomplex.formalisms.fields import ETDRK4
+from skcomplex.formalisms.fields import ETDRK4Solver
 from skcomplex.models import create
 
 MODEL = 'rayleigh_benard'
@@ -27,7 +27,7 @@ MODEL = 'rayleigh_benard'
 system = create(MODEL, Ra=2000.0)
 blueprint = default_blueprint(system, primary='flow/theta')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-solver = ETDRK4(dt=0.005)
+solver = ETDRK4Solver(dt=0.005)
 simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).run(until=10)
 
 # %%

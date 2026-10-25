@@ -13,7 +13,7 @@ import scipy.sparse as sp
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ...engine.compile import Problem, Vector
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 
 MAX_SEED = 2**32
@@ -30,7 +30,7 @@ def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
     return value
 
 
-class QuantumSolver(Stepper):
+class QuantumSolver(Solver):
     """Base class of solvers that advance quantum problems with a stepwise QuTiP solver.
 
     The solver is created at the first frame and again whenever the parameters change, from the current state, so a
@@ -192,7 +192,7 @@ class QuantumSolver(Stepper):
         return self._stored(self.solver_.step(until))
 
 
-class UnitaryEvolution(QuantumSolver):
+class UnitarySolver(QuantumSolver):
     """Solver of closed quantum systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`.
 
     Args:
@@ -207,17 +207,17 @@ class UnitaryEvolution(QuantumSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.formalisms.quantum import UnitaryEvolution
+        >>> from skcomplex.formalisms.quantum import UnitarySolver
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.quantum import Generator
+        >>> from skcomplex.formalisms.quantum import GeneratorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
         >>> from operator import attrgetter
-        >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Generator(s.x / 2)])
-        >>> system = System(components=[Rabi('q')])
+        >>> RabiComponent = QubitComponent.define('RabiComponent', laws=lambda s: [GeneratorLaw(s.x / 2)])
+        >>> system = System(components=[RabiComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=UnitaryEvolution(), dt=np.pi, observables=z).run(until=np.pi)
+        >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).run(until=np.pi)
         >>> float(round(simulation.trajectory_['z'][-1], 6))
         -1.0
     """
@@ -233,7 +233,7 @@ class UnitaryEvolution(QuantumSolver):
         return qutip.SESolver(self._operator(self.quantum_.hamiltonian, p), options=self._options)
 
 
-class LindbladEvolution(QuantumSolver):
+class LindbladSolver(QuantumSolver):
     """Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`.
 
     It is the default solver of the quantum form. A system without dissipators that starts in a pure state follows the
@@ -251,17 +251,17 @@ class LindbladEvolution(QuantumSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.formalisms.quantum import LindbladEvolution
+        >>> from skcomplex.formalisms.quantum import LindbladSolver
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.quantum import Dissipator
+        >>> from skcomplex.formalisms.quantum import DissipatorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
         >>> from operator import attrgetter
-        >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 0.5)])
-        >>> system = System(components=[Decaying('q')])
+        >>> DecayingComponent = QubitComponent.define('DecayingComponent', laws=lambda s: [DissipatorLaw(s.minus, 0.5)])
+        >>> system = System(components=[DecayingComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=LindbladEvolution(), dt=1.0, observables=z).run(until=2.0)
+        >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).run(until=2.0)
         >>> bool(abs((1 + simulation.trajectory_['z'][-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
@@ -276,7 +276,7 @@ class LindbladEvolution(QuantumSolver):
         return qutip.MESolver(hamiltonian, c_ops=collapses, options=self._options)
 
 
-class QuantumTrajectories(QuantumSolver):
+class QuantumTrajectoriesSolver(QuantumSolver):
     """Solver that samples the master equation by quantum jumps of a pure state with QuTiP's `MCSolver`.
 
     Every run is one trajectory, whose jumps are drawn from the simulation's random number generator, so a seeded run
@@ -297,17 +297,17 @@ class QuantumTrajectories(QuantumSolver):
             The initial state is a mixed density matrix.
 
     Examples:
-        >>> from skcomplex.formalisms.quantum import QuantumTrajectories
+        >>> from skcomplex.formalisms.quantum import QuantumTrajectoriesSolver
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.quantum import Dissipator
+        >>> from skcomplex.formalisms.quantum import DissipatorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
         >>> from operator import attrgetter
-        >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 1.0)])
-        >>> system = System(components=[Decaying('q')])
+        >>> DecayingComponent = QubitComponent.define('DecayingComponent', laws=lambda s: [DissipatorLaw(s.minus, 1.0)])
+        >>> system = System(components=[DecayingComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=QuantumTrajectories(), dt=1.0, random_state=0, observables=z)
+        >>> simulation = Simulation(system, solver=QuantumTrajectoriesSolver(), dt=1.0, random_state=0, observables=z)
         >>> simulation = simulation.run(until=20.0)
         >>> float(simulation.trajectory_['z'][-1])
         -1.0

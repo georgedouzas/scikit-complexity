@@ -6,47 +6,47 @@
 import numpy as np
 
 from ....core.base import state, vector
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _lorenz_96_laws(s: Symbols) -> list[Law]:
+def _lorenz_96_laws(s: Symbols) -> list[BaseLaw]:
     """Return the advection, damping, and forcing of every site of the Lorenz-96 ring."""
     x = s.x
     n_sites = len(x)
     rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + s.F for i in range(n_sites)]
-    return [Rate(s.x, vector(rates))]
+    return [RateLaw(s.x, vector(rates))]
 
 
-Lorenz84 = Element.define(
-    'Lorenz84',
+Lorenz84Component = ElementComponent.define(
+    'Lorenz84Component',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0},
     parameters={'a': 0.25, 'b': 4.0, 'F': 8.0, 'G': 1.0},
     laws=lambda s: [
-        Rate(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
-        Rate(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
-        Rate(s.z, s.b * s.x * s.y + s.x * s.z - s.z),
+        RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
+        RateLaw(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
+        RateLaw(s.z, s.b * s.x * s.y + s.x * s.z - s.z),
     ],
 )
 
-Lorenz96 = Element.define(
-    'Lorenz96',
+Lorenz96Component = ElementComponent.define(
+    'Lorenz96Component',
     states={'x': state(default=8.0, vector=True)},
     parameters={'F': 8.0},
     laws=_lorenz_96_laws,
 )
 
-Geodynamo = Element.define(
-    'Geodynamo',
+GeodynamoComponent = ElementComponent.define(
+    'GeodynamoComponent',
     states={'Q': 0.1, 'D': 0.1, 'V': 0.1},
     parameters={'mu': 0.119, 'nu': 0.1, 'Gamma': 0.9},
     laws=lambda s: [
-        Rate(s.Q, s.mu * s.Q - s.V * s.D),
-        Rate(s.D, -s.nu * s.D + s.V * s.Q),
-        Rate(s.V, s.Gamma - s.V + s.Q * s.D),
+        RateLaw(s.Q, s.mu * s.Q - s.V * s.D),
+        RateLaw(s.D, -s.nu * s.D + s.V * s.Q),
+        RateLaw(s.V, s.Gamma - s.V + s.Q * s.D),
     ],
 )
 
@@ -103,7 +103,7 @@ def lorenz_84(
         >>> lorenz_84(G=1.25).elements[0].G
         1.25
     """
-    return System(components=[Lorenz84('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
+    return System(components=[Lorenz84Component('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
 
 
 @register_model(
@@ -144,7 +144,7 @@ def lorenz_96(
     """
     values = np.full(n_sites, float(F))
     values[0] += perturbation
-    return System(components=[Lorenz96('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
+    return System(components=[Lorenz96Component('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
 
 
 @register_model(
@@ -196,4 +196,4 @@ def geodynamo(
         >>> geodynamo(mu=0.12).elements[0].mu
         0.12
     """
-    return System(components=[Geodynamo('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])
+    return System(components=[GeodynamoComponent('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])

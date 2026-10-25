@@ -12,7 +12,12 @@ from skcomplex.engine.compile import compile_system, observables_of, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
-from skcomplex.models.biology.ecology import ExponentialGrowth, Mortality, Population, Predation
+from skcomplex.models.biology.ecology import (
+    ExponentialGrowthInteraction,
+    MortalityInteraction,
+    PopulationComponent,
+    PredationInteraction,
+)
 
 CONFORMANCE_FRAMES = 10
 SLOW = {'cocoa'}
@@ -86,11 +91,11 @@ def test_create_matches_components():
     """Test that a model created by name runs like the same model built from its components."""
     created = create('lotka_volterra', a=0.2)
     built = System(
-        components=[Population('prey', n=40.0), Population('predators', n=9.0)],
+        components=[PopulationComponent('prey', n=40.0), PopulationComponent('predators', n=9.0)],
         interactions=[
-            ExponentialGrowth('growth', target='prey', r=1.1),
-            Predation('predation', predator='predators', prey='prey', a=0.2, b=0.1),
-            Mortality('death', target='predators', d=0.4),
+            ExponentialGrowthInteraction('growth', target='prey', r=1.1),
+            PredationInteraction('predation', predator='predators', prey='prey', a=0.2, b=0.1),
+            MortalityInteraction('death', target='predators', d=0.4),
         ],
     )
     first = Simulation(created, dt=0.1).run(until=5).trajectory_.states

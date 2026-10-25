@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import describe, run
 from skcomplex.models.biology.ecology import (
     lotka_volterra_with_harvesting,
@@ -31,7 +31,7 @@ def test_rosenzweig_macarthur_prey_return_after_a_deep_collapse():
         rosenzweig_macarthur(),
         describe('rosenzweig_macarthur').defaults['until'],
         dt=describe('rosenzweig_macarthur').defaults['dt'],
-        solver=ScipyODE(method='DOP853', rtol=1e-12, atol=1e-300),
+        solver=ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-300),
     )
     assert trajectory['prey.n'].min() < 1e-20
     assert trajectory['prey.n'][-1] > 4.0

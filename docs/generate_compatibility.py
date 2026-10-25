@@ -7,7 +7,7 @@ from importlib import import_module
 from skcomplex.core import formalisms
 from skcomplex.core.base import LawKind
 from skcomplex.core.laws import law_classes
-from skcomplex.core.space import Space
+from skcomplex.core.space import BaseSpace
 from skcomplex.engine.compile import BACKENDS, SOLVERS
 from skcomplex.formalisms import registered_formalisms
 
@@ -128,9 +128,9 @@ def backend_lines() -> list[str]:
     return lines
 
 
-def _spaces(base: type[Space]) -> list[type[Space]]:
+def _spaces(base: type[BaseSpace]) -> list[type[BaseSpace]]:
     """Return every subclass of a space class that declares its kind, recursively."""
-    found: list[type[Space]] = []
+    found: list[type[BaseSpace]] = []
     for subclass in base.__subclasses__():
         found += [subclass, *_spaces(subclass)]
     return [space for space in found if 'space_kind' in vars(space) or 'lacks' in vars(space)]
@@ -154,7 +154,7 @@ def space_lines() -> list[str]:
         '| Space | Kind | Lacks |',
         '|---|---|---|',
     ]
-    for space in sorted(_spaces(Space), key=lambda item: item.__name__):
+    for space in sorted(_spaces(BaseSpace), key=lambda item: item.__name__):
         lines.append(
             f'| `{space.__name__}` | `{space.space_kind}` | {_terms(space.lacks) if space.lacks else "none"} |',
         )

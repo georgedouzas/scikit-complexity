@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.system import System
 from skcomplex.models.biology.oncology import (
-    ResistanceSwitching,
+    ResistanceSwitchingComponent,
     de_pillis_radunskaya,
     delayed_metastasis,
     delayed_resting_hunting_chemotherapy,
@@ -63,7 +63,13 @@ def test_drug_resistance_switching_resensitizes_after_the_dose():
     switching = {'m1': 0.0, 'alpha_m': 0.0, 'alpha_p': 0.01, 'm5': 0.05}
     treated = _run(drug_resistance_switching(**switching), until=200.0, dt=1.0)
     assert treated['tumour.Rp'][-1] > 0.5
-    tumour = ResistanceSwitching('tumour', S=treated['tumour.S'][-1], Rp=treated['tumour.Rp'][-1], u=0.0, **switching)
+    tumour = ResistanceSwitchingComponent(
+        'tumour',
+        S=treated['tumour.S'][-1],
+        Rp=treated['tumour.Rp'][-1],
+        u=0.0,
+        **switching,
+    )
     after = _run(System(components=[tumour]), until=400.0, dt=1.0)
     assert after['tumour.S'][-1] > 0.9
 

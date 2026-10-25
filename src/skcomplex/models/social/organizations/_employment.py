@@ -6,13 +6,13 @@
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.lattices import LocalRule
+from ....formalisms.lattices import LocalRuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -35,7 +35,7 @@ def _follow_workers(*values: Array) -> Array:
     return np.where(employers[0] > 0, following, colours[0])
 
 
-class Workplace(Element):
+class WorkplaceComponent(ElementComponent):
     """Cell of the employment takeover model: an employer, white at 0 or black at 1, or a worker, red at 0 or blue at 1.
 
     Employers and workers alternate like the squares of a checkerboard. Every step each worker first takes the colour
@@ -53,15 +53,15 @@ class Workplace(Element):
             Whether the cell is an employer, 1, or a worker, 0.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import Workplace
-        >>> Workplace('cell', employer=1).employer
+        >>> from skcomplex.models.social.organizations import WorkplaceComponent
+        >>> WorkplaceComponent('cell', employer=1).employer
         1
     """
 
-    colour: float = state(default=0, domain=Domain.BOOLEAN)
-    employer: float = state(default=0, domain=Domain.BOOLEAN)
+    colour: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    employer: float = state(default=0, domain=NumericDomain.BOOLEAN)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the worker phase and the employer phase.
 
         Args:
@@ -74,8 +74,8 @@ class Workplace(Element):
         """
         reads = (s.colour, s.employer)
         return [
-            LocalRule(s.colour, NEIGHBORS, _follow_employer, reads=reads),
-            LocalRule(s.colour, NEIGHBORS, _follow_workers, reads=reads),
+            LocalRuleLaw(s.colour, NEIGHBORS, _follow_employer, reads=reads),
+            LocalRuleLaw(s.colour, NEIGHBORS, _follow_workers, reads=reads),
         ]
 
 
@@ -111,5 +111,5 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
     for kind in (1.0, 0.0):
         cells = np.flatnonzero(employers.ravel() == kind)
         colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
-    cells = Workplace.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
+    cells = WorkplaceComponent.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
     return System(components=[cells])

@@ -105,8 +105,8 @@ def reject_hybrid(problem: Problem, solver: str) -> None:
     """
     if problem.delays or problem.events:
         error_msg = (
-            f'{solver} does not integrate delays or events. Use ScipyODE or RK4 for ODEs and '
-            'EulerMaruyama, Milstein, or Heun for SDEs.'
+            f'{solver} does not integrate delays or events. Use ScipyODESolver or RK4Solver for ODEs and '
+            'EulerMaruyamaSolver, MilsteinSolver, or HeunSolver for SDEs.'
         )
         raise SolverError(error_msg)
 

@@ -16,19 +16,19 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
-    Domain,
     Expression,
     Form,
     HilbertSpaceError,
     IncompatibleLawsError,
+    NumericDomain,
     ValidationError,
     VariableKind,
     declarations_of,
     symbol,
     vector,
 )
-from ...core.components import Group
-from ...core.interactions import Interaction
+from ...core.components import GroupComponent
+from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import Observable, System, reduce_values
@@ -48,7 +48,7 @@ from ...engine.compile import (
     spectral_multiplier,
 )
 from ._components import QuantumView, hilbert_state, is_quantum, view_of
-from ._laws import Dissipator, Generator, Operator
+from ._laws import DissipatorLaw, GeneratorLaw, Operator
 
 DENSE_LIMIT = 1024
 HERMITIAN_TOLERANCE = 1e-10
@@ -61,7 +61,7 @@ DEFAULT_MAX_DIMENSION = 2**20
 
 def _is_quantum_node(node: Node) -> bool:
     """Check whether a node is a quantum element or a group of quantum elements."""
-    return not isinstance(node.component, Interaction) and is_quantum(node.component_type)
+    return not isinstance(node.component, BaseInteraction) and is_quantum(node.component_type)
 
 
 def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
@@ -102,7 +102,7 @@ def _member_value(value: Any, member: int, size: int) -> Any:  # noqa: ANN401
 def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     """Return the key and the element of every member of a quantum element or group."""
     component = node.component
-    if not isinstance(component, Group):
+    if not isinstance(component, GroupComponent):
         return [(node.path, QuantumView(component))]
     names = component.element.get_argument_names()
     size = node.members or 0
@@ -117,7 +117,7 @@ def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
 def _check_classical(nodes: list[Node]) -> None:
     """Raise an error when a quantum system holds classical elements or quantum elements with states."""
     classical = [
-        node.path for node in nodes if not isinstance(node.component, Interaction) and not _is_quantum_node(node)
+        node.path for node in nodes if not isinstance(node.component, BaseInteraction) and not _is_quantum_node(node)
     ]
     if classical:
         error_msg = (
@@ -256,9 +256,9 @@ class _Laws:
 def _collect_laws(laws: _Laws, owner: str, items: Iterable[Any]) -> None:
     """Add the Hamiltonian and dissipator laws of a component, rejecting every other law."""
     for law in items:
-        if isinstance(law, Generator):
+        if isinstance(law, GeneratorLaw):
             laws.hamiltonians.append((owner, law.operator))
-        elif isinstance(law, Dissipator):
+        elif isinstance(law, DissipatorLaw):
             laws.dissipators.append((owner, law.operator, law.rate))
         else:
             error_msg = (
@@ -277,7 +277,7 @@ def _interaction_laws(
 ) -> None:
     """Add the laws of an interaction, once per bond of its group for an exchange interaction."""
     interaction = node.component
-    assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
+    assert isinstance(interaction, BaseInteraction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
     if type(interaction).over == 'neighbors':
         role_names = list(declarations_of(interaction, VariableKind.ROLE))
@@ -592,7 +592,9 @@ def _stored_state(  # noqa: PLR0917
 def _compiled_element(node: Node) -> CompiledElement:
     """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
     component = node.component
-    visual = component.visual if isinstance(component, Group) and component.visual else node.component_type.visual
+    visual = (
+        component.visual if isinstance(component, GroupComponent) and component.visual else node.component_type.visual
+    )
     parameters = {name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)}
     return CompiledElement(node.path, component, {}, parameters, visual, node.members)
 
@@ -904,7 +906,7 @@ def contains_quantum(system: System) -> bool:
             Whether any element of the tree is quantum.
     """
     for element in system.elements:
-        kind = element.element if isinstance(element, Group) else type(element)
+        kind = element.element if isinstance(element, GroupComponent) else type(element)
         if is_quantum(kind):
             return True
     return any(contains_quantum(child) for child in system.systems)
@@ -954,11 +956,11 @@ def compile_quantum(
     entries, values, symbols = _parameters(nodes)
     p = np.concatenate(values) if values else np.zeros(0)
     lowering = _Lowering(time, subsystems, dimensions, _arguments_of(entries, symbols), spaces)
-    groups = {node.path: node for node in quantum if isinstance(node.component, Group)}
+    groups = {node.path: node for node in quantum if isinstance(node.component, GroupComponent)}
     laws = _Laws()
     members = _element_laws(quantum, symbols, time, laws)
     for node in nodes:
-        if isinstance(node.component, Interaction):
+        if isinstance(node.component, BaseInteraction):
             _interaction_laws(node, symbols, members, groups, laws)
     _check_hermitian(laws, lowering, p)
     total = functools.reduce(Operator.__add__, [item for _, item in laws.hamiltonians], Operator({}))
@@ -966,9 +968,9 @@ def compile_quantum(
     dissipators = _dissipator_terms(laws, lowering, p)
     state = _stored_state(system, initial, subsystems, hamiltonian, p, bool(dissipators))
     pure = state.ndim == 1
-    state_entry = Entry(f'{system.label}.state', 0, state.shape, Domain.COMPLEX, None, is_complex=True)
+    state_entry = Entry(f'{system.label}.state', 0, state.shape, NumericDomain.COMPLEX, None, is_complex=True)
     elements = tuple(_compiled_element(node) for node in quantum)
-    interactions = tuple(_compiled_interaction(node) for node in nodes if isinstance(node.component, Interaction))
+    interactions = tuple(_compiled_interaction(node) for node in nodes if isinstance(node.component, BaseInteraction))
     return QuantumProblem(
         form=Form.QUANTUM,
         states=Layout([state_entry]),

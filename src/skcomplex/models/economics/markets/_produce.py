@@ -8,12 +8,12 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -39,7 +39,7 @@ def _items_left(agent: AgentView) -> float:
     return float(len(_items_of(int(agent.wanted))))
 
 
-class Stall(Element):
+class StallComponent(ElementComponent):
     """Market stall that sells some kinds of produce at the wholesale price plus its markup.
 
     Args:
@@ -56,16 +56,16 @@ class Stall(Element):
             The relative markup on the wholesale prices.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Stall
-        >>> Stall.group('stalls', 3, stall=[0, 1, 2]).size
+        >>> from skcomplex.models.economics.markets import StallComponent
+        >>> StallComponent.group('stalls', 3, stall=[0, 1, 2]).size
         3
     """
 
-    stall: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    stock: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    markup: float = state(default=0.1, domain=Domain.NONNEGATIVE)
+    stall: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    stock: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    markup: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return no laws, since stalls only wait for shoppers.
 
         Args:
@@ -79,7 +79,7 @@ class Stall(Element):
         return []
 
 
-class Shopper(Element):
+class ShopperComponent(ElementComponent):
     """Shopper who visits one stall a step that it has not visited yet and buys what it wants there.
 
     A shopper gives up the items that it has not found once it has visited every stall.
@@ -101,18 +101,18 @@ class Shopper(Element):
             The money spent.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Shopper
-        >>> Shopper.group('shoppers', 5, wanted=3).size
+        >>> from skcomplex.models.economics.markets import ShopperComponent
+        >>> ShopperComponent.group('shoppers', 5, wanted=3).size
         5
     """
 
     stalls: ClassVar[str] = 'stalls'
-    wanted: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    visited: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    missed: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    spent: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    wanted: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    visited: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    missed: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    spent: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the shopping rule.
 
         Args:
@@ -123,7 +123,7 @@ class Shopper(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.shop)]
+        return [RuleLaw(self.shop)]
 
     def shop(self, agent: AgentView, model: ModelView) -> None:
         """Visit a random stall not visited yet and buy every wanted item that it sells.
@@ -198,8 +198,14 @@ def produce_market(
     stocks = _random_masks(np.full(n_stalls, n_items_stocked), rng)
     markups = rng.integers(1, MAX_MARKUP + 1, n_stalls) / 100
     lists = _random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, n_shoppers), rng)
-    stalls = Stall.group('stalls', n_stalls, stall=np.arange(n_stalls, dtype=float), stock=stocks, markup=markups)
-    shoppers = Shopper.group('shoppers', n_shoppers, wanted=lists)
+    stalls = StallComponent.group(
+        'stalls',
+        n_stalls,
+        stall=np.arange(n_stalls, dtype=float),
+        stock=stocks,
+        markup=markups,
+    )
+    shoppers = ShopperComponent.group('shoppers', n_shoppers, wanted=lists)
     return System(
         components=[stalls, shoppers],
     )

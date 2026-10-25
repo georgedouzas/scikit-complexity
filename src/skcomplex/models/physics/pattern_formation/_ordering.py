@@ -8,42 +8,42 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components import Element
-from ....core.laws import Noise, Rate
+from ....core.components import ElementComponent
+from ....core.laws import NoiseLaw, RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4, Field, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
-AllenCahn = Element.define(
-    'AllenCahn',
+AllenCahnComponent = ElementComponent.define(
+    'AllenCahnComponent',
     states={'phi': 0.0},
     parameters={'kappa': 1.0},
-    laws=lambda s: [Rate(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))],
+    laws=lambda s: [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))],
 )
 
-CahnHilliard = Element.define(
-    'CahnHilliard',
+CahnHilliardComponent = ElementComponent.define(
+    'CahnHilliardComponent',
     states={'phi': 0.0},
     parameters={'kappa': 1.0},
-    laws=lambda s: [Rate(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))],
+    laws=lambda s: [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))],
 )
 
-ThermalCahnHilliard = Element.define(
-    'ThermalCahnHilliard',
+ThermalCahnHilliardComponent = ElementComponent.define(
+    'ThermalCahnHilliardComponent',
     states={'phi': 0.0},
     parameters={'kappa': 1.0, 'temperature': 0.0},
     laws=lambda s: [
-        Rate(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
-        Noise(s.phi, sqrt(2 * s.temperature), conserved=True),
+        RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
+        NoiseLaw(s.phi, sqrt(2 * s.temperature), conserved=True),
     ],
 )
 
 
 def _ordering(
-    element: type[Element],
+    element: type[ElementComponent],
     *,
     shape: Sequence[int],
     length: float,
@@ -58,16 +58,16 @@ def _ordering(
     values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
     space = LatticeSpace(shape, spacing=length / shape[0])
     if not temperature:
-        return System(components=[Field('mixture', element, space, values=values, discretization='spectral')])
+        return System(components=[FieldComponent('mixture', element, space, values=values, discretization='spectral')])
     values['temperature'] = temperature
-    return System(components=[Field('mixture', ThermalCahnHilliard, space, values=values)])
+    return System(components=[FieldComponent('mixture', ThermalCahnHilliardComponent, space, values=values)])
 
 
 @register_model(
     field='physics/pattern_formation',
     tags=('field', 'phase ordering', 'coarsening', 'model a', 'spectral', 'pde'),
     references=REFERENCES,
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.5)},
+    defaults={'until': 100.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.5)},
 )
 def allen_cahn(
     shape: Sequence[int] = (128, 128),
@@ -109,14 +109,14 @@ def allen_cahn(
         >>> allen_cahn((8, 8), kappa=2.0).elements[0].values['kappa']
         2.0
     """
-    return _ordering(AllenCahn, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
+    return _ordering(AllenCahnComponent, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
 
 
 @register_model(
     field='physics/pattern_formation',
     tags=('field', 'phase separation', 'coarsening', 'conserved', 'model b', 'spectral', 'pde', 'conserved noise'),
     references=REFERENCES,
-    defaults={'until': 1000.0, 'dt': 10.0, 'solver': ETDRK4(dt=0.25)},
+    defaults={'until': 1000.0, 'dt': 10.0, 'solver': ETDRK4Solver(dt=0.25)},
 )
 def cahn_hilliard(
     shape: Sequence[int] = (64, 64),
@@ -135,7 +135,7 @@ def cahn_hilliard(
     through the bulk so that their size grows as `t^(1/3)`, while the mean of `phi` stays fixed.
 
     A positive temperature adds the thermal noise of Model B, `div(sqrt(2 temperature) eta)`, which conserves the mean
-    of `phi` as well. The field then uses finite differences, and an SDE solver such as `EulerMaruyama` integrates
+    of `phi` as well. The field then uses finite differences, and an SDE solver such as `EulerMaruyamaSolver` integrates
     it, with a step below `spacing^4 / (32 kappa)`.
 
     Args:
@@ -166,10 +166,10 @@ def cahn_hilliard(
         >>> cahn_hilliard((8, 8), mean=0.3).elements[0].values['kappa']
         1.0
         >>> cahn_hilliard((8, 8), temperature=0.1).elements[0].element.__name__
-        'ThermalCahnHilliard'
+        'ThermalCahnHilliardComponent'
     """
     return _ordering(
-        CahnHilliard,
+        CahnHilliardComponent,
         shape=shape,
         length=length,
         mean=mean,

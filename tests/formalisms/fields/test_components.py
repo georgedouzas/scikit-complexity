@@ -3,38 +3,44 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Noise, Rate
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import structure_factor
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyama, Heun
-from skcomplex.formalisms.fields import Field, laplacian
+from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
+from skcomplex.formalisms.fields import FieldComponent, laplacian
 
-Conserved = Element.define(
-    'Conserved',
+ConservedComponent = ElementComponent.define(
+    'ConservedComponent',
     states={'rho': 0.0},
     parameters={'a': 0.5},
-    laws=lambda s: [Noise(s.rho, s.a, conserved=True)],
+    laws=lambda s: [NoiseLaw(s.rho, s.a, conserved=True)],
 )
 
 
-Diffusing = Element.define(
-    'Diffusing',
+DiffusingComponent = ElementComponent.define(
+    'DiffusingComponent',
     states={'rho': 0.0},
     parameters={'D': 1.0, 'T': 0.5},
-    laws=lambda s: [Rate(s.rho, s.D * laplacian(s.rho)), Noise(s.rho, (2 * s.T) ** 0.5, conserved=True)],
+    laws=lambda s: [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, (2 * s.T) ** 0.5, conserved=True)],
 )
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
-@pytest.mark.parametrize('stepper', [EulerMaruyama, Heun])
+@pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, HeunSolver])
 @pytest.mark.parametrize('boundary', ['periodic', 'zero-flux'])
 def test_conserved_noise_keeps_total(backend, stepper, boundary):
     """Test that a field with only conserved noise keeps its total within 1e-9 relative over 1000 steps."""
     values = np.random.default_rng(0).random((8, 6))
-    field = Field('f', Conserved, LatticeSpace((8, 6)), values={'rho': values}, boundary={'rho': boundary})
+    field = FieldComponent(
+        'f',
+        ConservedComponent,
+        LatticeSpace((8, 6)),
+        values={'rho': values},
+        boundary={'rho': boundary},
+    )
     trajectory = (
         Simulation(System(components=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
         .run(until=10)
@@ -47,8 +53,8 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
 
 def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
-    field = Field('f', Conserved, LatticeSpace((16, 16), spacing=0.5))
-    trajectory = Simulation(System(components=[field]), solver=EulerMaruyama(dt=0.05), random_state=0, dt=4.0)
+    field = FieldComponent('f', ConservedComponent, LatticeSpace((16, 16), spacing=0.5))
+    trajectory = Simulation(System(components=[field]), solver=EulerMaruyamaSolver(dt=0.05), random_state=0, dt=4.0)
     sites = trajectory.run(until=4).trajectory_['f.rho'][-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
@@ -56,9 +62,9 @@ def test_conserved_noise_has_site_variance_of_links():
 @pytest.mark.slow
 def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
-    field = Field('f', Diffusing, LatticeSpace((16, 16)))
+    field = FieldComponent('f', DiffusingComponent, LatticeSpace((16, 16)))
     trajectory = (
-        Simulation(System(components=[field]), solver=EulerMaruyama(dt=0.01), random_state=0, dt=1.0)
+        Simulation(System(components=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
         .run(until=1000)
         .trajectory_
     )

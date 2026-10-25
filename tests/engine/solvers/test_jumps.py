@@ -9,19 +9,19 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import Gillespie
-from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.engine.solvers import GillespieSolver
+from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
 
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
     problem = compile_system(
         System(
-            components=[Compartment('I', n=50), Compartment('R')],
-            interactions=[Recovery('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
+            components=[CompartmentComponent('I', n=50), CompartmentComponent('R')],
+            interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
         ),
     )
-    stepper = Gillespie()
+    stepper = GillespieSolver()
     stepper.initialize(problem, np.random.default_rng(1))
     state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert state.sum() == 50
@@ -32,17 +32,17 @@ def test_gillespie_conserves_individuals():
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
     return System(
-        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
         interactions=[
-            Infection('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
-            Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
 
 
 def _gillespie_run(backend):
     """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
-    simulation = Simulation(_epidemic(), backend=backend, solver=Gillespie(), dt=1.0, random_state=0)
+    simulation = Simulation(_epidemic(), backend=backend, solver=GillespieSolver(), dt=1.0, random_state=0)
     simulation.run(until=50)
     start = time.perf_counter()
     trajectory = simulation.run(until=50).trajectory_

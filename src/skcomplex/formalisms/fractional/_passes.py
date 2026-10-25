@@ -26,9 +26,10 @@ from ...core.base import (
     declarations_of,
     symbols_of,
 )
-from ...core.laws import Law, Noise
+from ...core.laws import BaseLaw, NoiseLaw
 from ...engine.compile import (
     BACKENDS,
+    BasePass,
     BlockLaws,
     Census,
     CensusRecord,
@@ -41,7 +42,6 @@ from ...engine.compile import (
     Layout,
     Lowered,
     Node,
-    Pass,
     Problem,
     Vector,
     declared_times,
@@ -50,16 +50,16 @@ from ...engine.compile import (
     solver_classes,
     state_name,
 )
-from ._laws import FractionalNoise
+from ._laws import FractionalNoiseLaw
 
 
-def _fractional_description(spec: KernelSpec, law: FractionalNoise) -> str:
+def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
     """Return the description of a fractional noise law by the states it drives."""
     states = dict.fromkeys(state_name(spec, item) for item in components_of(law.target))
     return f'fractional noise law of {", ".join(states)}'
 
 
-def _checked_hurst(spec: KernelSpec, law: FractionalNoise, declarations: Declarations, description: str) -> None:
+def _checked_hurst(spec: KernelSpec, law: FractionalNoiseLaw, declarations: Declarations, description: str) -> None:
     """Raise an error when the Hurst index of a fractional noise law is not a number or a parameter in `(0, 1)`."""
     hurst = SR(law.hurst)
     if hurst.is_numeric():
@@ -79,17 +79,17 @@ def _checked_hurst(spec: KernelSpec, law: FractionalNoise, declarations: Declara
         raise ValidationError(error_msg)
 
 
-def _checked_fractional(spec: KernelSpec, laws: list[Law], declarations: Declarations) -> list[Law]:
+def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:
     """Return laws with every fractional noise law of Hurst index 1/2 as a noise law, after validating the others."""
-    result: list[Law] = []
+    result: list[BaseLaw] = []
     for law in laws:
-        if not isinstance(law, FractionalNoise):
+        if not isinstance(law, FractionalNoiseLaw):
             result.append(law)
             continue
         description = _fractional_description(spec, law)
         _checked_hurst(spec, law, declarations, description)
         if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == 0.5:  # noqa: PLR2004
-            result.append(Noise(law.target, law.value, law.order))
+            result.append(NoiseLaw(law.target, law.value, law.order))
             continue
         values = [item for item in components_of(law.value) if isinstance(item, Expression)]
         if not isinstance(law.value, Expression | SymbolicVector) and not SR(law.value).is_numeric():
@@ -180,7 +180,7 @@ def _fractional_law_issues(states: list[FractionalState], records: list[CensusRe
         if not targets or kind in supported:
             continue
         message = (
-            f'The {type(record.law).__name__} law of {record.path} targets {", ".join(targets)}, a state of a '
+            f'The {type(record.law).__name__} of {record.path} targets {", ".join(targets)}, a state of a '
             f'fractional order, but no fractional solver runs {kind} laws.'
         )
         fix = f'Declare an integer order, or use {names_of(supported)} laws on the state.'
@@ -202,10 +202,10 @@ def _owned_fractional(compilation: Compilation) -> list[FractionalState]:
 def _fractional_rows(lowered: Lowered) -> tuple[FractionalRows, ...]:
     """Return the noise rows that fractional noise laws drive, in the order of the noise rows."""
     rows, position = [], 0
-    for kernel in lowered.kernels[Noise]:
+    for kernel in lowered.kernels[NoiseLaw]:
         for item in kernel.outputs:
             spec, law = lowered.laws[id(item)]
-            if isinstance(law, FractionalNoise):
+            if isinstance(law, FractionalNoiseLaw):
                 positions = position + np.arange(kernel.rows, dtype=np.intp)
                 description = _fractional_description(spec, law)
                 rows.append(FractionalRows(description, positions, _hurst_function(kernel, law.hurst)))
@@ -298,7 +298,7 @@ class FractionalState:
     order: float
 
 
-class CheckFractionalNoisePass(Pass):
+class CheckFractionalNoisePass(BasePass):
     """Pass that checks the Hurst index and amplitude of fractional noise laws, with Hurst index 1/2 as noise laws."""
 
     reads = ('lowered', 'layout')
@@ -318,7 +318,7 @@ class CheckFractionalNoisePass(Pass):
         ]
 
 
-class FractionalFormPass(Pass):
+class FractionalFormPass(BasePass):
     """Pass that gives an ODE problem with a state of a fractional order among its owners the fractional form."""
 
     reads = ('form', 'nodes', 'layout')
@@ -335,7 +335,7 @@ class FractionalFormPass(Pass):
             compilation.form = Form.FRACTIONAL
 
 
-class FractionalProblemPass(Pass):
+class FractionalProblemPass(BasePass):
     """Pass that adds the noise rows of fractional noise laws and the orders of the states to the problem."""
 
     reads = ('problem', 'kernels', 'nodes', 'layout')

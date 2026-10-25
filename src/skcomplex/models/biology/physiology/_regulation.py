@@ -5,14 +5,14 @@
 
 from typing import Any
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, pulse
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class GlucoseControl(Element):
+class GlucoseControlComponent(ElementComponent):
     """Blood glucose held near its norm by insulin, which lowers it, and glucagon, which raises it.
 
     The glucose follows `dG/dt = R - (k0 + k_i I) G + k_n N + u(t)`, where `u` is a meal of height `meal` from
@@ -83,26 +83,26 @@ class GlucoseControl(Element):
                 The rate of extra glucose uptake during the exercise.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import GlucoseControl
-        >>> GlucoseControl('organism').meal_time
+        >>> from skcomplex.models.biology.physiology import GlucoseControlComponent
+        >>> GlucoseControlComponent('organism').meal_time
         2.0
     """
 
-    G: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    I: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    N: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    R: float = parameter(default=0.75, domain=Domain.NONNEGATIVE)
-    k0: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    k_i: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    k_n: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    s_i: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    s_n: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d_i: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    d_n: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    K: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    n: float = parameter(default=4.0, domain=Domain.POSITIVE)
-    meal: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    exercise: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
+    G: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    I: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    N: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    R: float = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
+    k0: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    k_i: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    k_n: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    s_i: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    s_n: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d_i: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    d_n: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    n: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    meal: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    exercise: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -118,7 +118,7 @@ class GlucoseControl(Element):
         self.exercise_time = exercise_time
         self.duration = duration
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the glucose balance and the secretion and clearance of insulin and glucagon.
 
         Args:
@@ -136,13 +136,13 @@ class GlucoseControl(Element):
         )
         high = s.G**s.n / (s.G**s.n + s.K**s.n)
         return [
-            Rate(s.G, s.R - (s.k0 + s.k_i * s.I) * s.G + s.k_n * s.N + intake),
-            Rate(s.I, s.s_i * high - s.d_i * s.I),
-            Rate(s.N, s.s_n * (1 - high) - s.d_n * s.N),
+            RateLaw(s.G, s.R - (s.k0 + s.k_i * s.I) * s.G + s.k_n * s.N + intake),
+            RateLaw(s.I, s.s_i * high - s.d_i * s.I),
+            RateLaw(s.N, s.s_n * (1 - high) - s.d_n * s.N),
         ]
 
 
-class Coagulation(Element):
+class CoagulationComponent(ElementComponent):
     """Coagulation cascade: thrombin amplified by positive feedback, switched off by protein C, and fibrinolysis.
 
     An injury of height `injury` from `injury_time` for `duration` activates thrombin, which activates more of itself
@@ -209,26 +209,26 @@ class Coagulation(Element):
                 The rate of thrombin activation by the injury.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import Coagulation
-        >>> Coagulation('blood').injury_time
+        >>> from skcomplex.models.biology.physiology import CoagulationComponent
+        >>> CoagulationComponent('blood').injury_time
         1.0
     """
 
-    T: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    C: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    F: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    P: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    ka: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    k_half: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    d_t: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    k_c: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    s_c: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    d_c: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    s_f: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    k_p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    s_p: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    d_p: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    injury: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    T: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    C: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    F: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ka: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    k_half: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    d_t: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k_c: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    s_c: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    d_c: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    s_f: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    k_p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    s_p: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    d_p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    injury: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -242,7 +242,7 @@ class Coagulation(Element):
         self.injury_time = injury_time
         self.duration = duration
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the activation and inactivation of thrombin, protein C, fibrin, and plasmin.
 
         Args:
@@ -256,10 +256,10 @@ class Coagulation(Element):
         trigger = s.injury * pulse(s.t, self.injury_time, self.duration)
         feedback = s.ka * s.T**2 / (s.k_half**2 + s.T**2)
         return [
-            Rate(s.T, trigger + feedback - (s.d_t + s.k_c * s.C) * s.T),
-            Rate(s.C, s.s_c * s.T - s.d_c * s.C),
-            Rate(s.F, s.s_f * s.T - s.k_p * s.P * s.F),
-            Rate(s.P, s.s_p * s.F - s.d_p * s.P),
+            RateLaw(s.T, trigger + feedback - (s.d_t + s.k_c * s.C) * s.T),
+            RateLaw(s.C, s.s_c * s.T - s.d_c * s.C),
+            RateLaw(s.F, s.s_f * s.T - s.k_p * s.P * s.F),
+            RateLaw(s.P, s.s_p * s.F - s.d_p * s.P),
         ]
 
 
@@ -316,7 +316,7 @@ def glucose_dual_hormone_control(
     """
     k_n = 1.0 if glucagon else 0.0
     insulin, glucagon_level = 2.0 * 0.5, 1.0 * 0.5
-    organism = GlucoseControl(
+    organism = GlucoseControlComponent(
         'organism',
         I=insulin,
         N=glucagon_level,
@@ -376,5 +376,5 @@ def coagulation_positive_feedback(
         >>> coagulation_positive_feedback(injury=0.2).elements[0].injury
         0.2
     """
-    blood = Coagulation('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
+    blood = CoagulationComponent('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
     return System(components=[blood])

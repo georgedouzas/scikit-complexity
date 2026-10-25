@@ -3,9 +3,9 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import (
-    KirschnerPanettaTumour,
+    KirschnerPanettaTumourComponent,
     anti_pd1_checkpoint,
     delayed_dc_vaccine,
     dendritic_cell_vaccine,
@@ -13,7 +13,7 @@ from skcomplex.models.biology.oncology import (
     tumour_immune_suppression,
 )
 
-STIFF = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 
 def _run(system, until, dt):
@@ -28,7 +28,7 @@ def _count_peaks(values):
 
 def test_kirschner_panetta_is_not_registered_twice():
     """Test that the scaled tumour of the immunotherapy model is a new element, not the book's dimensional one."""
-    assert KirschnerPanettaTumour('site').alpha1 == 2e7
+    assert KirschnerPanettaTumourComponent('site').alpha1 == 2e7
 
 
 def test_kirschner_panetta_oscillates_untreated_and_clears_when_treated():

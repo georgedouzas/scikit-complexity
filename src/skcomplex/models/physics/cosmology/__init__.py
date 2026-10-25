@@ -1,8 +1,8 @@
 """Cosmology: the expansion of a homogeneous universe."""
 
-from ._expansion import ScaleFactor, friedmann_expansion
+from ._expansion import ScaleFactorComponent, friedmann_expansion
 
 __all__: list[str] = [
-    'ScaleFactor',
+    'ScaleFactorComponent',
     'friedmann_expansion',
 ]

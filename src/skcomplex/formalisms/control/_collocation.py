@@ -69,7 +69,7 @@ def _hermite_simpson(times: Vector) -> tuple[Vector, Matrix, Matrix, Vector]:
     return points, states, rates, weights
 
 
-class Collocation(OptimalControlSolver):
+class CollocationSolver(OptimalControlSolver):
     """Optimal control by direct collocation, a transcription of the problem solved by nonlinear programming.
 
     The states and the controls at the points of a grid are the variables of a nonlinear programme. The trapezoidal
@@ -109,19 +109,19 @@ class Collocation(OptimalControlSolver):
 
     Examples:
         >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Objective, Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import Objective, RateLaw
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.control import Collocation
+        >>> from skcomplex.formalisms.control import CollocationSolver
         >>> from skcomplex.core.system import System
-        >>> Plant = Element.define(
-        ...     'Plant',
+        >>> PlantComponent = ElementComponent.define(
+        ...     'PlantComponent',
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-        ...     laws=lambda s: [Rate(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
+        ...     laws=lambda s: [RateLaw(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
         ... )
-        >>> solver = Collocation(nodes=51, scheme='hermite-simpson')
-        >>> simulation = Simulation(System(components=[Plant('plant')]), solver=solver).run(until=1.0)
+        >>> solver = CollocationSolver(nodes=51, scheme='hermite-simpson')
+        >>> simulation = Simulation(System(components=[PlantComponent('plant')]), solver=solver).run(until=1.0)
         >>> float(round(simulation.trajectory_['plant.u'][0], 3))
         -0.762
     """

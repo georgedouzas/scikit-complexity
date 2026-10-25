@@ -3,10 +3,10 @@
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import lq_radiosensitizer, radiotherapy_competition
 
-PRECISE = ScipyODE(rtol=1e-10, atol=1e-12)
+PRECISE = ScipyODESolver(rtol=1e-10, atol=1e-12)
 
 
 def _run(system, until, dt):

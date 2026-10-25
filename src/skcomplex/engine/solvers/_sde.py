@@ -23,10 +23,10 @@ from ...core.base import (
 )
 from ..compile import Vector, VectorFunction
 from ._hybrid import Interpolant, advance_fixed_steps, is_hybrid, open_history, with_delays
-from ._stepper import Stepper, register_solver, step_count
+from ._stepper import Solver, register_solver, step_count
 
 
-class SDEScheme(Stepper):
+class SDESolver(Solver):
     """Base class of fixed-step schemes of stochastic differential equations, which take one increment per step.
 
     Subclasses set `supports` and implement `_increment`. The steps stop at breakpoints, read delays by linear
@@ -137,7 +137,7 @@ class SDEScheme(Stepper):
         return self._advance_hybrid(t, x, p, until)
 
 
-class EulerMaruyama(SDEScheme):
+class EulerMaruyamaSolver(SDESolver):
     """Euler-Maruyama integrator of stochastic differential equations with a fixed internal step.
 
     Args:
@@ -148,15 +148,15 @@ class EulerMaruyama(SDEScheme):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
-        >>> from skcomplex.engine.solvers import EulerMaruyama
+        >>> from skcomplex.models.economics.finance import AssetComponent, GeometricBrownianMotionInteraction
+        >>> from skcomplex.engine.solvers import EulerMaruyamaSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[Asset('stock', price=100)],
-        ...         interactions=[GeometricBrownianMotion('gbm', target='stock', mu=0.05, sigma=0.2)],
+        ...         components=[AssetComponent('stock', price=100)],
+        ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
-        >>> stepper = EulerMaruyama(dt=1e-3)
+        >>> stepper = EulerMaruyamaSolver(dt=1e-3)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
@@ -282,7 +282,7 @@ class EulerMaruyama(SDEScheme):
         return state
 
 
-class Milstein(SDEScheme):
+class MilsteinSolver(SDESolver):
     """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise, of strong order 1.
 
     It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with
@@ -296,9 +296,9 @@ class Milstein(SDEScheme):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.engine.solvers import Milstein
+        >>> from skcomplex.engine.solvers import MilsteinSolver
         >>> problem = compile_system(geometric_brownian_motion())
-        >>> stepper = Milstein(dt=0.01)
+        >>> stepper = MilsteinSolver(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
@@ -367,7 +367,7 @@ class Milstein(SDEScheme):
         return following
 
 
-class Heun(SDEScheme):
+class HeunSolver(SDESolver):
     """Predictor-corrector scheme for SDEs that averages the drift over the step and keeps the Itô noise.
 
     The predictor `X~ = X + f(X) h + g(X) dW` gives the corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which has strong
@@ -381,9 +381,9 @@ class Heun(SDEScheme):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.engine.solvers import Heun
+        >>> from skcomplex.engine.solvers import HeunSolver
         >>> problem = compile_system(geometric_brownian_motion())
-        >>> stepper = Heun(dt=0.01)
+        >>> stepper = HeunSolver(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
@@ -448,6 +448,6 @@ class Heun(SDEScheme):
         return state + (drift + problem.drift(end, predictor, p)) * step / 2 + diffusion  # type: ignore[misc]
 
 
-register_solver('euler-maruyama', EulerMaruyama, default=True)
-register_solver('milstein', Milstein)
-register_solver('heun', Heun)
+register_solver('euler-maruyama', EulerMaruyamaSolver, default=True)
+register_solver('milstein', MilsteinSolver)
+register_solver('heun', HeunSolver)

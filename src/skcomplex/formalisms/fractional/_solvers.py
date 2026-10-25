@@ -22,7 +22,7 @@ from ...core.base import (
     TimeKind,
 )
 from ...engine.compile import Problem, Vector
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 
 GRID_TOLERANCE = 1e-9
 CHANGE_TOLERANCE = 1e-12
@@ -131,7 +131,7 @@ class _Rows:
         return self.values[step - self.start]
 
 
-class CaputoStepper(Stepper):
+class CaputoSolver(Solver):
     """Base class of steppers of Caputo fractional differential equations on a fixed grid from the start of a run.
 
     A state of order `alpha` follows `D^alpha x = f(t, x)`, and a state of order 1 follows `dx/dt = f(t, x)`. The
@@ -297,7 +297,7 @@ class CaputoStepper(Stepper):
         return self._state.copy()
 
 
-class ConvolutionStepper(CaputoStepper):
+class ConvolutionSolver(CaputoSolver):
     """Base class of explicit schemes that weigh the displacements of the states from the start of a run.
 
     A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j (x_(k-j) - x_0)` with `c_0 = 1`. With a memory
@@ -415,7 +415,7 @@ class ConvolutionStepper(CaputoStepper):
         self._rows.append(self._state - self._initial)
 
 
-class GrunwaldLetnikov(ConvolutionStepper):
+class GrunwaldLetnikovSolver(ConvolutionSolver):
     """Explicit Grünwald-Letnikov scheme of Caputo fractional differential equations, of order 1.
 
     A step sets `dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k w_j (x_(k-j) - x_0)` with the weights
@@ -438,13 +438,15 @@ class GrunwaldLetnikov(ConvolutionStepper):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.fractional import GrunwaldLetnikov
-        >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
-        >>> problem = compile_system(System(components=[Relaxing('a')]))
-        >>> stepper = GrunwaldLetnikov(dt=0.001)
+        >>> from skcomplex.formalisms.fractional import GrunwaldLetnikovSolver
+        >>> RelaxingComponent = ElementComponent.define(
+        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        ... )
+        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> stepper = GrunwaldLetnikovSolver(dt=0.001)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
@@ -463,7 +465,7 @@ class GrunwaldLetnikov(ConvolutionStepper):
         return np.ones_like(alpha)
 
 
-class L1Scheme(ConvolutionStepper):
+class L1Solver(ConvolutionSolver):
     """Explicit L1 scheme of Caputo fractional differential equations, of order 1.
 
     The L1 scheme interpolates the state linearly between grid points inside the Caputo integral. A step sets
@@ -487,13 +489,15 @@ class L1Scheme(ConvolutionStepper):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.fractional import L1Scheme
-        >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
-        >>> problem = compile_system(System(components=[Relaxing('a')]))
-        >>> stepper = L1Scheme(dt=0.001)
+        >>> from skcomplex.formalisms.fractional import L1Solver
+        >>> RelaxingComponent = ElementComponent.define(
+        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        ... )
+        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> stepper = L1Solver(dt=0.001)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
@@ -512,7 +516,7 @@ class L1Scheme(ConvolutionStepper):
         return np.asarray(gamma(2 - alpha))
 
 
-class FractionalABM(CaputoStepper):
+class FractionalABMSolver(CaputoSolver):
     """Fractional Adams-Bashforth-Moulton predictor-corrector of Diethelm, Ford, and Freed, of order `1 + alpha`.
 
     The scheme solves the equivalent Volterra equation `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1)
@@ -531,13 +535,15 @@ class FractionalABM(CaputoStepper):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.fractional import FractionalABM
-        >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
-        >>> problem = compile_system(System(components=[Relaxing('a')]))
-        >>> stepper = FractionalABM(dt=0.001)
+        >>> from skcomplex.formalisms.fractional import FractionalABMSolver
+        >>> RelaxingComponent = ElementComponent.define(
+        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        ... )
+        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> stepper = FractionalABMSolver(dt=0.001)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43

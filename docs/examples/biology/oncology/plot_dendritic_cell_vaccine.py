@@ -13,13 +13,13 @@ without vaccine, and the tumour regrows once the injections stop.
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'dendritic_cell_vaccine'
 
-solver = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).run(until=2880)

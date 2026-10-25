@@ -7,11 +7,11 @@ from typing import cast
 
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._stochastic import DrawLowering
 
 
-class DrawsPass(Pass):
+class DrawsPass(BasePass):
     """Pass that replaces the draws of update laws by values drawn after the parameters."""
 
     reads = ('drawn', 'layout')

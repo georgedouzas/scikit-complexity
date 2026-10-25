@@ -7,17 +7,17 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 from ..realizations._learning import logit_choice
 
 
-class Consumer(Element):
+class ConsumerComponent(ElementComponent):
     """Consumer who buys fair-trade or regular food by a logit choice on the utility of each option.
 
     The utility of fair food is `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`,
@@ -53,22 +53,22 @@ class Consumer(Element):
             The intensity of the logit choice.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import Consumer
-        >>> Consumer.group('consumers', 4, ethics=0.5).size
+        >>> from skcomplex.models.economics.markets import ConsumerComponent
+        >>> ConsumerComponent.group('consumers', 4, ethics=0.5).size
         4
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)})
-    fair: float = state(default=0.0, domain=Domain.BOOLEAN)
-    ethics: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    budget: float = state(default=2.0, domain=Domain.NONNEGATIVE)
-    premium: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    ethics_weight: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    price_weight: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
-    social_weight: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    intensity: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    fair: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    ethics: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    budget: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    premium: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    ethics_weight: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    price_weight: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    social_weight: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the shopping rule in the phase of shopping.
 
         Args:
@@ -79,7 +79,7 @@ class Consumer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.shop, phase='shopping')]
+        return [RuleLaw(self.shop, phase='shopping')]
 
     def shop(self, agent: AgentView, model: ModelView) -> None:
         """Buy fair or regular food with logit probabilities of their utilities.
@@ -172,7 +172,7 @@ def fair_food(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    consumers = Consumer.group(
+    consumers = ConsumerComponent.group(
         'consumers',
         size,
         location=[(x, y) for x in range(width) for y in range(height)],
@@ -187,5 +187,5 @@ def fair_food(
     return System(
         components=[consumers],
         space=LatticeSpace((width, height), boundary='periodic', capacity=1),
-        time=DiscreteTime(schedule=Phases([Phase('shopping', activation='simultaneous')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('shopping', activation='simultaneous')])),
     )

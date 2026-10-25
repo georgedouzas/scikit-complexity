@@ -5,8 +5,8 @@ import pytest
 
 from skcomplex.engine.analysis import hurst_exponent
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4, EulerMaruyama
-from skcomplex.formalisms.fractional import FractionalEulerMaruyama
+from skcomplex.engine.solvers import EulerMaruyamaSolver, RK4Solver
+from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver
 from skcomplex.models.physics.soft_matter import (
     annealed_transient_time_motion,
     continuous_time_random_walk,
@@ -34,21 +34,21 @@ def test_continuous_time_random_walk_subdiffuses():
 def test_levy_walk_superdiffuses():
     """Test that 2000 walkers with flight-time exponent 1.5 run to time 2000 spread as t^(3 - sigma)."""
     system = levy_walk(2000, sigma=1.5, n_dim=1)
-    simulation = Simulation(system, solver=RK4(dt=1.0), dt=20, random_state=0)
+    simulation = Simulation(system, solver=RK4Solver(dt=1.0), dt=20, random_state=0)
     assert _exponent(simulation.run(2000).trajectory_, 'walkers.x', 100) == pytest.approx(1.5, abs=0.1)
 
 
 def test_annealed_transient_time_motion_subdiffuses():
     """Test that 10000 walkers with sigma 0.5 and gamma 1 spread as t^(sigma / gamma) at long times."""
     system = annealed_transient_time_motion(10000, sigma=0.5, gamma=1.0, n_dim=1)
-    simulation = Simulation(system, solver=EulerMaruyama(dt=1.0), dt=20, random_state=0)
+    simulation = Simulation(system, solver=EulerMaruyamaSolver(dt=1.0), dt=20, random_state=0)
     assert _exponent(simulation.run(2000).trajectory_, 'walkers.x', 100) == pytest.approx(0.5, abs=0.1)
 
 
 def test_fractional_brownian_motion_has_its_hurst_index():
     """Test that 1000 walkers with H = 0.3 spread as t^0.6, with increments of Hurst exponent 0.3."""
     system = fractional_brownian_motion(1000, H=0.3, n_dim=1)
-    simulation = Simulation(system, solver=FractionalEulerMaruyama(dt=0.01), dt=0.01, random_state=0)
+    simulation = Simulation(system, solver=FractionalEulerMaruyamaSolver(dt=0.01), dt=0.01, random_state=0)
     trajectory = simulation.run(10).trajectory_
     assert _exponent(trajectory, 'walkers.x', 0.05) == pytest.approx(0.6, abs=0.05)
     exponents = [hurst_exponent(np.diff(trajectory['walkers.x'][:, member, 0])) for member in range(100)]

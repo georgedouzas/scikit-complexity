@@ -12,16 +12,16 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import BackendWarning, Domain, Expression, Form, wrap_angle
-from ....core.laws import Jump, Law, Noise, Rate, Update
+from ....core.base import BackendWarning, Expression, Form, NumericDomain, wrap_angle
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._arrays import Vector
-from .._backends import Backend, Lowering, resolve_backend
+from .._backends import BaseBackend, Lowering, resolve_backend
 from .._compilation import Compilation
 from .._declarations import Declarations, member_count
 from .._forms import is_stepwise
 from .._kernels import Kernel, Lowered, Output, Source
 from .._layout import Layout
-from .._pipeline import Pass
+from .._pipeline import BasePass
 from .._problem import Accelerated, VectorFunction
 from .._real_parts import real_components_of
 from .._reductions import ReductionPass
@@ -72,7 +72,7 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
     """Return a boundary function that also wraps every angle state into `(-pi, pi]`."""
     indices = np.concatenate(
         [np.zeros(0, dtype=np.intp)]
-        + [np.arange(entry.start, entry.start + entry.size) for entry in states if entry.domain is Domain.ANGLE],
+        + [np.arange(entry.start, entry.start + entry.size) for entry in states if entry.domain is NumericDomain.ANGLE],
     )
     if not indices.size:
         return boundary
@@ -87,7 +87,7 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
     return wrapped
 
 
-def _chosen_backend(compilation: Compilation, form: Form, members: int) -> Backend:
+def _chosen_backend(compilation: Compilation, form: Form, members: int) -> BaseBackend:
     """Return the backend that lowers a form, NumPy for a stepwise form, warning when it is not the one asked for."""
     requested = resolve_backend(compilation.backend, members)
     if not is_stepwise(form):
@@ -105,7 +105,7 @@ def _chosen_backend(compilation: Compilation, form: Form, members: int) -> Backe
 def _backends_of(form: Form, kernels: Mapping[type, list[Kernel]], name: str, lowering: Lowering) -> dict[str, str]:
     """Return the backend that runs the form and every law kind with kernels, with the backend's own record."""
     backends = {form.name: name}
-    backends.update({str(cast('type[Law]', kind).law_kind): name for kind, items in kernels.items() if items})
+    backends.update({str(cast('type[BaseLaw]', kind).law_kind): name for kind, items in kernels.items() if items})
     backends.update(lowering.backends)
     return backends
 
@@ -132,12 +132,12 @@ def _lower(compilation: Compilation) -> dict[str, object]:
     functions['backends'] = _backends_of(form, kernels, backend.name, lowering)
     functions['draws'] = draws
     main = {
-        Form.ODE: kernels[Rate],
-        Form.FRACTIONAL: kernels[Rate],
-        Form.SDE: kernels[Rate] + kernels[Noise],
-        Form.JUMP: kernels[Jump],
-    }.get(form, kernels[Update])
-    equation_kernels = {Form.DISCRETE: kernels[Update], Form.JUMP: []}.get(form, kernels[Rate])
+        Form.ODE: kernels[RateLaw],
+        Form.FRACTIONAL: kernels[RateLaw],
+        Form.SDE: kernels[RateLaw] + kernels[NoiseLaw],
+        Form.JUMP: kernels[JumpLaw],
+    }.get(form, kernels[UpdateLaw])
+    equation_kernels = {Form.DISCRETE: kernels[UpdateLaw], Form.JUMP: []}.get(form, kernels[RateLaw])
     equations, symbols = _equations_of(equation_kernels, declarations, form)
     functions.update(
         equations=equations,
@@ -150,7 +150,7 @@ def _lower(compilation: Compilation) -> dict[str, object]:
     return functions
 
 
-class FunctionsPass(Pass):
+class FunctionsPass(BasePass):
     """Pass that lowers the kernels into the numeric functions and the equations of the form."""
 
     reads = ('kernels', 'form', 'layout', 'reductions', 'drawing')

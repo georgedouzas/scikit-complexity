@@ -15,7 +15,7 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _widened, colors_of
 from ._utils import UPWARD, _radius_of, log_scalars
-from ._visuals import Visual, register_visual
+from ._visuals import BaseVisual, register_visual
 
 MAX_POINT_DIMENSIONS = 3
 TRAIL_LENGTH = 256
@@ -23,7 +23,7 @@ MAX_TRAIL_POINTS = 10
 TRAIL_WIDTH = 0.25
 
 
-class PointsVisual(Visual):
+class PointsVisual(BaseVisual):
     """Visual that logs a vector state as points, one per member of a group, and other states as time series.
 
     Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in

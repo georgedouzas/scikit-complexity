@@ -6,30 +6,30 @@
 from sage.all__sagemath_symbolics import abs_symbolic
 
 from ....core.base import state
-from ....core.components import Element
-from ....core.laws import Rate, derivative
+from ....core.components import ElementComponent
+from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-Lorenz = Element.define(
-    'Lorenz',
+LorenzComponent = ElementComponent.define(
+    'LorenzComponent',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0},
     parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},
     laws=lambda s: [
-        Rate(s.x, s.sigma * (s.y - s.x)),
-        Rate(s.y, s.x * (s.rho - s.z) - s.y),
-        Rate(s.z, s.x * s.y - s.beta * s.z),
+        RateLaw(s.x, s.sigma * (s.y - s.x)),
+        RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+        RateLaw(s.z, s.x * s.y - s.beta * s.z),
     ],
 )
 
-Rossler = Element.define(
-    'Rossler',
+RosslerComponent = ElementComponent.define(
+    'RosslerComponent',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0},
     parameters={'a': 0.2, 'b': 0.2, 'c': 5.7},
     laws=lambda s: [
-        Rate(s.x, -s.y - s.z),
-        Rate(s.y, s.x + s.a * s.y),
-        Rate(s.z, s.b + s.z * (s.x - s.c)),
+        RateLaw(s.x, -s.y - s.z),
+        RateLaw(s.y, s.x + s.a * s.y),
+        RateLaw(s.z, s.b + s.z * (s.x - s.c)),
     ],
 )
 
@@ -79,7 +79,7 @@ def lorenz(
         >>> lorenz(rho=20.0).elements[0].rho
         20.0
     """
-    return System(components=[Lorenz('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
+    return System(components=[LorenzComponent('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
 
 
 @register_model(
@@ -127,14 +127,14 @@ def rossler(
         >>> rossler(c=4.0).elements[0].c
         4.0
     """
-    return System(components=[Rossler('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
+    return System(components=[RosslerComponent('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
 
 
-Jerk = Element.define(
-    'Jerk',
+JerkComponent = ElementComponent.define(
+    'JerkComponent',
     states={'x': state(default=0.0, order=3, initial=(0.0, 1.0))},
     parameters={'A': 0.6},
-    laws=lambda s: [Rate(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
+    laws=lambda s: [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
 )
 
 
@@ -175,14 +175,14 @@ def sprott_jerk(
         >>> sprott_jerk(A=0.5).elements[0].A
         0.5
     """
-    return System(components=[Jerk('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
+    return System(components=[JerkComponent('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
 
 
-BlowUp = Element.define(
-    'BlowUp',
+BlowUpComponent = ElementComponent.define(
+    'BlowUpComponent',
     states={'x': 1.0},
     parameters={'a': 1.0, 'p': 2.0},
-    laws=lambda s: [Rate(s.x, s.a * s.x**s.p)],
+    laws=lambda s: [RateLaw(s.x, s.a * s.x**s.p)],
 )
 
 
@@ -214,4 +214,4 @@ def finite_time_blow_up(x: float = 1.0, *, a: float = 1.0, p: float = 2.0) -> Sy
         >>> finite_time_blow_up(p=3.0).elements[0].p
         3.0
     """
-    return System(components=[BlowUp('growth', x=x, a=a, p=p)])
+    return System(components=[BlowUpComponent('growth', x=x, a=a, p=p)])

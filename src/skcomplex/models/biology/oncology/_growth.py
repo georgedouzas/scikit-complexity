@@ -7,17 +7,17 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import log
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, pulse_train, where
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
 
 
-class Tumour(Element):
+class TumourComponent(ElementComponent):
     """Tumour of a size measured in cells or in volume.
 
     Args:
@@ -28,15 +28,15 @@ class Tumour(Element):
             The initial size.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Tumour
-        >>> Tumour('tumour', n=50.0).n
+        >>> from skcomplex.models.biology.oncology import TumourComponent
+        >>> TumourComponent('tumour', n=50.0).n
         50.0
     """
 
-    n: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Vasculature(Element):
+class VasculatureComponent(ElementComponent):
     """Vasculature of a tumour, which sets its carrying capacity.
 
     Args:
@@ -47,15 +47,15 @@ class Vasculature(Element):
             The initial carrying capacity.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Vasculature
-        >>> Vasculature('vessels', K=12.7).K
+        >>> from skcomplex.models.biology.oncology import VasculatureComponent
+        >>> VasculatureComponent('vessels', K=12.7).K
         12.7
     """
 
-    K: float = state(default=1.0, domain=Domain.POSITIVE)
+    K: float = state(default=1.0, domain=NumericDomain.POSITIVE)
 
 
-class ExponentialLinearGrowth(Interaction):
+class ExponentialLinearGrowthInteraction(BaseInteraction):
     """Growth that is exponential, `dn/dt = r0 n`, until it reaches the linear rate `r`, and linear after.
 
     The switch happens at `tau = log(r / (r0 n0)) / r0`, where the two rates meet, so the solution is continuously
@@ -75,16 +75,16 @@ class ExponentialLinearGrowth(Interaction):
             The linear growth rate.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ExponentialLinearGrowth
-        >>> ExponentialLinearGrowth('growth', target='tumour', r=67.8).r
+        >>> from skcomplex.models.biology.oncology import ExponentialLinearGrowthInteraction
+        >>> ExponentialLinearGrowthInteraction('growth', target='tumour', r=67.8).r
         67.8
     """
 
     target: str = role()
-    r0: float = parameter(default=0.31, domain=Domain.POSITIVE)
-    r: float = parameter(default=67.8, domain=Domain.POSITIVE)
+    r0: float = parameter(default=0.31, domain=NumericDomain.POSITIVE)
+    r: float = parameter(default=67.8, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `min(r0 n, r)`.
 
         Args:
@@ -96,10 +96,10 @@ class ExponentialLinearGrowth(Interaction):
                 The laws of the component.
         """
         exponential = s.r0 * s.target.n
-        return [Rate(s.target.n, where(exponential < s.r, exponential, s.r))]
+        return [RateLaw(s.target.n, where(exponential < s.r, exponential, s.r))]
 
 
-class PowerLawGrowth(Interaction):
+class PowerLawGrowthInteraction(BaseInteraction):
     """Growth of a proliferating part that scales as a power of the size, `dn/dt = r n^p`.
 
     Args:
@@ -116,16 +116,16 @@ class PowerLawGrowth(Interaction):
             The exponent, `2/3` for a proliferating rim and 1 for exponential growth.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import PowerLawGrowth
-        >>> PowerLawGrowth('growth', target='tumour').p
+        >>> from skcomplex.models.biology.oncology import PowerLawGrowthInteraction
+        >>> PowerLawGrowthInteraction('growth', target='tumour').p
         0.58
     """
 
     target: str = role()
-    r: float = parameter(default=1.32, domain=Domain.POSITIVE)
-    p: float = parameter(default=0.58, domain=Domain.POSITIVE)
+    r: float = parameter(default=1.32, domain=NumericDomain.POSITIVE)
+    p: float = parameter(default=0.58, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r n^p`.
 
         Args:
@@ -136,10 +136,10 @@ class PowerLawGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n**s.p)]
+        return [RateLaw(s.target.n, s.r * s.target.n**s.p)]
 
 
-class ExponentialGrowth(Interaction):
+class ExponentialGrowthInteraction(BaseInteraction):
     """Growth at a constant per capita rate, `dn/dt = r n`.
 
     Args:
@@ -153,15 +153,15 @@ class ExponentialGrowth(Interaction):
             The per capita growth rate.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ExponentialGrowth
-        >>> ExponentialGrowth('growth', target='tumour', r=0.223).r
+        >>> from skcomplex.models.biology.oncology import ExponentialGrowthInteraction
+        >>> ExponentialGrowthInteraction('growth', target='tumour', r=0.223).r
         0.223
     """
 
     target: str = role()
-    r: float = parameter(default=0.223, domain=Domain.REAL)
+    r: float = parameter(default=0.223, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r n`.
 
         Args:
@@ -172,10 +172,10 @@ class ExponentialGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n)]
+        return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class Loss(Interaction):
+class LossInteraction(BaseInteraction):
     """Loss at a constant per capita rate, `dn/dt = -d n`.
 
     Args:
@@ -189,15 +189,15 @@ class Loss(Interaction):
             The per capita loss rate.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Loss
-        >>> Loss('loss', target='tumour', d=0.8).d
+        >>> from skcomplex.models.biology.oncology import LossInteraction
+        >>> LossInteraction('loss', target='tumour', d=0.8).d
         0.8
     """
 
     target: str = role()
-    d: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    d: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `-d n`.
 
         Args:
@@ -208,10 +208,10 @@ class Loss(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, -s.d * s.target.n)]
+        return [RateLaw(s.target.n, -s.d * s.target.n)]
 
 
-class GeneralizedLogisticGrowth(Interaction):
+class GeneralizedLogisticGrowthInteraction(BaseInteraction):
     """Growth that saturates at a carrying capacity, `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
 
     Args:
@@ -231,17 +231,17 @@ class GeneralizedLogisticGrowth(Interaction):
             The exponent of the saturation.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import GeneralizedLogisticGrowth
-        >>> GeneralizedLogisticGrowth('growth', target='tumour', p=2.0).p
+        >>> from skcomplex.models.biology.oncology import GeneralizedLogisticGrowthInteraction
+        >>> GeneralizedLogisticGrowthInteraction('growth', target='tumour', p=2.0).p
         2.0
     """
 
     target: str = role()
-    r: float = parameter(default=0.305, domain=Domain.POSITIVE)
-    K: float = parameter(default=1221.0, domain=Domain.POSITIVE)
-    p: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=0.305, domain=NumericDomain.POSITIVE)
+    K: float = parameter(default=1221.0, domain=NumericDomain.POSITIVE)
+    p: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r n (1 - (n / K)^p)`.
 
         Args:
@@ -252,10 +252,10 @@ class GeneralizedLogisticGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n * (1 - (s.target.n / s.K) ** s.p))]
+        return [RateLaw(s.target.n, s.r * s.target.n * (1 - (s.target.n / s.K) ** s.p))]
 
 
-class GompertzGrowth(Interaction):
+class GompertzGrowthInteraction(BaseInteraction):
     """Growth that slows as the logarithm of the room left, `dn/dt = r n log(K / n)`.
 
     Args:
@@ -272,16 +272,16 @@ class GompertzGrowth(Interaction):
             The carrying capacity.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import GompertzGrowth
-        >>> GompertzGrowth('growth', target='tumour', K=2000.0).K
+        >>> from skcomplex.models.biology.oncology import GompertzGrowthInteraction
+        >>> GompertzGrowthInteraction('growth', target='tumour', K=2000.0).K
         2000.0
     """
 
     target: str = role()
-    r: float = parameter(default=0.0719, domain=Domain.POSITIVE)
-    K: float = parameter(default=1964.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=0.0719, domain=NumericDomain.POSITIVE)
+    K: float = parameter(default=1964.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r n log(K / n)`.
 
         Args:
@@ -292,10 +292,10 @@ class GompertzGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n * log(s.K / s.target.n))]
+        return [RateLaw(s.target.n, s.r * s.target.n * log(s.K / s.target.n))]
 
 
-class VascularSupport(Interaction):
+class VascularSupportInteraction(BaseInteraction):
     """Gompertz growth under a carrying capacity that the vessels on the tumour surface raise.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`.
@@ -317,17 +317,17 @@ class VascularSupport(Interaction):
             The rate at which the surface of the tumour raises the capacity.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VascularSupport
-        >>> VascularSupport('support', tumour='tumour', vasculature='vessels').d
+        >>> from skcomplex.models.biology.oncology import VascularSupportInteraction
+        >>> VascularSupportInteraction('support', tumour='tumour', vasculature='vessels').d
         0.829
     """
 
     tumour: str = role()
     vasculature: str = role()
-    r: float = parameter(default=2.63, domain=Domain.POSITIVE)
-    d: float = parameter(default=0.829, domain=Domain.NONNEGATIVE)
+    r: float = parameter(default=2.63, domain=NumericDomain.POSITIVE)
+    d: float = parameter(default=0.829, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the Gompertz growth of the tumour and the growth of the capacity.
 
         Args:
@@ -339,10 +339,10 @@ class VascularSupport(Interaction):
                 The laws of the component.
         """
         n, K = s.tumour.n, s.vasculature.K
-        return [Rate(n, s.r * n * log(K / n)), Rate(K, s.d * n ** (2 / 3))]
+        return [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
 
 
-class LogKill(Interaction):
+class LogKillInteraction(BaseInteraction):
     """Cell kill proportional to the tumour and to a drug exposure given in a train of rectangular doses.
 
     The kill is `dn/dt = -a n U(t)`, where the exposure `U` is `dose` for `width` time units every `period`, from
@@ -374,14 +374,14 @@ class LogKill(Interaction):
                 The exposure during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import LogKill
-        >>> LogKill('kill', target='tumour', period=21.0).period
+        >>> from skcomplex.models.biology.oncology import LogKillInteraction
+        >>> LogKillInteraction('kill', target='tumour', period=21.0).period
         21.0
     """
 
     target: str = role()
-    a: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    dose: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    a: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    dose: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -397,7 +397,7 @@ class LogKill(Interaction):
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `-a n U(t)`.
 
         Args:
@@ -409,7 +409,7 @@ class LogKill(Interaction):
                 The laws of the component.
         """
         exposure = pulse_train(s.t, self.period, self.width, start=self.start)
-        return [Rate(s.target.n, -s.a * s.dose * exposure * s.target.n)]
+        return [RateLaw(s.target.n, -s.a * s.dose * exposure * s.target.n)]
 
 
 @register_model(
@@ -443,8 +443,8 @@ def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67
         0.31
     """
     return System(
-        components=[Tumour('tumour', n=n)],
-        interactions=[ExponentialLinearGrowth('growth', target='tumour', r0=r0, r=r)],
+        components=[TumourComponent('tumour', n=n)],
+        interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=r0, r=r)],
     )
 
 
@@ -480,8 +480,8 @@ def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> Sy
         0.6666666666666666
     """
     return System(
-        components=[Tumour('tumour', n=n)],
-        interactions=[PowerLawGrowth('growth', target='tumour', r=r, p=p)],
+        components=[TumourComponent('tumour', n=n)],
+        interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p)],
     )
 
 
@@ -519,8 +519,11 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         0.808
     """
     return System(
-        components=[Tumour('tumour', n=n)],
-        interactions=[PowerLawGrowth('growth', target='tumour', r=r, p=p), Loss('loss', target='tumour', d=d)],
+        components=[TumourComponent('tumour', n=n)],
+        interactions=[
+            PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p),
+            LossInteraction('loss', target='tumour', d=d),
+        ],
     )
 
 
@@ -559,8 +562,8 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
         0.5
     """
     return System(
-        components=[Tumour('tumour', n=n)],
-        interactions=[GeneralizedLogisticGrowth('growth', target='tumour', r=r, K=K, p=p)],
+        components=[TumourComponent('tumour', n=n)],
+        interactions=[GeneralizedLogisticGrowthInteraction('growth', target='tumour', r=r, K=K, p=p)],
     )
 
 
@@ -596,8 +599,8 @@ def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System
         1000.0
     """
     return System(
-        components=[Tumour('tumour', n=n)],
-        interactions=[GompertzGrowth('growth', target='tumour', r=r, K=K)],
+        components=[TumourComponent('tumour', n=n)],
+        interactions=[GompertzGrowthInteraction('growth', target='tumour', r=r, K=K)],
     )
 
 
@@ -637,8 +640,8 @@ def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.6
         12.7
     """
     return System(
-        components=[Tumour('tumour', n=n), Vasculature('vessels', K=K)],
-        interactions=[VascularSupport('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
+        components=[TumourComponent('tumour', n=n), VasculatureComponent('vessels', K=K)],
+        interactions=[VascularSupportInteraction('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
     )
 
 
@@ -692,10 +695,10 @@ def skipper_log_kill(
         21.0
     """
     return System(
-        components=[Tumour('tumour', n=n)],
+        components=[TumourComponent('tumour', n=n)],
         interactions=[
-            ExponentialGrowth('growth', target='tumour', r=r),
-            LogKill('kill', target='tumour', a=a, dose=dose, period=period, width=width),
+            ExponentialGrowthInteraction('growth', target='tumour', r=r),
+            LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width),
         ],
     )
 
@@ -757,9 +760,9 @@ def norton_simon(
         42.0
     """
     return System(
-        components=[Tumour('tumour', n=n)],
+        components=[TumourComponent('tumour', n=n)],
         interactions=[
-            GompertzGrowth('growth', target='tumour', r=r, K=K),
-            LogKill('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),
+            GompertzGrowthInteraction('growth', target='tumour', r=r, K=K),
+            LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),
         ],
     )

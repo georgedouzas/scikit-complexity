@@ -8,14 +8,14 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -34,7 +34,7 @@ def _circles(positions: Array, size: float, reach: float) -> npt.NDArray[np.bool
     return within
 
 
-class Believer(Element):
+class BelieverComponent(ElementComponent):
     """Agent of the belief diffusion model, with the weights it gives to four levels of caring about an issue.
 
     The levels are not caring at all, caring less, caring a bit, and caring passionately. An agent cares at the level
@@ -58,18 +58,18 @@ class Believer(Element):
             The increment per neighbour and step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Believer
-        >>> Believer.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
-        Group('people', element=Believer, size=4)
+        >>> from skcomplex.models.social.opinion_dynamics import BelieverComponent
+        >>> BelieverComponent.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
+        GroupComponent('people', element=BelieverComponent, size=4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
     belief: npt.ArrayLike = state(default=0.0, vector=True)
-    caring: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    influence: float = state(default=1.0, domain=Domain.POSITIVE)
-    learning: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    caring: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    influence: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    learning: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the learning rule.
 
         Args:
@@ -80,7 +80,7 @@ class Believer(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.learn)]
+        return [RuleLaw(self.learn)]
 
     def learn(self, agent: AgentView, model: ModelView) -> None:
         """Add the influence of every neighbour to the weight of the level the neighbour cares at.
@@ -100,7 +100,7 @@ class Believer(Element):
         agent.belief, agent.caring = belief, float(np.argmax(belief))
 
 
-class Adopter(Element):
+class AdopterComponent(ElementComponent):
     """Agent of the threshold adoption model, who adopts an innovation for good.
 
     Args:
@@ -120,19 +120,19 @@ class Adopter(Element):
             The share of agents that move one unit in a random direction every step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Adopter
-        >>> Adopter.group('people', 10, threshold=50.0)
-        Group('people', element=Adopter, size=10)
+        >>> from skcomplex.models.social.opinion_dynamics import AdopterComponent
+        >>> AdopterComponent.group('people', 10, threshold=50.0)
+        GroupComponent('people', element=AdopterComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
-    adopted: float = state(default=0.0, domain=Domain.BOOLEAN)
-    threshold: float = state(default=50.0, domain=Domain.NONNEGATIVE)
-    reach: float = parameter(default=15.0, domain=Domain.POSITIVE)
-    shifting: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    adopted: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    threshold: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    reach: float = parameter(default=15.0, domain=NumericDomain.POSITIVE)
+    shifting: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Adoption(Interaction):
+class AdoptionInteraction(BaseInteraction):
     """Synchronous adoption step of the threshold model, after a share of agents shift.
 
     In the infection mode an agent adopts once anyone in its social circle has adopted. In the influence mode it
@@ -155,8 +155,8 @@ class Adoption(Interaction):
                 The path of the group of adopters.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import Adoption
-        >>> Adoption('adoption', target='people', mode='influence').mode
+        >>> from skcomplex.models.social.opinion_dynamics import AdoptionInteraction
+        >>> AdoptionInteraction('adoption', target='people', mode='influence').mode
         'influence'
     """
 
@@ -174,7 +174,7 @@ class Adoption(Interaction):
         self.size = size
         self.mode = mode
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the adoption rule.
 
         Args:
@@ -192,7 +192,7 @@ class Adoption(Interaction):
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
-        return [Rule(self.adopt)]
+        return [RuleLaw(self.adopt)]
 
     def _shift(self, agents: list[AgentView], model: ModelView) -> None:
         """Move a share of the agents one unit in a random direction."""
@@ -283,7 +283,7 @@ def influentials(
     belief[chosen, PASSIONATE] = belief[chosen].max(axis=1) + 1
     weights = np.ones(size)
     weights[chosen] = influence
-    people = Believer.group(
+    people = BelieverComponent.group(
         'people',
         size,
         location=[(column, row) for column in range(width) for row in range(height)],
@@ -349,7 +349,7 @@ def threshold_adoption(
     innovators = np.argsort(drawn)[: max(1, round(INNOVATORS * n_agents))]
     adopted = np.zeros(n_agents)
     adopted[innovators] = 1.0
-    people = Adopter.group(
+    people = AdopterComponent.group(
         'people',
         n_agents,
         location=rng.uniform(0, size, (n_agents, 2)),
@@ -360,6 +360,6 @@ def threshold_adoption(
     )
     return System(
         components=[people],
-        interactions=[Adoption('adoption', target='people', size=size, mode=mode)],
+        interactions=[AdoptionInteraction('adoption', target='people', size=size, mode=mode)],
         space=ContinuousSpace(size, size, boundary='periodic'),
     )

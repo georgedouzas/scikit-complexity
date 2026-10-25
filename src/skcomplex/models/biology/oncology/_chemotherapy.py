@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Rate, Symbols, delayed, where
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, RateLaw, Symbols, delayed, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -24,7 +24,7 @@ def _saturating(n: Expression, bd: Expression) -> Expression:
     return n / (bd + n)
 
 
-class TumourImmuneChemotherapy(Element):
+class TumourImmuneChemotherapyComponent(ElementComponent):
     """Immune, tumour, and normal cells that compete and that a drug kills, after de Pillis and Radunskaya.
 
     The immune cells follow `dE/dt = s + rho E A / (alpha + A) - d1 E - c1 E A - a1 (1 - exp(-U)) E`, the tumour
@@ -100,34 +100,34 @@ class TumourImmuneChemotherapy(Element):
             The constant infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourImmuneChemotherapy
-        >>> TumourImmuneChemotherapy('patient', u=1.0).u
+        >>> from skcomplex.models.biology.oncology import TumourImmuneChemotherapyComponent
+        >>> TumourImmuneChemotherapyComponent('patient', u=1.0).u
         1.0
     """
 
-    E: float = state(default=0.15, domain=Domain.NONNEGATIVE)
-    A: float = state(default=0.25, domain=Domain.NONNEGATIVE)
-    N: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    U: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    s: float = parameter(default=0.33, domain=Domain.NONNEGATIVE)
-    rho: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.3, domain=Domain.POSITIVE)
-    c1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    c3: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    c4: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=1.5, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    b2: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    u: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    E: float = state(default=0.15, domain=NumericDomain.NONNEGATIVE)
+    A: float = state(default=0.25, domain=NumericDomain.NONNEGATIVE)
+    N: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    s: float = parameter(default=0.33, domain=NumericDomain.NONNEGATIVE)
+    rho: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    c1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    c3: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    c4: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    b2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    u: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the balances of the immune, tumour, and normal cells and of the drug.
 
         Args:
@@ -141,14 +141,14 @@ class TumourImmuneChemotherapy(Element):
         E, A, N, U = s.E, s.A, s.N, s.U
         kill = 1 - exp(-U)
         return [
-            Rate(E, s.s + s.rho * E * A / (s.alpha + A) - s.d1 * E - s.c1 * E * A - s.a1 * kill * E),
-            Rate(A, s.r1 * A * (1 - s.b1 * A) - s.c2 * E * A - s.c3 * N * A - s.a2 * kill * A),
-            Rate(N, s.r2 * N * (1 - s.b2 * N) - s.c4 * N * A - s.a3 * kill * N),
-            Rate(U, s.u - s.k * U),
+            RateLaw(E, s.s + s.rho * E * A / (s.alpha + A) - s.d1 * E - s.c1 * E * A - s.a1 * kill * E),
+            RateLaw(A, s.r1 * A * (1 - s.b1 * A) - s.c2 * E * A - s.c3 * N * A - s.a2 * kill * A),
+            RateLaw(N, s.r2 * N * (1 - s.b2 * N) - s.c4 * N * A - s.a3 * kill * N),
+            RateLaw(U, s.u - s.k * U),
         ]
 
 
-class MultidrugResistance(Element):
+class MultidrugResistanceComponent(ElementComponent):
     """Tumour cells split by their resistance to three drugs, each given by a constant infusion with its toxicity.
 
     The sensitive cells `S`, the cells resistant to one drug `R1`, `R2`, `R3`, to two drugs `R12`, `R13`, `R23`, and
@@ -255,44 +255,44 @@ class MultidrugResistance(Element):
             The infusion rate of drug 3.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import MultidrugResistance
-        >>> MultidrugResistance('tumour').Uth
+        >>> from skcomplex.models.biology.oncology import MultidrugResistanceComponent
+        >>> MultidrugResistanceComponent('tumour').Uth
         10.0
     """
 
-    S: float = state(default=4.605e11, domain=Domain.NONNEGATIVE)
-    R1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R3: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R12: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R13: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R23: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    R123: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    U1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    U2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    U3: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    TX1: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    TX2: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    TX3: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r: float = parameter(default=0.0099, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=0.008, domain=Domain.NONNEGATIVE)
-    m2: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    m3: float = parameter(default=0.014, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=0.0084, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.0074, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.0092, domain=Domain.NONNEGATIVE)
-    Uth: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    k1: float = parameter(default=0.32, domain=Domain.NONNEGATIVE)
-    k2: float = parameter(default=0.27, domain=Domain.NONNEGATIVE)
-    k3: float = parameter(default=0.25, domain=Domain.NONNEGATIVE)
-    eta1: float = parameter(default=0.4, domain=Domain.NONNEGATIVE)
-    eta2: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    eta3: float = parameter(default=0.45, domain=Domain.NONNEGATIVE)
-    u1: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    u2: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    u3: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    S: float = state(default=4.605e11, domain=NumericDomain.NONNEGATIVE)
+    R1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R3: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R12: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R13: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R23: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    R123: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    U1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    U2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    U3: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    TX1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    TX2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    TX3: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r: float = parameter(default=0.0099, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=0.008, domain=NumericDomain.NONNEGATIVE)
+    m2: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    m3: float = parameter(default=0.014, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=0.0084, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.0074, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.0092, domain=NumericDomain.NONNEGATIVE)
+    Uth: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    k1: float = parameter(default=0.32, domain=NumericDomain.NONNEGATIVE)
+    k2: float = parameter(default=0.27, domain=NumericDomain.NONNEGATIVE)
+    k3: float = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
+    eta1: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    eta2: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    eta3: float = parameter(default=0.45, domain=NumericDomain.NONNEGATIVE)
+    u1: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    u2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    u3: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth, mutation, and kill of the eight populations, and the drugs and their toxicities.
 
         Args:
@@ -306,24 +306,24 @@ class MultidrugResistance(Element):
         kill1, kill2, kill3 = (a * _excess(U, s.Uth) for a, U in ((s.a1, s.U1), (s.a2, s.U2), (s.a3, s.U3)))
         m1, m2, m3, r = s.m1, s.m2, s.m3, s.r
         return [
-            Rate(s.S, r * (1 - m1 - m2 - m3) * s.S - (kill1 + kill2 + kill3) * s.S),
-            Rate(s.R1, r * ((1 - m2 - m3) * s.R1 + m1 * s.S) - (kill2 + kill3) * s.R1),
-            Rate(s.R2, r * ((1 - m1 - m3) * s.R2 + m2 * s.S) - (kill1 + kill3) * s.R2),
-            Rate(s.R3, r * ((1 - m1 - m2) * s.R3 + m3 * s.S) - (kill1 + kill2) * s.R3),
-            Rate(s.R12, r * ((1 - m3) * s.R12 + m2 * s.R1 + m1 * s.R2) - kill3 * s.R12),
-            Rate(s.R13, r * ((1 - m2) * s.R13 + m3 * s.R1 + m1 * s.R3) - kill2 * s.R13),
-            Rate(s.R23, r * ((1 - m1) * s.R23 + m3 * s.R2 + m2 * s.R3) - kill1 * s.R23),
-            Rate(s.R123, r * (s.R123 + m1 * s.R23 + m2 * s.R13 + m3 * s.R12)),
-            Rate(s.U1, s.u1 - s.k1 * s.U1),
-            Rate(s.U2, s.u2 - s.k2 * s.U2),
-            Rate(s.U3, s.u3 - s.k3 * s.U3),
-            Rate(s.TX1, s.U1 - s.eta1 * s.TX1),
-            Rate(s.TX2, s.U2 - s.eta2 * s.TX2),
-            Rate(s.TX3, s.U3 - s.eta3 * s.TX3),
+            RateLaw(s.S, r * (1 - m1 - m2 - m3) * s.S - (kill1 + kill2 + kill3) * s.S),
+            RateLaw(s.R1, r * ((1 - m2 - m3) * s.R1 + m1 * s.S) - (kill2 + kill3) * s.R1),
+            RateLaw(s.R2, r * ((1 - m1 - m3) * s.R2 + m2 * s.S) - (kill1 + kill3) * s.R2),
+            RateLaw(s.R3, r * ((1 - m1 - m2) * s.R3 + m3 * s.S) - (kill1 + kill2) * s.R3),
+            RateLaw(s.R12, r * ((1 - m3) * s.R12 + m2 * s.R1 + m1 * s.R2) - kill3 * s.R12),
+            RateLaw(s.R13, r * ((1 - m2) * s.R13 + m3 * s.R1 + m1 * s.R3) - kill2 * s.R13),
+            RateLaw(s.R23, r * ((1 - m1) * s.R23 + m3 * s.R2 + m2 * s.R3) - kill1 * s.R23),
+            RateLaw(s.R123, r * (s.R123 + m1 * s.R23 + m2 * s.R13 + m3 * s.R12)),
+            RateLaw(s.U1, s.u1 - s.k1 * s.U1),
+            RateLaw(s.U2, s.u2 - s.k2 * s.U2),
+            RateLaw(s.U3, s.u3 - s.k3 * s.U3),
+            RateLaw(s.TX1, s.U1 - s.eta1 * s.TX1),
+            RateLaw(s.TX2, s.U2 - s.eta2 * s.TX2),
+            RateLaw(s.TX3, s.U3 - s.eta3 * s.TX3),
         ]
 
 
-class ResistanceSwitching(Element):
+class ResistanceSwitchingComponent(ElementComponent):
     """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch, under a constant dose.
 
     With the total `V = S + Rm + Rp`, the sensitive cells follow
@@ -386,29 +386,29 @@ class ResistanceSwitching(Element):
             The effective dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ResistanceSwitching
-        >>> ResistanceSwitching('tumour').alpha_m
+        >>> from skcomplex.models.biology.oncology import ResistanceSwitchingComponent
+        >>> ResistanceSwitchingComponent('tumour').alpha_m
         0.01
     """
 
-    S: float = state(default=0.01, domain=Domain.NONNEGATIVE)
-    Rm: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Rp: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=1e-6, domain=Domain.NONNEGATIVE)
-    m2: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    alpha_m: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    alpha_p: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    m5: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    am: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    ap: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    u: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    S: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    Rm: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Rp: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=1e-6, domain=NumericDomain.NONNEGATIVE)
+    m2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha_m: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    alpha_p: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    m5: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    am: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    ap: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    u: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells.
 
         Args:
@@ -422,16 +422,16 @@ class ResistanceSwitching(Element):
         S, Rm, Rp, u = s.S, s.Rm, s.Rp, s.u
         room = 1 - s.b * (S + Rm + Rp)
         return [
-            Rate(
+            RateLaw(
                 S,
                 s.r1 * room * S - (s.m1 + s.m2) * S - (s.alpha_m + s.alpha_p) * u * S - s.a * u * S + s.m5 * Rp,
             ),
-            Rate(Rm, s.r2 * room * Rm + s.m1 * S + s.alpha_m * u * S - s.am * u * Rm),
-            Rate(Rp, s.r3 * room * Rp + s.m2 * S + s.alpha_p * u * S - s.m5 * Rp - s.ap * u * Rp),
+            RateLaw(Rm, s.r2 * room * Rm + s.m1 * S + s.alpha_m * u * S - s.am * u * Rm),
+            RateLaw(Rp, s.r3 * room * Rp + s.m2 * S + s.alpha_p * u * S - s.m5 * Rp - s.ap * u * Rp),
         ]
 
 
-class RestingHuntingChemotherapy(Element):
+class RestingHuntingChemotherapyComponent(ElementComponent):
     """Hunting immune cells recruited from resting cells after a delay, a tumour, and a drug that kills all three.
 
     The hunting cells follow `dE/dt = m1 E Q(t - tau) - d1 E - c1 A E - a E / (bd + E) U`, the resting cells
@@ -499,31 +499,31 @@ class RestingHuntingChemotherapy(Element):
             The constant infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import RestingHuntingChemotherapy
-        >>> RestingHuntingChemotherapy('patient').tau
+        >>> from skcomplex.models.biology.oncology import RestingHuntingChemotherapyComponent
+        >>> RestingHuntingChemotherapyComponent('patient').tau
         45.6
     """
 
-    E: float = state(default=0.01, domain=Domain.NONNEGATIVE)
-    Q: float = state(default=0.48, domain=Domain.NONNEGATIVE)
-    A: float = state(default=0.18, domain=Domain.NONNEGATIVE)
-    U: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    m1: float = parameter(default=0.093, domain=Domain.NONNEGATIVE)
-    d1: float = parameter(default=0.0412, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=0.005133, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=1.6515, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=0.0245, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=1.5, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=0.18, domain=Domain.NONNEGATIVE)
-    b2: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    a: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    bd: float = parameter(default=1e-4, domain=Domain.POSITIVE)
-    g: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    k: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=45.6, domain=Domain.POSITIVE)
-    u: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    E: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    Q: float = state(default=0.48, domain=NumericDomain.NONNEGATIVE)
+    A: float = state(default=0.18, domain=NumericDomain.NONNEGATIVE)
+    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    m1: float = parameter(default=0.093, domain=NumericDomain.NONNEGATIVE)
+    d1: float = parameter(default=0.0412, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=0.005133, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=1.6515, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=0.0245, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=0.18, domain=NumericDomain.NONNEGATIVE)
+    b2: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    a: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    bd: float = parameter(default=1e-4, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    k: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=45.6, domain=NumericDomain.POSITIVE)
+    u: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the delayed recruitment of hunting cells, the growth of resting and tumour cells, and the drug.
 
         Args:
@@ -538,14 +538,14 @@ class RestingHuntingChemotherapy(Element):
         fE, fQ, fA = _saturating(E, s.bd), _saturating(Q, s.bd), _saturating(A, s.bd)
         recruitment = s.m1 * E * delayed(Q, s.tau)
         return [
-            Rate(E, recruitment - s.d1 * E - s.c1 * A * E - s.a * fE * U),
-            Rate(Q, s.r1 * Q * (1 - s.b1 * Q) - recruitment - s.a * fQ * U),
-            Rate(A, s.r2 * A * (1 - s.b2 * A) - s.c2 * A * E - s.a * fA * U),
-            Rate(U, s.u - (s.k + s.g * (fE + fQ + fA)) * U),
+            RateLaw(E, recruitment - s.d1 * E - s.c1 * A * E - s.a * fE * U),
+            RateLaw(Q, s.r1 * Q * (1 - s.b1 * Q) - recruitment - s.a * fQ * U),
+            RateLaw(A, s.r2 * A * (1 - s.b2 * A) - s.c2 * A * E - s.a * fA * U),
+            RateLaw(U, s.u - (s.k + s.g * (fE + fQ + fA)) * U),
         ]
 
 
-class MetastasisChemotherapy(Element):
+class MetastasisChemotherapyComponent(ElementComponent):
     """Normal and tumour cells at a primary and a secondary site, each with its drug, and a delayed migration.
 
     At each site the normal and tumour cells grow logistically, compete, and a drug kills them with a saturating
@@ -658,46 +658,46 @@ class MetastasisChemotherapy(Element):
             The infusion rate of the drug at the secondary site.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import MetastasisChemotherapy
-        >>> MetastasisChemotherapy('patient').epsilon
+        >>> from skcomplex.models.biology.oncology import MetastasisChemotherapyComponent
+        >>> MetastasisChemotherapyComponent('patient').epsilon
         0.0001
     """
 
-    Np: float = state(default=1460.0, domain=Domain.NONNEGATIVE)
-    Ap: float = state(default=165.0, domain=Domain.NONNEGATIVE)
-    Up: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Ns: float = state(default=1750.0, domain=Domain.NONNEGATIVE)
-    As: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    Us: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    r1: float = parameter(default=1.5, domain=Domain.NONNEGATIVE)
-    r2: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    r3: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    r4: float = parameter(default=12.0, domain=Domain.NONNEGATIVE)
-    b1: float = parameter(default=0.00068, domain=Domain.NONNEGATIVE)
-    b2: float = parameter(default=0.00047, domain=Domain.NONNEGATIVE)
-    b3: float = parameter(default=0.00057, domain=Domain.NONNEGATIVE)
-    b4: float = parameter(default=0.00043, domain=Domain.NONNEGATIVE)
-    c1: float = parameter(default=0.0075, domain=Domain.NONNEGATIVE)
-    c2: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
-    c3: float = parameter(default=0.002, domain=Domain.NONNEGATIVE)
-    c4: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    a1: float = parameter(default=0.0008, domain=Domain.NONNEGATIVE)
-    a2: float = parameter(default=0.08, domain=Domain.NONNEGATIVE)
-    a3: float = parameter(default=0.0006, domain=Domain.NONNEGATIVE)
-    a4: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    g1: float = parameter(default=0.0024, domain=Domain.NONNEGATIVE)
-    g2: float = parameter(default=0.24, domain=Domain.NONNEGATIVE)
-    g3: float = parameter(default=0.0018, domain=Domain.NONNEGATIVE)
-    g4: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    bc: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    k: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
-    delta: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.0001, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    up: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    us: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    Np: float = state(default=1460.0, domain=NumericDomain.NONNEGATIVE)
+    Ap: float = state(default=165.0, domain=NumericDomain.NONNEGATIVE)
+    Up: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Ns: float = state(default=1750.0, domain=NumericDomain.NONNEGATIVE)
+    As: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    Us: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    r1: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    r2: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    r3: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    r4: float = parameter(default=12.0, domain=NumericDomain.NONNEGATIVE)
+    b1: float = parameter(default=0.00068, domain=NumericDomain.NONNEGATIVE)
+    b2: float = parameter(default=0.00047, domain=NumericDomain.NONNEGATIVE)
+    b3: float = parameter(default=0.00057, domain=NumericDomain.NONNEGATIVE)
+    b4: float = parameter(default=0.00043, domain=NumericDomain.NONNEGATIVE)
+    c1: float = parameter(default=0.0075, domain=NumericDomain.NONNEGATIVE)
+    c2: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    c3: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
+    c4: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
+    a1: float = parameter(default=0.0008, domain=NumericDomain.NONNEGATIVE)
+    a2: float = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+    a3: float = parameter(default=0.0006, domain=NumericDomain.NONNEGATIVE)
+    a4: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    g1: float = parameter(default=0.0024, domain=NumericDomain.NONNEGATIVE)
+    g2: float = parameter(default=0.24, domain=NumericDomain.NONNEGATIVE)
+    g3: float = parameter(default=0.0018, domain=NumericDomain.NONNEGATIVE)
+    g4: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    bc: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    k: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
+    delta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    epsilon: float = parameter(default=0.0001, domain=NumericDomain.NONNEGATIVE)
+    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    up: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    us: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the cells and drugs at both sites and the delayed arrival of tumour cells at the secondary site.
 
         Args:
@@ -712,12 +712,12 @@ class MetastasisChemotherapy(Element):
         fNp, fAp, fNs, fAs = (_saturating(n, s.bc) for n in (Np, Ap, Ns, As))
         arrival = s.epsilon * s.delta * delayed(Ap, s.tau)
         return [
-            Rate(Np, s.r1 * Np * (1 - s.b1 * Np) - s.c1 * Np * Ap - s.a1 * fNp * Up),
-            Rate(Ap, s.r2 * Ap * (1 - s.b2 * Ap) - s.c2 * Np * Ap - s.a2 * fAp * Up - s.delta * Ap),
-            Rate(Up, s.up - (s.k + s.g1 * fNp + s.g2 * fAp) * Up),
-            Rate(Ns, s.r3 * Ns * (1 - s.b3 * Ns) - s.c3 * Ns * As - s.a3 * fNs * Us),
-            Rate(As, s.r4 * As * (1 - s.b4 * As) - s.c4 * Ns * As - s.a4 * fAs * Us + arrival),
-            Rate(Us, s.us - (s.k + s.g3 * fNs + s.g4 * fAs) * Us),
+            RateLaw(Np, s.r1 * Np * (1 - s.b1 * Np) - s.c1 * Np * Ap - s.a1 * fNp * Up),
+            RateLaw(Ap, s.r2 * Ap * (1 - s.b2 * Ap) - s.c2 * Np * Ap - s.a2 * fAp * Up - s.delta * Ap),
+            RateLaw(Up, s.up - (s.k + s.g1 * fNp + s.g2 * fAp) * Up),
+            RateLaw(Ns, s.r3 * Ns * (1 - s.b3 * Ns) - s.c3 * Ns * As - s.a3 * fNs * Us),
+            RateLaw(As, s.r4 * As * (1 - s.b4 * As) - s.c4 * Ns * As - s.a4 * fAs * Us + arrival),
+            RateLaw(Us, s.us - (s.k + s.g3 * fNs + s.g4 * fAs) * Us),
         ]
 
 
@@ -778,7 +778,7 @@ def de_pillis_radunskaya(
         >>> de_pillis_radunskaya(u=1.0).elements[0].u
         1.0
     """
-    return System(components=[TumourImmuneChemotherapy('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
+    return System(components=[TumourImmuneChemotherapyComponent('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
 
 
 @register_model(
@@ -831,7 +831,7 @@ def multidrug_resistance(
         >>> multidrug_resistance(u2=0.0).elements[0].u2
         0.0
     """
-    return System(components=[MultidrugResistance('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
+    return System(components=[MultidrugResistanceComponent('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
 
 
 @register_model(
@@ -899,7 +899,7 @@ def drug_resistance_switching(
         >>> drug_resistance_switching(alpha_m=0.0).elements[0].alpha_m
         0.0
     """
-    tumour = ResistanceSwitching(
+    tumour = ResistanceSwitchingComponent(
         'tumour',
         S=S,
         u=u,
@@ -963,7 +963,7 @@ def delayed_resting_hunting_chemotherapy(
         >>> delayed_resting_hunting_chemotherapy(tau=10.0).elements[0].tau
         10.0
     """
-    return System(components=[RestingHuntingChemotherapy('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
+    return System(components=[RestingHuntingChemotherapyComponent('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
 
 
 @register_model(
@@ -1023,4 +1023,6 @@ def delayed_metastasis(
         >>> delayed_metastasis(up=650.0).elements[0].up
         650.0
     """
-    return System(components=[MetastasisChemotherapy('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)])
+    return System(
+        components=[MetastasisChemotherapyComponent('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)],
+    )

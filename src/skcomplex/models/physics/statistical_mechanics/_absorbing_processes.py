@@ -3,14 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Jump, Law, Symbols, where
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class ReactingParticles(Element):
+class ReactingParticlesComponent(ElementComponent):
     """Number `n` of particles in a volume `V`, with the reactions `A -> 2A`, `A -> 0`, and `2A -> A`.
 
     A particle branches at rate `kappa`, decays at rate `nu`, and every pair annihilates at rate `lambda / V`, so
@@ -40,19 +40,19 @@ class ReactingParticles(Element):
             The rate at which a particle appears in the empty state.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ReactingParticles
-        >>> ReactingParticles('particles').kappa
+        >>> from skcomplex.models.physics.statistical_mechanics import ReactingParticlesComponent
+        >>> ReactingParticlesComponent('particles').kappa
         2.0
     """
 
-    n: float = state(default=100.0, domain=Domain.NONNEGATIVE_INTEGER)
-    kappa: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    nu: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    lam: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    volume: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    epsilon: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    kappa: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    nu: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    lam: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    volume: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    epsilon: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the creation and the removal of one particle.
 
         Args:
@@ -65,8 +65,8 @@ class ReactingParticles(Element):
         """
         n = s.n
         return [
-            Jump(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
-            Jump(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
+            JumpLaw(s.kappa * n + s.epsilon * where(n < 1, 1, 0), {n: 1}),
+            JumpLaw(s.nu * n + s.lam * n * (n - 1) / s.volume, {n: -1}),
         ]
 
 
@@ -121,7 +121,7 @@ def absorbing_birth_death(
         >>> absorbing_birth_death(volume=50.0).elements[0].n
         50.0
     """
-    particles = ReactingParticles(
+    particles = ReactingParticlesComponent(
         'particles',
         n=float(round(density * volume)),
         kappa=kappa,

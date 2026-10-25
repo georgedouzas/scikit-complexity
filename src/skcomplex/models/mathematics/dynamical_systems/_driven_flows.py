@@ -3,29 +3,29 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, parameter
-from ....core.components import Element
-from ....core.laws import Noise, Rate
+from ....core.base import NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
+from ....engine.solvers import EulerMaruyamaSolver
 
-DrivenRossler = Element.define(
-    'DrivenRossler',
+DrivenRosslerComponent = ElementComponent.define(
+    'DrivenRosslerComponent',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0, 'eta': 0.0},
     parameters={
         'a': 0.2,
         'b': 0.4,
         'c': 5.743,
-        'tau': parameter(default=50.0, domain=Domain.POSITIVE),
-        'rho': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'tau': parameter(default=50.0, domain=NumericDomain.POSITIVE),
+        'rho': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Rate(s.x, -s.y - s.z),
-        Rate(s.y, s.x + s.a * s.y + s.eta),
-        Rate(s.z, s.b + s.z * (s.x - s.c)),
-        Rate(s.eta, -s.eta / s.tau),
-        Noise(s.eta, s.rho / s.tau),
+        RateLaw(s.x, -s.y - s.z),
+        RateLaw(s.y, s.x + s.a * s.y + s.eta),
+        RateLaw(s.z, s.b + s.z * (s.x - s.c)),
+        RateLaw(s.eta, -s.eta / s.tau),
+        NoiseLaw(s.eta, s.rho / s.tau),
     ],
 )
 
@@ -34,7 +34,7 @@ DrivenRossler = Element.define(
     field='mathematics/dynamical_systems',
     tags=('Rössler', 'Ornstein-Uhlenbeck', 'sde', 'bifurcation diagram', 'chaos', 'nonstationary'),
     references=('Cestnik and Martens 2025', 'Rössler 1976', 'Uhlenbeck and Ornstein 1930'),
-    defaults={'until': 500.0, 'dt': 0.1, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 500.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
 )
 def ou_driven_rossler(
     x: float = 1.0,
@@ -93,5 +93,5 @@ def ou_driven_rossler(
         >>> ou_driven_rossler(tau=10.0).elements[0].tau
         10.0
     """
-    rossler = DrivenRossler('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
+    rossler = DrivenRosslerComponent('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
     return System(components=[rossler])

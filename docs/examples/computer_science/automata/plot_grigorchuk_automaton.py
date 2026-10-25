@@ -15,7 +15,7 @@ import numpy as np
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.formalisms.groups import GroupSpace
+from skcomplex.formalisms.groups import CayleySpace
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 # which no exponential does. The ball sizes are 1, 5, 11, 23, 40, 68, 108, 176, 271, 427, and 643 for radii 0 to 10,
 # far below the free group of rank 2 and the exponential `5^n`.
 
-sizes = np.asarray(GroupSpace(grigorchuk_group(), ball=10).ball_sizes(), dtype=float)
+sizes = np.asarray(CayleySpace(grigorchuk_group(), ball=10).ball_sizes(), dtype=float)
 radii = np.arange(sizes.size)
 slopes = np.diff(np.log(sizes[1:])) / np.diff(np.log(radii[1:]))
 rates = np.log(sizes[1:]) / radii[1:]

@@ -2,12 +2,12 @@
 
 import pytest
 
-from skcomplex.core.base import Domain, VariableKind, declarations_of, parameter, role, state
-from skcomplex.core.components import Element
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.base import NumericDomain, VariableKind, declarations_of, parameter, role, state
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.interactions import BaseInteraction
 
 
-class Valve(Element):
+class ValveComponent(ElementComponent):
     """Element with a bounded control input."""
 
     opening: float = parameter(0.5, adaptive=True, bounds=(0, 1))
@@ -15,7 +15,7 @@ class Valve(Element):
 
 def test_parameter_bounds_declare_a_bounded_adaptive_parameter():
     """Test that bounds of an adaptive parameter are stored as floats on its state declaration."""
-    declaration = declarations_of(Valve, VariableKind.STATE)['opening']
+    declaration = declarations_of(ValveComponent, VariableKind.STATE)['opening']
     assert declaration.adaptive
     assert declaration.bounds == (0.0, 1.0)
     assert isinstance(declaration.bounds[0], float)
@@ -34,15 +34,15 @@ def test_parameter_bounds_reject_invalid_declarations(arguments, message):
         parameter(0.5, **arguments)
 
 
-class Body(Element):
+class BodyComponent(ElementComponent):
     """Element with one scalar state, one vector state, and one parameter."""
 
-    n: float = state(1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
     x: list[float] = state([0.0, 0.0], vector=True)
-    m: float = parameter(1.0, domain=Domain.POSITIVE)
+    m: float = parameter(1.0, domain=NumericDomain.POSITIVE)
 
 
-class Link(Interaction):
+class LinkInteraction(BaseInteraction):
     """Interaction with two roles."""
 
     first: str = role()
@@ -51,31 +51,34 @@ class Link(Interaction):
 
 def test_declarations_of_returns_fields_by_kind():
     """Test that declarations are grouped by kind in declaration order."""
-    assert list(declarations_of(Body, VariableKind.STATE)) == ['n', 'x']
-    assert list(declarations_of(Body, VariableKind.PARAMETER)) == ['m']
-    assert list(declarations_of(Link, VariableKind.ROLE)) == ['first', 'second']
+    assert list(declarations_of(BodyComponent, VariableKind.STATE)) == ['n', 'x']
+    assert list(declarations_of(BodyComponent, VariableKind.PARAMETER)) == ['m']
+    assert list(declarations_of(LinkInteraction, VariableKind.ROLE)) == ['first', 'second']
 
 
 def test_state_default_sequence_is_copied():
     """Test that a sequence default is not shared between instances."""
-    first, second = Body('a'), Body('b')
+    first, second = BodyComponent('a'), BodyComponent('b')
     first.x.append(1.0)
     assert second.x == [0.0, 0.0]
 
 
 def test_state_accepts_fractional_order_without_companions():
     """Test that a state of a fractional order keeps its order and gets no companion states."""
-    Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.6)})
-    declaration = declarations_of(Relaxing, VariableKind.STATE)['x']
+    RelaxingComponent = ElementComponent.define('RelaxingComponent', states={'x': state(1.0, order=0.6)})
+    declaration = declarations_of(RelaxingComponent, VariableKind.STATE)['x']
     assert declaration.order == 0.6
     assert declaration.is_fractional
     assert declaration.derivatives == 0
-    assert list(declarations_of(Relaxing, VariableKind.STATE)) == ['x']
+    assert list(declarations_of(RelaxingComponent, VariableKind.STATE)) == ['x']
 
 
 def test_state_normalizes_integer_valued_orders():
     """Test that an order with an integer value is an integer order with its companions."""
-    declarations = declarations_of(Element.define('Mass', states={'x': state(0.0, order=2.0)}), VariableKind.STATE)
+    declarations = declarations_of(
+        ElementComponent.define('MassComponent', states={'x': state(0.0, order=2.0)}),
+        VariableKind.STATE,
+    )
     assert declarations['x'].order == 2
     assert not declarations['x'].is_fractional
     assert 'x_d1' in declarations

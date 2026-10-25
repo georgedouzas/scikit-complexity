@@ -11,10 +11,10 @@ import numpy as np
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import Problem, Vector
 from ._hybrid import reject_hybrid
-from ._stepper import Stepper, register_solver
+from ._stepper import Solver, register_solver
 
 
-class Iteration(Stepper):
+class IterationSolver(Solver):
     """Iteration of a discrete map, one application per unit of time.
 
     A stochastic map takes its random draws from the stepper's random number generator at every step.
@@ -23,12 +23,15 @@ class Iteration(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.economics.markets import Cobweb, Market
-        >>> from skcomplex.engine.solvers import Iteration
+        >>> from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+        >>> from skcomplex.engine.solvers import IterationSolver
         >>> problem = compile_system(
-        ...     System(components=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
+        ...     System(
+        ...         components=[MarketComponent('m', price=1)],
+        ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
+        ...     ),
         ... )
-        >>> stepper = Iteration()
+        >>> stepper = IterationSolver()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0).tolist()
         [4.0]
@@ -107,4 +110,4 @@ class Iteration(Stepper):
         return state
 
 
-register_solver('iteration', Iteration, default=True)
+register_solver('iteration', IterationSolver, default=True)

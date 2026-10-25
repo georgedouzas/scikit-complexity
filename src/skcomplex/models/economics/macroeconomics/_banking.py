@@ -7,14 +7,14 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._institutions import Institution
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._institutions import InstitutionInteraction
 
 TOLERANCE = 1e-9
 
@@ -24,7 +24,7 @@ def _bank_of(banks: list[AgentView], index: float) -> AgentView:
     return next(bank for bank in banks if int(bank.index) == int(index))
 
 
-class Depositor(Element):
+class DepositorComponent(ElementComponent):
     """Customer who pays a share of its deposit to a random customer and repays a share of its loan every step.
 
     A payment moves deposits and as many reserves from the payer's bank to the payee's bank, and a repayment from the
@@ -56,16 +56,16 @@ class Depositor(Element):
                 The share of the loan repaid every step.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Depositor
-        >>> Depositor.group('customers', 10, deposit=5.0).size
+        >>> from skcomplex.models.economics.macroeconomics import DepositorComponent
+        >>> DepositorComponent.group('customers', 10, deposit=5.0).size
         10
     """
 
-    bank: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    deposit: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    loan: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    spending: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    repayment: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    bank: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    deposit: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    loan: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    spending: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    repayment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -77,7 +77,7 @@ class Depositor(Element):
         super().__init__(label, **values)
         self.lenders = lenders
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the payment and repayment rules.
 
         Args:
@@ -88,7 +88,7 @@ class Depositor(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.pay, phase='pay'), Rule(self.repay, phase='pay')]
+        return [RuleLaw(self.pay, phase='pay'), RuleLaw(self.repay, phase='pay')]
 
     def pay(self, agent: AgentView, model: ModelView) -> None:
         """Pay a share of the deposit to a random customer, moving deposits and reserves between their banks.
@@ -132,7 +132,7 @@ class Depositor(Element):
         bank.loans -= amount
 
 
-class ReserveBank(Element):
+class ReserveBankComponent(ElementComponent):
     """Bank that lends its reserves in excess of the required share of its deposits to one of its customers.
 
     The borrower spends the loan at once, and the payee, a random customer, deposits it at its own bank, whose
@@ -164,16 +164,16 @@ class ReserveBank(Element):
                 The required ratio of reserves to deposits.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import ReserveBank
-        >>> ReserveBank.group('banks', 3, index=[0, 1, 2]).size
+        >>> from skcomplex.models.economics.macroeconomics import ReserveBankComponent
+        >>> ReserveBankComponent.group('banks', 3, index=[0, 1, 2]).size
         3
     """
 
-    index: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    reserves: float = state(default=0.0, domain=Domain.REAL)
-    deposits: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    loans: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    reserve_ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    index: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    reserves: float = state(default=0.0, domain=NumericDomain.REAL)
+    deposits: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    loans: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    reserve_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -185,7 +185,7 @@ class ReserveBank(Element):
         super().__init__(label, **values)
         self.customers = customers
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the lending rule.
 
         Args:
@@ -196,7 +196,7 @@ class ReserveBank(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.lend, phase='lend')]
+        return [RuleLaw(self.lend, phase='lend')]
 
     def lend(self, agent: AgentView, model: ModelView) -> None:
         """Lend the excess reserves to a random customer, whose payment is redeposited at a random customer's bank.
@@ -224,7 +224,7 @@ class ReserveBank(Element):
         bank.reserves += excess
 
 
-class Regulator(Institution):
+class RegulatorInteraction(InstitutionInteraction):
     """Central bank that sets the reserve ratio of the banks, changing it from `ratio` to `new_ratio` at `change_at`.
 
     Args:
@@ -253,14 +253,14 @@ class Regulator(Institution):
                 The time of the change.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Regulator
-        >>> Regulator('regulator', ratio=0.1, new_ratio=0.2, change_at=100.0).new_ratio
+        >>> from skcomplex.models.economics.macroeconomics import RegulatorInteraction
+        >>> RegulatorInteraction('regulator', ratio=0.1, new_ratio=0.2, change_at=100.0).new_ratio
         0.2
     """
 
-    ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    new_ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    change_at: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    new_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    change_at: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -360,7 +360,7 @@ def fractional_reserve_banking(
     owners = rng.integers(banks, size=customers)
     deposit = base_money / customers
     holdings = np.bincount(owners, minlength=banks) * deposit
-    depositors = Depositor.group(
+    depositors = DepositorComponent.group(
         'customers',
         customers,
         bank=owners,
@@ -368,7 +368,7 @@ def fractional_reserve_banking(
         spending=spending,
         repayment=repayment,
     )
-    lenders = ReserveBank.group(
+    lenders = ReserveBankComponent.group(
         'banks',
         banks,
         index=np.arange(banks),
@@ -376,7 +376,7 @@ def fractional_reserve_banking(
         deposits=holdings,
         reserve_ratio=ratio,
     )
-    regulator = Regulator(
+    regulator = RegulatorInteraction(
         'regulator',
         phase='regulate',
         ratio=ratio,
@@ -386,5 +386,5 @@ def fractional_reserve_banking(
     return System(
         components=[depositors, lenders],
         interactions=[regulator],
-        time=DiscreteTime(schedule=Phases([Phase('regulate'), Phase('pay'), Phase('lend', repeat=10)])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('regulate'), Phase('pay'), Phase('lend', repeat=10)])),
     )

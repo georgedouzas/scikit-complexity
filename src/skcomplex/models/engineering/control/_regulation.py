@@ -6,14 +6,14 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element
-from ....core.laws import Equation, Law, Rate, Symbols, derivative
+from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, EquationLaw, RateLaw, Symbols, derivative
 from ....core.system import Observable, System
 from ....engine.analysis import linearize, lqr
 from ....engine.runtime import register_model
-from ....engine.solvers import RK4
-from ..realizations._controllers import PID, Integrator, StateFeedback
+from ....engine.solvers import RK4Solver
+from ..realizations._controllers import IntegratorComponent, PIDInteraction, StateFeedbackInteraction
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -32,7 +32,7 @@ def _oscillator_energy(s: Symbols) -> Expression:
     return energy
 
 
-class CartPendulum(Element):
+class CartPendulumComponent(ElementComponent):
     """Inverted pendulum on a cart that a bounded horizontal force pushes, after Åström and Murray.
 
     The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of length `l`, at the angle
@@ -67,20 +67,20 @@ class CartPendulum(Element):
             The acceleration of gravity.
 
     Examples:
-        >>> from skcomplex.models.engineering.control import CartPendulum
-        >>> CartPendulum('cart', theta=0.1).theta
+        >>> from skcomplex.models.engineering.control import CartPendulumComponent
+        >>> CartPendulumComponent('cart', theta=0.1).theta
         0.1
     """
 
     x: float = state(default=0.0, order=2)
     theta: float = state(default=0.0, order=2)
     force: float = parameter(default=0.0, adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))
-    M: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    m: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    l: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    g: float = parameter(default=GRAVITY, domain=Domain.POSITIVE)
+    M: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    m: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    l: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    g: float = parameter(default=GRAVITY, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the equations of motion of the cart and the pendulum.
 
         Args:
@@ -94,17 +94,17 @@ class CartPendulum(Element):
         x_acceleration, theta_acceleration = derivative(s.x, 2), derivative(s.theta, 2)
         spin = derivative(s.theta, 1)
         return [
-            Equation(
+            EquationLaw(
                 (s.M + s.m) * x_acceleration
                 - s.m * s.l * theta_acceleration * cos(s.theta)
                 + s.m * s.l * spin**2 * sin(s.theta)
                 == s.force,
             ),
-            Equation(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
+            EquationLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
         ]
 
 
-class DrivenOscillator(Element):
+class DrivenOscillatorComponent(ElementComponent):
     """Damped harmonic oscillator that a bounded force drives, `x'' = -omega^2 x - 2 zeta omega x' + force`.
 
     Args:
@@ -124,17 +124,17 @@ class DrivenOscillator(Element):
             The damping ratio.
 
     Examples:
-        >>> from skcomplex.models.engineering.control import DrivenOscillator
-        >>> DrivenOscillator('oscillator', x=1.0).omega
+        >>> from skcomplex.models.engineering.control import DrivenOscillatorComponent
+        >>> DrivenOscillatorComponent('oscillator', x=1.0).omega
         1.0
     """
 
     x: float = state(default=0.0, order=2)
     force: float = parameter(default=0.0, adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))
-    omega: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    zeta: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    omega: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    zeta: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate of the velocity.
 
         Args:
@@ -145,14 +145,14 @@ class DrivenOscillator(Element):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.x, -(s.omega**2) * s.x - 2 * s.zeta * s.omega * derivative(s.x, 1) + s.force)]
+        return [RateLaw(s.x, -(s.omega**2) * s.x - 2 * s.zeta * s.omega * derivative(s.x, 1) + s.force)]
 
 
 @register_model(
     field='engineering/control',
     tags=('control', 'feedback', 'pid', 'unstable equilibrium', 'ode'),
     references=('Åström and Murray 2008',),
-    defaults={'until': 5.0, 'dt': 0.05, 'solver': RK4(dt=0.001)},
+    defaults={'until': 5.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
     observables=lambda system: [Observable('tilt', _tilt)],
 )
 def pid_inverted_pendulum(
@@ -203,8 +203,8 @@ def pid_inverted_pendulum(
         >>> pid_inverted_pendulum(kp=50.0).interactions[0].kp
         50.0
     """
-    cart = CartPendulum('cart', theta=theta, M=M, m=m, l=l)
-    controller = PID(
+    cart = CartPendulumComponent('cart', theta=theta, M=M, m=m, l=l)
+    controller = PIDInteraction(
         'pid',
         plant='cart',
         integrator='memory',
@@ -215,14 +215,14 @@ def pid_inverted_pendulum(
         kd=kd,
         limits=(-FORCE_LIMIT, FORCE_LIMIT),
     )
-    return System(components=[cart, Integrator('memory')], interactions=[controller])
+    return System(components=[cart, IntegratorComponent('memory')], interactions=[controller])
 
 
 @register_model(
     field='engineering/control',
     tags=('control', 'feedback', 'linear-quadratic regulator', 'oscillator', 'ode'),
     references=('Åström and Murray 2008',),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': RK4(dt=0.001)},
+    defaults={'until': 10.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
     observables=lambda system: [Observable('energy', _oscillator_energy)],
 )
 def lqr_oscillator(
@@ -265,11 +265,11 @@ def lqr_oscillator(
         >>> [round(value, 3) for value in lqr_oscillator().interactions[0].gain]
         [2.317, 3.825]
     """
-    oscillator = DrivenOscillator('oscillator', x=x, omega=omega, zeta=zeta)
+    oscillator = DrivenOscillatorComponent('oscillator', x=x, omega=omega, zeta=zeta)
     model = linearize(System(components=[oscillator]), controls=['oscillator.force'])
     gain = lqr(model.A, model.B, q * np.eye(len(model.states)), [[r]])
     states = tuple(name.removeprefix('oscillator.') for name in model.states)
-    regulator = StateFeedback(
+    regulator = StateFeedbackInteraction(
         'regulator',
         plant='oscillator',
         control='force',

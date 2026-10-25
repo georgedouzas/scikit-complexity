@@ -8,14 +8,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -26,7 +26,7 @@ def _block_of(location: object, side: int, columns: int) -> int:
     return (row // side) * columns + column // side
 
 
-class Dweller(Element):
+class DwellerComponent(ElementComponent):
     """Agent of the stochastic Schelling model, whose utility `a * rho + b` depends on the density of its block.
 
     Args:
@@ -49,19 +49,19 @@ class Dweller(Element):
             The intercept `b` of the utility.
 
     Examples:
-        >>> from skcomplex.models.social.segregation import Dweller
-        >>> Dweller.group('dwellers', 10, beta=3.0)
-        Group('dwellers', element=Dweller, size=10)
+        >>> from skcomplex.models.social.segregation import DwellerComponent
+        >>> DwellerComponent.group('dwellers', 10, beta=3.0)
+        GroupComponent('dwellers', element=DwellerComponent, size=10)
     """
 
-    block: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    beta: float = parameter(default=3.0, domain=Domain.NONNEGATIVE)
-    altruism: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    block: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    beta: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    altruism: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
     slope: float = parameter(default=-4.0 / 3.0)
     intercept: float = parameter(default=1.0)
 
 
-class BlockMoves(Interaction):
+class BlockMovesInteraction(BaseInteraction):
     """Moves of the stochastic Schelling model, as many proposals per step as there are agents.
 
     A random agent proposes to move to a random empty cell of another block. With block densities `rho_i` before and
@@ -89,8 +89,8 @@ class BlockMoves(Interaction):
                 The path of the group of dwellers.
 
     Examples:
-        >>> from skcomplex.models.social.segregation import BlockMoves
-        >>> BlockMoves('moves', target='dwellers', side=4).side
+        >>> from skcomplex.models.social.segregation import BlockMovesInteraction
+        >>> BlockMovesInteraction('moves', target='dwellers', side=4).side
         4
     """
 
@@ -110,7 +110,7 @@ class BlockMoves(Interaction):
         self.height = height
         self.side = side
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the move rule.
 
         Args:
@@ -121,7 +121,7 @@ class BlockMoves(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.move)]
+        return [RuleLaw(self.move)]
 
     def _change(self, agent: AgentView, counts: Array, origin: int, destination: int) -> float:
         """Return the utility change `dU` of a move between two blocks."""
@@ -222,7 +222,7 @@ def stochastic_schelling(
     cells = rng.permutation(width * height)[:size]
     locations = [(int(cell % width), int(cell // width)) for cell in cells]
     blocks = [_block_of(location, side, width // side) for location in locations]
-    dwellers = Dweller.group(
+    dwellers = DwellerComponent.group(
         'dwellers',
         size,
         location=locations,
@@ -232,7 +232,7 @@ def stochastic_schelling(
         slope=slope,
         intercept=intercept,
     )
-    moves = BlockMoves('moves', target='dwellers', width=width, height=height, side=side)
+    moves = BlockMovesInteraction('moves', target='dwellers', width=width, height=height, side=side)
     return System(
         components=[dwellers],
         interactions=[moves],

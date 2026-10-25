@@ -18,7 +18,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -51,7 +51,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).ru
 # the G protein in its active state, is modelled by a ten times slower hydrolysis: the signal should last longer and
 # reach a higher peak.
 
-precise = ScipyODE(rtol=1e-9, atol=1e-12)
+precise = ScipyODESolver(rtol=1e-9, atol=1e-12)
 runs = {
     k_gtp: Simulation(create(MODEL, k_gtp=k_gtp), dt=0.05, solver=precise).run(until=60).trajectory_
     for k_gtp in (0.5, 0.05)

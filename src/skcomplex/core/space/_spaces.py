@@ -14,7 +14,7 @@ from sklearn.base import BaseEstimator
 from ..base import SpaceKind, ValidationError
 
 
-class Space(BaseEstimator):
+class BaseSpace(BaseEstimator):
     """Base class of spaces, which give vector states and parameters their dimension.
 
     Subclasses expose the number of dimensions as `n_dim`, and name in `lacks` the options of their kind they do not
@@ -28,7 +28,7 @@ class Space(BaseEstimator):
     n_dim: int
 
 
-class SiteSpace[Reach](Space, ABC):
+class SiteSpace[Reach](BaseSpace, ABC):
     """Base class of spaces of numbered sites, where every site reads its neighbours through a neighbour table.
 
     The type parameter is the neighbourhood the space reads, such as offsets on a lattice. A site outside the space
@@ -108,7 +108,7 @@ class SiteSpace[Reach](Space, ABC):
 BOUNDARIES = ('open', 'periodic', 'reflecting')
 
 
-class ContinuousSpace(Space):
+class ContinuousSpace(BaseSpace):
     """Continuous space of real positions, a box with a boundary or the whole of `R^d`.
 
     A box has an extent along every dimension, from 0 to the extent. Its boundary acts on every position state of the

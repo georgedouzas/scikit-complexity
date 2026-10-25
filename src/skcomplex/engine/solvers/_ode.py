@@ -41,7 +41,7 @@ from ._hybrid import (
     reject_hybrid,
     with_delays,
 )
-from ._stepper import Stepper, register_solver, step_count
+from ._stepper import Solver, register_solver, step_count
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
 IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
@@ -115,8 +115,8 @@ def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArra
     ]
     if missing:
         error_msg = (
-            f'VelocityVerlet integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} are '
-            'neither. Use RK4 or ScipyODE for this system.'
+            f'VelocityVerletSolver integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} are '
+            'neither. Use RK4Solver or ScipyODESolver for this system.'
         )
         raise SolverError(error_msg)
     return position_indices, velocity_indices
@@ -163,7 +163,7 @@ class _Segment:
     dense: Callable[[float], Vector]
 
 
-class ScipyODE(Stepper):
+class ScipyODESolver(Solver):
     """Integrator of ordinary differential equations based on the step solvers of `scipy.integrate`.
 
     One integrator runs across the frames of a run, and every frame reads its state from the dense output of the step
@@ -214,12 +214,15 @@ class ScipyODE(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.engine.solvers import ScipyODE
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.engine.solvers import ScipyODESolver
         >>> problem = compile_system(
-        ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
+        ...     System(
+        ...         components=[PopulationComponent('a', n=1)],
+        ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
+        ...     ),
         ... )
-        >>> stepper = ScipyODE(rtol=1e-8)
+        >>> stepper = ScipyODESolver(rtol=1e-8)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> x = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(x[0]), 4)
@@ -289,7 +292,7 @@ class ScipyODE(Stepper):
                 error_msg = (
                     f'LSODA would store a dense {problem.initial_state.size} x {problem.initial_state.size} matrix, '
                     f'more than the limit of {LSODA_LARGEST_SIZE} states without a narrow band. Use '
-                    "ScipyODE(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
+                    "ScipyODESolver(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
                     'method.'
                 )
                 raise SolverError(error_msg)
@@ -365,7 +368,8 @@ class ScipyODE(Stepper):
         warning_msg = (
             f'{self.method_} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
             f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
-            "ScipyODE(method='BDF') or ScipyODE(method='Radau'), which receive the sparsity pattern of the Jacobian."
+            "ScipyODESolver(method='BDF') or ScipyODESolver(method='Radau'), which receive the sparsity pattern of the "
+            "Jacobian."
         )
         warnings.warn(warning_msg, UserWarning, stacklevel=3)
 
@@ -493,7 +497,7 @@ class ScipyODE(Stepper):
                 error_msg = (
                     f'The {self.method_} integrator took {MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
                     'state slides along a discontinuity of the drift, which no adaptive integrator crosses. Smooth the '
-                    'switch of the law, or use a fixed step with RK4.'
+                    'switch of the law, or use a fixed step with RK4Solver.'
                 )
                 raise SolverError(error_msg)
             return False
@@ -515,7 +519,7 @@ class ScipyODE(Stepper):
         if self.method != 'auto':
             error_msg = (
                 f'The LSODA integrator stalled at t = {t} with {cause}, as when a state rests on a discontinuity of '
-                "the drift or slides along one. Use ScipyODE(method='RK45'), which needs no Jacobian."
+                "the drift or slides along one. Use ScipyODESolver(method='RK45'), which needs no Jacobian."
             )
             raise SolverError(error_msg)
         warning_msg = (
@@ -616,7 +620,7 @@ class ScipyODE(Stepper):
         return self._state.copy()
 
 
-class RK4(Stepper):
+class RK4Solver(Solver):
     """Classical fourth-order Runge-Kutta integrator of ordinary differential equations with a fixed internal step.
 
     With the Numba backend every internal step of a frame runs in compiled code.
@@ -629,12 +633,15 @@ class RK4(Stepper):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.engine.solvers import RK4
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.engine.solvers import RK4Solver
         >>> problem = compile_system(
-        ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
+        ...     System(
+        ...         components=[PopulationComponent('a', n=1)],
+        ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
+        ...     ),
         ... )
-        >>> stepper = RK4(dt=0.001)
+        >>> stepper = RK4Solver(dt=0.001)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 10)
         2.7182818285
@@ -757,7 +764,7 @@ class RK4(Stepper):
         return state
 
 
-class VelocityVerlet(Stepper):
+class VelocityVerletSolver(Solver):
     """Velocity Verlet integrator of particle systems, whose positions move with their velocities.
 
     Every step kicks the velocities by half a step, moves the positions, applies the boundary laws, and kicks the
@@ -774,17 +781,17 @@ class VelocityVerlet(Stepper):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.particles import Particle
-        >>> from skcomplex.models.physics.realizations.particles import ConstantForce
-        >>> from skcomplex.engine.solvers import VelocityVerlet
+        >>> from skcomplex.formalisms.particles import ParticleComponent
+        >>> from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
+        >>> from skcomplex.engine.solvers import VelocityVerletSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[Particle('ball')],
-        ...         interactions=[ConstantForce('push', target='ball', F=2.0)],
+        ...         components=[ParticleComponent('ball')],
+        ...         interactions=[ConstantForceInteraction('push', target='ball', F=2.0)],
         ...         space=ContinuousSpace(n_dim=1),
         ...     ),
         ... )
-        >>> stepper = VelocityVerlet(dt=0.1)
+        >>> stepper = VelocityVerletSolver(dt=0.1)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0).round(10).tolist()
         [1.0, 2.0]
@@ -869,6 +876,6 @@ class VelocityVerlet(Stepper):
         return state
 
 
-register_solver('scipy', ScipyODE, default=True)
-register_solver('rk4', RK4)
-register_solver('velocity-verlet', VelocityVerlet)
+register_solver('scipy', ScipyODESolver, default=True)
+register_solver('rk4', RK4Solver)
+register_solver('velocity-verlet', VelocityVerletSolver)

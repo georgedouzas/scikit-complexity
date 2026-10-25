@@ -8,20 +8,20 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Jump, Law, Noise, Rate, Symbols, where
+from ....core.base import Expression, NumericDomain, ValidationError, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyama
+from ....engine.solvers import EulerMaruyamaSolver
 
 
-def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[Law]:
+def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[BaseLaw]:
     """Return the drift and the noise of one reaction channel, one Wiener process driving every species it changes."""
     amplitude = sqrt(where(propensity > 0, propensity, 0))
-    rates: list[Law] = [Rate(target, change * propensity) for target, change in changes.items()]
-    return rates + [Noise(target, change * amplitude, process='channel') for target, change in changes.items()]
+    rates: list[BaseLaw] = [RateLaw(target, change * propensity) for target, change in changes.items()]
+    return rates + [NoiseLaw(target, change * amplitude, process='channel') for target, change in changes.items()]
 
 
 def _reaction_laws(
@@ -31,7 +31,7 @@ def _reaction_laws(
     *,
     stochastic: bool,
     langevin: bool,
-) -> list[Law]:
+) -> list[BaseLaw]:
     """Return the laws of one reaction channel, as rates of mass action, a random event, or a Langevin equation."""
     if stochastic and langevin:
         error_msg = (
@@ -40,13 +40,13 @@ def _reaction_laws(
         )
         raise ValidationError(error_msg)
     if stochastic:
-        return [Jump(propensity, dict(changes))]
+        return [JumpLaw(propensity, dict(changes))]
     if langevin:
         return _langevin_laws(propensity, changes)
-    return [Rate(target, change * propensity) for target, change in changes.items()]
+    return [RateLaw(target, change * propensity) for target, change in changes.items()]
 
 
-def _schlogl_laws(s: Symbols) -> list[Law]:
+def _schlogl_laws(s: Symbols) -> list[BaseLaw]:
     """Return the drift and the independent noise of the four channels of the Schlögl reaction."""
     x = s.x
     increments = [
@@ -58,11 +58,11 @@ def _schlogl_laws(s: Symbols) -> list[Law]:
         s.c4 * x,
     ]
     drift = sum(increments) - sum(decrements)
-    noises = [Noise(x, sqrt(where(propensity > 0, propensity, 0))) for propensity in [*increments, *decrements]]
-    return [Rate(x, drift), *noises]
+    noises = [NoiseLaw(x, sqrt(where(propensity > 0, propensity, 0))) for propensity in [*increments, *decrements]]
+    return [RateLaw(x, drift), *noises]
 
 
-class Species(Element):
+class SpeciesComponent(ElementComponent):
     """Amount of one chemical species, a concentration or a number of molecules.
 
     Args:
@@ -73,15 +73,15 @@ class Species(Element):
             The initial amount.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import Species
-        >>> Species('substrate', n=300.0).n
+        >>> from skcomplex.models.chemistry.kinetics import SpeciesComponent
+        >>> SpeciesComponent('substrate', n=300.0).n
         300.0
     """
 
-    n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class Binding(Interaction):
+class BindingInteraction(BaseInteraction):
     """Second-order reaction `first + second -> product` with the mass-action rate `k * first * second`.
 
     In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
@@ -114,15 +114,15 @@ class Binding(Interaction):
                 The rate constant.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import Binding
-        >>> Binding('binding', first='E', second='S', product='C', k=0.01).k
+        >>> from skcomplex.models.chemistry.kinetics import BindingInteraction
+        >>> BindingInteraction('binding', first='E', second='S', product='C', k=0.01).k
         0.01
     """
 
     first: str = role()
     second: str = role()
     product: str = role()
-    k: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -136,7 +136,7 @@ class Binding(Interaction):
         self.stochastic = stochastic
         self.langevin = langevin
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reaction at the rate `k * first * second`.
 
         Args:
@@ -156,7 +156,7 @@ class Binding(Interaction):
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
-class Dissociation(Interaction):
+class DissociationInteraction(BaseInteraction):
     """First-order reaction `complex -> first + second` with the mass-action rate `k * complex`.
 
     In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
@@ -189,15 +189,15 @@ class Dissociation(Interaction):
                 The rate constant.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import Dissociation
-        >>> Dissociation('catalysis', complex='C', first='E', second='P', k=0.1).second
+        >>> from skcomplex.models.chemistry.kinetics import DissociationInteraction
+        >>> DissociationInteraction('catalysis', complex='C', first='E', second='P', k=0.1).second
         'P'
     """
 
     complex: str = role()
     first: str = role()
     second: str = role()
-    k: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
@@ -211,7 +211,7 @@ class Dissociation(Interaction):
         self.stochastic = stochastic
         self.langevin = langevin
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reaction at the rate `k * complex`.
 
         Args:
@@ -231,9 +231,9 @@ class Dissociation(Interaction):
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
-Schlogl = Element.define(
-    'Schlogl',
-    states={'x': state(default=50.0, domain=Domain.REAL)},
+SchloglComponent = ElementComponent.define(
+    'SchloglComponent',
+    states={'x': state(default=50.0, domain=NumericDomain.REAL)},
     parameters={'c1': 1.5e-6, 'c2': 2.5e-3, 'c3': 2e-4, 'c4': 3.5, 'A': 1e5, 'B': 2e5},
     laws=_schlogl_laws,
 )
@@ -288,11 +288,30 @@ def michaelis_menten(
         ['E', 'S', 'C', 'P']
     """
     return System(
-        components=[Species('E', n=enzyme), Species('S', n=substrate), Species('C'), Species('P')],
+        components=[
+            SpeciesComponent('E', n=enzyme),
+            SpeciesComponent('S', n=substrate),
+            SpeciesComponent('C'),
+            SpeciesComponent('P'),
+        ],
         interactions=[
-            Binding('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
-            Dissociation('unbinding', complex='C', first='E', second='S', k=k_unbinding, stochastic=stochastic),
-            Dissociation('catalysis', complex='C', first='E', second='P', k=k_catalysis, stochastic=stochastic),
+            BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
+            DissociationInteraction(
+                'unbinding',
+                complex='C',
+                first='E',
+                second='S',
+                k=k_unbinding,
+                stochastic=stochastic,
+            ),
+            DissociationInteraction(
+                'catalysis',
+                complex='C',
+                first='E',
+                second='P',
+                k=k_catalysis,
+                stochastic=stochastic,
+            ),
         ],
     )
 
@@ -301,7 +320,7 @@ def michaelis_menten(
     field='chemistry/kinetics',
     tags=('sde', 'chemical Langevin equation', 'bistability', 'noise'),
     references=('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023'),
-    defaults={'until': 200.0, 'dt': 0.05, 'solver': EulerMaruyama(dt=1e-3)},
+    defaults={'until': 200.0, 'dt': 0.05, 'solver': EulerMaruyamaSolver(dt=1e-3)},
 )
 def chemical_langevin_equation(
     x: float = 50.0,
@@ -352,14 +371,14 @@ def chemical_langevin_equation(
         >>> chemical_langevin_equation(c4=3.0).elements[0].c4
         3.0
     """
-    return System(components=[Schlogl('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
+    return System(components=[SchloglComponent('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
 
 
 @register_model(
     field='chemistry/kinetics',
     tags=('enzyme kinetics', 'sde', 'chemical Langevin equation', 'noise'),
     references=('Michaelis and Menten 1913', 'Gillespie 2000'),
-    defaults={'until': 50.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=1e-3)},
+    defaults={'until': 50.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=1e-3)},
 )
 def chemical_langevin_network(
     enzyme: float = 100.0,
@@ -401,10 +420,15 @@ def chemical_langevin_network(
         [True, True, True]
     """
     return System(
-        components=[Species('E', n=enzyme), Species('S', n=substrate), Species('C'), Species('P')],
+        components=[
+            SpeciesComponent('E', n=enzyme),
+            SpeciesComponent('S', n=substrate),
+            SpeciesComponent('C'),
+            SpeciesComponent('P'),
+        ],
         interactions=[
-            Binding('binding', first='E', second='S', product='C', k=k_binding, langevin=True),
-            Dissociation('unbinding', complex='C', first='E', second='S', k=k_unbinding, langevin=True),
-            Dissociation('catalysis', complex='C', first='E', second='P', k=k_catalysis, langevin=True),
+            BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, langevin=True),
+            DissociationInteraction('unbinding', complex='C', first='E', second='S', k=k_unbinding, langevin=True),
+            DissociationInteraction('catalysis', complex='C', first='E', second='P', k=k_catalysis, langevin=True),
         ],
     )

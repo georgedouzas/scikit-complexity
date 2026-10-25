@@ -8,14 +8,14 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations._markets import Market, SampleAndSwitch, Trade
+from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
+from ..realizations._markets import MarketInteraction, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
 
@@ -40,7 +40,7 @@ def _largest_share(lent: Array) -> float:
     return float(lent.max() / total) if total > 0 else float('nan')
 
 
-class Firm(Element):
+class FirmComponent(ElementComponent):
     """Firm that borrows in proportion to its net worth, invests at a random return, and defaults on negative worth.
 
     Every step the firm asks for `leverage` times its net worth from its bank, invests its net worth and the loan at
@@ -97,24 +97,24 @@ class Firm(Element):
                 The net worth of an entrant.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Firm
-        >>> Firm.group('firms', 10, net_worth=5.0).size
+        >>> from skcomplex.models.economics.macroeconomics import FirmComponent
+        >>> FirmComponent.group('firms', 10, net_worth=5.0).size
         10
     """
 
-    net_worth: float = state(default=10.0, domain=Domain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    bid: float = state(default=1.0, domain=Domain.NONNEGATIVE)
-    loan: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    rate: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    partner: float = state(default=-1, domain=Domain.INTEGER)
-    gross_return: float = state(default=0.0, domain=Domain.REAL)
-    injected: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    defaulted: float = state(default=0, domain=Domain.BOOLEAN)
-    leverage: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    mean_return: float = parameter(default=0.03, domain=Domain.REAL)
-    volatility: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    entry: float = parameter(default=10.0, domain=Domain.POSITIVE)
+    net_worth: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
+    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    bid: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    loan: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    rate: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    partner: float = state(default=-1, domain=NumericDomain.INTEGER)
+    gross_return: float = state(default=0.0, domain=NumericDomain.REAL)
+    injected: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    defaulted: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    leverage: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    mean_return: float = parameter(default=0.03, domain=NumericDomain.REAL)
+    volatility: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    entry: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
@@ -126,7 +126,7 @@ class Firm(Element):
         super().__init__(label, **values)
         self.lenders = lenders
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the borrowing plan and the investment rule.
 
         Args:
@@ -137,7 +137,7 @@ class Firm(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.plan, phase='plan'), Rule(self.invest, phase='settle')]
+        return [RuleLaw(self.plan, phase='plan'), RuleLaw(self.invest, phase='settle')]
 
     def plan(self, agent: AgentView, model: ModelView) -> None:
         """Ask for a loan of `leverage` times the net worth.
@@ -178,7 +178,7 @@ class Firm(Element):
         agent.defaulted, agent.partner = 1, -1
 
 
-class Bank(Element):
+class BankComponent(ElementComponent):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
@@ -210,20 +210,20 @@ class Bank(Element):
             The smallest ratio of equity to loans.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import Bank
-        >>> Bank.group('banks', 5, equity=100.0).size
+        >>> from skcomplex.models.economics.macroeconomics import BankComponent
+        >>> BankComponent.group('banks', 5, equity=100.0).size
         5
     """
 
-    equity: float = state(default=100.0, domain=Domain.REAL)
-    ask: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    lent: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    losses: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    capital_ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
+    equity: float = state(default=100.0, domain=NumericDomain.REAL)
+    ask: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    lent: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    losses: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    alpha: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    capital_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the quoting rule.
 
         Args:
@@ -234,7 +234,7 @@ class Bank(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.quote, phase='plan')]
+        return [RuleLaw(self.quote, phase='plan')]
 
     def quote(self, agent: AgentView, model: ModelView) -> None:
         """Set the interest rate and the lending capacity from the equity.
@@ -252,7 +252,7 @@ class Bank(Element):
         agent.lent, agent.losses = 0.0, 0.0
 
 
-class CreditMarket(Market):
+class CreditMarketInteraction(MarketInteraction):
     """Credit market that also reports the spread of the rates firms pay over the cheapest bank's rate.
 
     The spread is the mean of `r_i / r_min - 1` over the borrowing firms, the dispersion of rates that a market
@@ -296,12 +296,12 @@ class CreditMarket(Market):
             A function of every trade and the model view, run after the transfers, or `None`.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import CreditMarket
-        >>> CreditMarket('credit', buyers='firms', sellers='banks').reports[-1]
+        >>> from skcomplex.models.economics.macroeconomics import CreditMarketInteraction
+        >>> CreditMarketInteraction('credit', buyers='firms', sellers='banks').reports[-1]
         'spread'
     """
 
-    reports: ClassVar[tuple[str, ...]] = (*Market.reports, 'spread')
+    reports: ClassVar[tuple[str, ...]] = (*MarketInteraction.reports, 'spread')
 
     def clear(self, model: Any) -> None:  # noqa: ANN401
         """Clear the market and report the spread of the rates paid over the cheapest rate.
@@ -410,14 +410,14 @@ def credit_networks(
         ['firms', 'banks']
     """
     rng = np.random.default_rng(random_state)
-    lenders = Bank.group(
+    lenders = BankComponent.group(
         'banks',
         banks,
         equity=equity * rng.uniform(0.5, 1.5, banks),
         alpha=alpha,
         capital_ratio=capital_ratio,
     )
-    borrowers = Firm.group(
+    borrowers = FirmComponent.group(
         'firms',
         firms,
         net_worth=net_worth,
@@ -426,7 +426,7 @@ def credit_networks(
         volatility=volatility,
         entry=net_worth,
     )
-    market = CreditMarket(
+    market = CreditMarketInteraction(
         'credit',
         buyers='firms',
         sellers='banks',
@@ -439,5 +439,5 @@ def credit_networks(
     return System(
         components=[borrowers, lenders],
         interactions=[market],
-        time=DiscreteTime(schedule=Phases([Phase('plan'), Phase('credit'), Phase('settle')])),
+        time=DiscreteTime(schedule=PhasesSchedule([Phase('plan'), Phase('credit'), Phase('settle')])),
     )

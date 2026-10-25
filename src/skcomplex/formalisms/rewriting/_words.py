@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, RewritingError, symbols_of
 from ...engine.compile import numpy_function
-from ._components import Word
+from ._components import WordComponent
 from ._geometry import WordGeometry
 from ._kernels import (
     ACTION_CODES,
@@ -32,7 +32,7 @@ from ._kernels import (
     neighbors,
     walk_word,
 )
-from ._laws import Module, Production, parse_word
+from ._laws import Module, ProductionLaw, parse_word
 from ._structures import WordStructure
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -42,7 +42,7 @@ TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 type Arrays = list[npt.NDArray[Any]]
 
 
-def _alphabet_of(word: Word, productions: Sequence[Production]) -> dict[str, int]:
+def _alphabet_of(word: WordComponent, productions: Sequence[ProductionLaw]) -> dict[str, int]:
     """Return the arity of every symbol, declared or taken from the axiom and the productions."""
     if isinstance(word.alphabet, Mapping):
         return {str(name): int(arity) for name, arity in word.alphabet.items()}
@@ -212,8 +212,8 @@ class CompiledWord:
     def __init__(
         self,
         path: str,
-        word: Word,
-        productions: Sequence[Production],
+        word: WordComponent,
+        productions: Sequence[ProductionLaw],
         parameters: Parameters,
         values: npt.NDArray[np.float64],
     ) -> None:
@@ -261,7 +261,7 @@ class CompiledWord:
             raise RewritingError(error_msg)
         return self.names.index(module.name)
 
-    def _successor(self, production: Production, variables: list[Expression]) -> int:
+    def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
         modules = parse_word(production.successor, self.names)
         codes = np.array([self._code(module, repr(production)) for module in modules], dtype=np.int64)
@@ -271,7 +271,7 @@ class CompiledWord:
         self.successors.append(_Successor(codes, slots, values, len(variables)))
         return len(self.successors) - 1
 
-    def _groups(self, productions: Sequence[Production]) -> list[_Group]:
+    def _groups(self, productions: Sequence[ProductionLaw]) -> list[_Group]:
         """Return the groups of productions in the order they are tried."""
         groups: dict[tuple[str, ...] | int, _Group] = {}
         for order, production in enumerate(productions):

@@ -5,13 +5,13 @@
 
 from sage.all__sagemath_symbolics import pi, sin
 
-from ....core.base import Domain, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Rate, Symbols, delayed
+from ....core.base import NumericDomain, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw, Symbols, delayed
 
 
-class Population(Element):
+class PopulationComponent(ElementComponent):
     """Population of one species.
 
     Args:
@@ -22,15 +22,15 @@ class Population(Element):
             The initial size.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Population
-        >>> Population('rabbits', n=40).n
+        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> PopulationComponent('rabbits', n=40).n
         40
     """
 
-    n: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class ExponentialGrowth(Interaction):
+class ExponentialGrowthInteraction(BaseInteraction):
     """Growth at a constant per capita rate, `dn/dt = r * n`.
 
     Args:
@@ -44,15 +44,15 @@ class ExponentialGrowth(Interaction):
             The per capita growth rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowth
-        >>> ExponentialGrowth('growth', target='rabbits', r=0.5).r
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction
+        >>> ExponentialGrowthInteraction('growth', target='rabbits', r=0.5).r
         0.5
     """
 
     target: str = role()
-    r: float = parameter(default=1.0, domain=Domain.REAL)
+    r: float = parameter(default=1.0, domain=NumericDomain.REAL)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r * n`.
 
         Args:
@@ -63,10 +63,10 @@ class ExponentialGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n)]
+        return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class LogisticGrowth(Interaction):
+class LogisticGrowthInteraction(BaseInteraction):
     """Growth limited by a carrying capacity, `dn/dt = r * n * (1 - n / K)`.
 
     Args:
@@ -83,16 +83,16 @@ class LogisticGrowth(Interaction):
             The carrying capacity.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import LogisticGrowth
-        >>> LogisticGrowth('growth', target='rabbits', K=200).K
+        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction
+        >>> LogisticGrowthInteraction('growth', target='rabbits', K=200).K
         200
     """
 
     target: str = role()
-    r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n / K)`.
 
         Args:
@@ -103,10 +103,10 @@ class LogisticGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
+        return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
 
 
-class SeasonalLogisticGrowth(Interaction):
+class SeasonalLogisticGrowthInteraction(BaseInteraction):
     """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
 
     Args:
@@ -129,18 +129,18 @@ class SeasonalLogisticGrowth(Interaction):
             The period `T` of the variation.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import SeasonalLogisticGrowth
-        >>> SeasonalLogisticGrowth('growth', target='rabbits', period=12.0).period
+        >>> from skcomplex.models.biology.ecology import SeasonalLogisticGrowthInteraction
+        >>> SeasonalLogisticGrowthInteraction('growth', target='rabbits', period=12.0).period
         12.0
     """
 
     target: str = role()
-    r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    amplitude: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    period: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    amplitude: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    period: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n / K(t))`.
 
         Args:
@@ -152,10 +152,10 @@ class SeasonalLogisticGrowth(Interaction):
                 The laws of the component.
         """
         capacity = s.K * (1 + s.amplitude * sin(2 * pi * s.t / s.period))
-        return [Rate(s.target.n, s.r * s.target.n * (1 - s.target.n / capacity))]
+        return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / capacity))]
 
 
-class DelayedLogisticGrowth(Interaction):
+class DelayedLogisticGrowthInteraction(BaseInteraction):
     """Growth limited by the population a delay ago, `dn/dt = r * n * (1 - n(t - tau) / K)`, of Hutchinson.
 
     The delay stands for maturation or resource regeneration. The equilibrium `K` loses stability to oscillations when
@@ -178,17 +178,17 @@ class DelayedLogisticGrowth(Interaction):
             The delay of the density feedback.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import DelayedLogisticGrowth
-        >>> DelayedLogisticGrowth('growth', target='rabbits', tau=2.0).tau
+        >>> from skcomplex.models.biology.ecology import DelayedLogisticGrowthInteraction
+        >>> DelayedLogisticGrowthInteraction('growth', target='rabbits', tau=2.0).tau
         2.0
     """
 
     target: str = role()
-    r: float = parameter(default=1.0, domain=Domain.REAL)
-    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n(t - tau) / K)`.
 
         Args:
@@ -199,10 +199,10 @@ class DelayedLogisticGrowth(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, s.r * s.target.n * (1 - delayed(s.target.n, s.tau) / s.K))]
+        return [RateLaw(s.target.n, s.r * s.target.n * (1 - delayed(s.target.n, s.tau) / s.K))]
 
 
-class Mortality(Interaction):
+class MortalityInteraction(BaseInteraction):
     """Death at a constant per capita rate, `dn/dt = -d * n`.
 
     Args:
@@ -216,15 +216,15 @@ class Mortality(Interaction):
             The per capita death rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Mortality
-        >>> Mortality('death', target='foxes', d=0.4).d
+        >>> from skcomplex.models.biology.ecology import MortalityInteraction
+        >>> MortalityInteraction('death', target='foxes', d=0.4).d
         0.4
     """
 
     target: str = role()
-    d: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rate `-d * n`.
 
         Args:
@@ -235,10 +235,10 @@ class Mortality(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.n, -s.d * s.target.n)]
+        return [RateLaw(s.target.n, -s.d * s.target.n)]
 
 
-class Predation(Interaction):
+class PredationInteraction(BaseInteraction):
     """Lotka-Volterra predation, where encounters remove prey and feed predators.
 
     The prey loses `a * predator * prey` per unit time and the predator gains `b * predator * prey`.
@@ -260,17 +260,17 @@ class Predation(Interaction):
             The conversion rate of eaten prey into predators.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import Predation
-        >>> Predation('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1).prey
+        >>> from skcomplex.models.biology.ecology import PredationInteraction
+        >>> PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1).prey
         'rabbits'
     """
 
     predator: str = role()
     prey: str = role()
-    a: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    b: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
+    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    b: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the rates `-a * predator * prey` and `b * predator * prey`.
 
         Args:
@@ -282,4 +282,4 @@ class Predation(Interaction):
                 The laws of the component.
         """
         encounters = s.predator.n * s.prey.n
-        return [Rate(s.prey.n, -s.a * encounters), Rate(s.predator.n, s.b * encounters)]
+        return [RateLaw(s.prey.n, -s.a * encounters), RateLaw(s.predator.n, s.b * encounters)]

@@ -11,10 +11,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, ValidationError, symbols_of
-from ...core.laws import Law
+from ...core.laws import BaseLaw
 from ...engine.compile import Reference, Source
 from ._contractions import CompiledEncounter, Indices, TableValues
-from ._laws import Destruction, Encounter, EncounterLaw, is_encounter
+from ._laws import DestructionLaw, EncounterLaw, is_encounter
 
 
 def _nonzero(table: npt.NDArray[Any]) -> tuple[Indices, ...]:
@@ -60,9 +60,9 @@ def _group_indices(item: Expression | None, references: Mapping[Expression, Refe
 
 def _outcome_table(law: EncounterLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any] | None:
     """Return the outcome table of a law, the identity on the candidate's activity for a proliferation without one."""
-    if isinstance(law, Destruction):
+    if isinstance(law, DestructionLaw):
         return None
-    table = law.transition if isinstance(law, Encounter) else law.outcomes
+    table = law.transition if isinstance(law, EncounterLaw) else law.outcomes
     if table is None:
         if sizes[0] != sizes[2]:
             error_msg = (
@@ -155,7 +155,7 @@ def compile_encounter(
 
 
 def compile_encounters(
-    components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[Law]]],
+    components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[BaseLaw]]],
     time: Expression,
     *,
     fused: bool = False,

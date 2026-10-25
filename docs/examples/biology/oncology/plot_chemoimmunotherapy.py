@@ -14,12 +14,12 @@ gone after the third, while the NK cells expand and the circulating lymphocytes 
 import matplotlib.pyplot as plt
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'chemoimmunotherapy'
-SOLVER = ScipyODE(method='LSODA', rtol=1e-6, atol=1e-6)
+SOLVER = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)

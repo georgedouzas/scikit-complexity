@@ -21,10 +21,10 @@ from ...core.base import (
     VisualSpec,
     declarations_of,
 )
-from ...core.components import Element, Group
-from ...core.interactions import Interaction
-from ...core.laws import Invariant, Law
-from ...core.space import Space
+from ...core.components import ElementComponent, GroupComponent
+from ...core.interactions import BaseInteraction
+from ...core.laws import BaseLaw, Invariant
+from ...core.space import BaseSpace
 from ...core.system import Observable, System
 from ._arrays import Vector
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
@@ -346,7 +346,7 @@ class CompiledElement:
     """
 
     path: str
-    element: Element | Group
+    element: ElementComponent | GroupComponent
     states: Mapping[str, str]
     parameters: Mapping[str, str]
     visual: VisualSpec
@@ -387,12 +387,12 @@ class CompiledAgents:
     """
 
     path: str
-    element: Element | Group
+    element: ElementComponent | GroupComponent
     size: int
     states: tuple[str, ...]
     values: Mapping[str, object]
     parameters: Mapping[str, str]
-    rules: tuple[Law, ...]
+    rules: tuple[BaseLaw, ...]
     visual: VisualSpec
     invariants: tuple[Invariant, ...] = ()
 
@@ -414,7 +414,7 @@ class CompiledInteraction:
     """
 
     path: str
-    interaction: Interaction
+    interaction: BaseInteraction
     roles: Mapping[str, str | tuple[str, ...]]
 
 
@@ -752,9 +752,9 @@ class Problem:
     interactions: tuple[CompiledInteraction, ...] = ()
     system: System | None = field(default=None, repr=False)
     agents: tuple[CompiledAgents, ...] = ()
-    model_rules: tuple[tuple[str, Law], ...] = ()
+    model_rules: tuple[tuple[str, BaseLaw], ...] = ()
     model_invariants: tuple[tuple[str, Invariant], ...] = ()
-    agent_space: Space | None = None
+    agent_space: BaseSpace | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     delays: tuple[_Delay, ...] = ()
@@ -806,7 +806,7 @@ class Problem:
         found = {}
         for compiled in self.elements:
             component = compiled.element
-            kind = component.element if isinstance(component, Group) else type(component)
+            kind = component.element if isinstance(component, GroupComponent) else type(component)
             for name, declaration in declarations_of(kind, VariableKind.STATE).items():
                 if declaration.adaptive and name in compiled.states:
                     found[compiled.states[name]] = declaration

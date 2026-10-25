@@ -8,13 +8,13 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -79,7 +79,7 @@ def _offspring(parent: AgentView, rng: np.random.Generator) -> Array:
     return genome
 
 
-class Strategist(Element):
+class StrategistComponent(ElementComponent):
     """Agent of the prisoner's dilemma tournament, with a genome of responses and the fitness of its last games.
 
     Args:
@@ -100,18 +100,18 @@ class Strategist(Element):
             The probability that an offspring has one gene flipped.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import Strategist
-        >>> Strategist.group('agents', 10, genome=[1.0] * 7)
-        Group('agents', element=Strategist, size=10)
+        >>> from skcomplex.models.social.cooperation import StrategistComponent
+        >>> StrategistComponent.group('agents', 10, genome=[1.0] * 7)
+        GroupComponent('agents', element=StrategistComponent, size=10)
     """
 
     genome: npt.ArrayLike = state(default=1.0, vector=True)
-    fitness: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    death: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    mutation: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    death: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    mutation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
 
 
-class Tournament(Interaction):
+class TournamentInteraction(BaseInteraction):
     """Tournament and selection of strategies of the iterated prisoner's dilemma.
 
     Every step the agents stand in a random ring and play their two neighbours, and their fitness is their mean score
@@ -132,8 +132,8 @@ class Tournament(Interaction):
                 The path of the group of strategists.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import Tournament
-        >>> Tournament('tournament', target='agents').rounds
+        >>> from skcomplex.models.social.cooperation import TournamentInteraction
+        >>> TournamentInteraction('tournament', target='agents').rounds
         6
     """
 
@@ -149,7 +149,7 @@ class Tournament(Interaction):
         super().__init__(label, **values)
         self.rounds = rounds
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the tournament rule.
 
         Args:
@@ -160,7 +160,7 @@ class Tournament(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.compete)]
+        return [RuleLaw(self.compete)]
 
     def _melee(self, agents: list[AgentView], rng: np.random.Generator) -> Array:
         """Return the mean score per round of every agent after playing its two neighbours in a random ring."""
@@ -236,5 +236,15 @@ def prisoners_dilemma_tournament(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
     visual = VisualSpec('traits', {'color_by': 'fitness'})
-    agents = Strategist.group('agents', n_agents, genome=genomes, death=death, mutation=mutation, visual=visual)
-    return System(components=[agents], interactions=[Tournament('tournament', target='agents', rounds=rounds)])
+    agents = StrategistComponent.group(
+        'agents',
+        n_agents,
+        genome=genomes,
+        death=death,
+        mutation=mutation,
+        visual=visual,
+    )
+    return System(
+        components=[agents],
+        interactions=[TournamentInteraction('tournament', target='agents', rounds=rounds)],
+    )

@@ -7,12 +7,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import role, state
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 type Array = npt.NDArray[np.float64]
 
@@ -33,7 +33,7 @@ def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Genera
     speaker.words, hearer.words = spoken, heard
 
 
-class Namer(Element):
+class NamerComponent(ElementComponent):
     """Agent of the naming game, with an inventory of the words it knows for one object.
 
     The inventory is an indicator vector over the lexicon, with one slot per agent for the word that agent invents
@@ -48,15 +48,15 @@ class Namer(Element):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.social.opinion_dynamics import Namer
-        >>> Namer.group('namers', 5, words=np.zeros((5, 5)))
-        Group('namers', element=Namer, size=5)
+        >>> from skcomplex.models.social.opinion_dynamics import NamerComponent
+        >>> NamerComponent.group('namers', 5, words=np.zeros((5, 5)))
+        GroupComponent('namers', element=NamerComponent, size=5)
     """
 
     words: npt.ArrayLike = state(default=0.0, vector=True)
 
 
-class NamingGames(Interaction):
+class NamingGamesInteraction(BaseInteraction):
     """Pairwise games of the minimal naming game, as many per step as there are agents.
 
     A random speaker says a random word of its inventory to a random hearer. When the hearer knows it, both keep that
@@ -70,14 +70,14 @@ class NamingGames(Interaction):
             The path of the group of namers.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import NamingGames
-        >>> NamingGames('games', target='namers').target
+        >>> from skcomplex.models.social.opinion_dynamics import NamingGamesInteraction
+        >>> NamingGamesInteraction('games', target='namers').target
         'namers'
     """
 
     target: str = role()
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the game rule.
 
         Args:
@@ -88,7 +88,7 @@ class NamingGames(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.play)]
+        return [RuleLaw(self.play)]
 
     def play(self, model: ModelView) -> None:
         """Play one game per agent between random pairs.
@@ -127,5 +127,5 @@ def naming_game(n_agents: int = 50) -> System:
         >>> naming_game(10).elements[0].size
         10
     """
-    namers = Namer.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
-    return System(components=[namers], interactions=[NamingGames('games', target='namers')])
+    namers = NamerComponent.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
+    return System(components=[namers], interactions=[NamingGamesInteraction('games', target='namers')])

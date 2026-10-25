@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 
 from sage.symbolic.assumptions import assume, forget
 
-from ...core.base import Categorical, Domain, Expression, domain_of
+from ...core.base import CategoricalDomain, Expression, NumericDomain, domain_of
 
 DECLARED: set[str] = set()
 SIGNS: dict[str, Expression] = {}
@@ -34,25 +34,25 @@ def declare_domains(items: Iterable[Expression], values: Mapping[Expression, flo
         name = str(item)
         domain = domain_of(item)
         if name not in DECLARED:
-            if isinstance(domain, Categorical) or domain in {
-                Domain.INTEGER,
-                Domain.NONNEGATIVE_INTEGER,
-                Domain.BOOLEAN,
+            if isinstance(domain, CategoricalDomain) or domain in {
+                NumericDomain.INTEGER,
+                NumericDomain.NONNEGATIVE_INTEGER,
+                NumericDomain.BOOLEAN,
             }:
                 assume(item, 'integer')
-            elif domain in {Domain.REAL, Domain.ANGLE}:
+            elif domain in {NumericDomain.REAL, NumericDomain.ANGLE}:
                 assume(item, 'real')
-            if domain is Domain.POSITIVE:
+            if domain is NumericDomain.POSITIVE:
                 assume(item > 0)
-            elif isinstance(domain, Categorical) or domain in {
-                Domain.NONNEGATIVE,
-                Domain.NONNEGATIVE_INTEGER,
-                Domain.BOOLEAN,
+            elif isinstance(domain, CategoricalDomain) or domain in {
+                NumericDomain.NONNEGATIVE,
+                NumericDomain.NONNEGATIVE_INTEGER,
+                NumericDomain.BOOLEAN,
             }:
                 assume(item >= 0)
             DECLARED.add(name)
         value = (values or {}).get(item)
-        if domain is not Domain.REAL or not value:
+        if domain is not NumericDomain.REAL or not value:
             continue
         sign = item > 0 if value > 0 else item < 0
         previous = SIGNS.get(name)

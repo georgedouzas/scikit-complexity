@@ -6,32 +6,38 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
-from skcomplex.core.components import Aggregate, Element
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import Aggregate, ElementComponent
+from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import RealTime, Simulation
-from skcomplex.engine.solvers import CoSimulation, ScipyODE
-from skcomplex.formalisms.agents import Rule
-from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
-from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.engine.runtime import RealTimeClock, Simulation
+from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
+from skcomplex.formalisms.agents import RuleLaw
+from skcomplex.models.biology.ecology import (
+    ExponentialGrowthInteraction,
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationComponent,
+    PredationInteraction,
+)
+from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
 from skcomplex.models.economics.resources import harvesting
 
 
-class Breeder(Element):
+class BreederComponent(ElementComponent):
     """Agent that creates one offspring every step."""
 
     def laws(self, s):
         """Return the breeding rule."""
-        return [Rule(self.breed)]
+        return [RuleLaw(self.breed)]
 
     def breed(self, agent, model):
         """Create one offspring."""
         agent.create()
 
 
-class Idle(Element):
+class IdleComponent(ElementComponent):
     """Agent that keeps its wealth and records the soil it sees."""
 
     wealth: float = state(1.0)
@@ -39,14 +45,14 @@ class Idle(Element):
 
     def laws(self, s):
         """Return the observing rule."""
-        return [Rule(self.observe)]
+        return [RuleLaw(self.observe)]
 
     def observe(self, agent, model):
         """Record the fertility of the soil at the last synchronisation point."""
         agent.seen = model.inputs['land/soil.n']
 
 
-class Accumulation(Interaction):
+class AccumulationInteraction(BaseInteraction):
     """Rate equal to an aggregate, `dn/dt = value`."""
 
     target: str = role()
@@ -54,10 +60,10 @@ class Accumulation(Interaction):
 
     def laws(self, s):
         """Return the rate `value`."""
-        return [Rate(s.target.n, s.source.value)]
+        return [RateLaw(s.target.n, s.source.value)]
 
 
-class Tending(Interaction):
+class TendingInteraction(BaseInteraction):
     """Interaction with a rate on a population and a rule on agents."""
 
     soil: str = role()
@@ -66,7 +72,7 @@ class Tending(Interaction):
 
     def laws(self, s):
         """Return one rate law and one rule."""
-        return [Rate(s.soil.n, s.rate), Rule(self.tend)]
+        return [RateLaw(s.soil.n, s.rate), RuleLaw(self.tend)]
 
     def tend(self, model):
         """Do nothing for the agents."""
@@ -79,16 +85,16 @@ def _lotka_volterra():
         components=[
             System(
                 'prey',
-                components=[Population('rabbits', n=40)],
-                interactions=[LogisticGrowth('growth', target='rabbits', r=1.1, K=1000)],
+                components=[PopulationComponent('rabbits', n=40)],
+                interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000)],
             ),
             System(
                 'predators',
-                components=[Population('foxes', n=9)],
-                interactions=[Mortality('death', target='foxes', d=0.4)],
+                components=[PopulationComponent('foxes', n=9)],
+                interactions=[MortalityInteraction('death', target='foxes', d=0.4)],
             ),
         ],
-        interactions=[Predation('hunt', predator='predators/foxes', prey='prey/rabbits', a=0.4, b=0.1)],
+        interactions=[PredationInteraction('hunt', predator='predators/foxes', prey='prey/rabbits', a=0.4, b=0.1)],
     )
 
 
@@ -96,16 +102,16 @@ def _counting_system(agents=3, reduce='count', variable=None):
     """Return land first, then a village of breeders with an aggregate that a land rate reads."""
     return System(
         components=[
-            System('land', components=[Population('soil', n=0.0)]),
+            System('land', components=[PopulationComponent('soil', n=0.0)]),
             System(
                 'village',
                 components=[
-                    Breeder.group('farmers', agents, variable=True),
+                    BreederComponent.group('farmers', agents, variable=True),
                     Aggregate('size', group='farmers', reduce=reduce, variable=variable),
                 ],
             ),
         ],
-        interactions=[Accumulation('accumulate', target='land/soil', source='village/size')],
+        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
     )
 
 
@@ -123,10 +129,10 @@ def test_laws_join_the_partition_of_their_target():
     """Test that one interaction's rate and rule join the partitions of their targets, the rate counted per farmer."""
     system = System(
         components=[
-            System('land', components=[Population('soil', n=0.0)]),
-            System('village', components=[Idle.group('farmers', 2)]),
+            System('land', components=[PopulationComponent('soil', n=0.0)]),
+            System('village', components=[IdleComponent.group('farmers', 2)]),
         ],
-        interactions=[Tending('tend', soil='land/soil', farmers='village/farmers')],
+        interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
     )
     land, village = compile_system(system).partitions
     assert (land.problem.form, village.problem.form) == (Form.ODE, Form.AGENT)
@@ -140,8 +146,11 @@ def test_mixed_leaf_subsystem_names_itself():
         components=[
             System(
                 'economy',
-                components=[Market('market'), Population('herd')],
-                interactions=[Cobweb('cobweb', target='market'), ExponentialGrowth('growth', target='herd')],
+                components=[MarketComponent('market'), PopulationComponent('herd')],
+                interactions=[
+                    CobwebInteraction('cobweb', target='market'),
+                    ExponentialGrowthInteraction('growth', target='herd'),
+                ],
             ),
         ],
     )
@@ -153,11 +162,15 @@ def test_mix_across_subsystems_gives_partitions():
     """Test that a discrete subsystem next to an ODE subsystem gives a discrete and an ODE partition."""
     system = System(
         components=[
-            System('market', components=[Market('wheat')], interactions=[Cobweb('cobweb', target='wheat')]),
+            System(
+                'market',
+                components=[MarketComponent('wheat')],
+                interactions=[CobwebInteraction('cobweb', target='wheat')],
+            ),
             System(
                 'herd',
-                components=[Population('sheep')],
-                interactions=[ExponentialGrowth('growth', target='sheep')],
+                components=[PopulationComponent('sheep')],
+                interactions=[ExponentialGrowthInteraction('growth', target='sheep')],
             ),
         ],
     )
@@ -166,14 +179,14 @@ def test_mix_across_subsystems_gives_partitions():
 
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading an aggregate uses its value from the start of the synchronisation interval."""
-    trajectory = Simulation(_counting_system(3), solver=CoSimulation(sync_dt=2), dt=2).run(until=2).trajectory_
+    trajectory = Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2).run(until=2).trajectory_
     assert trajectory['land/soil.n'][-1] == pytest.approx(3 * 2)
     assert trajectory['village/size.value'].tolist() == [3.0, 12.0]
 
 
 def test_aggregate_counts_agents():
     """Test that an aggregate counting 12 agents gives the ODE the value 12."""
-    trajectory = Simulation(_counting_system(12), solver=CoSimulation(), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(_counting_system(12), solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
     assert trajectory['village/size.value'][0] == 12
     assert trajectory['land/soil.n'][-1] == pytest.approx(12)
 
@@ -187,16 +200,16 @@ def test_aggregate_reductions_of_agent_states(reduce, expected):
     """Test that aggregates sum, average, and reduce an agent state with a custom function."""
     system = System(
         components=[
-            System('land', components=[Population('soil')]),
+            System('land', components=[PopulationComponent('soil')]),
             System(
                 'village',
                 components=[
-                    Idle.group('farmers', 3),
+                    IdleComponent.group('farmers', 3),
                     Aggregate('total', group='farmers', reduce=reduce, variable='wealth'),
                 ],
             ),
         ],
-        interactions=[Accumulation('accumulate', target='land/soil', source='village/total')],
+        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/total')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
     assert trajectory['village/total.value'][0] == expected
@@ -209,12 +222,16 @@ def test_aggregate_reduces_element_group():
             System(
                 'herds',
                 components=[
-                    Population.group('herd', 3, n=[1.0, 2.0, 3.0]),
+                    PopulationComponent.group('herd', 3, n=[1.0, 2.0, 3.0]),
                     Aggregate('total', group='herd', reduce='sum', variable='n'),
                 ],
-                interactions=[ExponentialGrowth('growth', target='herd')],
+                interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
-            System('market', components=[Market('wheat')], interactions=[Cobweb('cobweb', target='wheat')]),
+            System(
+                'market',
+                components=[MarketComponent('wheat')],
+                interactions=[CobwebInteraction('cobweb', target='wheat')],
+            ),
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -227,10 +244,10 @@ def test_agent_rules_read_other_partitions():
         components=[
             System(
                 'land',
-                components=[Population('soil', n=5.0)],
-                interactions=[ExponentialGrowth('growth', target='soil', r=1.0)],
+                components=[PopulationComponent('soil', n=5.0)],
+                interactions=[ExponentialGrowthInteraction('growth', target='soil', r=1.0)],
             ),
-            System('village', components=[Idle.group('farmers', 2)]),
+            System('village', components=[IdleComponent.group('farmers', 2)]),
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -240,13 +257,13 @@ def test_agent_rules_read_other_partitions():
 def test_sync_interval_must_divide_frame():
     """Test that a synchronisation interval that does not divide the frame names both values."""
     with pytest.raises(ValidationError, match=r'0\.03.*0\.1'):
-        Simulation(_lotka_volterra(), solver=CoSimulation(split=True, sync_dt=0.03), dt=0.1).run(until=0.1)
+        Simulation(_lotka_volterra(), solver=CoSimulationSolver(split=True, sync_dt=0.03), dt=0.1).run(until=0.1)
 
 
 def test_sync_interval_must_be_whole_steps_for_agents():
     """Test that agent partitions need a whole number of steps between synchronisation points."""
     with pytest.raises(ValidationError, match='whole number of steps'):
-        Simulation(harvesting(), solver=CoSimulation(sync_dt=0.5), dt=1).run(until=1)
+        Simulation(harvesting(), solver=CoSimulationSolver(sync_dt=0.5), dt=1).run(until=1)
 
 
 def test_gauss_seidel_reads_already_advanced_values():
@@ -255,14 +272,14 @@ def test_gauss_seidel_reads_already_advanced_values():
         components=[
             System(
                 'village',
-                components=[Breeder.group('farmers', 3, variable=True), Aggregate('size', group='farmers')],
+                components=[BreederComponent.group('farmers', 3, variable=True), Aggregate('size', group='farmers')],
             ),
-            System('land', components=[Population('soil', n=0.0)]),
+            System('land', components=[PopulationComponent('soil', n=0.0)]),
         ],
-        interactions=[Accumulation('accumulate', target='land/soil', source='village/size')],
+        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
     )
-    gauss_seidel = Simulation(village_first, solver=CoSimulation(), dt=1).run(until=1).trajectory_
-    jacobi = Simulation(village_first, solver=CoSimulation(scheme='jacobi'), dt=1).run(until=1).trajectory_
+    gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
+    jacobi = Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1).run(until=1).trajectory_
     assert gauss_seidel['land/soil.n'][-1] == pytest.approx(6)
     assert jacobi['land/soil.n'][-1] == pytest.approx(3)
 
@@ -270,22 +287,22 @@ def test_gauss_seidel_reads_already_advanced_values():
 def test_unknown_scheme_raises_error():
     """Test that an unknown scheme is rejected."""
     with pytest.raises(SolverError, match='gauss-seidel, jacobi'):
-        Simulation(harvesting(), solver=CoSimulation(scheme='newton')).run(until=1)
+        Simulation(harvesting(), solver=CoSimulationSolver(scheme='newton')).run(until=1)
 
 
 def test_single_form_needs_split():
     """Test that a problem of one form needs `split=True` to run as a co-simulation."""
     with pytest.raises(SolverError, match='split=True'):
-        Simulation(_lotka_volterra(), solver=CoSimulation()).run(until=0.1)
+        Simulation(_lotka_volterra(), solver=CoSimulationSolver()).run(until=0.1)
 
 
 def test_split_lotka_volterra_converges():
     """Test that the splitting error shrinks by a factor of at least 1.8 with each halving of `sync_dt`."""
-    precise = ScipyODE(rtol=1e-10, atol=1e-12)
+    precise = ScipyODESolver(rtol=1e-10, atol=1e-12)
     joint = Simulation(_lotka_volterra(), solver=precise, dt=0.1).run(until=10).trajectory_.states[-1]
     errors = []
     for interval in (0.1, 0.05, 0.025):
-        solver = CoSimulation(split=True, sync_dt=interval, solvers={'prey': precise, 'predators': precise})
+        solver = CoSimulationSolver(split=True, sync_dt=interval, solvers={'prey': precise, 'predators': precise})
         split = Simulation(_lotka_volterra(), solver=solver, dt=0.1).run(until=10).trajectory_.states[-1]
         errors.append(np.abs(split - joint).max())
     assert errors[0] >= 1.8 * errors[1]
@@ -309,7 +326,7 @@ def test_cosimulation_is_reproducible():
 
 def test_live_parameter_reaches_partitions():
     """Test that a live parameter change applies inside the partitions."""
-    simulation = Simulation(harvesting(10, effort=0.05), clock=RealTime(speed=20.0)).start(until=30)
+    simulation = Simulation(harvesting(10, effort=0.05), clock=RealTimeClock(speed=20.0)).start(until=30)
     time.sleep(0.6)
     simulation.update_parameters({'harvest.effort': 0.0})
     simulation.wait()

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4
+from skcomplex.engine.solvers import RK4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +23,7 @@ MODEL = 'pendulum_swing_up'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, solver=RK4(dt=0.01), observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[observer]).run(until=100)
 
 # %%
 # Energy pumping

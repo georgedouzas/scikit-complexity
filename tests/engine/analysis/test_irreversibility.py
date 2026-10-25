@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Jump
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import JumpLaw
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import (
     count_entropy_production,
@@ -73,12 +73,12 @@ def test_entropy_production_rejects_one_way_jumps():
 
 def _walker_currents(forward, backward, duration, paths, seed):
     """Return the net steps of a biased random walk on a ring over a duration, one per path."""
-    Walker = Element.define(
-        'Walker',
+    WalkerComponent = ElementComponent.define(
+        'WalkerComponent',
         states={'ahead': 0.0, 'behind': 0.0},
-        laws=lambda s: [Jump(forward, {s.ahead: 1}), Jump(backward, {s.behind: 1})],
+        laws=lambda s: [JumpLaw(forward, {s.ahead: 1}), JumpLaw(backward, {s.behind: 1})],
     )
-    system = System(components=[Walker('walker')])
+    system = System(components=[WalkerComponent('walker')])
     currents = []
     for index in range(paths):
         trajectory = Simulation(system, dt=duration, random_state=seed + index).run(until=duration).trajectory_

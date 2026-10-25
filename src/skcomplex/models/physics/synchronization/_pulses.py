@@ -6,10 +6,10 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, Expression, parameter
-from ....core.components import Element
-from ....core.interactions import Interaction
-from ....core.laws import Event, Law, Rate, Symbols, maximum, mean, where
+from ....core.base import Expression, NumericDomain, parameter
+from ....core.components import ElementComponent
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, maximum, mean, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._utils import _order_parameter
@@ -25,39 +25,39 @@ def _sensitivity(theta: Expression) -> Expression:
     return -sin(theta)
 
 
-def _integrate_and_fire_laws(s: Symbols) -> list[Law]:
+def _integrate_and_fire_laws(s: Symbols) -> list[BaseLaw]:
     """Return the charging of an oscillator and the firing of the most charged ones, which kick the others up."""
     largest = maximum(s.x)
     kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
     return [
-        Rate(s.x, s.S - s.gamma * s.x),
-        Event(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
+        RateLaw(s.x, s.S - s.gamma * s.x),
+        EventLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
     ]
 
 
-WinfreeOscillator = Element.define(
-    'WinfreeOscillator',
+WinfreeOscillatorComponent = ElementComponent.define(
+    'WinfreeOscillatorComponent',
     states={'theta': 0.0},
     parameters={'omega': 1.0},
-    laws=lambda s: [Rate(s.theta, s.omega)],
+    laws=lambda s: [RateLaw(s.theta, s.omega)],
 )
 
-WinfreeMeanField = Interaction.define(
-    'WinfreeMeanField',
+WinfreeMeanFieldInteraction = BaseInteraction.define(
+    'WinfreeMeanFieldInteraction',
     roles=['target'],
     parameters={'K': 1.0},
     laws=lambda s: [
-        Rate(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
+        RateLaw(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
     ],
 )
 
-IntegrateAndFireOscillator = Element.define(
-    'IntegrateAndFireOscillator',
+IntegrateAndFireOscillatorComponent = ElementComponent.define(
+    'IntegrateAndFireOscillatorComponent',
     states={'x': 0.0},
     parameters={
-        'S': parameter(default=2.0, domain=Domain.POSITIVE),
-        'gamma': parameter(default=1.0, domain=Domain.POSITIVE),
-        'epsilon': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'S': parameter(default=2.0, domain=NumericDomain.POSITIVE),
+        'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
+        'epsilon': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_integrate_and_fire_laws,
 )
@@ -100,7 +100,7 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
         >>> len(winfree(5).interactions)
         1
     """
-    oscillators = WinfreeOscillator.group(
+    oscillators = WinfreeOscillatorComponent.group(
         'oscillators',
         n_oscillators,
         theta=np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),
@@ -108,7 +108,7 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
     )
     return System(
         components=[oscillators],
-        interactions=[WinfreeMeanField('coupling', target='oscillators', K=K)],
+        interactions=[WinfreeMeanFieldInteraction('coupling', target='oscillators', K=K)],
     )
 
 
@@ -159,7 +159,7 @@ def mirollo_strogatz(
         3
     """
     charges = np.random.default_rng(seed).uniform(0.0, 1.0, n_oscillators)
-    oscillators = IntegrateAndFireOscillator.group(
+    oscillators = IntegrateAndFireOscillatorComponent.group(
         'oscillators',
         n_oscillators,
         x=charges,

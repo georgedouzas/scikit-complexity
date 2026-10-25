@@ -5,15 +5,15 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import Law, Symbols
+from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.components import ElementComponent
+from ....core.laws import BaseLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class Individual(Element):
+class IndividualComponent(ElementComponent):
     """Individual of a Galton-Watson process, replaced in the next generation by a Poisson number of offspring.
 
     Args:
@@ -27,16 +27,16 @@ class Individual(Element):
             The mean number of offspring.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import Individual
-        >>> Individual.group('population', 10, m=1.5)
-        Group('population', element=Individual, size=10)
+        >>> from skcomplex.models.mathematics.stochastic_processes import IndividualComponent
+        >>> IndividualComponent.group('population', 10, m=1.5)
+        GroupComponent('population', element=IndividualComponent, size=10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'generation'})
-    generation: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    m: float = parameter(1.0, domain=Domain.NONNEGATIVE)
+    generation: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    m: float = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[Law]:
+    def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the reproduction rule.
 
         Args:
@@ -47,7 +47,7 @@ class Individual(Element):
             laws:
                 The laws of the component.
         """
-        return [Rule(self.reproduce)]
+        return [RuleLaw(self.reproduce)]
 
     def reproduce(self, agent: AgentView, model: ModelView) -> None:
         """Create the offspring of the individual and remove it.
@@ -92,4 +92,4 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
         >>> galton_watson(5, m=1.2).elements[0].size
         5
     """
-    return System(components=[Individual.group('population', n_individuals, variable=True, m=m)])
+    return System(components=[IndividualComponent.group('population', n_individuals, variable=True, m=m)])

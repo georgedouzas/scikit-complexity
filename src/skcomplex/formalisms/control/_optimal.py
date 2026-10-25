@@ -13,12 +13,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Domain, Expression, Form, SolverError, symbols_of
+from ...core.base import Expression, Form, NumericDomain, SolverError, symbols_of
 from ...engine.compile import Problem, Vector, numpy_function
-from ...engine.solvers import Stepper
+from ...engine.solvers import Solver
 
 TIME_TOLERANCE = 1e-9
-NONNEGATIVE_DOMAINS = frozenset({Domain.POSITIVE, Domain.NONNEGATIVE, Domain.NONNEGATIVE_INTEGER})
+NONNEGATIVE_DOMAINS = frozenset({NumericDomain.POSITIVE, NumericDomain.NONNEGATIVE, NumericDomain.NONNEGATIVE_INTEGER})
 
 type GridFunction = Callable[..., npt.NDArray[np.float64]]
 
@@ -236,7 +236,7 @@ class ControlSolution:
         return np.array([np.interp(t, self.times, column) for column in self.states.T])
 
 
-class OptimalControlSolver(Stepper):
+class OptimalControlSolver(Solver):
     """Base class of solvers that compute the controls minimising or maximising the objective of a system.
 
     The solver reads the bounded adaptive parameters of the system as its controls and its objective law as its cost.

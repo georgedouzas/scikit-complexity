@@ -7,23 +7,23 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver, resolve_visual
 from skcomplex.formalisms.fields import (
-    ETDRK4,
-    IMEX2,
-    SSPRK,
-    CrankNicolson,
-    Field,
-    Flux,
-    IMEXEuler,
-    Mesh,
+    CrankNicolsonSolver,
+    ETDRK4Solver,
+    FieldComponent,
+    FluxLaw,
+    IMEX2Solver,
+    IMEXEulerSolver,
+    MeshSpace,
     SplitOperator,
+    SSPRKSolver,
     inverse_laplacian,
     laplacian,
 )
@@ -38,7 +38,11 @@ from skcomplex.models.physics.fluids import (
 from skcomplex.models.physics.heat import harmonic, heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
 
-Heat = Element.define('Heat', states={'u': 0.0}, laws=lambda s: [Rate(s.u, laplacian(s.u))])
+HeatComponent = ElementComponent.define(
+    'HeatComponent',
+    states={'u': 0.0},
+    laws=lambda s: [RateLaw(s.u, laplacian(s.u))],
+)
 
 
 def _diffused(discretization):
@@ -48,8 +52,14 @@ def _diffused(discretization):
     positions = np.arange(n) * spacing
     initial = np.sin(3 * positions) + 0.5 * np.cos(5 * positions)
     exact = np.exp(-9 * 0.1) * np.sin(3 * positions) + 0.5 * np.exp(-25 * 0.1) * np.cos(5 * positions)
-    rod = Field('rod', Heat, LatticeSpace(n, spacing=spacing), values={'u': initial}, discretization=discretization)
-    values = Simulation(System(components=[rod]), dt=0.1, solver=CrankNicolson(dt=1e-4)).run(until=0.1).state_
+    rod = FieldComponent(
+        'rod',
+        HeatComponent,
+        LatticeSpace(n, spacing=spacing),
+        values={'u': initial},
+        discretization=discretization,
+    )
+    values = Simulation(System(components=[rod]), dt=0.1, solver=CrankNicolsonSolver(dt=1e-4)).run(until=0.1).state_
     return np.abs(values - exact).max()
 
 
@@ -74,25 +84,25 @@ def test_spectral_accuracy():
 def test_kuramoto_sivashinsky_is_fourth_order():
     """Test that ETDRK4 is stable at steps 0.25 and 0.125 and its error shrinks at fourth order."""
     problem = compile_system(kuramoto_sivashinsky())
-    reference = Simulation(problem, dt=1.0, solver=ETDRK4(dt=1 / 256)).run(until=1).state_
+    reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 256)).run(until=1).state_
     errors = [
-        np.abs(Simulation(problem, dt=1.0, solver=ETDRK4(dt=step)).run(until=1).state_ - reference).max()
+        np.abs(Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=step)).run(until=1).state_ - reference).max()
         for step in (0.25, 0.125)
     ]
     assert errors[0] / errors[1] == pytest.approx(16, rel=0.1)
     for step in (0.25, 0.125):
-        values = Simulation(problem, dt=10.0, solver=ETDRK4(dt=step)).run(until=100).state_
+        values = Simulation(problem, dt=10.0, solver=ETDRK4Solver(dt=step)).run(until=100).state_
         assert np.isfinite(values).all()
         assert np.abs(values).max() < 5
 
 
-@pytest.mark.parametrize('stepper', [IMEXEuler(dt=1e-3), IMEX2(dt=1e-3), CrankNicolson(dt=1e-3)])
+@pytest.mark.parametrize('stepper', [IMEXEulerSolver(dt=1e-3), IMEX2Solver(dt=1e-3), CrankNicolsonSolver(dt=1e-3)])
 def test_implicit_explicit_steppers_agree(stepper):
     """Test that the implicit-explicit steppers converge to the ETDRK4 solution of the Kuramoto-Sivashinsky equation."""
     problem = compile_system(kuramoto_sivashinsky())
-    reference = Simulation(problem, dt=1.0, solver=ETDRK4(dt=1 / 64)).run(until=1).state_
+    reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 64)).run(until=1).state_
     values = Simulation(problem, dt=1.0, solver=stepper).run(until=1).state_
-    tolerance = 1e-2 if isinstance(stepper, IMEXEuler) else 1e-5
+    tolerance = 1e-2 if isinstance(stepper, IMEXEulerSolver) else 1e-5
     assert np.abs(values - reference).max() < tolerance
 
 
@@ -109,9 +119,13 @@ def test_split_operator_matches_linear_rates():
 def test_steppers_need_linear_terms():
     """Test that split steppers reject problems without linear terms of fields, and ETDRK4 finite differences."""
     with pytest.raises(SolverError, match='no linear terms'):
-        Simulation(logistic_growth(), solver=IMEXEuler()).run(until=1)
+        Simulation(logistic_growth(), solver=IMEXEulerSolver()).run(until=1)
     with pytest.raises(SolverError, match='spectral'):
-        Simulation(System(components=[Field('rod', Heat, LatticeSpace(8))]), dt=1, solver=ETDRK4()).run(until=1)
+        Simulation(
+            System(components=[FieldComponent('rod', HeatComponent, LatticeSpace(8))]),
+            dt=1,
+            solver=ETDRK4Solver(),
+        ).run(until=1)
 
 
 def test_burgers_shock_is_conservative():
@@ -129,16 +143,20 @@ def test_burgers_shock_is_conservative():
 @pytest.mark.parametrize('riemann', ['rusanov', 'godunov'])
 def test_numerical_fluxes_conserve(riemann):
     """Test that the Rusanov and Godunov fluxes conserve the total of a shock without overshoots."""
-    Shock = Element.define('Shock', states={'u': 0.0}, laws=lambda s: [Flux(s.u, s.u**2 / 2, riemann=riemann)])
+    ShockComponent = ElementComponent.define(
+        'ShockComponent',
+        states={'u': 0.0},
+        laws=lambda s: [FluxLaw(s.u, s.u**2 / 2, riemann=riemann)],
+    )
     initial = 1.5 + np.sin((np.arange(100) + 0.5) * 2 * math.pi / 100)
-    line = Field(
+    line = FieldComponent(
         'line',
-        Shock,
+        ShockComponent,
         LatticeSpace(100, spacing=2 * math.pi / 100),
         values={'u': initial},
         discretization='finite-volume',
     )
-    values = Simulation(System(components=[line]), dt=2.0, solver=SSPRK()).run(until=2.0).state_
+    values = Simulation(System(components=[line]), dt=2.0, solver=SSPRKSolver()).run(until=2.0).state_
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
@@ -153,17 +171,21 @@ def test_dam_break_conserves_water():
 
 def test_fluxes_need_finite_volume_field():
     """Test that flux laws on a finite-difference field are rejected."""
-    Shock = Element.define('Shock', states={'u': 0.0}, laws=lambda s: [Flux(s.u, s.u**2 / 2)])
+    ShockComponent = ElementComponent.define(
+        'ShockComponent',
+        states={'u': 0.0},
+        laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
+    )
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(components=[Field('line', Shock, LatticeSpace(10))]))
+        compile_system(System(components=[FieldComponent('line', ShockComponent, LatticeSpace(10))]))
 
 
 def test_l_shaped_steady_state_converges_at_second_order():
     """Test that heat on the L-shaped mesh converges at second order away from the re-entrant corner."""
     errors = []
     for refine in (2, 3, 4, 5):
-        simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEuler(dt=10.0)).run(until=500)
-        nodes = Mesh.l_shape(refine).nodes
+        simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEulerSolver(dt=10.0)).run(until=500)
+        nodes = MeshSpace.l_shape(refine).nodes
         away = np.hypot(nodes[:, 0], nodes[:, 1]) > 0.25
         errors.append(np.abs(simulation.state_ - harmonic(nodes[:, 0], nodes[:, 1]))[away].max())
     ratios = np.asarray(errors[:-1]) / np.asarray(errors[1:])
@@ -206,7 +228,7 @@ def test_convection_onset():
     """Test that perturbations decay at Rayleigh number 500 and grow into steady rolls at 1000."""
     amplitudes = {}
     for rayleigh in (500.0, 1000.0):
-        simulation = Simulation(rayleigh_benard(rayleigh, shape=(16, 16)), dt=1.0, solver=ETDRK4(dt=0.01))
+        simulation = Simulation(rayleigh_benard(rayleigh, shape=(16, 16)), dt=1.0, solver=ETDRK4Solver(dt=0.01))
         trajectory = simulation.run(until=10).trajectory_
         amplitudes[rayleigh] = np.abs(trajectory['flow.theta']).max(axis=1)
     assert amplitudes[500.0][-1] < 1e-6
@@ -217,21 +239,25 @@ def test_convection_onset():
 
 def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
-    rod = Field('rod', Heat, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
+    rod = FieldComponent('rod', HeatComponent, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
         compile_system(System(components=[rod]))
 
 
 def test_poisson_needs_spectral_field():
     """Test that solving a Poisson equation on a finite-difference field is rejected."""
-    Potential = Element.define('Potential', states={'u': 0.0}, laws=lambda s: [Rate(s.u, inverse_laplacian(s.u))])
+    PotentialComponent = ElementComponent.define(
+        'PotentialComponent',
+        states={'u': 0.0},
+        laws=lambda s: [RateLaw(s.u, inverse_laplacian(s.u))],
+    )
     with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(components=[Field('rod', Potential, LatticeSpace(8))]))
+        compile_system(System(components=[FieldComponent('rod', PotentialComponent, LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
     """Test that Swift-Hohenberg above onset forms rolls with a wavelength within 5% of 2 pi."""
-    simulation = Simulation(swift_hohenberg(), dt=10.0, solver=ETDRK4(dt=0.5)).run(until=200)
+    simulation = Simulation(swift_hohenberg(), dt=10.0, solver=ETDRK4Solver(dt=0.5)).run(until=200)
     values = simulation.trajectory_.lattice('cells.u')[-1]
     n, length = values.shape[0], 16 * math.pi
     spectrum = np.abs(np.fft.fft2(values)) ** 2
@@ -246,7 +272,7 @@ def test_imex2_second_call_restarts_history():
     """Test that IMEX2 gives the same state from the same start twice in a row, as a fresh stepper does."""
     problem = compile_system(kuramoto_sivashinsky())
     x, p = problem.initial_state, problem.initial_parameters
-    stepper, fresh = IMEX2(dt=0.01), IMEX2(dt=0.01)
+    stepper, fresh = IMEX2Solver(dt=0.01), IMEX2Solver(dt=0.01)
     stepper.initialize(problem, np.random.default_rng(0))
     fresh.initialize(problem, np.random.default_rng(0))
     first = stepper.advance(0.0, x, p, 0.1)
@@ -257,7 +283,7 @@ def test_imex2_second_call_restarts_history():
 
 def _viscous_burgers_laws(s):
     """Return the Burgers flux and its viscous Laplacian."""
-    return [Flux(s.u, s.u**2 / 2), Rate(s.u, s.nu * laplacian(s.u))]
+    return [FluxLaw(s.u, s.u**2 / 2), RateLaw(s.u, s.nu * laplacian(s.u))]
 
 
 def test_viscous_burgers_respects_diffusive_limit():
@@ -265,11 +291,18 @@ def test_viscous_burgers_respects_diffusive_limit():
     n = 200
     spacing = 2 * math.pi / n
     initial = 1.5 + np.sin((np.arange(n) + 0.5) * spacing)
-    Viscous = Element.define('Viscous', states={'u': 0.0}, parameters={'nu': 0.5}, laws=_viscous_burgers_laws)
+    ViscousComponent = ElementComponent.define(
+        'ViscousComponent',
+        states={'u': 0.0},
+        parameters={'nu': 0.5},
+        laws=_viscous_burgers_laws,
+    )
     space = LatticeSpace(n, spacing=spacing)
-    field = Field('line', Viscous, space, values={'u': initial}, discretization='finite-volume')
+    field = FieldComponent('line', ViscousComponent, space, values={'u': initial}, discretization='finite-volume')
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        values = Simulation(System(components=[field]), solver=SSPRK(), dt=0.05).run(until=0.5).trajectory_['line.u']
+        values = (
+            Simulation(System(components=[field]), solver=SSPRKSolver(), dt=0.05).run(until=0.5).trajectory_['line.u']
+        )
     assert values.min() >= initial.min() - 1e-12
     assert values.max() <= initial.max() + 1e-12

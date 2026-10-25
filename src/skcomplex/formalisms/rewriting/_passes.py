@@ -14,9 +14,9 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ...core.base import (
-    Domain,
     Form,
     IncompatibleLawsError,
+    NumericDomain,
     RewritingError,
     RoleError,
     ValidationError,
@@ -24,7 +24,7 @@ from ...core.base import (
     declarations_of,
     symbol,
 )
-from ...core.components import Element, Group
+from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
 from ...core.system import System
 from ...engine.compile import (
@@ -37,13 +37,13 @@ from ...engine.compile import (
     SystemPass,
     flatten_system,
 )
-from ._components import HostGraph, Patch, structure_of
+from ._components import HostGraphComponent, PatchComponent, structure_of
 from ._interactions import Rewriting
-from ._laws import GraphProduction, Production, RewritingLaw, Substitution
+from ._laws import GraphProductionLaw, ProductionLaw, RewritingLaw, SubstitutionLaw
 from ._structures import GraphStructure, PatchStructure
 from ._words import IDENTIFIER, CompiledWord, Parameters
 
-LAWS_OF = {'sequence': Production, 'tiling': Substitution, 'graph': GraphProduction}
+LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
 type Compiled = CompiledWord | CompiledPatch | CompiledGraph
 
 
@@ -54,7 +54,7 @@ def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
 
 def _type_of(component: object) -> type:
     """Return the element type of a group, or the type of any other component."""
-    return component.element if isinstance(component, Group) else type(component)
+    return component.element if isinstance(component, GroupComponent) else type(component)
 
 
 def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, Symbols], dict[str, Any]]:
@@ -97,20 +97,20 @@ def _compiled(
     wrong = [law for law in laws if not isinstance(law, expected)]
     if wrong:
         error_msg = (
-            f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__} laws, but got {wrong[0]!r}.'
+            f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__}s, but got {wrong[0]!r}.'
         )
         raise RewritingError(error_msg)
     if kind == 'sequence':
         return CompiledWord(
             node.path,
             element,
-            [law for law in laws if isinstance(law, Production)],
+            [law for law in laws if isinstance(law, ProductionLaw)],
             parameters,
             values,
         )
     if kind == 'tiling':
-        return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, Substitution)], parameters)
-    return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProduction)])
+        return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, SubstitutionLaw)], parameters)
+    return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProductionLaw)])
 
 
 def is_rewriting(system: System) -> bool:
@@ -152,13 +152,15 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
 
     Examples:
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.formalisms.rewriting import Word
+        >>> from skcomplex.formalisms.rewriting import WordComponent
         >>> from skcomplex.formalisms.rewriting import Rewrite
-        >>> from skcomplex.formalisms.rewriting import Production
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw
         >>> from skcomplex.core.system import System
         >>> system = System(
-        ...     components=[Word('algae', axiom='A')],
-        ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
+        ...     components=[WordComponent('algae', axiom='A')],
+        ...     interactions=[
+        ...         Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
+        ...     ],
         ... )
         >>> problem = compile_system(system)
         >>> problem.form.value, problem.states.names
@@ -167,7 +169,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
     nodes = flatten_system(system)
     elements = {node.path: node for node in nodes if structure_of(_type_of(node.component))}
     for node in nodes:
-        if isinstance(node.component, Group) and structure_of(node.component.element):
+        if isinstance(node.component, GroupComponent) and structure_of(node.component.element):
             error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
             raise RewritingError(error_msg)
         if node.path not in elements and not isinstance(node.component, Rewriting):
@@ -199,7 +201,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
     compiled_elements = []
     for item in compiled:
         names = [*item.counted, 'size']
-        component = cast('Element', elements[item.path].component)
+        component = cast('ElementComponent', elements[item.path].component)
         compiled_elements.append(
             CompiledElement(
                 path=item.path,
@@ -210,7 +212,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
             ),
         )
         for name in names:
-            states.append(Entry(f'{item.path}.{name}', len(states), (), Domain.NONNEGATIVE_INTEGER))
+            states.append(Entry(f'{item.path}.{name}', len(states), (), NumericDomain.NONNEGATIVE_INTEGER))
         initial += item.counts(item.initial(initial_parameters))  # type: ignore[arg-type]
     return RewritingProblem(
         form=Form.REWRITING,
@@ -251,8 +253,8 @@ class CompiledPatch:
     def __init__(
         self,
         path: str,
-        patch: Patch,
-        substitutions: Sequence[Substitution],
+        patch: PatchComponent,
+        substitutions: Sequence[SubstitutionLaw],
         parameters: Parameters,
     ) -> None:
         self.path = path
@@ -389,7 +391,7 @@ class CompiledGraph:
             The graph productions that target it, applied one after the other within a generation.
     """
 
-    def __init__(self, path: str, host: HostGraph, productions: Sequence[GraphProduction]) -> None:
+    def __init__(self, path: str, host: HostGraphComponent, productions: Sequence[GraphProductionLaw]) -> None:
         self.path = path
         self.graph = host.graph
         self.max_size = int(host.max_size)
@@ -440,7 +442,12 @@ class CompiledGraph:
         """Return the key of an edge, ordered for directed graphs."""
         return (first, second) if graph.is_directed() else frozenset((first, second))
 
-    def _select(self, graph: nx.Graph, production: GraphProduction, rng: np.random.Generator) -> list[dict[Any, Any]]:
+    def _select(
+        self,
+        graph: nx.Graph,
+        production: GraphProductionLaw,
+        rng: np.random.Generator,
+    ) -> list[dict[Any, Any]]:
         """Return a maximal set of parallel independent matches that satisfy the dangling condition."""
         matcher_type = isomorphism.DiGraphMatcher if graph.is_directed() else isomorphism.GraphMatcher
         matcher = matcher_type(graph, production.left, node_match=_matches, edge_match=_matches)
@@ -469,7 +476,7 @@ class CompiledGraph:
             chosen.append(match)
         return chosen
 
-    def _apply(self, graph: nx.Graph, production: GraphProduction, matches: list[dict[Any, Any]]) -> None:
+    def _apply(self, graph: nx.Graph, production: GraphProductionLaw, matches: list[dict[Any, Any]]) -> None:
         """Delete and glue the parts of every chosen match."""
         left, interface, right = production.left, production.interface, production.right
         for match in matches:

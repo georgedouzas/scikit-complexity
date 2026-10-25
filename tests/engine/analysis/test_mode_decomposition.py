@@ -7,32 +7,34 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Rate
+from skcomplex.core.components import ElementComponent
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import Series, fit_dmd
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODE, resolve_solver
+from skcomplex.engine.solvers import ScipyODESolver, resolve_solver
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 
-Linear = Element.define(
-    'Linear',
+LinearComponent = ElementComponent.define(
+    'LinearComponent',
     states={'x': 1.0, 'y': 0.5, 'z': -1.0},
     laws=lambda s: [
-        Rate(s.x, float(MATRIX[0, 0]) * s.x + float(MATRIX[0, 1]) * s.y),
-        Rate(s.y, float(MATRIX[1, 0]) * s.x + float(MATRIX[1, 1]) * s.y + float(MATRIX[1, 2]) * s.z),
-        Rate(s.z, float(MATRIX[2, 2]) * s.z),
+        RateLaw(s.x, float(MATRIX[0, 0]) * s.x + float(MATRIX[0, 1]) * s.y),
+        RateLaw(s.y, float(MATRIX[1, 0]) * s.x + float(MATRIX[1, 1]) * s.y + float(MATRIX[1, 2]) * s.z),
+        RateLaw(s.z, float(MATRIX[2, 2]) * s.z),
     ],
 )
 
 
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
-    solver = ScipyODE(method='DOP853', rtol=1e-12, atol=1e-12)
-    return Simulation(System(components=[Linear('linear')]), solver=solver, dt=0.05).run(until=10.0).trajectory_
+    solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
+    return (
+        Simulation(System(components=[LinearComponent('linear')]), solver=solver, dt=0.05).run(until=10.0).trajectory_
+    )
 
 
 def test_fit_dmd_recovers_linear_eigenvalues():
@@ -49,8 +51,8 @@ def test_fit_dmd_surrogate_validates_under_continuous_time():
     decomposition = fit_dmd(trajectory)
     assert validate(decomposition.system).ok
     assert isinstance(decomposition.system.time, ContinuousTime)
-    assert isinstance(resolve_solver(compile_system(decomposition.system), 'auto'), ScipyODE)
-    solver = ScipyODE(method='DOP853', rtol=1e-10, atol=1e-10)
+    assert isinstance(resolve_solver(compile_system(decomposition.system), 'auto'), ScipyODESolver)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     run = Simulation(decomposition.system, solver=solver, dt=0.05).run(until=10.0).trajectory_
     assert np.allclose(run['surrogate.y'], trajectory['linear.y'], atol=1e-6)
 
