@@ -33,6 +33,25 @@
 - Arrays over more than one subscript range, macros, data from spreadsheets, `GAME`, `ALLOCATE`, and the vector
   functions. All of them are reported as unsupported.
 
+## Roadmap
+
+The integrations after this change come in this order. Each is its own change with its own spec, since each adds a
+different capability.
+
+| Order | Integration | Capability it gives | Where it plugs in |
+|---|---|---|---|
+| 1 | PySD | reading Vensim and XMILE models | `core/system` readers, this change |
+| 2 | JAX and diffrax | compiled, differentiable runs | a `BaseBackend` lowering to JAX and solvers on diffrax |
+| 3 | SBML (`libsbml`) | reading and writing biochemical models | readers and writers beside the system dynamics readers |
+| 4 | FMI (`fmpy`) | external units in a system, and systems as units | a co-simulation partition, and an exporter |
+| 5 | SALib | global sensitivity of outputs to parameters | `engine/experiments`, as designs and an analysis |
+| 6 | xarray | trajectories as labelled datasets | an export method of `Trajectory` |
+| 7 | SciML (`diffeqpy`) | stiff and large systems on Julia solvers | solvers through the `ExternalSolver` contract |
+| 8 | QuTiP | quantum solvers and analyses | `formalisms/quantum` solvers and analyses |
+
+PySD comes first because it is specified. JAX, SBML, FMI, SALib, and xarray come next because they widen what a
+modeller can bring in and take out. SciML and QuTiP come last, for depth in stiff and quantum dynamics.
+
 ## Decisions
 
 - **Read the abstract model, not the generated Python.** The abstract model is PySD's documented, language-neutral
