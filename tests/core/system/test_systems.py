@@ -258,7 +258,7 @@ def test_state_on_an_interaction_is_rejected():
     """Test that creating an interaction whose type declares a state raises an error that suggests a group on edges."""
     weighted = type('WeightedInteraction', (BaseInteraction,), {'weight': state(1.0)})
     with pytest.raises(ValidationError, match='on="edges"'):
-        weighted('w')
+        weighted('w').check()
 
 
 def test_unknown_binding_is_rejected():
@@ -270,7 +270,7 @@ def test_unknown_binding_is_rejected():
         over: ClassVar[str] = 'everything'
 
     with pytest.raises(ValidationError, match='members, pairs, neighbors, hyperedges'):
-        EverywhereInteraction('everywhere')
+        EverywhereInteraction('everywhere').check()
 
 
 def test_pairs_binding_needs_its_roles_and_cutoff():

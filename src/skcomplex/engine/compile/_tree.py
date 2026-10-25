@@ -145,7 +145,7 @@ def _with_capacity(
             'of at least its size.'
         )
         raise ValidationError(error_msg)
-    sized = copy.copy(group)
+    sized = copy.copy(group.prepare())
     sized.size = capacity
     return sized, initial
 
