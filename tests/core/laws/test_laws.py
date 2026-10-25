@@ -306,7 +306,7 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
 
 def test_objective_declares_constraint_kind_and_times():
     """Test that an objective is a constraint law valid under static and continuous time."""
-    assert Objective.law_kind is LawKind.OBJECTIVE
+    assert Objective.law_kind == LawKind.OBJECTIVE
     assert Objective.requires.time == {TimeKind.STATIC, TimeKind.CONTINUOUS}
 
 

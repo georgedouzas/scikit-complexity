@@ -79,14 +79,14 @@ class NumpyBackend(BaseBackend):
             lowering.boundary = assigning_function(kernels[BoundaryLaw])
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = adding_function(kernels.get(RateLaw, []), size)
-        if form is Form.SDE:
+        if form == Form.SDE:
             lowering.diffusion = concatenating_function(kernels.get(NoiseLaw, []))
             noise = lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
-        if form is Form.JUMP:
+        if form == Form.JUMP:
             lowering.propensities = concatenating_function(kernels.get(JumpLaw, []))
             lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
-        if form is Form.DISCRETE:
+        if form == Form.DISCRETE:
             lowering.update = assigning_function(kernels.get(UpdateLaw, []))
         return with_reductions(lowering, reductions, kernels)
 

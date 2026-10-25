@@ -244,7 +244,7 @@ def _settings(kind: type, root: type) -> dict[str, inspect.Parameter]:
         for setting in parameters:
             if setting.kind not in {setting.VAR_KEYWORD, setting.VAR_POSITIONAL}:
                 found.setdefault(setting.name, setting)
-        if klass is root or not any(item.kind is item.VAR_KEYWORD for item in parameters):
+        if klass is root or not any(item.kind == item.VAR_KEYWORD for item in parameters):
             break
     return found
 
@@ -631,5 +631,5 @@ def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
     return {
         name: field.metadata[METADATA_KEY]
         for name, field in declared_fields(component).items()
-        if field.metadata[METADATA_KEY].kind is kind
+        if field.metadata[METADATA_KEY].kind == kind
     }

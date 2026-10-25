@@ -129,16 +129,16 @@ def test_ensemble_of_replicates():
 def test_analyses_for_lattice_model():
     """Test that an Ising system lists field analyses and no agent analysis."""
     found = analyses_for(create('ising', size=16))
-    fields = {item.name for item in found if item.kind is DataKind.FIELD}
+    fields = {item.name for item in found if item.kind == DataKind.FIELD}
     assert {'structure_factor', 'correlation_length', 'cluster_sizes', 'binder_cumulant'} <= fields
-    assert all(item.kind is not DataKind.AGENTS for item in found)
-    assert all(item.adapter == 'fields_of' for item in found if item.kind is DataKind.FIELD)
+    assert all(item.kind != DataKind.AGENTS for item in found)
+    assert all(item.adapter == 'fields_of' for item in found if item.kind == DataKind.FIELD)
 
 
 def test_analyses_for_agent_model():
     """Test that a flocking trajectory lists polarization, neighbour statistics, and displacement as agent analyses."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
-    agents = {item.name for item in analyses_for(trajectory) if item.kind is DataKind.AGENTS}
+    agents = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.AGENTS}
     assert {'polar_order', 'nearest_neighbor_distances', 'mean_squared_displacement'} <= agents
 
 
@@ -154,7 +154,7 @@ def test_analyses_for_plain_array():
 def test_analyses_for_jump_path_in_the_default_install():
     """Test that a jump path lists the Markov state model, which runs in the default install."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 30.0, 'random_state': 0}).trajectory_
-    names = {item.name for item in analyses_for(trajectory) if item.kind is DataKind.PATH}
+    names = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.PATH}
     assert 'markov_state_model' in names
     path = path_of(trajectory)
     states = np.asarray(path.states, dtype=int) % 3

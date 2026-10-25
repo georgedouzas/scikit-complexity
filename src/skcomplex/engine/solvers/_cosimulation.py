@@ -148,7 +148,7 @@ class CoSimulationSolver(Solver):
         if self.scheme not in SCHEMES:
             error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
             raise SolverError(error_msg)
-        if problem.form is not Form.COUPLED:
+        if problem.form != Form.COUPLED:
             if not self.split or problem.system is None:
                 error_msg = (
                     f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form.value} form. Pass '

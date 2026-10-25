@@ -78,7 +78,7 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
     system = System(components=[SpinComponent.lattice('chain', LatticeSpace(10)), ModeComponent('cavity', quanta=4)])
     problem = compile_system(system)
     assert isinstance(problem, QuantumProblem)
-    assert problem.form is Form.QUANTUM
+    assert problem.form == Form.QUANTUM
     assert list(problem.dimensions) == [2] * 10 + [5]
     assert problem.dimension == 5120
 

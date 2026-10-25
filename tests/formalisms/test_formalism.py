@@ -28,7 +28,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
 from skcomplex.formalisms import Formalism, register
 
-ROOT = Path(__file__).parents[3]
+ROOT = Path(__file__).parents[2]
 
 
 def _run(code: str) -> object:

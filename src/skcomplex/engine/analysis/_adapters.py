@@ -63,9 +63,9 @@ def _path_names(problem: BaseProblem) -> list[str]:
     """Return the discrete states that are not lattice states, every state of a jump process."""
     lattice = set(_lattice_names(problem))
     names = [name for name in problem.states.names if name not in lattice]
-    if problem.form is Form.JUMP:
+    if problem.form == Form.JUMP:
         return names
-    if problem.form is Form.DISCRETE:
+    if problem.form == Form.DISCRETE:
         return [name for name in names if _is_discrete(problem, name)]
     return []
 
@@ -275,7 +275,7 @@ def _particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
 
 def _array_reading(kind: DataKind, dimensions: int) -> str:
     """Return how an analysis of a kind reads a plain array of some dimensions."""
-    if kind is DataKind.FIELD:
+    if kind == DataKind.FIELD:
         return 'the array as one grid'
     if dimensions > SERIES_DIMENSIONS:
         return 'every column of the array as a series'
@@ -645,5 +645,5 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
         )
         for kind in kinds
         for entry in entries
-        if entry.kind is kind
+        if entry.kind == kind
     ]

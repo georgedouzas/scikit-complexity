@@ -305,7 +305,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
                 issues.append(layered)
                 continue
             node = by_path.get(record.owner)
-            if node is None or space is not SpaceKind.CONTINUOUS or over is None:
+            if node is None or space != SpaceKind.CONTINUOUS or over is None:
                 continue
             states = declarations_of(node.component_type, VariableKind.STATE)
             if position_state(states) is None:
@@ -366,7 +366,7 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
 
 def _order_issues(nodes: list[Node]) -> list[Issue]:
     """Return the states of a fractional order when no registered solver integrates fractional orders."""
-    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED for cls in solver_classes()):
+    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form != Form.COUPLED for cls in solver_classes()):
         return []
     fractional = [
         (node.path, name, declaration.order)

@@ -37,7 +37,7 @@ def _single_symbols(problem: Problem) -> list[Expression]:
 
 def _check_supported(problem: Problem) -> None:
     """Raise an error for a problem with laws that have no symbolic vector field or no finite state space."""
-    if problem.form is not Form.ODE:
+    if problem.form != Form.ODE:
         error_msg = f'Optimal control solvers take ordinary differential equations, but the system is a {problem.form}.'
         raise SolverError(error_msg)
     if problem.has_callables or problem.has_group_sums or problem.delays or problem.events:

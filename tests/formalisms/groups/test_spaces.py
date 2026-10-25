@@ -66,7 +66,7 @@ def test_memory_generators_lists_the_identity_and_inverses():
 def test_group_space_is_a_lattice_kind_space():
     """Test that a group space declares the lattice kind and lacks a regular geometry and an image layout."""
     space = CayleySpace(permutation_group([[1, 0]]))
-    assert space.space_kind is SpaceKind.LATTICE
+    assert space.space_kind == SpaceKind.LATTICE
     assert {'regular-geometry', 'image'} <= space.lacks
     assert not LatticeSpace(3).lacks
 

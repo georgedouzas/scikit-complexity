@@ -66,7 +66,7 @@ def _equations_of(
                 key = (entry.name, column)
                 if key in excluded:
                     continue
-                default = item if form is Form.DISCRETE else SR(0)
+                default = item if form == Form.DISCRETE else SR(0)
                 terms = contributions.get(key)
                 name = entry.generic_names[column]
                 equations[name] = sum(terms[1:], terms[0]) if terms else default

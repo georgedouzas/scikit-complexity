@@ -287,9 +287,9 @@ class NumbaBackend(BaseBackend):
         used = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
-            NoiseLaw: kernels.get(NoiseLaw, []) if form is Form.SDE else [],
-            JumpLaw: kernels.get(JumpLaw, []) if form is Form.JUMP else [],
-            UpdateLaw: kernels.get(UpdateLaw, []) if form is Form.DISCRETE else [],
+            NoiseLaw: kernels.get(NoiseLaw, []) if form == Form.SDE else [],
+            JumpLaw: kernels.get(JumpLaw, []) if form == Form.JUMP else [],
+            UpdateLaw: kernels.get(UpdateLaw, []) if form == Form.DISCRETE else [],
         }
         reductions = reductions or ReductionSchedule()
         reduced = bool(reductions.steps)
@@ -321,7 +321,7 @@ class NumbaBackend(BaseBackend):
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
         bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
         loops = (
-            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form is Form.ODE else ''] if has_loop else []
+            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == Form.ODE else ''] if has_loop else []
         )
         text = '\n'.join([HEADER, *source.lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else DEFAULT_CACHE_DIR
@@ -391,14 +391,14 @@ class NumbaBackend(BaseBackend):
         lowering = Lowering(boundary=functions.get(BoundaryLaw))
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = functions[RateLaw]
-        if form is Form.SDE:
+        if form == Form.SDE:
             lowering.diffusion = functions.get(NoiseLaw, concatenating_function([]))
             noise = lower_noise(used[NoiseLaw])
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
-        if form is Form.JUMP:
+        if form == Form.JUMP:
             lowering.propensities = functions.get(JumpLaw, concatenating_function([]))
             lowering.jumps = jump_channels(used[JumpLaw], changes)
-        if form is Form.DISCRETE:
+        if form == Form.DISCRETE:
             lowering.update = functions[UpdateLaw]
         if loop is not None:
             lowering.accelerated = self._accelerated(loop, module, layout, lowering, draws)

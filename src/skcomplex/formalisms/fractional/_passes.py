@@ -125,7 +125,7 @@ def _fractional_solvers() -> list[str]:
         {
             name
             for cls, names in solver_classes().items()
-            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED
+            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form != Form.COUPLED
             for name in names
         },
     )
@@ -328,7 +328,7 @@ class FractionalFormPass(BasePass):
             compilation:
                 The compilation state.
         """
-        if compilation.form is Form.ODE and _owned_fractional(compilation):
+        if compilation.form == Form.ODE and _owned_fractional(compilation):
             compilation.form = Form.FRACTIONAL
 
 
@@ -349,10 +349,10 @@ class FractionalProblemPass(BasePass):
         lowered = cast('Lowered', compilation.kernels)
         compilation.problem = replace(
             problem,
-            fractional=_fractional_rows(lowered) if problem.form is Form.SDE else (),
+            fractional=_fractional_rows(lowered) if problem.form == Form.SDE else (),
             orders=(
                 _state_orders(_owned_fractional(compilation), problem.states)
-                if problem.form is Form.FRACTIONAL
+                if problem.form == Form.FRACTIONAL
                 else np.zeros(0)
             ),
         )

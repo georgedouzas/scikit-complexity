@@ -81,7 +81,7 @@ def _series_signature(trajectory: Trajectory) -> Signature:
     columns = series.values[:, :SERIES_COLUMNS]
     labels = series.labels[:SERIES_COLUMNS]
     dt = float(np.median(np.diff(series.times))) if series.times.size > 1 else 1.0
-    if trajectory.problem.form is Form.DISCRETE:
+    if trajectory.problem.form == Form.DISCRETE:
         curves = {label: (column[:-1], column[1:]) for label, column in zip(labels, columns.T, strict=True)}
         return Signature(DataKind.SERIES, 'Return map', 'x(t)', 'x(t + 1)', curves, points=True)
     curves = {}

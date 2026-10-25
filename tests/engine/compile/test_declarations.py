@@ -79,7 +79,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 )
 def test_law_kinds_and_classes(law, kind, law_class):
     """Test that law types declare their kind and the time semantics of the kind."""
-    assert law.law_kind is kind
+    assert law.law_kind == kind
     assert law.time_class is law_class
 
 
@@ -103,7 +103,7 @@ def test_law_requirements():
 )
 def test_space_kinds(space, kind):
     """Test that every space declares its kind."""
-    assert space.space_kind is kind
+    assert space.space_kind == kind
 
 
 def test_field_is_a_site_group():

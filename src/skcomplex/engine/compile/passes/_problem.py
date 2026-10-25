@@ -113,7 +113,7 @@ def _problem_of(compilation: Compilation) -> Problem:
         delays=compile_delays(compilation.delays, time),
         events=(
             *compile_events(compilation.events, time, reductions),
-            *(hidden_events(reduced, time, reductions) if form is Form.ODE else ()),
+            *(hidden_events(reduced, time, reductions) if form == Form.ODE else ()),
         ),
         reductions=reductions.reductions,
         jacobian=compilation.jacobian,

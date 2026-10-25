@@ -43,7 +43,7 @@ class Spectrum:
 def _quantum_problem(system: System | Problem) -> '_QuantumProblem':
     """Return the quantum problem of a system, compiling it when needed."""
     problem = system if isinstance(system, BaseProblem) else compile_system(system)
-    if problem.form is not Form.QUANTUM:
+    if problem.form != Form.QUANTUM:
         error_msg = f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
         raise AnalysisError(error_msg)
     return cast('_QuantumProblem', problem)
@@ -85,7 +85,7 @@ def _sector_basis(
 def _states_of(trajectory: Trajectory) -> tuple['_QuantumProblem', npt.NDArray[np.complex128]]:
     """Return the quantum problem of a trajectory and its states, one per frame."""
     problem = trajectory.problem
-    if problem.form is not Form.QUANTUM:
+    if problem.form != Form.QUANTUM:
         error_msg = 'The trajectory is not the trajectory of a quantum system.'
         raise AnalysisError(error_msg)
     quantum = cast('_QuantumProblem', problem)

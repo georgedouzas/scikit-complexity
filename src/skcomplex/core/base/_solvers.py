@@ -49,7 +49,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
             SolverError:
                 The problem has a form the solver does not solve.
         """
-        if problem.form is not self.form and problem.form not in self.forms:
+        if problem.form != self.form and problem.form not in self.forms:
             error_msg = (
                 f'{type(self).__name__} solves the {self.form.value} form, but the problem has the '
                 f'{problem.form.value} form.'

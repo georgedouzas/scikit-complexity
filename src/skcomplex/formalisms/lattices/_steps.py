@@ -82,7 +82,7 @@ def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, 
     except (TypeError, ValueError):
         return tuple(names)
     parameters = signature.parameters.values()
-    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters):
+    if any(item.kind == inspect.Parameter.VAR_KEYWORD for item in parameters):
         return tuple(names)
     keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
     return tuple(name for name in names if name in keywords)
@@ -333,7 +333,7 @@ def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
         parameters = inspect.signature(rule).parameters.values()
     except (TypeError, ValueError):
         return False
-    return all(item.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
+    return all(item.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
 
 
 def _extremal_loop(

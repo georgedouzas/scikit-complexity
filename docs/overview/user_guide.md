@@ -131,7 +131,7 @@ from skcomplex.core.base import LawKind, Trait
 from skcomplex.core.laws import BoundaryLaw
 from skcomplex.core.base import BaseLaw, law_classes
 
-print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class)
+print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class)
 print(Trait.FORMLESS in BoundaryLaw.traits, RateLaw in law_classes(Trait.DECLARABLE))
 ```
 
@@ -1226,8 +1226,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import Solver
 from skcomplex.core.system import System
 
-DECAY = LawKind('DECAY', 'decay')
-EXPONENTIAL_DECAY = Form('EXPONENTIAL_DECAY', 'exponential decay')
+DECAY = LawKind.register('DECAY', 'decay')
+EXPONENTIAL_DECAY = Form.register('EXPONENTIAL_DECAY', 'exponential decay')
 
 
 @dataclass(frozen=True)

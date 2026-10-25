@@ -135,7 +135,7 @@ def test_compile_system_lowers_a_hurst_index_of_one_half_to_noise():
             ],
         ),
     )
-    assert problem.form is Form.SDE
+    assert problem.form == Form.SDE
     assert problem.fractional == ()
     assert np.array_equal(problem.noise_rows, plain.noise_rows)
 

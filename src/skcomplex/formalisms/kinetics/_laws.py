@@ -55,7 +55,7 @@ def _check_sizes(rate: Table, outcomes: Table | None, description: str) -> None:
 
 def is_encounter(law: BaseLaw) -> TypeGuard[KineticLaw]:
     """Check whether a law is an encounter law, a law of the encounter kind."""
-    return law.law_kind is LawKind.ENCOUNTER
+    return law.law_kind == LawKind.ENCOUNTER
 
 
 def outcome_sums(outcomes: Table) -> Table:

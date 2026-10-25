@@ -126,7 +126,7 @@ def _counting_system(agents=3, reduce='count', variable=None):
 def test_agents_and_ode_split_into_two_partitions():
     """Test that agents and differential equations in sibling subsystems give an agent and an ODE partition."""
     problem = compile_system(harvesting())
-    assert problem.form is Form.COUPLED
+    assert problem.form == Form.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
         ('land', Form.ODE),
         ('village', Form.AGENT),

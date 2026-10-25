@@ -323,7 +323,7 @@ class LammpsSolver(ExternalSolver):
         """Return the external interactions whose laws do more than change particle velocities."""
         sub_problem = cast('Problem', compile_system(_filter_system(problem.system, external), backend='numpy'))  # type: ignore[arg-type]
         reasons = []
-        if sub_problem.form is not Form.ODE:
+        if sub_problem.form != Form.ODE:
             reasons.append(f'the {sub_problem.form.value} form')
         if sub_problem.boundary is not None:
             reasons.append('boundary laws')

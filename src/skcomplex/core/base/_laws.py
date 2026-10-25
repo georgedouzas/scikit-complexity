@@ -141,7 +141,7 @@ class BaseLaw:
         >>> from skcomplex.core.base import LawClass, LawKind
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.base import BaseLaw
-        >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
+        >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
         (True, True, True)
     """
 

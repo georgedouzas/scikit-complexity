@@ -207,7 +207,7 @@ def resolve_solver(problem: BaseProblem, solver: str | BaseSolver[Any]) -> BaseS
     try:
         return SOLVERS.resolve((problem.form, solver))()
     except KeyError as error:
-        names = [str(key[1]) for key in SOLVERS if isinstance(key, tuple) and key[0] is problem.form]
+        names = [str(key[1]) for key in SOLVERS if isinstance(key, tuple) and key[0] == problem.form]
         error_msg = f'No {problem.form.value} solver named {solver!r}. Available names are: {", ".join(names)}.'
         raise SolverError(error_msg) from error
 

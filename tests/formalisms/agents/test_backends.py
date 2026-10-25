@@ -170,7 +170,7 @@ def test_rules_give_agent_form():
     problem = compile_system(
         System(components=[WalkerComponent.group('walkers', 3)], space=LatticeSpace((5, 5), boundary='fixed')),
     )
-    assert problem.form is Form.AGENT
+    assert problem.form == Form.AGENT
     assert problem.agents[0].states == ('moves',)
 
 
@@ -373,7 +373,7 @@ def test_rule_reads_parameter_of_nested_owner():
 def test_rule_binds_two_agent_groups_through_roles():
     """Test that an interaction binds two agent groups of different sizes and reads each through its role."""
     simulation, records = _census()
-    assert simulation.problem_.form is Form.AGENT
+    assert simulation.problem_.form == Form.AGENT
     assert records[0]['counted'] == 42
     assert records[0]['others'] == 43
     assert records[0]['paths'] == {'farm/cows'}

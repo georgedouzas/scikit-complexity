@@ -35,8 +35,8 @@ from skcomplex.engine.compile import BaseSystemCompiler
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 
-DECAY = LawKind('DECAY', 'decay')
-DECAYING = Form('DECAYING', 'exponential decay')
+DECAY = LawKind.register('DECAY', 'decay')
+DECAYING = Form.register('DECAYING', 'exponential decay')
 
 
 @dataclass(frozen=True)

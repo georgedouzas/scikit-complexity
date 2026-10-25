@@ -109,8 +109,15 @@
   - `__post_init__` goes. Validation calls `check()` on every law of a system, and a builder function checks the
     records it builds.
 
-- **Terms are value records.** `Term(name, value)` becomes a frozen dataclass with `Term.register(name, value)`. It
-  pickles, copies, and compares by value without hooks, and every `is` comparison of a term becomes `==`.
+- **Terms are strings of their value.**
+  - `Term` derives from `str` and holds its value.
+  - `Term.register(name, value)` registers a term and keeps its name, which the property `name` reads back.
+  - A term pickles, copies, hashes, compares, and prints as its value with no hand-written method, so messages that
+    format a term need no change.
+  - Every `is` comparison of a term becomes `==`.
+  - A term equals a plain string of its value. Vocabularies are never mixed in one collection, so this is harmless.
+  - *Alternative:* a frozen dataclass of name and value. Rejected because it prints as its fields, so every message
+    that formats a term would change.
 
 - **The magic methods that stay.** No class defines a magic method except `__init__` and the arithmetic of the
   quantum operators, which the modeller writes as mathematics, `σx * σy + h σz`.

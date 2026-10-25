@@ -252,7 +252,7 @@ class BaseInteraction(BaseEstimator):
         if cls.over not in BINDINGS:
             error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
             raise ValidationError(error_msg)
-        states = [name for name, item in declarations.items() if item.kind is VariableKind.STATE]
+        states = [name for name, item in declarations.items() if item.kind == VariableKind.STATE]
         adaptive = [name for name in states if declarations[name].adaptive]
         if adaptive:
             error_msg = (

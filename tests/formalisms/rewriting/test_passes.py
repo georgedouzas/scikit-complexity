@@ -79,7 +79,7 @@ def _subdivision():
 def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
-    assert compile_system(system).form is Form.REWRITING
+    assert compile_system(system).form == Form.REWRITING
     trajectory = Simulation(system).run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
     assert trajectory['word.size'].tolist() == [1, 2, 3, 5, 8, 13]

@@ -80,7 +80,7 @@ class _Unknown:
 
 def _left_side(problem: Problem, unknown: _Unknown) -> Expression:
     """Return the left side of the equation of an unknown: its next value, its highest derivative, or its Caputo one."""
-    if problem.form is Form.DISCRETE:
+    if problem.form == Form.DISCRETE:
         return function(str(problem.equation_symbols[unknown.name]))(problem.time + 1)
     order = float(problem.orders[unknown.indices[0]]) if problem.orders.size else 1.0
     if order != 1:
@@ -127,7 +127,7 @@ def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], d
 
 def _equations_of_problem(problem: Problem) -> dict[str, Expression]:
     """Return the equations of a compiled problem as relations between functions of time, in their written order."""
-    if problem.form is Form.JUMP:
+    if problem.form == Form.JUMP:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
         raise AnalysisError(error_msg)
     return _written(problem)[0]
@@ -261,7 +261,7 @@ def equations_of(system: System) -> dict[str, Expression]:
         diff(n_rabbits(t), t) == -r_growth*(n_rabbits(t)/K_growth - 1)*n_rabbits(t)
     """
     problem = compile_system(system)
-    if problem.form is Form.QUANTUM:
+    if problem.form == Form.QUANTUM:
         error_msg = 'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` instead.'
         raise AnalysisError(error_msg)
     return _equations_of_problem(compiled_problem(problem, 'The equations of a system'))
@@ -309,7 +309,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
     """
     problem = compiled_problem(system, 'Symbolic solving')
     _check_solvable(problem)
-    if problem.form is Form.FRACTIONAL:
+    if problem.form == Form.FRACTIONAL:
         return _fractional_solution(problem, use_initial_state=use_initial_state)
     equations, unknowns, _ = _written(problem)
     initial = problem.initial_state

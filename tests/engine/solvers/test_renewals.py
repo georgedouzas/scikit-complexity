@@ -193,5 +193,5 @@ def test_stepper_rejects_renewals_it_does_not_fire():
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
     simulation = Simulation(System(components=[CounterComponent('c')]), random_state=0).run(1)
-    assert simulation.problem_.form is Form.RENEWAL
+    assert simulation.problem_.form == Form.RENEWAL
     assert isinstance(simulation.stepper_, RenewalSolver)

@@ -302,7 +302,7 @@ def check_held_reads(problem: Problem, held: list[str]) -> None:
     for path in held:
         readers = _readers_of(problem, path)
         shared = [item.name for item in problem.partitions if groups[path] in item.owners and readers & item.owners]
-        if problem.form is not Form.COUPLED or shared:
+        if problem.form != Form.COUPLED or shared:
             error_msg = (
                 f'A law reads the observable {path} in the partition that computes it, but the observable is a Python '
                 'function of the values or reduces agents, which laws cannot read at the current state. Write it '

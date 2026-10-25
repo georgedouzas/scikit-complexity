@@ -35,6 +35,6 @@ class JacobianPass(BasePass):
                 declarations.ends[True],
                 declarations.time,
             )
-            if compilation.form is Form.ODE
+            if compilation.form == Form.ODE
             else None
         )

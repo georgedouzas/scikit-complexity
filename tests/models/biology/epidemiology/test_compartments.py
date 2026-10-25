@@ -18,7 +18,7 @@ def test_epidemic_stochastic_mode_is_jump_process():
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
-    assert compile_system(system).form is Form.JUMP
+    assert compile_system(system).form == Form.JUMP
     states = Simulation(system, dt=1.0, random_state=3).run(until=50).trajectory_.states
     assert np.all(states >= 0)
     assert np.all(states == np.round(states))

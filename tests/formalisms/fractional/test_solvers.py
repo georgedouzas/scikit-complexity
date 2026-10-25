@@ -73,7 +73,7 @@ def _advance(stepper, problem, until, frames=1):
 def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
     """Test that a rate law on a state of order 0.6 compiles to the fractional form with the order of every state."""
     problem = compile_system(System(components=[MixedComponent('a')]))
-    assert problem.form is Form.FRACTIONAL
+    assert problem.form == Form.FRACTIONAL
     assert problem.orders.tolist() == [0.5, 1.0]
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [-1.0, -1.0]
 
@@ -81,7 +81,7 @@ def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
 def test_compile_system_order_one_gives_ode_form():
     """Test that a state of order 1 compiles to the ODE form without orders."""
     problem = compile_system(System(components=[DecayingComponent('a')]))
-    assert problem.form is Form.ODE
+    assert problem.form == Form.ODE
     assert problem.orders.size == 0
 
 

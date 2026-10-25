@@ -29,8 +29,8 @@ attribute SHALL end in `_` and be set only by `fit` or `run`, and the checks of 
 - **THEN** `size_` is 20, `n_dim_` is 2, and `positions_` has 20 rows
 
 ### Requirement: Values carry fields and a check
-Laws, domains, problems, terms, and compiled records SHALL be frozen dataclasses without hand-written methods,
-compared by value, whose base defines the fields every child has and the method `check()`. Validation SHALL call
+Laws, domains, problems, and compiled records SHALL be frozen dataclasses, and terms strings of their value, all
+without hand-written methods and compared by value, whose base defines the fields every child has and the method `check()`. Validation SHALL call
 `check()` on every law of a system.
 
 #### Scenario: Invalid law

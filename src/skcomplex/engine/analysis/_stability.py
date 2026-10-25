@@ -165,7 +165,7 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
         symbols=symbols,
         rates=rates,
         parameters={**current, **members},
-        discrete=problem.form is Form.DISCRETE,
+        discrete=problem.form == Form.DISCRETE,
     )
 
 

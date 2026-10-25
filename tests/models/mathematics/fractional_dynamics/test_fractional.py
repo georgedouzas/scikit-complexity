@@ -29,8 +29,8 @@ def test_fractional_relaxation_is_slower_than_exponential():
 
 def test_fractional_relaxation_order_one_is_ordinary():
     """Test that order 1 compiles to the ODE form and a fractional order to the fractional form."""
-    assert compile_system(fractional_relaxation(order=1)).form is Form.ODE
-    assert compile_system(fractional_relaxation(order=0.5)).form is Form.FRACTIONAL
+    assert compile_system(fractional_relaxation(order=1)).form == Form.ODE
+    assert compile_system(fractional_relaxation(order=0.5)).form == Form.FRACTIONAL
 
 
 def test_fractional_oscillator_damps_without_friction():
