@@ -104,7 +104,7 @@ class BookInteraction(BaseInteraction):
 
     def record(self, model):
         """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
-        PAIRS.extend((buyer.id, seller.id) for buyer, seller in matches(model, 'trades'))
+        PAIRS.extend((trade.buyer.id, trade.seller.id) for trade in matches(model, 'trades'))
         EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
 
 
