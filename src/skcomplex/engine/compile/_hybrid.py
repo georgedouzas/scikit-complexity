@@ -10,8 +10,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import Expression
-from ._arrays import Vector
+from ...core.base import Expression, Vector
 
 
 @dataclass(frozen=True)

@@ -19,8 +19,8 @@ from ...core.base import (
     Supports,
     TimeKind,
     ValidationError,
+    Vector,
 )
-from ...engine.compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')

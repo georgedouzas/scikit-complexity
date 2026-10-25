@@ -15,22 +15,22 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.base import (
     BaseLaw,
+    Entry,
     Expression,
     NumericDomain,
     SymbolicVector,
     ValidationError,
+    Vector,
     components_of,
     symbol,
     symbols_of,
     vector,
 )
 from ....core.laws import BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
-from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._hybrid import CompiledEvent, _Breakpoints, _Delay
 from .._kernels import Reference, Source
-from .._layout import Entry
 from .._lowering import calls_of
 from .._pipeline import BasePass
 from .._printing import numpy_function

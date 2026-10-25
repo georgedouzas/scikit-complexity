@@ -5,8 +5,8 @@
 
 import numpy as np
 
-from ...core.base import SimulationError
-from ..compile import Problem, Vector
+from ...core.base import SimulationError, Vector
+from ..compile import Problem
 from ._frames import Frame
 from ._trajectories import Trajectory
 

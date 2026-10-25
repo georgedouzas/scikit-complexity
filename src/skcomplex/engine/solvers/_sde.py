@@ -20,8 +20,9 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
 )
-from ..compile import Vector, VectorFunction
+from ..compile import VectorFunction
 from ._hybrid import Interpolant, advance_fixed_steps, is_hybrid, open_history, with_delays
 from ._stepper import Solver, register_solver, step_count
 

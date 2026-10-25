@@ -17,11 +17,13 @@ from scipy import stats
 from ...core.base import (
     BaseLaw,
     CategoricalDomain,
+    Entry,
     Expression,
     IncompatibleLawsError,
     NumericDomain,
     SymbolicVector,
     ValidationError,
+    Vector,
     components_of,
     symbol,
     symbols_of,
@@ -45,9 +47,7 @@ from ...core.laws import (
     where,
 )
 from ...core.laws._laws import RenewalLaw
-from ._arrays import Vector
 from ._kernels import Reference, Source
-from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Draws, SampledDraw, _MarkovMatrix
 

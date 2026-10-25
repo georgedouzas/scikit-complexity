@@ -11,10 +11,10 @@ import numpy as np
 import numpy.typing as npt
 import qutip
 
-from ...core.base import AnalysisError, Form, ParameterError
+from ...core.base import AnalysisError, Form, Layout, ParameterError, Vector
 from ...core.laws import Symbols
 from ...core.system import System
-from ..compile import Layout, Problem, Vector, compile_system
+from ..compile import Problem, compile_system
 from ..runtime import Trajectory
 
 DIAGONAL_TOLERANCE = 1e-12

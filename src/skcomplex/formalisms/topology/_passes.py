@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BaseLaw, ValidationError
+from ...core.base import BaseLaw, Layout, ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
 from ...core.space import NetworkSpace
 from ...engine.compile import (
@@ -21,7 +21,6 @@ from ...engine.compile import (
     Kernel,
     KernelSpec,
     Laws,
-    Layout,
     Lowered,
     Output,
     Problem,

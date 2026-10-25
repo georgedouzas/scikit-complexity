@@ -20,6 +20,7 @@ from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     DomainKind,
+    Entry,
     Form,
     LawKind,
     NoiseKind,
@@ -27,9 +28,9 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
 )
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ..compile._arrays import Vector
 from ..compile._backends import (
     AUTO_MEMBERS,
     BaseBackend,
@@ -42,7 +43,6 @@ from ..compile._backends import (
     report_fallbacks,
 )
 from ..compile._kernels import EdgeSearch, Kernel, Reference, Source, jump_channels, lower_noise
-from ..compile._layout import Entry
 from ..compile._neighbourhoods import EdgeRows, MetricSearch
 from ..compile._problem import Accelerated, Draws
 from ..compile._reductions import ReductionPass

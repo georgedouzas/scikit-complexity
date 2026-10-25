@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ...core.base import Expression, ValidationError, Variable
+from ...core.base import Entry, Expression, Indices, ValidationError, Variable, Vector
 from ...core.space import (
     Adjacency,
     Cone,
@@ -23,8 +23,6 @@ from ...core.space import (
     NetworkSpace,
     Radius,
 )
-from ._arrays import Indices, Vector
-from ._layout import Entry
 from ._printing import numpy_function
 from ._reads import Read
 

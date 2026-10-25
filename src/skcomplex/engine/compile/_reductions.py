@@ -11,10 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 
-from ...core.base import Expression
+from ...core.base import Entry, Expression, Indices, Vector
 from ...core.system import reduce_values
-from ._arrays import Indices, Vector
-from ._layout import Entry
 from ._neighbourhoods import CompiledNeighborhood
 from ._printing import numpy_function
 from ._reads import Read

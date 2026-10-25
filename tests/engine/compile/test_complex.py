@@ -8,14 +8,14 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
 
-from skcomplex.core.base import BackendError, NumericDomain, ValidationError, parameter, state
+from skcomplex.core.base import BackendError, Entry, Layout, NumericDomain, ValidationError, parameter, state
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Call, EquationLaw, EventLaw, JumpLaw, RateLaw, UpdateLaw, derivative, mod, total, where
 from skcomplex.core.space import LatticeSpace, Neighborhood
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.analysis import power_spectrum
 from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.compile import Entry, Layout, compile_system
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.formalisms.agents import RuleLaw

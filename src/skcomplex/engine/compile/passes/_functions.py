@@ -12,15 +12,13 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import BackendWarning, BaseLaw, Expression, Form, NumericDomain, wrap_angle
+from ....core.base import BackendWarning, BaseLaw, Expression, Form, Layout, NumericDomain, Vector, wrap_angle
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from .._arrays import Vector
 from .._backends import BaseBackend, Lowering, resolve_backend
 from .._compilation import Compilation
 from .._declarations import Declarations, member_count
 from .._forms import is_stepwise
 from .._kernels import Kernel, Lowered, Output, Source
-from .._layout import Layout
 from .._pipeline import BasePass
 from .._problem import Accelerated, VectorFunction
 from .._real_parts import real_components_of

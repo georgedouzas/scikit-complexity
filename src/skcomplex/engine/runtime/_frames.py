@@ -10,7 +10,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import Problem, Record, Vector
+from ...core.base import Vector
+from ..compile import Problem, Record
 from ..solvers import AgentSnapshot
 
 

@@ -10,6 +10,9 @@ from typing import Any, TypeVar
 import numpy as np
 import numpy.typing as npt
 
+type Vector = npt.NDArray[np.float64]
+type Indices = npt.NDArray[np.intp]
+
 
 def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """Return angles wrapped into one turn centred on zero, the half-open interval `(-pi, pi]`.

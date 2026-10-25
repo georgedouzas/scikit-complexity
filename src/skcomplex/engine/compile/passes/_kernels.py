@@ -6,13 +6,12 @@
 from collections import defaultdict
 from typing import cast
 
-from ....core.base import BaseLaw, Expression, Trait, ValidationError, components_of, has_trait, symbols_of
+from ....core.base import BaseLaw, Expression, Layout, Trait, ValidationError, components_of, has_trait, symbols_of
 from ....core.laws import BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._kernels import Kernel, Lowered, Output, Reference, Source
-from .._layout import Layout
 from .._lowering import symbolic_components
 from .._noise import noise_process, process_keys
 from .._pipeline import BasePass

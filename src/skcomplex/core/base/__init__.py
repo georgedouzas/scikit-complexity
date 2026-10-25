@@ -44,9 +44,11 @@ from ._kinds import (
     vocabulary,
 )
 from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
+from ._problems import BaseProblem, Entry, Layout
+from ._solvers import BaseSolver
 from ._spaces import BaseSpace, BaseTime
 from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
-from ._utils import Registry, VisualSpec, wrap_angle
+from ._utils import Indices, Registry, Vector, VisualSpec, wrap_angle
 from ._variables import Variable, VariableKind, declaration_of, declarations_of, declared_fields, parameter, role, state
 
 __all__: list[str] = [
@@ -59,6 +61,8 @@ __all__: list[str] = [
     'BaseDomain',
     'BaseInteraction',
     'BaseLaw',
+    'BaseProblem',
+    'BaseSolver',
     'BaseSpace',
     'BaseTime',
     'Binding',
@@ -67,13 +71,16 @@ __all__: list[str] = [
     'ComponentKind',
     'ConservationError',
     'DomainKind',
+    'Entry',
     'ExperimentError',
     'Expression',
     'Form',
     'IncompatibleLawsError',
+    'Indices',
     'LabelError',
     'LawClass',
     'LawKind',
+    'Layout',
     'NoiseKind',
     'NumericDomain',
     'OrderKind',
@@ -100,6 +107,7 @@ __all__: list[str] = [
     'ValidationError',
     'Variable',
     'VariableKind',
+    'Vector',
     'VisualSpec',
     'components_of',
     'declaration_of',

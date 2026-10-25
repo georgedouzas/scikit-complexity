@@ -7,11 +7,10 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....core.base import Form, VariableKind, VisualSpec, declarations_of
+from ....core.base import Form, Layout, VariableKind, VisualSpec, declarations_of
 from ....core.components import GroupComponent
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
-from .._layout import Layout
 from .._pipeline import BasePass
 from .._problem import CompiledElement, CompiledInteraction, Problem, _MarkovMatrix
 from .._reductions import ReductionPass

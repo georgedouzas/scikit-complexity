@@ -19,8 +19,8 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
 )
-from ...engine.compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
 
 MIN_RELAXATION = 1e-3

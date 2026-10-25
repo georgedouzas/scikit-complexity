@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BaseLaw, Expression, ValidationError, VariableKind, declarations_of
+from ...core.base import BaseLaw, Expression, Layout, ValidationError, VariableKind, Vector, declarations_of
 from ...core.laws import BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.space import LatticeSpace
 from ...engine.compile import (
@@ -25,12 +25,10 @@ from ...engine.compile import (
     Issue,
     KernelSpec,
     Laws,
-    Layout,
     Node,
     Output,
     Problem,
     Source,
-    Vector,
     target_references,
 )
 from ._components import FieldComponent

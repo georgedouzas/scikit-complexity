@@ -9,7 +9,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...engine.compile import CapacityRows, Kernel, NetworkSnapshot, ReductionPass, Vector, reads_reductions
+from ...core.base import Vector
+from ...engine.compile import CapacityRows, Kernel, NetworkSnapshot, ReductionPass, reads_reductions
 from ._requests import TopologyRequest
 
 type Indices = npt.NDArray[np.intp]

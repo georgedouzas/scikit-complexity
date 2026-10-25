@@ -8,8 +8,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ..compile import Problem, Vector
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ..compile import Problem
 from ._hybrid import reject_hybrid
 from ._stepper import Solver, register_solver
 

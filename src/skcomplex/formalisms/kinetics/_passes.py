@@ -8,6 +8,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from ...core.base import Vector
 from ...engine.compile import (
     BaseBackend,
     BasePass,
@@ -15,7 +16,6 @@ from ...engine.compile import (
     Declarations,
     Laws,
     Problem,
-    Vector,
     member_count,
     resolve_backend,
 )

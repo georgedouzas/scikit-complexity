@@ -13,9 +13,19 @@ from typing import ClassVar, cast
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ...core.base import BackendError, BackendWarning, BaseLaw, Expression, Form, Registry, Supports, ValidationError
+from ...core.base import (
+    BackendError,
+    BackendWarning,
+    BaseLaw,
+    Expression,
+    Form,
+    Indices,
+    Registry,
+    Supports,
+    ValidationError,
+    Vector,
+)
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ._arrays import Indices, Vector
 from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
 from ._problem import Accelerated, Draws, VectorFunction, WienerBlock, _JumpChannels

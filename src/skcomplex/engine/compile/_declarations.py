@@ -13,6 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import I
 
 from ...core.base import (
+    Entry,
     Expression,
     LabelError,
     NumericDomain,
@@ -20,6 +21,7 @@ from ...core.base import (
     ValidationError,
     Variable,
     VariableKind,
+    Vector,
     components_of,
     declarations_of,
     domain_of,
@@ -29,9 +31,7 @@ from ...core.base import (
 from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import Symbols
 from ...core.space import NetworkSpace
-from ._arrays import Vector
 from ._kernels import Reference, Source
-from ._layout import Entry
 from ._tree import Node, coerce_value, shape_of
 
 ACTIVE = '_active'

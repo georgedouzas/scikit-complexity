@@ -6,8 +6,7 @@
 import math
 from typing import ClassVar, cast
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...engine.compile import Vector
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
 from ...engine.solvers import Solver
 from ._steps import CompiledExtremal, CompiledRelaxation, LatticeStep
 

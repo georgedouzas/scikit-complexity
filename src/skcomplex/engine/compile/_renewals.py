@@ -11,12 +11,21 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
+from ...core.base import (
+    Entry,
+    Expression,
+    Indices,
+    SolverError,
+    SymbolicVector,
+    ValidationError,
+    Vector,
+    components_of,
+    symbol,
+    symbols_of,
+)
 from ...core.laws import Draw, draws_in, has_reductions, is_draw
 from ...core.laws._laws import RenewalLaw
-from ._arrays import Indices, Vector
 from ._kernels import Reference, Source
-from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import RenewalRecord
 from ._specs import KernelSpec

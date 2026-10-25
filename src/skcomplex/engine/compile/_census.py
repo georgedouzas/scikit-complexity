@@ -13,6 +13,7 @@ from ...core.base import (
     BaseLaw,
     BaseSpace,
     ComponentKind,
+    Entry,
     Expression,
     Registry,
     SkcomplexError,
@@ -34,7 +35,6 @@ from ...core.laws import BoundaryLaw, EquationLaw, EventLaw, JumpLaw, NoiseLaw, 
 from ...core.system import System
 from ._declarations import Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, PairSearch
-from ._layout import Entry
 from ._noise import ProcessKey, process_keys
 from ._observables import Observer, lowerable_observables
 from ._specs import KernelSpec, component_of, group_space, specs_of, target_references

@@ -10,8 +10,19 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ...engine.compile import Problem, Vector
+from ...core.base import (
+    ComponentKind,
+    DomainKind,
+    Form,
+    LawKind,
+    OrderKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    Vector,
+)
+from ...engine.compile import Problem
 from ...engine.solvers import Solver
 from ._contractions import CompiledEncounter
 from ._passes import KineticProblem

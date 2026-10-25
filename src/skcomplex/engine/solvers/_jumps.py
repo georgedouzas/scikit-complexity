@@ -18,8 +18,9 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
 )
-from ..compile import Problem, Vector
+from ..compile import Problem
 from ._hybrid import reject_hybrid
 from ._stepper import Solver, register_solver
 

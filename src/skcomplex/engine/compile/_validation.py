@@ -15,6 +15,7 @@ from ...core.base import (
     BackendError,
     BaseSpace,
     DomainKind,
+    Entry,
     Form,
     LabelError,
     LawClass,
@@ -47,7 +48,6 @@ from ._backends import BACKENDS, BaseBackend
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
-from ._layout import Entry
 from ._neighbourhoods import cone_heading, position_state
 from ._noise import process_covariance
 from ._observables import _with_observables, held_observables, with_held_observables

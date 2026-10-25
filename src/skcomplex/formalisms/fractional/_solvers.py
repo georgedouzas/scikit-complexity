@@ -20,8 +20,9 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
 )
-from ...engine.compile import Problem, Vector
+from ...engine.compile import Problem
 from ...engine.solvers import Solver
 
 GRID_TOLERANCE = 1e-9

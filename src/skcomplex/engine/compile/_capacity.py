@@ -10,10 +10,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import CapacityError, VariableKind, declarations_of
-from ._arrays import Indices, Vector
+from ...core.base import CapacityError, Entry, Indices, VariableKind, Vector, declarations_of
 from ._declarations import ACTIVE, ENDS, Block, Declarations
-from ._layout import Entry
 from ._neighbourhoods import ACTIVE_THRESHOLD
 from ._tree import coerce_value
 

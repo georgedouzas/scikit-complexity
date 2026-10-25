@@ -22,10 +22,11 @@ from ...core.base import (
     Supports,
     TimeKind,
     ValidationError,
+    Vector,
 )
 from ...core.components import Aggregate
 from ...core.system import reduce_values
-from ..compile import Partition, Problem, Vector, partition_system
+from ..compile import Partition, Problem, partition_system
 from ._snapshots import AgentState
 from ._stepper import Solver, register_solver, resolve_solver
 

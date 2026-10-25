@@ -7,8 +7,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...engine.compile import Problem, Vector
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ...engine.compile import Problem
 from ...engine.solvers import Solver, StructureState
 from ._passes import RewritingProblem
 

@@ -16,11 +16,13 @@ from sage.all__sagemath_symbolics import SR
 from ...core.base import (
     BaseLaw,
     ConservationError,
+    Entry,
     Expression,
     LabelError,
     NumericDomain,
     ValidationError,
     VariableKind,
+    Vector,
     declarations_of,
     symbol,
     symbols_of,
@@ -40,10 +42,8 @@ from ...core.laws import (
 )
 from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
-from ._arrays import Vector
 from ._kernels import Reference
 from ._kernels import Source as Read
-from ._layout import Entry
 from ._quantities import LoopTerm, StockFlow, _CompiledFlow, _CompiledObjective, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'

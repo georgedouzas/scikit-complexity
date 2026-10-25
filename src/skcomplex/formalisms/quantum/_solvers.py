@@ -11,8 +11,19 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ...engine.compile import Problem, Vector
+from ...core.base import (
+    ComponentKind,
+    DomainKind,
+    Form,
+    LawKind,
+    OrderKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    Vector,
+)
+from ...engine.compile import Problem
 from ...engine.solvers import Solver
 from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 

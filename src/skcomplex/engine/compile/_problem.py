@@ -14,22 +14,22 @@ import numpy.typing as npt
 from ...core.base import (
     BaseInteraction,
     BaseLaw,
+    BaseProblem,
     BaseSpace,
     Expression,
-    Form,
+    Layout,
     SymbolicVector,
     ValidationError,
     Variable,
     VariableKind,
+    Vector,
     VisualSpec,
     declarations_of,
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Invariant
 from ...core.system import Observable, System
-from ._arrays import Vector
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
-from ._layout import Layout
 from ._quantities import StockFlow, _CompiledObjective
 from ._real_parts import real_components_of
 from ._reductions import CompiledReduction
@@ -560,7 +560,7 @@ class Accelerated:
 
 
 @dataclass(frozen=True)
-class Problem:
+class Problem(BaseProblem):
     """System compiled to one mathematical form with flat state and parameter vectors.
 
     Only the functions of the problem's form are set. `drift`, `diffusion`, and `noise_rows` belong to the ODE and SDE
@@ -738,12 +738,6 @@ class Problem:
             or `None` for a problem without them.
     """
 
-    form: Form
-    states: Layout
-    parameters: Layout
-    initial_state: Vector
-    initial_parameters: Vector
-    time: Expression
     symbols: Mapping[str, Expression | SymbolicVector]
     equations: Mapping[str, Expression]
     equation_symbols: Mapping[str, Expression]

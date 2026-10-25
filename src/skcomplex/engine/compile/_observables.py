@@ -14,6 +14,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ...core.base import (
+    Entry,
     Expression,
     Form,
     NumericDomain,
@@ -21,6 +22,7 @@ from ...core.base import (
     SymbolicVector,
     ValidationError,
     VariableKind,
+    Vector,
     declarations_of,
     symbol,
     symbols_of,
@@ -29,11 +31,9 @@ from ...core.base import (
 from ...core.components import Aggregate
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.system import Observable, System, reduce_values
-from ._arrays import Vector
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
 from ._kernels import Reference, Source
-from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Getter, Problem
 from ._quantities import _Recorded

@@ -1,6 +1,5 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
-from ._arrays import Vector
 from ._backends import BACKENDS, BaseBackend, Lowering, reads_reductions, register_backend, resolve_backend
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, register_owner
@@ -22,7 +21,6 @@ from ._kernels import (
     Reference,
     Source,
 )
-from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of
 from ._pipeline import BasePass, Check, order_passes, register_check, register_pass, run_passes
 from ._planner import SOLVERS, solver_classes, solver_registry
@@ -88,7 +86,6 @@ __all__: list[str] = [
     'Dialect',
     'Draws',
     'EdgeSearch',
-    'Entry',
     'EventRecord',
     'FractionalRows',
     'Getter',
@@ -96,7 +93,6 @@ __all__: list[str] = [
     'Kernel',
     'KernelSpec',
     'Laws',
-    'Layout',
     'LoopTerm',
     'Lowered',
     'Lowering',
@@ -118,7 +114,6 @@ __all__: list[str] = [
     'SystemPass',
     'ValidationReport',
     'ValidationWarning',
-    'Vector',
     'VectorFunction',
     'capacity_rows',
     'claiming_pass',

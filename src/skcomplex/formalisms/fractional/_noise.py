@@ -23,8 +23,9 @@ from ...core.base import (
     Supports,
     TimeKind,
     ValidationError,
+    Vector,
 )
-from ...engine.compile import Problem, Vector
+from ...engine.compile import Problem
 from ...engine.solvers import Solver
 
 EIGENVALUE_TOLERANCE = 1e-10

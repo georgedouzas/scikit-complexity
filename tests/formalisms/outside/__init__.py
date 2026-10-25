@@ -10,15 +10,18 @@ from skcomplex.core.base import (
     BaseLaw,
     ComponentKind,
     DomainKind,
+    Entry,
     Form,
     LawClass,
     LawKind,
+    Layout,
     NumericDomain,
     OrderKind,
     Requires,
     Supports,
     TimeKind,
     Trait,
+    Vector,
     VisualSpec,
     parameter,
     state,
@@ -27,7 +30,7 @@ from skcomplex.core.base import (
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
-from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass, Vector
+from skcomplex.engine.compile import CompiledElement, Problem, SystemPass
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 

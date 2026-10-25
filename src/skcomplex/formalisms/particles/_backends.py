@@ -27,15 +27,15 @@ from ...core.base import (
     Supports,
     TimeKind,
     VariableKind,
+    Vector,
     declarations_of,
     symbol,
 )
 from ...core.laws import Symbols
 from ...core.space import ContinuousSpace
 from ...core.system import System
-from ...engine.backends import ExternalSolver
-from ...engine.compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ...engine.solvers import step_count
+from ...engine.compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, compile_system
+from ...engine.solvers import ExternalSolver, step_count
 from ._components import ParticleComponent
 from ._interactions import PairPotentialInteraction
 from ._lepton import lepton_expression

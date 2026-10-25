@@ -13,8 +13,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, Form, NumericDomain, SolverError, symbols_of
-from ...engine.compile import Problem, Vector, numpy_function
+from ...core.base import Expression, Form, NumericDomain, SolverError, Vector, symbols_of
+from ...engine.compile import Problem, numpy_function
 from ...engine.solvers import Solver
 
 TIME_TOLERANCE = 1e-9

@@ -1216,7 +1216,8 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass
+from skcomplex.engine.compile import CompiledElement, Problem, SystemPass
+from skcomplex.core.base import Entry, Layout
 from skcomplex.core.components import ElementComponent
 from skcomplex.formalisms import Formalism, register
 from skcomplex.core.base import BaseLaw

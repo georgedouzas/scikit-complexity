@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import SR, I
 
 from ....core.base import (
     BaseLaw,
+    Entry,
     Expression,
     NumericDomain,
     RoleError,
@@ -44,7 +45,6 @@ from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations
 from .._kernels import Reference, Source
-from .._layout import Entry
 from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead, default_neighborhood, neighbor_search
 from .._pipeline import BasePass
 from .._reads import Read

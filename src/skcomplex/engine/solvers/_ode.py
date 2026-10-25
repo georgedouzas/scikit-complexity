@@ -25,9 +25,10 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
     components_of,
 )
-from ..compile import Problem, Vector, VectorFunction
+from ..compile import Problem, VectorFunction
 from ._hybrid import (
     RESTART,
     History,

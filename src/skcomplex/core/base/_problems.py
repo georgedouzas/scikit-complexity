@@ -1,4 +1,4 @@
-"""Lay out named variables in flat numeric vectors."""
+"""Define the base of the problems a system compiles to, and the layouts of their state and parameter vectors."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseDomain, NumericDomain
+from ._domains import BaseDomain, NumericDomain
+from ._kinds import Form
+from ._symbolic import Expression
+from ._utils import Vector
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -42,7 +45,7 @@ class Entry:
 
     Examples:
         >>> from skcomplex.core.base import NumericDomain
-        >>> from skcomplex.engine.compile import Entry
+        >>> from skcomplex.core.base import Entry
         >>> entry = Entry('a.z', 0, (2,), NumericDomain.COMPLEX, is_complex=True)
         >>> entry.size, entry.component_names
         (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
@@ -152,7 +155,7 @@ class Entry:
 
         Examples:
             >>> from skcomplex.core.base import NumericDomain
-            >>> from skcomplex.engine.compile import Entry
+            >>> from skcomplex.core.base import Entry
             >>> Entry('a.z', 0, (), NumericDomain.COMPLEX, is_complex=True).encode(1 + 2j).tolist()
             [1.0, 2.0]
         """
@@ -186,7 +189,7 @@ class Layout:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.compile import Entry, Layout
+        >>> from skcomplex.core.base import Entry, Layout
         >>> from skcomplex.core.base import NumericDomain
         >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.x', 1, (2,), NumericDomain.REAL)])
         >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
@@ -260,7 +263,7 @@ class Layout:
                 The name is neither a variable nor a component of the layout.
 
         Examples:
-            >>> from skcomplex.engine.compile import Entry, Layout
+            >>> from skcomplex.core.base import Entry, Layout
             >>> from skcomplex.core.base import NumericDomain
             >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.w', 1, (3,), NumericDomain.REAL)])
             >>> entry, indices = layout.locate('b.w[1]')
@@ -313,3 +316,35 @@ class Layout:
                 A mapping from dotted name to value.
         """
         return {name: self.read(vector, name) for name in self._by_name}
+
+
+@dataclass(frozen=True)
+class BaseProblem:
+    """Base of the problems a system compiles to: what every solver reads to advance one.
+
+    Args:
+        form:
+            The mathematical form.
+
+        states:
+            The layout of the state vector.
+
+        parameters:
+            The layout of the parameter vector.
+
+        initial_state:
+            The initial state vector.
+
+        initial_parameters:
+            The initial parameter vector.
+
+        time:
+            The time symbol.
+    """
+
+    form: Form
+    states: 'Layout'
+    parameters: 'Layout'
+    initial_state: Vector
+    initial_parameters: Vector
+    time: Expression

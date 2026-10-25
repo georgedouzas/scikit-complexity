@@ -31,11 +31,12 @@ from ...core.base import (
     Supports,
     TimeKind,
     VariableKind,
+    Vector,
     declarations_of,
 )
 from ...core.components import GroupComponent
 from ...core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem, Vector
+from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem
 from ...engine.solvers import AgentSnapshot, AgentState, Solver
 from ._laws import RuleLaw
 from ._spaces import DEFAULT_PHASE, Phase, PhasesSchedule

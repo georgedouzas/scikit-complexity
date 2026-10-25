@@ -22,10 +22,11 @@ from ...core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    Vector,
     symbol,
 )
 from ...core.space import LatticeSpace, Neighborhood, NetworkSpace
-from ...engine.compile import LATTICE_BOUNDARIES, Problem, Vector, numpy_function, spectral_multiplier
+from ...engine.compile import LATTICE_BOUNDARIES, Problem, numpy_function, spectral_multiplier
 from ...engine.solvers import Solver, step_count
 from ._lowering import mesh_laplacian
 from ._spaces import MeshSpace
