@@ -57,7 +57,7 @@ class IdleComponent(ElementComponent):
 
     def observe(self, agent, model):
         """Record the fertility of the soil at the last synchronisation point."""
-        agent.seen = model.inputs['land/soil.n']
+        agent.set_state('seen', model.inputs['land/soil.n'])
 
 
 class AccumulationInteraction(BaseInteraction):

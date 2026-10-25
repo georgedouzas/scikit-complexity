@@ -383,6 +383,6 @@ def resolve_backend(backend: str | BaseBackend, members: int) -> BaseBackend:
     try:
         return BACKENDS.resolve(name)()
     except KeyError as error:
-        names = ', '.join(['auto', *map(str, BACKENDS)])
+        names = ', '.join(['auto', *map(str, BACKENDS.keys)])
         error_msg = f'No backend named {backend!r}. Available backends are: {names}.'
         raise BackendError(error_msg) from error

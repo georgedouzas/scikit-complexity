@@ -54,7 +54,7 @@ class WalkerComponent(ElementComponent):
         """Move to a random neighbouring cell."""
         cells = agent.neighbor_cells()
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
-        agent.moves += 1
+        agent.set_state('moves', agent.state('moves') + 1)
 
 
 class ProbeComponent(ElementComponent):
@@ -69,8 +69,8 @@ class ProbeComponent(ElementComponent):
 
     def probe(self, agent, model):
         """Record the number of neighbouring cells and of neighbours."""
-        agent.cells = len(agent.neighbor_cells())
-        agent.near = len(agent.neighbors())
+        agent.set_state('cells', len(agent.neighbor_cells()))
+        agent.set_state('near', len(agent.neighbors()))
 
 
 class DrifterComponent(ElementComponent):
@@ -85,7 +85,7 @@ class DrifterComponent(ElementComponent):
 
     def count(self, agent, model):
         """Count the agents within the radius."""
-        agent.near = len(agent.neighbors(radius=agent.radius))
+        agent.set_state('near', len(agent.neighbors(radius=agent.parameter('radius'))))
 
 
 class CullerInteraction(BaseInteraction):
@@ -116,11 +116,11 @@ class MoneyAgentComponent(ElementComponent):
 
     def give(self, agent, model):
         """Give the transfer to a random agent of the group."""
-        if agent.wealth > 0:
+        if agent.state('wealth') > 0:
             agents = model.agents(agent.group)
             other = agents[int(model.rng.integers(len(agents)))]
-            other.wealth += agent.transfer
-            agent.wealth -= agent.transfer
+            other.set_state('wealth', other.state('wealth') + agent.parameter('transfer'))
+            agent.set_state('wealth', agent.state('wealth') - agent.parameter('transfer'))
 
 
 def _money_system():
@@ -154,8 +154,8 @@ class ShopperComponent(ElementComponent):
     def buy(self, agent, model):
         """Buy one unit from the first stall with stock."""
         stall = model.agents('stalls')[0]
-        if stall.stock > 0:
-            stall.stock -= 1
+        if stall.state('stock') > 0:
+            stall.set_state('stock', stall.state('stock') - 1)
 
 
 def test_elements_without_laws_are_passive_agents():
@@ -191,7 +191,7 @@ def test_agents_are_born_every_step():
         Simulation(System(components=[BreederComponent.group('herd', 10, variable=True)])).run(until=3).trajectory_
     )
     assert trajectory.values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
-    assert len(trajectory.agents('herd', 3)) == 80
+    assert len(trajectory.agents('herd', 3).ids) == 80
 
 
 def test_fixed_group_rejects_births():
@@ -458,7 +458,7 @@ class ClockedComponent(ElementComponent):
 
     def record(self, agent, model):
         """Store the model time."""
-        agent.seen = model.time
+        agent.set_state('seen', model.time)
 
 
 def test_rules_read_model_time():
@@ -493,3 +493,37 @@ def test_mesa_solver_run_sets_agents_and_snapshot():
     assert solver.snapshot_.reporters['breeders.count'] == 8.0
     for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):
         assert not hasattr(solver, name)
+
+
+def _grow(agent, model):
+    """Add the parameter `k` of the agent's group to its state `n`, after checking that equal views compare equal."""
+    assert agent == AgentView(agent._agent, agent._stepper)
+    agent.set_state('n', agent.state('n') + agent.parameter('k'))
+
+
+def _misread(agent, model):
+    """Read a state the agent does not have."""
+    agent.state('m')
+
+
+def test_agent_view_reads_and_sets_states_and_reads_parameters_by_name():
+    """Test that rules read and set states and read parameters through the named methods of the agent view."""
+    GrowerComponent = ElementComponent.define(
+        'GrowerComponent',
+        states={'n': 1.0},
+        parameters={'k': 2.0},
+        laws=lambda s: [RuleLaw(_grow)],
+    )
+    trajectory = Simulation(System(components=[GrowerComponent.group('growers', 2)])).run(until=2).trajectory_
+    assert trajectory.agents('growers', 2).values['n'].tolist() == [5.0, 5.0]
+
+
+def test_agent_view_names_the_states_of_an_unknown_state():
+    """Test that reading an unknown state raises a simulation error that lists the states of the group."""
+    MisreaderComponent = ElementComponent.define(
+        'MisreaderComponent',
+        states={'n': 1.0},
+        laws=lambda s: [RuleLaw(_misread)],
+    )
+    with pytest.raises(SimulationError, match=r"no state 'm'\. Their states are: n"):
+        Simulation(System(components=[MisreaderComponent.group('readers', 1)])).run(until=1)

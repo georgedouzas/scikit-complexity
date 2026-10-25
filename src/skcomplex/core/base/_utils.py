@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Hashable, Iterator
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
@@ -59,9 +59,10 @@ class Registry[Entry]:
         self._entries: dict[Hashable, Entry] = {}
         self._loaders: list[Callable[[Hashable], None]] = []
 
-    def __iter__(self) -> Iterator[Hashable]:
-        """Iterate over the registered keys in registration order."""
-        return iter(self._entries)
+    @property
+    def keys(self) -> list[Hashable]:
+        """Registered keys, in registration order."""
+        return list(self._entries)
 
     def register(self, key: Hashable, entry: Entry) -> None:
         """Register an implementation under a key, replacing any previous one.

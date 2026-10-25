@@ -314,7 +314,7 @@ class FractionalRows:
 class Jacobian(Protocol):
     """Exact Jacobian of a drift with its sparsity pattern."""
 
-    def __call__(self, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+    def evaluate(self, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
         """Return the Jacobian at a state as a sparse matrix."""
 
     def pattern(self) -> Any:  # noqa: ANN401
@@ -790,7 +790,7 @@ class Problem(BaseProblem):
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
+        return [item for entry in layout.entries for item in real_components_of(self.symbols[entry.name])]
 
     @property
     def objectives(self) -> tuple[_CompiledObjective, ...]:

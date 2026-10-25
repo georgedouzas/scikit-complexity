@@ -38,7 +38,7 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
         >>> claiming_compiler(create('lotka_volterra')) is None
         True
     """
-    for key in SYSTEM_COMPILERS:
+    for key in SYSTEM_COMPILERS.keys:
         compiler = SYSTEM_COMPILERS.resolve(key)
         if compiler.prepare(system).claims_:
             return compiler

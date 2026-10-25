@@ -307,7 +307,7 @@ class BodiesVisual(BaseVisual):
         def read(name: str) -> Any:  # noqa: ANN401
             layout, vector = (
                 (problem.states, problem.initial_state)
-                if name in problem.states
+                if problem.states.has(name)
                 else (problem.parameters, problem.initial_parameters)
             )
             return layout.read(vector, name)

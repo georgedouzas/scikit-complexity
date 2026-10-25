@@ -19,7 +19,7 @@ CREW_SIZE = 2
 
 def _front(cars: list[AgentView], stage: int) -> AgentView | None:
     """Return the car that came first among the cars at a stage, or `None` if there is none."""
-    waiting = [car for car in cars if car.stage == stage]
+    waiting = [car for car in cars if car.state('stage') == stage]
     return min(waiting, key=lambda car: car.id) if waiting else None
 
 
@@ -108,10 +108,10 @@ class WasherComponent(ElementComponent):
         fronts = [car for car in (_front(cars, WASH), _front(cars, VALET)) if car is not None]
         if not fronts:
             return
-        short = [car for car in fronts if car.crew < CREW_SIZE]
+        short = [car for car in fronts if car.state('crew') < CREW_SIZE]
         car = short[0] if short else fronts[int(model.rng.integers(len(fronts)))]
-        car.crew += 1
-        car.work -= 1.0
+        car.set_state('crew', car.state('crew') + 1)
+        car.set_state('work', car.state('work') - 1.0)
 
 
 class TillComponent(ElementComponent):
@@ -217,15 +217,16 @@ class CarWashOperationInteraction(BaseInteraction):
 
     def _finish(self, car: AgentView, till: AgentView, model: ModelView, values: dict[str, float]) -> None:
         """Move a car whose work is done to the valet, or take its payment and let it leave."""
-        if car.stage == WASH and model.rng.random() < values['p_valet']:
-            car.stage, car.work = VALET, values['valet_work']
+        if car.state('stage') == WASH and model.rng.random() < values['p_valet']:
+            car.set_state('stage', VALET)
+            car.set_state('work', values['valet_work'])
             return
-        if car.stage == WASH:
-            till.revenue += values['wash_price']
-            till.washes += 1
+        if car.state('stage') == WASH:
+            till.set_state('revenue', till.state('revenue') + values['wash_price'])
+            till.set_state('washes', till.state('washes') + 1)
         else:
-            till.revenue += values['valet_price']
-            till.valets += 1
+            till.set_state('revenue', till.state('revenue') + values['valet_price'])
+            till.set_state('valets', till.state('valets') + 1)
         car.remove()
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
@@ -251,13 +252,13 @@ class CarWashOperationInteraction(BaseInteraction):
         values = {name: float(model.parameter(name)) for name in declarations_of(self, VariableKind.PARAMETER)}
         till = model.agents('till')[0]
         for car in model.agents('cars'):
-            car.crew = 0
-            if car.work <= 0:
+            car.set_state('crew', 0)
+            if car.state('work') <= 0:
                 self._finish(car, till, model, values)
         if model.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in model.agents('cars')) >= values['balk']:
-            till.turned_away += 1
+        if sum(car.state('stage') == WASH for car in model.agents('cars')) >= values['balk']:
+            till.set_state('turned_away', till.state('turned_away') + 1)
             return
         model.create('cars', stage=WASH, work=values['wash_work'])
 

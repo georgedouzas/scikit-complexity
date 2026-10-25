@@ -101,27 +101,27 @@ class PersonComponent(ElementComponent):
 
     def _infect(self, agent: AgentView, model: ModelView) -> None:
         """Infect every susceptible person of the cell with probability `beta`."""
-        if model.rng.random() >= agent.beta:
+        if model.rng.random() >= agent.parameter('beta'):
             return
         for other in agent.agents_here(agent.group):
-            if other.health == SUSCEPTIBLE:
-                other.health = EXPOSED if agent.incubation > 0 else INFECTED
-                other.clock = 0.0
+            if other.state('health') == SUSCEPTIBLE:
+                other.set_state('health', EXPOSED if agent.parameter('incubation') > 0 else INFECTED)
+                other.set_state('clock', 0.0)
 
     def _progress(self, agent: AgentView, model: ModelView) -> None:
         """Advance the course of the disease of an exposed, infected, or recovered person."""
-        if agent.health == EXPOSED:
-            agent.clock += 1
-            if agent.clock >= agent.incubation:
-                agent.health = INFECTED
-        elif agent.health == INFECTED:
+        if agent.state('health') == EXPOSED:
+            agent.set_state('clock', agent.state('clock') + 1)
+            if agent.state('clock') >= agent.parameter('incubation'):
+                agent.set_state('health', INFECTED)
+        elif agent.state('health') == INFECTED:
             draw = model.rng.random()
-            if draw < agent.gamma:
-                agent.health = RECOVERED
-            elif draw < agent.gamma + agent.mu:
-                agent.health = DEAD
-        elif agent.health == RECOVERED and model.rng.random() < agent.alpha:
-            agent.health = SUSCEPTIBLE
+            if draw < agent.parameter('gamma'):
+                agent.set_state('health', RECOVERED)
+            elif draw < agent.parameter('gamma') + agent.parameter('mu'):
+                agent.set_state('health', DEAD)
+        elif agent.state('health') == RECOVERED and model.rng.random() < agent.parameter('alpha'):
+            agent.set_state('health', SUSCEPTIBLE)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
@@ -146,11 +146,15 @@ class PersonComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.health == DEAD:
+        if agent.state('health') == DEAD:
             return
-        locked = agent.lockdown_start <= model.time < agent.lockdown_start + agent.lockdown_length
-        _wander(agent, model, agent.lockdown_d if locked else agent.d)
-        if agent.health == INFECTED:
+        locked = (
+            agent.parameter('lockdown_start')
+            <= model.time
+            < agent.parameter('lockdown_start') + agent.parameter('lockdown_length')
+        )
+        _wander(agent, model, agent.parameter('lockdown_d') if locked else agent.parameter('d'))
+        if agent.state('health') == INFECTED:
             self._infect(agent, model)
         self._progress(agent, model)
 
@@ -217,18 +221,18 @@ class WalkerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.health == DECEASED:
+        if agent.state('health') == DECEASED:
             return
-        _wander(agent, model, agent.travel)
-        if agent.health != SICK:
+        _wander(agent, model, agent.parameter('travel'))
+        if agent.state('health') != SICK:
             return
         for other in agent.agents_here(agent.group):
-            if other.health == HEALTHY and model.rng.random() < agent.infection:
-                other.health = SICK
-                other.remaining = other.lifetime
-        agent.remaining -= 1
-        if agent.remaining <= 0:
-            agent.health = DECEASED
+            if other.state('health') == HEALTHY and model.rng.random() < agent.parameter('infection'):
+                other.set_state('health', SICK)
+                other.set_state('remaining', other.parameter('lifetime'))
+        agent.set_state('remaining', agent.state('remaining') - 1)
+        if agent.state('remaining') <= 0:
+            agent.set_state('health', DECEASED)
 
 
 class TravellerComponent(ElementComponent):
@@ -293,15 +297,15 @@ class TravellerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.health == INFECTED:
+        if agent.state('health') == INFECTED:
             for other in agent.agents_here(agent.group):
-                if other.health == SUSCEPTIBLE and model.rng.random() < agent.tau:
-                    other.health = INFECTED
-                    other.clock = 0.0
-            agent.clock += 1
-            if agent.clock > agent.days:
-                agent.health = RECOVERED
-        _wander(agent, model, agent.m)
+                if other.state('health') == SUSCEPTIBLE and model.rng.random() < agent.parameter('tau'):
+                    other.set_state('health', INFECTED)
+                    other.set_state('clock', 0.0)
+            agent.set_state('clock', agent.state('clock') + 1)
+            if agent.state('clock') > agent.parameter('days'):
+                agent.set_state('health', RECOVERED)
+        _wander(agent, model, agent.parameter('m'))
 
 
 @register_model(

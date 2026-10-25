@@ -197,7 +197,7 @@ def resolve_solver(problem: BaseProblem, solver: str | BaseSolver[Any]) -> BaseS
     try:
         return SOLVERS.resolve((problem.form, solver))()
     except KeyError as error:
-        names = [str(key[1]) for key in SOLVERS if isinstance(key, tuple) and key[0] == problem.form]
+        names = [str(key[1]) for key in SOLVERS.keys if isinstance(key, tuple) and key[0] == problem.form]
         error_msg = f'No {problem.form.value} solver named {solver!r}. Available names are: {", ".join(names)}.'
         raise SolverError(error_msg) from error
 
@@ -266,7 +266,7 @@ class ExternalSolver(Solver):
                 The problem has a form, a complex state, an element, an interaction, or a law the library cannot run.
         """
         unsupported = [] if problem.form in self.forms else [f'the {problem.form.value} form']
-        unsupported += [f'the complex state {entry.name}' for entry in problem.states if entry.is_complex]
+        unsupported += [f'the complex state {entry.name}' for entry in problem.states.entries if entry.is_complex]
         unsupported += self._unsupported(problem)
         if unsupported:
             items = '; '.join(unsupported)

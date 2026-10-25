@@ -64,10 +64,10 @@ class ThresholdNodeComponent(ElementComponent):
                 The model.
         """
         neighbors = agent.neighbors()
-        if agent.active or not neighbors:
+        if agent.state('active') or not neighbors:
             return
-        if sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold:
-            agent.active = 1.0
+        if sum(neighbor.state('active') for neighbor in neighbors) / len(neighbors) >= agent.state('threshold'):
+            agent.set_state('active', 1.0)
 
 
 @register_model(

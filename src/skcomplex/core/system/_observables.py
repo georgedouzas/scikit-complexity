@@ -86,7 +86,8 @@ class Observable(BaseEstimator):
         expression:
             For a system observable, a function `expression(s)` of the system namespace, where `s.<child>.<variable>`
             is a symbol and `s.<observable>` is an observable declared earlier. For a reduction, a function of one
-            member's namespace, or of one agent for agent groups. A symbolic expression is also accepted.
+            member's namespace, or of the view of one agent for agent groups, as rules receive it. A symbolic
+            expression is also accepted.
 
         group:
             The path of the group to reduce over, relative to the system, or `None` for a system observable.

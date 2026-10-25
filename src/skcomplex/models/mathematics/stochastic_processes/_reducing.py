@@ -66,13 +66,13 @@ class ReducingBallComponent(ElementComponent):
             model:
                 The model.
         """
-        top = round(agent.n_states)
-        if agent.level <= 1:
-            agent.level = float(top)
-        elif model.rng.random() < agent.lam:
-            agent.level = float(model.rng.integers(1, round(agent.level)))
+        top = round(agent.parameter('n_states'))
+        if agent.state('level') <= 1:
+            agent.set_state('level', float(top))
+        elif model.rng.random() < agent.parameter('lam'):
+            agent.set_state('level', float(model.rng.integers(1, round(agent.state('level')))))
         else:
-            agent.level = float(model.rng.integers(1, top + 1))
+            agent.set_state('level', float(model.rng.integers(1, top + 1)))
 
 
 class FragmentComponent(ElementComponent):
@@ -121,11 +121,11 @@ class FragmentComponent(ElementComponent):
             model:
                 The model.
         """
-        length = round(agent.length)
-        if length <= 1 or model.rng.random() >= agent.rate:
+        length = round(agent.state('length'))
+        if length <= 1 or model.rng.random() >= agent.parameter('rate'):
             return
         cut = int(model.rng.integers(1, length))
-        agent.length = float(cut)
+        agent.set_state('length', float(cut))
         agent.create(length=float(length - cut))
 
 

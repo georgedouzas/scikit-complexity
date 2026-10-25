@@ -614,7 +614,7 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
             row.append(composite.index(item))
         columns.append(tuple(row))
     reach: Reach = Memory(tuple(composite)) if isinstance(inner, Memory) else Neighborhood(tuple(composite))
-    rule = _ComposedRule(first.local_map(), second.local_map(), tuple(columns), first.states)
+    rule = _ComposedRule(first.local_map(), second.local_map(), tuple(columns), first.states).evaluate
     return Automaton(first.space, reach, rule, first.states)
 
 
@@ -925,7 +925,7 @@ class _ComposedRule:
     columns: tuple[tuple[int, ...], ...]
     states: int
 
-    def __call__(self, *values: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
+    def evaluate(self, *values: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
         """Return the value of the second rule on the values of the first rule around every cell."""
         cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
         inner = [self.first[_codes(cells[..., list(columns)], self.states)] for columns in self.columns]

@@ -112,7 +112,7 @@ def _scalar_series(trajectory: Trajectory) -> list[str]:
     lattice = set(_lattice_names(trajectory.problem))
     return [
         entry.name
-        for entry in trajectory.problem.states
+        for entry in trajectory.problem.states.entries
         if entry.shape == () and entry.members is None and entry.name not in lattice
     ]
 
@@ -125,7 +125,9 @@ def _has_series(source: Trajectory | System | Problem, problem: BaseProblem) -> 
     if system is not None and any(True for _ in observables_of(system)):
         return True
     lattice = set(_lattice_names(problem))
-    return any(entry.shape == () and entry.members is None and entry.name not in lattice for entry in problem.states)
+    return any(
+        entry.shape == () and entry.members is None and entry.name not in lattice for entry in problem.states.entries
+    )
 
 
 def _missing(trajectory: Trajectory, wanted: str) -> AnalysisError:
@@ -633,7 +635,7 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
         ('the array as one grid', 'every column of the array as a series')
     """
     kinds = data_kinds(source)
-    entries: list[AnalysisEntry] = [ANALYSES.resolve(key) for key in ANALYSES]
+    entries: list[AnalysisEntry] = [ANALYSES.resolve(key) for key in ANALYSES.keys]
     is_array = not isinstance(source, Trajectory | System | ExperimentResult | Problem)
     dimensions = int(np.ndim(cast('npt.ArrayLike', source))) if is_array else 0
     return [

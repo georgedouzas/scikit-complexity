@@ -204,7 +204,7 @@ class TraitsVisual(AgentsVisual):
             space:
                 The space the agents live in, `None` for this visual.
         """
-        if not len(snapshot):
+        if not len(snapshot.ids):
             return
         for trait, values in snapshot.values.items():
             numbers = _numbers_of(values)

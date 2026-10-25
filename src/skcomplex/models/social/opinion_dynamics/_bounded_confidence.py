@@ -89,8 +89,8 @@ class EncountersInteraction(BaseInteraction):
         agents = model.agents(self.target)
         if len(agents) < 2:  # noqa: PLR2004
             return
-        confidence, convergence = agents[0].confidence, agents[0].convergence
-        opinions = np.array([agent.opinion for agent in agents], dtype=float)
+        confidence, convergence = agents[0].parameter('confidence'), agents[0].parameter('convergence')
+        opinions = np.array([agent.state('opinion') for agent in agents], dtype=float)
         pairs = model.rng.integers(len(agents), size=(len(agents), 2))
         for first, second in pairs:
             difference = opinions[second] - opinions[first]
@@ -98,7 +98,7 @@ class EncountersInteraction(BaseInteraction):
                 opinions[first] += convergence * difference
                 opinions[second] -= convergence * difference
         for agent, opinion in zip(agents, opinions, strict=True):
-            agent.opinion = float(opinion)
+            agent.set_state('opinion', float(opinion))
 
 
 @register_model(

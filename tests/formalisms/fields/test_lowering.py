@@ -180,7 +180,7 @@ class MarkerComponent(ElementComponent):
 
     def mark(self, agent, model):
         """Keep the field value at the cell and deposit one unit."""
-        agent.seen = model.field('ground/level.u', agent.location)
+        agent.set_state('seen', model.field('ground/level.u', agent.location))
         model.deposit('ground/level.u', agent.location, 1.0)
 
 

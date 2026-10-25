@@ -158,12 +158,12 @@ class MinorityGameInteraction(BaseInteraction):
     def _choose(self, agent: AgentView, history: int, model: ModelView) -> tuple[int, int]:
         """Set the action of an agent and return the actions of its two strategies."""
         actions = (
-            2 * int(self._table(agent.first, model)[history]) - 1,
-            2 * int(self._table(agent.second, model)[history]) - 1,
+            2 * int(self._table(agent.state('first'), model)[history]) - 1,
+            2 * int(self._table(agent.state('second'), model)[history]) - 1,
         )
-        difference = agent.first_score - agent.second_score
+        difference = agent.state('first_score') - agent.state('second_score')
         best = int(model.rng.integers(2)) if difference == 0 else int(difference < 0)
-        agent.action = float(actions[best])
+        agent.set_state('action', float(actions[best]))
         return actions
 
     def play(self, model: ModelView) -> None:
@@ -178,12 +178,12 @@ class MinorityGameInteraction(BaseInteraction):
         n_histories = 2**self.memory
         history = storage.setdefault('history', int(model.rng.integers(n_histories)))
         strategies = [self._choose(agent, history, model) for agent in agents]
-        attendance = sum(agent.action for agent in agents)
+        attendance = sum(agent.state('action') for agent in agents)
         winner = -1 if attendance > 0 else 1
         for agent, (first, second) in zip(agents, strategies, strict=True):
-            agent.first_score += first * winner
-            agent.second_score += second * winner
-            agent.wealth += agent.action * winner
+            agent.set_state('first_score', agent.state('first_score') + (first * winner))
+            agent.set_state('second_score', agent.state('second_score') + (second * winner))
+            agent.set_state('wealth', agent.state('wealth') + (agent.state('action') * winner))
         storage['history'] = (2 * history + (winner > 0)) % n_histories
         storage['round'] = storage.get('round', 0) + 1
         model.report('attendance', attendance)
@@ -192,12 +192,16 @@ class MinorityGameInteraction(BaseInteraction):
 
     def _evolve(self, agents: list[AgentView], model: ModelView) -> None:
         """Give the poorest agents new random strategies and no wealth."""
-        wealth = np.array([agent.wealth for agent in agents], dtype=float)
+        wealth = np.array([agent.state('wealth') for agent in agents], dtype=float)
         count = round(model.parameter('fraction') * len(agents))
         for index in np.argsort(wealth, kind='stable')[:count]:
             agent = agents[int(index)]
-            agent.first, agent.second = (float(code) for code in model.rng.integers(MAX_SEED, size=2))
-            agent.first_score = agent.second_score = agent.wealth = 0.0
+            new_first, new_second = (float(code) for code in model.rng.integers(MAX_SEED, size=2))
+            agent.set_state('first', new_first)
+            agent.set_state('second', new_second)
+            agent.set_state('first_score', 0.0)
+            agent.set_state('second_score', 0.0)
+            agent.set_state('wealth', 0.0)
 
 
 @register_model(

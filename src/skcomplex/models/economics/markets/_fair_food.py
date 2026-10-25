@@ -91,17 +91,17 @@ class ConsumerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.budget < 1 + agent.premium:
-            agent.fair = 0.0
+        if agent.state('budget') < 1 + agent.parameter('premium'):
+            agent.set_state('fair', 0.0)
             return
         neighbors = agent.neighbors()
-        share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
+        share = sum(neighbor.state('fair') for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
         utility = (
-            agent.ethics_weight * agent.ethics
-            - agent.price_weight * agent.premium / agent.budget
-            + agent.social_weight * share
+            agent.parameter('ethics_weight') * agent.state('ethics')
+            - agent.parameter('price_weight') * agent.parameter('premium') / agent.state('budget')
+            + agent.parameter('social_weight') * share
         )
-        agent.fair = float(logit_choice([0.0, utility], agent.intensity, model.rng))
+        agent.set_state('fair', float(logit_choice([0.0, utility], agent.parameter('intensity'), model.rng)))
 
 
 @register_model(

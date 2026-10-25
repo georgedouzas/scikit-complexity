@@ -135,7 +135,7 @@ def _records_of(
 ) -> list[CensusRecord]:
     """Return the census records of the laws of one component."""
     records = []
-    for spec in specs_of(block, elements, declarations.time, observe):
+    for spec in specs_of(block, elements, declarations.time, observe.evaluate):
         for law in declared_laws(spec, component_of(block.node)):
             target = getattr(law, 'target', None)
             items = components_of(target) if target is not None else []
@@ -195,7 +195,7 @@ def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
         ValidationError:
             The law changes no state of its component, or targets a symbol that is not a state.
     """
-    for key in OWNER_RULES:
+    for key in OWNER_RULES.keys:
         owner = OWNER_RULES.resolve(key)(spec, law, agents)
         if owner is not None:
             return owner

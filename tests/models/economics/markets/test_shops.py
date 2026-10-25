@@ -26,7 +26,11 @@ class ShopComponent(ElementComponent):
 
     def inflate(self, agent, model):
         """Raise the price."""
-        agent.price *= 1 + model.parameter('drift') + model.rng.normal(0, 0.02) - model.parameters['bank.rate']
+        agent.set_state(
+            'price',
+            agent.state('price')
+            * (1 + model.parameter('drift') + model.rng.normal(0, 0.02) - model.parameters['bank.rate']),
+        )
 
 
 class CentralBankInteraction(InstitutionInteraction):

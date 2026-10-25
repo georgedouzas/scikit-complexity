@@ -126,8 +126,8 @@ class ReproductionInteraction(BaseInteraction):
                 The model.
         """
         agents = model.agents('population')
-        genomes = np.array([agent.genome for agent in agents], dtype=float)
-        fitness = np.array([agent.fitness for agent in agents], dtype=float)
+        genomes = np.array([agent.state('genome') for agent in agents], dtype=float)
+        fitness = np.array([agent.state('fitness') for agent in agents], dtype=float)
         rng = model.rng
         dead = np.flatnonzero(rng.random(len(agents)) < model.parameter('death'))
         parents = rng.choice(len(agents), size=dead.size, p=fitness / fitness.sum())
@@ -136,8 +136,8 @@ class ReproductionInteraction(BaseInteraction):
         genomes[dead] = genomes[parents].astype(np.int64) ^ (flips.astype(np.int64) << loci)
         zero_values, one_values = np.asarray(self.zero_values), np.asarray(self.one_values)
         for agent, genome, value in zip(agents, genomes, _fitness_of(genomes, zero_values, one_values), strict=True):
-            agent.genome = float(genome)
-            agent.fitness = float(value)
+            agent.set_state('genome', float(genome))
+            agent.set_state('fitness', float(value))
 
 
 @register_model(

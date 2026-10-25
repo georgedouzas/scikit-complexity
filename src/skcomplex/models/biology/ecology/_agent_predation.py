@@ -67,7 +67,7 @@ class PreyComponent(ElementComponent):
                 The model.
         """
         _step(agent, model)
-        if not agent.agents_here(PREY) and model.rng.random() < agent.birth:
+        if not agent.agents_here(PREY) and model.rng.random() < agent.parameter('birth'):
             agent.create()
 
 
@@ -121,9 +121,9 @@ class PredatorComponent(ElementComponent):
         meals = agent.agents_here(PREY)
         if meals:
             meals[int(model.rng.integers(len(meals)))].remove()
-            if model.rng.random() < agent.conversion:
+            if model.rng.random() < agent.parameter('conversion'):
                 agent.create()
-        if model.rng.random() < agent.death:
+        if model.rng.random() < agent.parameter('death'):
             agent.remove()
 
 

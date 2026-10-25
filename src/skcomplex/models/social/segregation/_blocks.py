@@ -127,12 +127,12 @@ class BlockMovesInteraction(BaseInteraction):
         cells = self.side**2
         before = counts[[origin, destination]] / cells
         after = (counts[[origin, destination]] + [-1, 1]) / cells
-        slope, intercept = agent.slope, agent.intercept
+        slope, intercept = agent.parameter('slope'), agent.parameter('intercept')
         own = slope * (after[1] - before[0])
         total = cells * float(
             (after * (slope * after + intercept)).sum() - (before * (slope * before + intercept)).sum(),
         )
-        return float((1 - agent.altruism) * own + agent.altruism * total)
+        return float((1 - agent.parameter('altruism')) * own + agent.parameter('altruism') * total)
 
     def move(self, model: ModelView) -> None:
         """Run one move proposal per agent.
@@ -153,9 +153,9 @@ class BlockMovesInteraction(BaseInteraction):
             if origin == destination:
                 continue
             change = self._change(agent, counts, origin, destination)
-            if model.rng.random() < 1 / (1 + np.exp(np.clip(agent.beta * change, -50, 50))):
+            if model.rng.random() < 1 / (1 + np.exp(np.clip(agent.parameter('beta') * change, -50, 50))):
                 agent.move_to(cell)
-                agent.block = float(destination)
+                agent.set_state('block', float(destination))
                 counts[[origin, destination]] += [-1, 1]
 
 

@@ -119,7 +119,7 @@ def expand_groups(
         own = {
             other.name
             for layout in (problem.states, problem.parameters)
-            for other in layout
+            for other in layout.entries
             if other.name.rpartition('.')[0] == owner
         }
         for member in range(entry.rows):
@@ -151,7 +151,7 @@ class _Expansion:
         """Symbols of single components by their flat index, so element sets find their elements."""
         found = {}
         for is_state, layout in ((True, self.problem.states), (False, self.problem.parameters)):
-            for entry in layout:
+            for entry in layout.entries:
                 if entry.members is None and entry.name in self.problem.symbols:
                     for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
                         found[(is_state, entry.start + column)] = item
@@ -163,7 +163,7 @@ class _Expansion:
         if key not in self.symbols:
             generic = components_of(self.problem.symbols[entry.name])[column]
             self.symbols[key] = symbol(f'{generic}__{member}', domain_of(generic))
-            if entry.name in self.problem.parameters:
+            if self.problem.parameters.has(entry.name):
                 self.values[self.symbols[key]] = float(
                     self.parameter_values[entry.start + member * entry.columns + column],
                 )
@@ -173,7 +173,7 @@ class _Expansion:
         """Return the substitution of the generic symbols of groups by the symbols of one member."""
         mapping = {}
         for layout in (self.problem.states, self.problem.parameters):
-            for entry in layout:
+            for entry in layout.entries:
                 if entry.members is None or entry.name not in self.problem.symbols:
                     continue
                 if entry.name not in entry_names:

@@ -25,7 +25,7 @@ COMBINED = Registry[frozenset[type]]('combined law')
 
 def _forms() -> dict[frozenset[type], Form]:
     """Return the forms of the shared core followed by the registered forms."""
-    return {**CORE_FORMS, **{cast('frozenset[type]', key): FORMS.resolve(key) for key in FORMS}}
+    return {**CORE_FORMS, **{cast('frozenset[type]', key): FORMS.resolve(key) for key in FORMS.keys}}
 
 
 def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
@@ -37,7 +37,7 @@ def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
     """
     owned = [{kind for kind in kinds if not has_trait(kind, Trait.FORMLESS)} for kinds in owners]
     kinds: set[type] = set().union(*owned)
-    for key in COMBINED:
+    for key in COMBINED.keys:
         kind = cast('type', key)
         rest = kinds - {kind}
         if kind not in kinds or not rest:
@@ -136,4 +136,4 @@ def is_stepwise(form: Form) -> bool:
         stepwise:
             Whether the form was registered as stepwise.
     """
-    return form in set(STEPWISE)
+    return form in STEPWISE.keys

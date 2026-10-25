@@ -22,8 +22,8 @@ class SaverComponent(ElementComponent):
 
     def save(self, agent, model):
         """Test helper save."""
-        agent.seen = float(len(memory(agent, 'money')))
-        agent.money += 1
+        agent.set_state('seen', float(len(memory(agent, 'money'))))
+        agent.set_state('money', agent.state('money') + 1)
 
 
 def test_memory_window():

@@ -26,7 +26,7 @@ def _asymmetry(shares: Array) -> float:
 
 def _first_shop_probabilities(customers: list[AgentView], temperature: float) -> Array:
     """Return the probability `1 / (1 + exp(-(S_1 - S_2) / T))` that each customer visits the first shop."""
-    difference = np.array([customer.s1 - customer.s2 for customer in customers], dtype=float)
+    difference = np.array([customer.state('s1') - customer.state('s2') for customer in customers], dtype=float)
     return expit(difference / temperature)
 
 
@@ -203,9 +203,9 @@ class PerishableTradeInteraction(BaseInteraction):
         """
         temperature, alpha, tau_a = (model.parameter(name) for name in ('T', 'alpha', 'tau_a'))
         customers, products = model.agents(self.customers), model.agents(self.products)
-        satisfaction = np.array([[customer.s1, customer.s2] for customer in customers], dtype=float)
-        stock = np.array([product.shop for product in products], dtype=int)
-        shelved = np.array([product.shelved for product in products], dtype=float)
+        satisfaction = np.array([[customer.state('s1'), customer.state('s2')] for customer in customers], dtype=float)
+        stock = np.array([product.state('shop') for product in products], dtype=int)
+        shelved = np.array([product.state('shelved') for product in products], dtype=float)
         shelves = [np.flatnonzero(stock == shop) for shop in range(N_SHOPS)]
         rng, start, size = model.rng, model.time, len(customers)
         for visit in range(size):
@@ -217,14 +217,15 @@ class PerishableTradeInteraction(BaseInteraction):
             satisfaction[buyer, chosen] = alpha * satisfaction[buyer, chosen] + (1 - alpha) * freshness
             shelved[sold] = now
         for customer, (first, second) in zip(customers, satisfaction, strict=True):
-            customer.s1, customer.s2 = float(first), float(second)
+            customer.set_state('s1', float(first))
+            customer.set_state('s2', float(second))
         for product, time in zip(products, shelved, strict=True):
-            product.shelved = float(time)
+            product.set_state('shelved', float(time))
         first = float(_first_shop_probabilities(customers, temperature).mean())
         freshness = np.exp(-(start + 1 - shelved) / tau_a)
         for record, share, shelf in zip(model.agents(self.shops), (first, 1 - first), shelves, strict=True):
-            record.share = share
-            record.freshness = float(freshness[shelf].mean())
+            record.set_state('share', share)
+            record.set_state('freshness', float(freshness[shelf].mean()))
 
 
 @register_model(

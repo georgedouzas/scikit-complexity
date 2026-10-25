@@ -32,5 +32,5 @@ class SpecsPass(BasePass):
         nodes = cast('list[Node]', compilation.nodes)
         observe = Observer(declarations, lowerable_observables(compilation.system, nodes))
         compilation.specs = [
-            (spec, block) for block in blocks for spec in specs_of(block, elements, declarations.time, observe)
+            (spec, block) for block in blocks for spec in specs_of(block, elements, declarations.time, observe.evaluate)
         ]

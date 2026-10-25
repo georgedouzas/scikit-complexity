@@ -132,20 +132,26 @@ class WalkerComponent(ElementComponent):
     def _choose_goal(self, agent: AgentView, model: ModelView) -> None:
         """Pick another entry point as the new goal."""
         here = cast('tuple[int, int]', agent.location)
-        goals = [corner for corner in _corners(round(agent.width), round(agent.height)) if corner != here]
-        agent.goal_x, agent.goal_y = (float(value) for value in goals[int(model.rng.integers(len(goals)))])
+        goals = [
+            corner
+            for corner in _corners(round(agent.parameter('width')), round(agent.parameter('height')))
+            if corner != here
+        ]
+        new_goal_x, new_goal_y = (float(value) for value in goals[int(model.rng.integers(len(goals)))])
+        agent.set_state('goal_x', new_goal_x)
+        agent.set_state('goal_y', new_goal_y)
 
     def _step_weights(self, agent: AgentView, model: ModelView, cells: list[tuple[int, int]]) -> np.ndarray:
         """Return the unnormalised probabilities of stepping to each neighbouring cell."""
         x, y = cast('tuple[int, int]', agent.location)
-        goal = np.array([agent.goal_x - x, agent.goal_y - y])
+        goal = np.array([agent.state('goal_x') - x, agent.state('goal_y') - y])
         steps = np.array([(cell[0] - x, cell[1] - y) for cell in cells], dtype=float)
         lengths = np.hypot(steps[:, 0], steps[:, 1])
         rises = np.array([model.field(TRAIL, cell) for cell in cells]) - model.field(TRAIL, (x, y))
         slope = 2 * (steps / lengths[:, None] ** 2).T @ rises / len(cells)
-        heading = goal / max(float(np.hypot(*goal)), 1e-12) + agent.attraction * slope
+        heading = goal / max(float(np.hypot(*goal)), 1e-12) + agent.parameter('attraction') * slope
         alignment = steps @ heading / (lengths * max(float(np.hypot(*heading)), 1e-12))
-        return np.exp(agent.directedness * (alignment - alignment.max()))
+        return np.exp(agent.parameter('directedness') * (alignment - alignment.max()))
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the walking rule.
@@ -170,14 +176,18 @@ class WalkerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.location == (round(agent.goal_x), round(agent.goal_y)):
+        if agent.location == (round(agent.state('goal_x')), round(agent.state('goal_y'))):
             self._choose_goal(agent, model)
             return
         cells = cast('list[tuple[int, int]]', list(agent.neighbor_cells()))
         weights = self._step_weights(agent, model, cells)
         cell = cells[model.rng.choice(len(cells), p=weights / weights.sum())]
         agent.move_to(cell)
-        model.deposit(GROUND, cell, agent.intensity * (1 - model.field(GROUND, cell) / agent.G_max))
+        model.deposit(
+            GROUND,
+            cell,
+            agent.parameter('intensity') * (1 - model.field(GROUND, cell) / agent.parameter('G_max')),
+        )
 
 
 @register_model(

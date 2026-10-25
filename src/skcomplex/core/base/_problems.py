@@ -5,7 +5,7 @@
 
 import functools
 import math
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -188,17 +188,18 @@ class Layout:
         self.entries = tuple(entries)
         self._by_name = {entry.name: entry for entry in self.entries}
 
-    def __contains__(self, name: object) -> bool:
-        """Check whether a variable name is part of the layout."""
+    def has(self, name: str) -> bool:
+        """Check whether a variable name is part of the layout.
+
+        Args:
+            name:
+                The dotted name of a variable.
+
+        Returns:
+            found:
+                Whether the layout has a variable of that name.
+        """
         return name in self._by_name
-
-    def __iter__(self) -> Iterator[Entry]:
-        """Iterate over the entries in vector order."""
-        return iter(self.entries)
-
-    def __len__(self) -> int:
-        """Return the number of variables."""
-        return len(self.entries)
 
     @property
     def size(self) -> int:

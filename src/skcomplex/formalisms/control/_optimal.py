@@ -57,7 +57,7 @@ def _check_supported(problem: Problem) -> None:
 def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Vector:
     """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
     lower = np.full(problem.states.size, -np.inf)
-    for entry in problem.states:
+    for entry in problem.states.entries:
         if entry.domain in NONNEGATIVE_DOMAINS:
             lower[entry.indices] = 0.0
     return lower[list(indices)]
@@ -174,7 +174,7 @@ class _ControlProblem:
         rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
-        names = [name for entry in problem.states for name in entry.component_names]
+        names = [name for entry in problem.states.entries for name in entry.component_names]
         objective = problem.objectives[0]
         sign = 1.0 if objective.sense == 'min' else -1.0
         control_problem = cls(

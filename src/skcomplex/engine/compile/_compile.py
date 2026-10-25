@@ -32,7 +32,7 @@ def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]
     partitions = []
     for name, owners in plan:
         problem = _compiled(compilation.fork(owners))
-        owned = [entry.indices for entry in problem.states if entry.name.rpartition('.')[0] in owners]
+        owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
         indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
         partitions.append(Partition(name, problem, indices.astype(np.intp), owners))
     first = partitions[0].problem

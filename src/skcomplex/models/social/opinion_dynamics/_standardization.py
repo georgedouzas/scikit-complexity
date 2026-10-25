@@ -143,7 +143,7 @@ class StandardizationInteraction(BaseInteraction):
         K, J, T = (model.parameter(name) for name in ('K', 'J', 'T'))
         agents = model.agents(self.agents)
         size = len(agents)
-        configurations = np.array([agent.configuration for agent in agents], dtype=float)
+        configurations = np.array([agent.state('configuration') for agent in agents], dtype=float)
         spins = _spins_of(configurations)
         marked, magnetization = float(np.abs(spins).sum()), float(spins.sum())
         rng = model.rng
@@ -159,7 +159,8 @@ class StandardizationInteraction(BaseInteraction):
             marked += abs(new) - abs(old)
             magnetization += new - old
         for agent, configuration, spin in zip(agents, configurations, spins, strict=True):
-            agent.configuration, agent.spin = float(configuration), float(spin)
+            agent.set_state('configuration', float(configuration))
+            agent.set_state('spin', float(spin))
 
 
 @register_model(

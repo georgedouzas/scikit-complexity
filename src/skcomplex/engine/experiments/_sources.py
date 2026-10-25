@@ -122,8 +122,8 @@ def with_values[P: BaseProblem](problem: P, paths: Mapping[str, Any]) -> P:
     """
     states, parameters = problem.initial_state.copy(), problem.initial_parameters.copy()
     for name, value in paths.items():
-        layout, vector = (problem.states, states) if name in problem.states else (problem.parameters, parameters)
-        if name not in layout:
+        layout, vector = (problem.states, states) if problem.states.has(name) else (problem.parameters, parameters)
+        if not layout.has(name):
             names = ', '.join([*problem.states.names, *problem.parameters.names])
             error_msg = f'{name} is neither a state nor a parameter of the model. Available paths are: {names}.'
             raise ValidationError(error_msg)

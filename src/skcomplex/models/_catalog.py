@@ -138,9 +138,9 @@ def _imported(name: str) -> str:
     if listing is not None:
         importlib.import_module(listing.module)
         return name
-    if name in MODELS:
+    if name in MODELS.keys:
         return name
-    known = sorted({*_listings(), *MODELS})
+    known = sorted({*_listings(), *map(str, MODELS.keys)})
     close = difflib.get_close_matches(name, known, n=3)
     hint = f' Did you mean {", ".join(close)}?' if close else ' List the models with `catalog()`.'
     error_msg = f'No model is registered as {name!r}.{hint}'
@@ -215,7 +215,7 @@ def catalog(field: str | None = None, tag: str | None = None) -> list['ModelList
         ['chemistry/kinetics', 'chemistry/pattern_formation']
     """
     listings = dict(_listings())
-    for name in MODELS:
+    for name in MODELS.keys:
         listings.setdefault(str(name), _registered_listing(MODELS.resolve(name)))
     return sorted(
         (

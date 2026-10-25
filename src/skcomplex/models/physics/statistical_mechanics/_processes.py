@@ -307,10 +307,10 @@ class WalkerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.stuck:
+        if agent.state('stuck'):
             return
-        if any(other.stuck for other in agent.neighbors()):
-            agent.stuck = 1.0
+        if any(other.state('stuck') for other in agent.neighbors()):
+            agent.set_state('stuck', 1.0)
             return
         cells = agent.neighbor_cells()
         agent.move_to(cells[int(model.rng.integers(len(cells)))])

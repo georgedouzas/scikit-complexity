@@ -48,7 +48,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
             The state the solver keeps outside the state vector, such as agents, after the last run, or `None`.
 
         agents_:
-            The agents alive after the last run, by path of their agent group.
+            The views of the agents alive after the last run, as rules receive them, by path of their agent group.
     """
 
     supports: ClassVar[Supports]

@@ -133,7 +133,7 @@ def solver_classes() -> dict[Any, list[str]]:
     """
     classes: dict[Any, list[str]] = {}
     solvers = solver_registry()
-    for key in solvers:
+    for key in solvers.keys:
         _, name = cast('tuple[Form, str]', key)
         if name != 'auto':
             classes.setdefault(solvers.resolve(key), []).append(name)

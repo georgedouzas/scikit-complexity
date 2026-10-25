@@ -355,7 +355,7 @@ class Simulation(BaseEstimator):
 
     def _check_domains(self) -> None:
         """Raise an error when a state has left its domain."""
-        for entry in self.problem_.states:
+        for entry in self.problem_.states.entries:
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
             if not entry.domain.contains(values):
                 error_msg = (

@@ -113,9 +113,11 @@ class CournotAdjustmentInteraction(BaseInteraction):
         """
         a, b, error = (model.parameter(name) for name in ('a', 'b', 'error'))
         first, second = model.agents('firms')
-        beliefs = np.array([second.output, first.output]) * (1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS))
+        beliefs = np.array([second.state('output'), first.state('output')]) * (
+            1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS)
+        )
         for firm, belief in zip((first, second), beliefs, strict=True):
-            firm.output = max((a - firm.cost) / (2 * b) - float(belief) / 2, 0.0)
+            firm.set_state('output', max((a - firm.state('cost')) / (2 * b) - float(belief) / 2, 0.0))
 
 
 @register_model(

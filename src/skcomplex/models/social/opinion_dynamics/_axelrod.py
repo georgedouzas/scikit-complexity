@@ -138,13 +138,16 @@ class VillageComponent(ElementComponent):
         if not neighbors:
             return
         neighbor = neighbors[int(model.rng.integers(len(neighbors)))]
-        features, traits = int(agent.features), int(agent.traits)
-        own = cultural_traits(agent.culture, features, traits)
-        other = cultural_traits(neighbor.culture, features, traits)
+        features, traits = int(agent.parameter('features')), int(agent.parameter('traits'))
+        own = cultural_traits(agent.state('culture'), features, traits)
+        other = cultural_traits(neighbor.state('culture'), features, traits)
         different = np.flatnonzero(own != other)
         if len(different) and model.rng.random() < 1 - len(different) / features:
             feature = int(different[int(model.rng.integers(len(different)))])
-            agent.culture += float((int(other[feature]) - int(own[feature])) * traits**feature)
+            agent.set_state(
+                'culture',
+                agent.state('culture') + float((int(other[feature]) - int(own[feature])) * traits**feature),
+            )
 
 
 class CultureCensusInteraction(BaseInteraction):
@@ -213,7 +216,7 @@ class CultureCensusInteraction(BaseInteraction):
                 The model view of the census.
         """
         agents = model.agents('villages')
-        cultures = [agent.culture for agent in agents]
+        cultures = [agent.state('culture') for agent in agents]
         locations = np.array([agent.location for agent in agents], dtype=np.int64)
         model.report('largest_region', largest_region(locations, cultures, self.width, self.height))
         model.report('cultures', len(set(cultures)))

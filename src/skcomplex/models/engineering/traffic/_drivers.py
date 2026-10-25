@@ -26,8 +26,8 @@ def _position(agent: AgentView) -> tuple[float, float]:
 
 def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | None:
     """Return the car whose rank follows the agent's rank on a road of `n_cars` cars, or `None` for the last car."""
-    rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
-    return next((car for car in model.agents(agent.group) if int(car.rank) == rank and car != agent), None)
+    rank = (int(agent.state('rank')) + 1) % n_cars if n_cars else 0
+    return next((car for car in model.agents(agent.group) if int(car.state('rank')) == rank and car != agent), None)
 
 
 class MotoristComponent(ElementComponent):
@@ -99,14 +99,18 @@ class MotoristComponent(ElementComponent):
                 The model.
         """
         cars = model.agents(agent.group)
-        ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
+        ahead = next((car for car in cars if int(car.state('rank')) == int(agent.state('rank')) + 1), None)
         if ahead is None:
-            behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
-            distance = agent.x - behind.x if behind is not None else np.inf
+            behind = next((car for car in cars if int(car.state('rank')) == int(agent.state('rank')) - 1), None)
+            distance = agent.state('x') - behind.state('x') if behind is not None else np.inf
         else:
-            distance = ahead.x - agent.x
-        change = -agent.braking if distance < agent.safe_distance else agent.acceleration
-        agent.v = float(np.clip(agent.v + change, 0.0, agent.speed_limit))
+            distance = ahead.state('x') - agent.state('x')
+        change = (
+            -agent.parameter('braking')
+            if distance < agent.parameter('safe_distance')
+            else agent.parameter('acceleration')
+        )
+        agent.set_state('v', float(np.clip(agent.state('v') + change, 0.0, agent.parameter('speed_limit'))))
 
 
 class CarelessBrakingInteraction(BaseInteraction):
@@ -158,17 +162,17 @@ class CarelessBrakingInteraction(BaseInteraction):
             model:
                 The model.
         """
-        cars = sorted(model.agents('cars'), key=lambda car: car.rank)
+        cars = sorted(model.agents('cars'), key=lambda car: car.state('rank'))
         if not cars:
             return
         if model.rng.random() < model.parameter('probability'):
             careless = cars[int(model.rng.integers(len(cars)))]
-            careless.v = max(careless.v - careless.braking, 0.0)
+            careless.set_state('v', max(careless.state('v') - careless.parameter('braking'), 0.0))
         gap = model.parameter('gap')
-        positions = [car.x for car in cars]
+        positions = [car.state('x') for car in cars]
         for index, car in enumerate(cars):
-            moved = car.x + car.v
-            car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
+            moved = car.state('x') + car.state('v')
+            car.set_state('x', min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved)
 
 
 class DriverComponent(ElementComponent):
@@ -246,11 +250,14 @@ class DriverComponent(ElementComponent):
         ahead = _car_ahead(agent, model, len(cars))
         x, y = _position(agent)
         distance = (_position(ahead)[0] - x) % length if ahead is not None else length
-        acceleration = min(max(agent.acceleration, agent.min_acc), agent.max_acc)
-        speed = (agent.speed + acceleration) * model.rng.uniform(1 - agent.eps, 1 + agent.eps)
-        speed = min(max(speed, 0.0), agent.speed_limit)
-        agent.speed = 0.0 if speed > distance else speed
-        agent.move_to(((x + agent.speed) % length, y))
+        acceleration = min(max(agent.parameter('acceleration'), agent.parameter('min_acc')), agent.parameter('max_acc'))
+        speed = (agent.state('speed') + acceleration) * model.rng.uniform(
+            1 - agent.parameter('eps'),
+            1 + agent.parameter('eps'),
+        )
+        speed = min(max(speed, 0.0), agent.parameter('speed_limit'))
+        agent.set_state('speed', 0.0 if speed > distance else speed)
+        agent.move_to(((x + agent.state('speed')) % length, y))
 
 
 @register_model(

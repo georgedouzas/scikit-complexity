@@ -94,14 +94,16 @@ class InvestingFirmComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.K = agent.K + agent.gamma * agent.Z
-        agent.Y = agent.phi * agent.K
-        agent.B = max(agent.K - agent.A, 0.0)
-        agent.P = agent.pbar + 2.0 * float(model.rng.random())
-        agent.Z = agent.P * agent.Y - agent.r * agent.K
-        agent.A = agent.A + agent.Z
-        if agent.A < 0:
-            agent.Z, agent.K, agent.A = 0.0, 1.0, 1.0
+        agent.set_state('K', agent.state('K') + agent.parameter('gamma') * agent.state('Z'))
+        agent.set_state('Y', agent.parameter('phi') * agent.state('K'))
+        agent.set_state('B', max(agent.state('K') - agent.state('A'), 0.0))
+        agent.set_state('P', agent.parameter('pbar') + 2.0 * float(model.rng.random()))
+        agent.set_state('Z', agent.state('P') * agent.state('Y') - agent.parameter('r') * agent.state('K'))
+        agent.set_state('A', agent.state('A') + agent.state('Z'))
+        if agent.state('A') < 0:
+            agent.set_state('Z', 0.0)
+            agent.set_state('K', 1.0)
+            agent.set_state('A', 1.0)
 
 
 @register_model(

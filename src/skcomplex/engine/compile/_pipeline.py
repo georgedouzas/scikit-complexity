@@ -88,7 +88,7 @@ def _needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
 
 def _registered_passes(passes: Iterable['BasePass'] = ()) -> list['BasePass']:
     """Return passes followed by the registered passes, in registration order."""
-    return [*passes, *(PASSES.resolve(key) for key in PASSES)]
+    return [*passes, *(PASSES.resolve(key) for key in PASSES.keys)]
 
 
 def order_passes(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
@@ -187,7 +187,7 @@ def register_pass(item: 'BasePass') -> None:
         item:
             The pass.
     """
-    if item not in set(PASSES):
+    if item not in PASSES.keys:
         PASSES.register(item, item)
 
 
@@ -208,7 +208,7 @@ def registered_checks() -> list[Check]:
         checks:
             The checks.
     """
-    return [CHECKS.resolve(key) for key in CHECKS]
+    return [CHECKS.resolve(key) for key in CHECKS.keys]
 
 
 class BasePass(BaseEstimator):

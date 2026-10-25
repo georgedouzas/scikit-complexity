@@ -557,7 +557,7 @@ def _noise_runners(solver: object, backend: object) -> list[tuple[str, Any]]:
         runners += [('solver', cls) for cls, names in solver_classes().items() if solver in names][:1]
     else:
         runners.append(('solver', type(solver)))
-    if isinstance(backend, str) and backend in set(BACKENDS):
+    if isinstance(backend, str) and backend in BACKENDS.keys:
         runners.append(('backend', BACKENDS.resolve(backend)))
     elif not isinstance(backend, str):
         runners.append(('backend', type(backend)))
@@ -572,7 +572,7 @@ def _noise_fix(term: NoiseKind) -> str:
         if LawKind.NOISE in cls.supports.laws and term in cls.supports.noise
         for name in names
     )
-    backends = sorted(str(key) for key in BACKENDS if term in BACKENDS.resolve(key).supports.noise)
+    backends = sorted(str(key) for key in BACKENDS.keys if term in BACKENDS.resolve(key).supports.noise)
     return f'Use one of the solvers {", ".join(solvers)}, with one of the backends {", ".join(backends)}.'
 
 
@@ -681,9 +681,9 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     if solver != 'auto':
         issues += _solver_issues(solver, records, system)
     issues += _noise_issues(compilation, records)
-    if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
+    if isinstance(backend, str) and backend != 'auto' and backend not in BACKENDS.keys:
         message = f'No backend is registered under {backend!r}.'
-        fix = f'Choose one of {names_of(BACKENDS)}.'
+        fix = f'Choose one of {names_of(BACKENDS.keys)}.'
         issues.append(Issue('backend-unknown', system.label, message, fix, error=BackendError))
     return issues
 
@@ -718,12 +718,12 @@ def missing_declarations() -> list[str]:
         if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
     )
     solvers = solver_registry()
-    for key in solvers:
+    for key in solvers.keys:
         solver = solvers.resolve(key)
         if not isinstance(getattr(solver, 'supports', None), Supports):
             _, name = cast('tuple[Form, str]', key)
             missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
-    for key in BACKENDS:
+    for key in BACKENDS.keys:
         backend = BACKENDS.resolve(key)
         if not isinstance(getattr(backend, 'supports', None), Supports):
             missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')

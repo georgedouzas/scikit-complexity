@@ -79,11 +79,11 @@ class EmployerComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.demand = 0.0
-        if model.rng.random() < agent.vacancy_rate:
-            agent.demand = 1.0
-            agent.bid = model.rng.uniform(agent.low_wage, agent.high_wage)
-            agent.posted = model.time
+        agent.set_state('demand', 0.0)
+        if model.rng.random() < agent.parameter('vacancy_rate'):
+            agent.set_state('demand', 1.0)
+            agent.set_state('bid', model.rng.uniform(agent.parameter('low_wage'), agent.parameter('high_wage')))
+            agent.set_state('posted', model.time)
 
 
 class JobseekerComponent(ElementComponent):
@@ -166,14 +166,19 @@ class JobseekerComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.employer >= 0:
-            agent.supply = 0.0
-            if model.rng.random() < agent.separation:
-                agent.employer, agent.wage, agent.duration = -1.0, 0.0, 0.0
+        if agent.state('employer') >= 0:
+            agent.set_state('supply', 0.0)
+            if model.rng.random() < agent.parameter('separation'):
+                agent.set_state('employer', -1.0)
+                agent.set_state('wage', 0.0)
+                agent.set_state('duration', 0.0)
             return
-        agent.supply = 1.0
-        agent.ask = agent.reservation * (1 - agent.decline) ** agent.duration
-        agent.duration += 1
+        agent.set_state('supply', 1.0)
+        agent.set_state(
+            'ask',
+            agent.parameter('reservation') * (1 - agent.parameter('decline')) ** agent.state('duration'),
+        )
+        agent.set_state('duration', agent.state('duration') + 1)
 
 
 def hire(trade: Trade, model: Any) -> None:  # noqa: ANN401
@@ -187,8 +192,12 @@ def hire(trade: Trade, model: Any) -> None:  # noqa: ANN401
             The model view of the market.
     """
     worker, firm = trade.seller, trade.buyer
-    worker.employer, worker.wage, worker.duration = float(firm.id), trade.price, 0.0
-    worker.hired, worker.offer = model.time, firm.posted
+    worker.set_state('employer', float(firm.id))
+    worker.set_state('wage', trade.price)
+    worker.set_state('duration', 0.0)
+    new_hired, new_offer = model.time, firm.state('posted')
+    worker.set_state('hired', new_hired)
+    worker.set_state('offer', new_offer)
 
 
 class SearchCountInteraction(InstitutionInteraction):
@@ -223,12 +232,12 @@ class SearchCountInteraction(InstitutionInteraction):
             model:
                 The model view of the office.
         """
-        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers')))
+        model.report('searching', sum(worker.state('supply') > 0 for worker in model.agents('workers')))
 
 
 def _unemployed(agent: AgentView) -> float:
     """Return one for an unemployed worker and zero for an employed one."""
-    return float(agent.employer < 0)
+    return float(agent.state('employer') < 0)
 
 
 @register_model(

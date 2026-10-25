@@ -138,10 +138,11 @@ class ConversationsInteraction(BaseInteraction):
                 continue
             hearer = neighbors[int(model.rng.integers(len(neighbors)))]
             topic = TOPICS[int(model.rng.integers(len(TOPICS)))]
-            valences = np.array(hearer.valences, dtype=float)
-            valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=float)[topic]) / 2
-            settled = settle(valences, hearer.decay)
-            hearer.valences, hearer.attitude = settled, float(settled[1])
+            valences = np.array(hearer.state('valences'), dtype=float)
+            valences[topic] = (valences[topic] + np.asarray(speaker.state('valences'), dtype=float)[topic]) / 2
+            settled = settle(valences, hearer.parameter('decay'))
+            hearer.set_state('valences', settled)
+            hearer.set_state('attitude', float(settled[1]))
 
 
 @register_model(

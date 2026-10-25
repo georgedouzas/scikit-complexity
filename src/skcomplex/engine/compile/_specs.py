@@ -602,7 +602,7 @@ def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe
     over = type(block.node.component).over
     if over == 'neighbors':
         return [_edge_spec(block, elements, time)]
-    if over in set(BINDINGS):
+    if over in BINDINGS.keys:
         return [BINDINGS.resolve(over)(block, elements, time)]
     return _interaction_specs(block, elements, time, observe)
 

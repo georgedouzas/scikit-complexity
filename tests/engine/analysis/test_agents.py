@@ -46,7 +46,7 @@ class GridWalkerComponent(ElementComponent):
         """Move to a random neighbouring cell."""
         cells = agent.neighbor_cells()
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
-        agent.steps += 1
+        agent.set_state('steps', agent.state('steps') + 1)
 
 
 class DiffuserComponent(ElementComponent):
@@ -63,7 +63,7 @@ class DiffuserComponent(ElementComponent):
         """Take a Gaussian step and wrap into the square."""
         position = np.asarray(agent.location, dtype=float) + model.rng.standard_normal(2)
         agent.move_to(tuple(np.mod(position, 20.0)))
-        agent.steps += 1
+        agent.set_state('steps', agent.state('steps') + 1)
 
 
 def _vicsek(rng: np.random.Generator, agents: int, noise: float, steps: int) -> np.ndarray:

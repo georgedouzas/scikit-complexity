@@ -26,6 +26,14 @@ def test_registry_loader_registers_an_unknown_key():
         registry.resolve('three')
 
 
+def test_registry_keys_keep_registration_order():
+    """Test that the keys of a registry list every registered key in registration order."""
+    registry = Registry[int]('number')
+    registry.register('two', 2)
+    registry.register('one', 1)
+    assert registry.keys == ['two', 'one']
+
+
 def test_wrap_angle_maps_into_half_open_turn():
     """Test that wrap_angle maps any real value into (-π, π]."""
     values = wrap_angle(np.array([0.1, -0.1, 7.0, -7.0, np.pi, -np.pi]))

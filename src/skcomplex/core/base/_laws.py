@@ -76,7 +76,7 @@ def law_classes(trait: Trait | None = None) -> tuple[type['BaseLaw'], ...]:
         >>> FluxLaw in law_classes(Trait.FORMLESS)
         True
     """
-    classes = [LAWS.resolve(key) for key in LAWS]
+    classes = [LAWS.resolve(key) for key in LAWS.keys]
     return tuple(cls for cls in classes if trait is None or trait in cls.traits)
 
 
@@ -100,7 +100,7 @@ def is_registered(law: object) -> bool:
     """
     cls = law if isinstance(law, type) else type(law)
     name = _qualified_name(cls)
-    return name in LAWS and LAWS.resolve(name) is cls
+    return name in LAWS.keys and LAWS.resolve(name) is cls
 
 
 def has_trait(law: object, trait: Trait) -> bool:

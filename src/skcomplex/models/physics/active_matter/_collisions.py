@@ -23,12 +23,12 @@ type Array = npt.NDArray[np.float64]
 
 def _cosine(agent: AgentView) -> float:
     """Return the first component of an agent's heading."""
-    return math.cos(agent.theta)
+    return math.cos(agent.state('theta'))
 
 
 def _sine(agent: AgentView) -> float:
     """Return the second component of an agent's heading."""
-    return math.sin(agent.theta)
+    return math.sin(agent.state('theta'))
 
 
 def _polarization(s: Symbols) -> Expression:
@@ -133,7 +133,7 @@ class BinaryCollisionsInteraction(BaseInteraction):
         agents = model.agents(self.target)
         size = np.asarray(model.dimensions, dtype=float)
         positions = np.array([agent.location for agent in agents], dtype=float)
-        headings = np.array([agent.theta for agent in agents], dtype=float)
+        headings = np.array([agent.state('theta') for agent in agents], dtype=float)
         speed, lam, sigma, d0 = (model.parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
         substeps = max(1, round(model.parameter('substeps')))
         tau, rng = 1.0 / substeps, model.rng
@@ -147,7 +147,7 @@ class BinaryCollisionsInteraction(BaseInteraction):
             touching = now
         for agent, position, heading in zip(agents, positions, np.mod(headings, 2 * math.pi), strict=True):
             agent.move_to(position)
-            agent.theta = float(heading)
+            agent.set_state('theta', float(heading))
 
 
 def _flocking_observables(system: System) -> list[Observable]:

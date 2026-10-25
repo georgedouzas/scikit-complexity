@@ -53,7 +53,7 @@ def _exact(value: float) -> Expression:
 def _components(problem: Problem) -> dict[str, tuple[str, int, int]]:
     """Return every equation name with its entry name, column, and flat index."""
     found = {}
-    for entry in problem.states:
+    for entry in problem.states.entries:
         for column, name in enumerate(entry.generic_names):
             found[name] = (entry.name, column, entry.start + column)
     return found
@@ -171,7 +171,7 @@ def _is_closed(expression: Expression, functions: list[Expression], time: Expres
 def _parameter_values(problem: Problem) -> dict[Expression, float]:
     """Return the current value of every parameter component of single elements and interactions by symbol."""
     values = {}
-    for entry in problem.parameters:
+    for entry in problem.parameters.entries:
         if entry.members is not None or entry.name not in problem.symbols:
             continue
         for column, item in enumerate(components_of(problem.symbols[entry.name])):

@@ -17,7 +17,7 @@ from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
-from ..realizations._exchange import NeighborPairing, cobb_douglas, trade_goods
+from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -27,12 +27,12 @@ WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 
 def _total(good: str, model: Any) -> float:  # noqa: ANN401
     """Return the total holding of a good over the traders bound to an exchange."""
-    return float(sum(getattr(agent, good) for agent in model.agents('traders')))
+    return float(sum(agent.state(good) for agent in model.agents('traders')))
 
 
 def _utility(agent: Any) -> float:  # noqa: ANN401
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
-    return cobb_douglas(agent, GOODS, WEIGHTS)
+    return cobb_douglas([agent.state(good) for good in GOODS], [agent.state(weight) for weight in WEIGHTS])
 
 
 def _goods_observables(system: System) -> list[Observable]:
@@ -134,7 +134,7 @@ class ExchangeInteraction(BaseInteraction):
             The names of the traded goods.
 
         pairing:
-            The pairing of the matching law, such as `NeighborPairing()`, or `None` for random pairs.
+            The pairing of the matching law, such as `neighbor_pairing`, or `None` for random pairs.
 
         quantity:
             The quantity of the bought good in every trade.
@@ -297,7 +297,7 @@ def goods_traders(
                 'exchange',
                 traders='traders',
                 goods=GOODS[:goods],
-                pairing=NeighborPairing(),
+                pairing=neighbor_pairing,
                 quantity=quantity,
             ),
         ],

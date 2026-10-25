@@ -123,9 +123,9 @@ def test_solver_support_names_missing_terms():
 
 def test_every_solver_and_backend_declares_orders():
     """Test that every registered solver and backend declares its orders, and the fractional solvers declare both."""
-    for key in SOLVERS:
+    for key in SOLVERS.keys:
         assert SOLVERS.resolve(key).supports.orders, key
-    for key in BACKENDS:
+    for key in BACKENDS.keys:
         assert BACKENDS.resolve(key).supports.orders == set(OrderKind), key
     for name in ('grunwald-letnikov', 'l1', 'fractional-abm', 'auto'):
         assert SOLVERS.resolve((Form.FRACTIONAL, name)).supports.orders == set(OrderKind)

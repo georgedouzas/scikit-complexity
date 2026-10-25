@@ -100,7 +100,7 @@ def _lsoda_first_step(
 def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Return the flat indices of the position components and of their velocities, in matching order."""
     indices: dict[Expression, npt.NDArray[np.int64]] = {}
-    for entry in problem.states:
+    for entry in problem.states.entries:
         for column, item in enumerate(components_of(problem.symbols[entry.name])):
             indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
     positions, velocities = [], []
@@ -112,7 +112,9 @@ def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArra
     velocity_indices = np.concatenate([np.zeros(0, dtype=np.int64), *velocities]).astype(np.int64)
     covered = set(position_indices.tolist()) | set(velocity_indices.tolist())
     missing = [
-        entry.name for entry in problem.states if not set(range(entry.start, entry.start + entry.size)) <= covered
+        entry.name
+        for entry in problem.states.entries
+        if not set(range(entry.start, entry.start + entry.size)) <= covered
     ]
     if missing:
         error_msg = (
@@ -347,7 +349,7 @@ class ScipyODESolver(Solver):
         dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
-            matrix = jacobian(time, state, with_delays(problem, history, time, state, p))
+            matrix = jacobian.evaluate(time, state, with_delays(problem, history, time, state, p))
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}

@@ -22,16 +22,16 @@ def _wander(agent: AgentView, model: ModelView) -> None:
     """Move an animal to a random neighbouring cell and spend one unit of energy."""
     cells = agent.neighbor_cells()
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
-    agent.energy -= 1
+    agent.set_state('energy', agent.state('energy') - 1)
 
 
 def _live(agent: AgentView, model: ModelView, reproduction: float) -> None:
     """Remove an animal without energy, or split its energy with an offspring at a reproduction rate."""
-    if agent.energy < 0:
+    if agent.state('energy') < 0:
         agent.remove()
     elif model.rng.random() < reproduction:
-        agent.energy /= 2
-        agent.create(energy=agent.energy)
+        agent.set_state('energy', agent.state('energy') / 2)
+        agent.create(energy=agent.state('energy'))
 
 
 class GrassComponent(ElementComponent):
@@ -85,12 +85,12 @@ class GrassComponent(ElementComponent):
                 The model.
         """
         del model
-        if agent.grown:
+        if agent.state('grown'):
             return
-        agent.countdown -= 1
-        if agent.countdown <= 0:
-            agent.grown = 1.0
-            agent.countdown = agent.regrowth
+        agent.set_state('countdown', agent.state('countdown') - 1)
+        if agent.state('countdown') <= 0:
+            agent.set_state('grown', 1.0)
+            agent.set_state('countdown', agent.parameter('regrowth'))
 
 
 class SheepComponent(ElementComponent):
@@ -145,11 +145,11 @@ class SheepComponent(ElementComponent):
         """
         _wander(agent, model)
         for patch in agent.agents_here('grass'):
-            if patch.grown:
-                patch.grown = 0.0
-                patch.countdown = patch.regrowth
-                agent.energy += agent.gain
-        _live(agent, model, agent.reproduction)
+            if patch.state('grown'):
+                patch.set_state('grown', 0.0)
+                patch.set_state('countdown', patch.parameter('regrowth'))
+                agent.set_state('energy', agent.state('energy') + agent.parameter('gain'))
+        _live(agent, model, agent.parameter('reproduction'))
 
 
 class WolfComponent(ElementComponent):
@@ -206,8 +206,8 @@ class WolfComponent(ElementComponent):
         prey = agent.agents_here('sheep')
         if prey:
             prey[int(model.rng.integers(len(prey)))].remove()
-            agent.energy += agent.gain
-        _live(agent, model, agent.reproduction)
+            agent.set_state('energy', agent.state('energy') + agent.parameter('gain'))
+        _live(agent, model, agent.parameter('reproduction'))
 
 
 @register_model(

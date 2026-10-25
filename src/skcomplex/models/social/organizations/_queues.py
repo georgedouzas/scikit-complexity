@@ -93,14 +93,17 @@ class ExecutionInteraction(BaseInteraction):
         tasks = model.agents(self.target)
         if not tasks:
             return
-        priorities = [task.priority for task in tasks]
-        greedy = model.rng.random() < tasks[0].greed
+        priorities = [task.state('priority') for task in tasks]
+        greedy = model.rng.random() < tasks[0].parameter('greed')
         chosen = int(np.argmax(priorities)) if greedy else int(model.rng.integers(len(tasks)))
         for index, task in enumerate(tasks):
-            task.age += 1
+            task.set_state('age', task.state('age') + 1)
             if index == chosen:
-                task.wait, task.age, task.priority = task.age, 0.0, float(model.rng.random())
-                model.report('wait', task.wait)
+                new_wait, new_age, new_priority = task.state('age'), 0.0, float(model.rng.random())
+                task.set_state('wait', new_wait)
+                task.set_state('age', new_age)
+                task.set_state('priority', new_priority)
+                model.report('wait', task.state('wait'))
 
 
 @register_model(

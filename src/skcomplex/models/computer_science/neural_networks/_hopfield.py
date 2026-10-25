@@ -75,10 +75,10 @@ class NeuronComponent(ElementComponent):
             model:
                 The model.
         """
-        weights = np.asarray(agent.weights)
-        field = sum(weights[cast('int', other.location)] * other.spin for other in agent.neighbors())
+        weights = np.asarray(agent.state('weights'))
+        field = sum(weights[cast('int', other.location)] * other.state('spin') for other in agent.neighbors())
         if field != 0:
-            agent.spin = float(np.sign(field))
+            agent.set_state('spin', float(np.sign(field)))
 
 
 @register_model(

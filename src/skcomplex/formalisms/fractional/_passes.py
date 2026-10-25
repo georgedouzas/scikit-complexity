@@ -142,7 +142,7 @@ def _backend_class(backend: object) -> Any:  # noqa: ANN401
     """Return the class of a backend given by a registered name or an instance, or `None` for `'auto'` or a typo."""
     if not isinstance(backend, str):
         return type(backend)
-    return BACKENDS.resolve(backend) if backend in set(BACKENDS) else None
+    return BACKENDS.resolve(backend) if backend in BACKENDS.keys else None
 
 
 def _support_issues(states: list[FractionalState], solver: object, backend: object) -> list[Issue]:
@@ -157,7 +157,7 @@ def _support_issues(states: list[FractionalState], solver: object, backend: obje
             issues.append(Issue('order-unsupported', item.path, message, fix, error=SolverError))
         if engine is not None and OrderKind.FRACTIONAL not in engine.supports.orders:
             capable = sorted(
-                str(key) for key in BACKENDS if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
+                str(key) for key in BACKENDS.keys if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
             )
             message = f'The backend {engine.__name__} does not run {item.name}, a state of order {item.order}.'
             fix = f'Use one of the backends {", ".join(capable)}.'

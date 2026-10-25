@@ -24,7 +24,7 @@ def _initial_values(problem: Problem) -> dict[str, float]:
     """Return the initial value of every state component by name."""
     return {
         name: float(problem.initial_state[entry.start + column])
-        for entry in problem.states
+        for entry in problem.states.entries
         for column, name in enumerate(entry.component_names)
     }
 

@@ -955,7 +955,7 @@ from skcomplex.core.laws import Invariant, transfer
 
 
 def net_worth(agent):
-    return agent.cash + agent.claims - agent.equity
+    return agent.state('cash') + agent.state('claims') - agent.state('equity')
 
 
 class TraderComponent(ElementComponent):
@@ -1640,7 +1640,7 @@ from skcomplex.core.system import System
 UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
 units = System(components=[UnitComponent.group('units', 50, x=np.linspace(-1, 1, 50))])
 problem = compile_system(units)
-jacobian = problem.jacobian(0.0, problem.initial_state, problem.initial_parameters)
+jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
@@ -2672,12 +2672,12 @@ class ForagerComponent(ElementComponent):
     def forage(self, agent, model):
         cells = agent.neighbor_cells()
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
-        agent.food += model.rng.poisson(0.8) - agent.hunger
-        if agent.food <= 0:
+        agent.set_state('food', agent.state('food') + model.rng.poisson(0.8) - agent.parameter('hunger'))
+        if agent.state('food') <= 0:
             agent.remove()
-        elif agent.food > 10:
-            agent.food /= 2
-            agent.create(food=agent.food)
+        elif agent.state('food') > 10:
+            agent.set_state('food', agent.state('food') / 2)
+            agent.create(food=agent.state('food'))
 
 
 foragers = System(
@@ -2685,11 +2685,11 @@ foragers = System(
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
-print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers', 20)))
+print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers', 20).ids))
 ```
 
-- An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
-  parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
+- An agent reads a state with `agent.state('name')`, sets it with `agent.set_state('name', value)`, and reads a
+  parameter of its group with `agent.parameter('name')`, which changes live like any parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
   population. Only the members of a group declared `variable=True` are created and removed during a run.
 - `ElementComponent.group(label, size, location=...)` places the agents at cell coordinates, network nodes, or positions, one
   per agent or one shared, and agents without a location take random places.
@@ -2811,8 +2811,8 @@ class TraderComponent(ElementComponent):
         return [RuleLaw(self.quote, phase='quote')]
 
     def quote(self, agent, model):
-        agent.bid = model.rng.uniform(0, agent.value) if agent.demand else 0.0
-        agent.ask = model.rng.uniform(agent.value, 2.0) if agent.supply else 2.0
+        agent.set_state('bid', model.rng.uniform(0, agent.state('value')) if agent.state('demand') else 0.0)
+        agent.set_state('ask', model.rng.uniform(agent.state('value'), 2.0) if agent.state('supply') else 2.0)
 
 
 class ClerkInteraction(InstitutionInteraction):
@@ -2820,7 +2820,7 @@ class ClerkInteraction(InstitutionInteraction):
     fee: float = parameter(0.0)
 
     def act(self, model):
-        traded = sum(agent.goods for agent in model.agents('buyers'))
+        traded = sum(agent.state('goods') for agent in model.agents('buyers'))
         model.report('traded', traded)
         model.set_parameter('fee', 0.01 * traded)
 
@@ -2865,7 +2865,7 @@ class CoinComponent(ElementComponent):
         return [RuleLaw(self.flip)]
 
     def flip(self, agent, model):
-        agent.heads += float(model.rng.random() < agent.bias)
+        agent.set_state('heads', agent.state('heads') + float(model.rng.random() < agent.parameter('bias')))
 
 
 coins = System('coins', components=[CoinComponent.group('coins', 10)], time=DiscreteTime())

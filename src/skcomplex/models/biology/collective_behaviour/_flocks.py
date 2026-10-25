@@ -99,13 +99,13 @@ class BoidComponent(ElementComponent):
         """Return the change of velocity from cohesion, separation, and alignment."""
         here = np.asarray(agent.location, dtype=float)
         offsets = np.array([_wrapped(np.asarray(other.location) - here, size) for other in neighbours])
-        velocities = np.array([(other.vx, other.vy) for other in neighbours])
+        velocities = np.array([(other.state('vx'), other.state('vy')) for other in neighbours])
         distances = np.hypot(offsets[:, 0], offsets[:, 1])
-        close = offsets[distances < agent.separation_radius]
+        close = offsets[distances < agent.parameter('separation_radius')]
         return (
-            agent.cohesion * offsets.mean(axis=0)
-            - agent.separation * close.sum(axis=0)
-            + agent.alignment * (velocities.mean(axis=0) - (agent.vx, agent.vy))
+            agent.parameter('cohesion') * offsets.mean(axis=0)
+            - agent.parameter('separation') * close.sum(axis=0)
+            + agent.parameter('alignment') * (velocities.mean(axis=0) - (agent.state('vx'), agent.state('vy')))
         )
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
@@ -131,13 +131,14 @@ class BoidComponent(ElementComponent):
             model:
                 The model.
         """
-        size = np.array([agent.width, agent.height])
-        velocity = np.array([agent.vx, agent.vy])
-        neighbours = agent.neighbors(radius=agent.radius)
+        size = np.array([agent.parameter('width'), agent.parameter('height')])
+        velocity = np.array([agent.state('vx'), agent.state('vy')])
+        neighbours = agent.neighbors(radius=agent.parameter('radius'))
         if neighbours:
             velocity = velocity + self._steering(agent, neighbours, size)
-        velocity = _limited(velocity, agent.min_speed, agent.max_speed)
-        agent.vx, agent.vy = float(velocity[0]), float(velocity[1])
+        velocity = _limited(velocity, agent.parameter('min_speed'), agent.parameter('max_speed'))
+        agent.set_state('vx', float(velocity[0]))
+        agent.set_state('vy', float(velocity[1]))
         agent.move_to(tuple(np.mod(np.asarray(cast('tuple[float, float]', agent.location)) + velocity, size)))
 
 

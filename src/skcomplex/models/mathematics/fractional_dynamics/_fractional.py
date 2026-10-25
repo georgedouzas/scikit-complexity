@@ -3,8 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import re
-from collections.abc import Callable
 from functools import cache
 
 from ....core.base import state
@@ -14,7 +12,11 @@ from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms import fractional  # noqa: F401 - registers the fractional form that these models compile to
 
-ORDER_CODE = re.compile(r'[0-9]+p[0-9]+(e-?[0-9]+)?')
+
+def _published(element_type: type[ElementComponent]) -> type[ElementComponent]:
+    """Return an element type after binding it to its name in this module, so it pickles by reference."""
+    globals()[element_type.__name__] = element_type
+    return element_type
 
 
 def _type_name(prefix: str, order: float) -> str:
@@ -39,11 +41,13 @@ def relaxation_type(order: float) -> type[ElementComponent]:
         >>> relaxation_type(0.5).__name__
         'FractionalRelaxation_0p5'
     """
-    return ElementComponent.define(
-        _type_name('FractionalRelaxation', order),
-        states={'x': state(1.0, order=order)},
-        parameters={'lam': 1.0},
-        laws=lambda s: [RateLaw(s.x, -s.lam * s.x)],
+    return _published(
+        ElementComponent.define(
+            _type_name('FractionalRelaxation', order),
+            states={'x': state(1.0, order=order)},
+            parameters={'lam': 1.0},
+            laws=lambda s: [RateLaw(s.x, -s.lam * s.x)],
+        ),
     )
 
 
@@ -64,11 +68,13 @@ def oscillator_type(order: float) -> type[ElementComponent]:
         >>> oscillator_type(0.8).__name__
         'FractionalOscillator_0p8'
     """
-    return ElementComponent.define(
-        _type_name('FractionalOscillator', order),
-        states={'x': state(1.0, order=order), 'v': state(0.0, order=order)},
-        parameters={'omega': 1.0, 'gamma': 0.0},
-        laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)],
+    return _published(
+        ElementComponent.define(
+            _type_name('FractionalOscillator', order),
+            states={'x': state(1.0, order=order), 'v': state(0.0, order=order)},
+            parameters={'omega': 1.0, 'gamma': 0.0},
+            laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)],
+        ),
     )
 
 
@@ -89,11 +95,13 @@ def van_der_pol_type(order: float) -> type[ElementComponent]:
         >>> van_der_pol_type(0.9).__name__
         'FractionalVanDerPol_0p9'
     """
-    return ElementComponent.define(
-        _type_name('FractionalVanDerPol', order),
-        states={'x': state(2.0, order=order), 'y': state(0.0, order=order)},
-        parameters={'mu': 1.0},
-        laws=lambda s: [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)],
+    return _published(
+        ElementComponent.define(
+            _type_name('FractionalVanDerPol', order),
+            states={'x': state(2.0, order=order), 'y': state(0.0, order=order)},
+            parameters={'mu': 1.0},
+            laws=lambda s: [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)],
+        ),
     )
 
 
@@ -114,33 +122,18 @@ def lorenz_type(order: float) -> type[ElementComponent]:
         >>> lorenz_type(0.99).__name__
         'FractionalLorenz_0p99'
     """
-    return ElementComponent.define(
-        _type_name('FractionalLorenz', order),
-        states={'x': state(1.0, order=order), 'y': state(1.0, order=order), 'z': state(1.0, order=order)},
-        parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},
-        laws=lambda s: [
-            RateLaw(s.x, s.sigma * (s.y - s.x)),
-            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-            RateLaw(s.z, s.x * s.y - s.beta * s.z),
-        ],
+    return _published(
+        ElementComponent.define(
+            _type_name('FractionalLorenz', order),
+            states={'x': state(1.0, order=order), 'y': state(1.0, order=order), 'z': state(1.0, order=order)},
+            parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},
+            laws=lambda s: [
+                RateLaw(s.x, s.sigma * (s.y - s.x)),
+                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+                RateLaw(s.z, s.x * s.y - s.beta * s.z),
+            ],
+        ),
     )
-
-
-TYPES: dict[str, Callable[[float], type[ElementComponent]]] = {
-    'FractionalRelaxation': relaxation_type,
-    'FractionalOscillator': oscillator_type,
-    'FractionalVanDerPol': van_der_pol_type,
-    'FractionalLorenz': lorenz_type,
-}
-
-
-def __getattr__(name: str) -> type[ElementComponent]:
-    """Return the element type of an order by its name, so the types of every order pickle by reference."""
-    prefix, _, code = name.rpartition('_')
-    if prefix not in TYPES or ORDER_CODE.fullmatch(code) is None:
-        error_msg = f'module {__name__!r} has no attribute {name!r}'
-        raise AttributeError(error_msg)
-    return TYPES[prefix](float(code.replace('p', '.')))
 
 
 @register_model(

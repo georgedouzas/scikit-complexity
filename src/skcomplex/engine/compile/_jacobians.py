@@ -352,7 +352,7 @@ class ExactJacobian:
             return _selection(members, columns, 1.0, self.size, height=kernel.rows)
         return _selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
 
-    def __call__(self, t: float, x: Vector, p: Vector) -> Sparse:
+    def evaluate(self, t: float, x: Vector, p: Vector) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
 
         Args:

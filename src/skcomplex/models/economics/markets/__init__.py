@@ -27,7 +27,7 @@ from ._perishables import (
 from ._prices import QuadraticSupplyMarketComponent, riccati_prices
 from ._produce import ShopperComponent, StallComponent, produce_market
 from ._queues import CarComponent, CarWashOperationInteraction, TillComponent, WasherComponent, car_wash
-from ._shops import DeliveredPriceChoice, ResidentComponent, ShoppingInteraction, StoreComponent, shops
+from ._shops import ResidentComponent, ShoppingInteraction, StoreComponent, delivered_price_choice, shops
 from ._sugarscape import CensusInteraction, ForagerComponent, PatchComponent, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
@@ -52,7 +52,6 @@ __all__: list[str] = [
     'ConsumerComponent',
     'CournotAdjustmentInteraction',
     'CustomerComponent',
-    'DeliveredPriceChoice',
     'DuopolistComponent',
     'EchelonComponent',
     'EmployerComponent',
@@ -89,6 +88,7 @@ __all__: list[str] = [
     'commodity_cycle',
     'contract_curve',
     'cournot_duopoly',
+    'delivered_price_choice',
     'double_auction',
     'fair_food',
     'goods_traders',

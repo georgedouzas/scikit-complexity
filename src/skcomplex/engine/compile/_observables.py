@@ -496,7 +496,7 @@ class ObservableEvaluator:
         """Return the vector and flat index of every symbol of a single element or interaction."""
         sources: dict[Expression, tuple[str, int]] = {}
         for name, layout in (('x', self.problem.states), ('p', self.problem.parameters)):
-            for entry in layout:
+            for entry in layout.entries:
                 if entry.members is not None or entry.name not in self._compiled.symbols:
                     continue
                 for column, item in enumerate(real_components_of(self._compiled.symbols[entry.name])):
@@ -577,7 +577,7 @@ class ObservableEvaluator:
     def _entry(self, name: str) -> Any:  # noqa: ANN401
         """Return the entry of a state or parameter by name, or `None`."""
         for layout in (self.problem.states, self.problem.parameters):
-            if name in layout:
+            if layout.has(name):
                 return layout.entry(name)
         return None
 
@@ -593,7 +593,7 @@ class ObservableEvaluator:
                 error_msg = f'Observable {path} reduces {observable.variable}, which {group} does not declare.'
                 raise ValidationError(error_msg)
             name = names[observable.variable]
-            is_state = name in self.problem.states
+            is_state = self.problem.states.has(name)
             layout = self.problem.states if is_state else self.problem.parameters
 
             def read_variable(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
@@ -611,7 +611,7 @@ class ObservableEvaluator:
         members: dict[Expression, Read] = {}
         for name in names.values():
             entry = self._entry(name)
-            is_state = name in self.problem.states
+            is_state = self.problem.states.has(name)
             for column, item in enumerate(real_components_of(self._compiled.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
                 members[item] = Read(is_state, indices, entry, column, entry.columns)
@@ -650,7 +650,7 @@ class ObservableEvaluator:
             del t, x, p
             agents = done['__agents__'](group) or []
             if observable.variable is not None:
-                values: Any = [getattr(agent, observable.variable) for agent in agents]
+                values: Any = [agent.state(observable.variable) for agent in agents]
             elif callable(observable.expression):
                 values = [observable.expression(agent) for agent in agents]
             else:
@@ -673,7 +673,7 @@ class ObservableEvaluator:
                 The parameter vector.
 
             agents_of:
-                A function that returns the agents of an agent group by path, or `None` without agents.
+                A function that returns the views of the agents of an agent group by path, or `None` without agents.
 
         Returns:
             values:
@@ -734,7 +734,7 @@ class Observer:
         self.values[path] = (_reduced_value(path, observable, block), references)
         return self.values[path]
 
-    def __call__(self, node: Node, label: object) -> Observed | None:
+    def evaluate(self, node: Node, label: object) -> Observed | None:
         """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable."""
         path = f'{node.scope}{label}' if isinstance(label, str) else None
         if path not in self.live:

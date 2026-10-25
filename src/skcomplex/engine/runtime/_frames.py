@@ -73,7 +73,7 @@ class Frame:
             value:
                 A number for a scalar and an array for a vector.
         """
-        if name in self.problem.states:
+        if self.problem.states.has(name):
             return self.problem.states.read(self.state, name)
         if name in self.reporters:
             return self.reporters[name]

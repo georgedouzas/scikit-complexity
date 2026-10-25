@@ -203,7 +203,7 @@ class CoSimulationSolver(Solver):
             agents = self._agents_of(group)
             values: Any
             if agents is not None:
-                values = [getattr(agent, aggregate.variable) for agent in agents] if aggregate.variable else agents
+                values = [agent.state(aggregate.variable) for agent in agents] if aggregate.variable else agents
             else:
                 values = np.ravel(problem.states.read(x, f'{group}.{aggregate.variable or "value"}'))
             entry = problem.states.entry(f'{element.path}.value')

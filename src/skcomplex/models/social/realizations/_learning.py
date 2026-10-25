@@ -12,7 +12,7 @@ type Score = str | Callable[[Any], float]
 def _scorer(score: Score) -> Callable[[Any], float]:
     """Return a function of an agent from a state name or a function."""
     if isinstance(score, str):
-        return lambda agent: float(getattr(agent, score))
+        return lambda agent: float(agent.state(score))
     return score
 
 
@@ -46,5 +46,5 @@ def imitate(agent: Any, neighbors: Sequence[Any], score: Score, states: str | Se
             best, best_score = neighbor, value
     if best is not agent:
         for name in [states] if isinstance(states, str) else states:
-            setattr(agent, name, getattr(best, name))
+            agent.set_state(name, best.state(name))
     return best

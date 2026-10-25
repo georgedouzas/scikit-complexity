@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BaseInteraction, role, state
+from skcomplex.core.base import BaseInteraction, SimulationError, role, state
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
@@ -26,16 +26,36 @@ from skcomplex.models.economics.realizations import (
 from .conftest import TraderComponent
 
 
+class _Agent:
+    """Agent with an id and states in a dictionary, read and set by name as protocols read agent views."""
+
+    def __init__(self, identity, **states):
+        self.id = identity
+        self.states = states
+
+    def state(self, name):
+        """Return a state, raising a simulation error for an unknown one."""
+        if name not in self.states:
+            error_msg = f'No state {name!r}.'
+            raise SimulationError(error_msg)
+        return self.states[name]
+
+    def parameter(self, name):
+        """Raise a simulation error, since the agent has no parameters."""
+        error_msg = f'No parameter {name!r}.'
+        raise SimulationError(error_msg)
+
+    def set_state(self, name, value):
+        """Set a known state."""
+        self.state(name)
+        self.states[name] = value
+
+
 def _orders(limits, budgets=None):
     """Return orders of plain agents with ids, limits, and quantities of one."""
-
-    class Agent:
-        def __init__(self, identity):
-            self.id = identity
-
     budgets = budgets or [math.inf] * len(limits)
     return [
-        Order(Agent(index), limit, 1.0, budget)
+        Order(_Agent(index), limit, 1.0, budget)
         for index, (limit, budget) in enumerate(zip(limits, budgets, strict=True))
     ]
 
@@ -58,14 +78,14 @@ def _zero_intelligence(n_traders, rng):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
-            agent.bid = model.rng.uniform(0, agent.value) if agent.demand > 0 else 0.0
+            agent.set_state('bid', model.rng.uniform(0, agent.state('value')) if agent.state('demand') > 0 else 0.0)
 
     class SellerComponent(TraderComponent):
         def laws(self, s):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
-            agent.ask = model.rng.uniform(agent.value, 200) if agent.supply > 0 else 200.0
+            agent.set_state('ask', model.rng.uniform(agent.state('value'), 200) if agent.state('supply') > 0 else 200.0)
 
     buyers = BuyerComponent.group('buyers', n_traders, value=values, demand=1.0, money=values)
     sellers = SellerComponent.group('sellers', n_traders, value=costs, supply=1.0)
@@ -98,13 +118,13 @@ class BookInteraction(BaseInteraction):
     def laws(self, s):
         """Return the matching and the rule that records it."""
         return [
-            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'),
+            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential').evaluate, label='trades'),
             RuleLaw(self.record),
         ]
 
     def record(self, model):
         """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
-        PAIRS.extend((buyer.id, seller.id) for buyer, seller in matches(model, 'trades'))
+        PAIRS.extend((trade.buyer.id, trade.seller.id) for trade in matches(model, 'trades'))
         EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
 
 
@@ -168,14 +188,10 @@ def test_deferred_acceptance_is_stable():
     for index, order in enumerate(sellers):
         order.agent.id = 10 + index
 
-    class Agent:
-        def __init__(self, identity, bid=0.0, ask=0.0):
-            self.id, self.bid, self.ask = identity, bid, ask
-
     for order in buyers:
-        order.agent = Agent(order.agent.id, bid=order.limit)
+        order.agent = _Agent(order.agent.id, bid=order.limit)
     for order in sellers:
-        order.agent = Agent(order.agent.id, ask=order.limit)
+        order.agent = _Agent(order.agent.id, ask=order.limit)
     trades = DeferredAcceptance().match(buyers, sellers, _Model())
     pairs = {(trade.buyer.id, trade.seller.id) for trade in trades}
     assert pairs == {(1, 10), (0, 11)}
@@ -183,13 +199,8 @@ def test_deferred_acceptance_is_stable():
 
 def test_sample_and_switch_keeps_partner():
     """A buyer stays with a partner that asks no more than the sampled sellers."""
-
-    class Agent:
-        def __init__(self, identity, partner=-1.0):
-            self.id, self.partner = identity, partner
-
-    buyers = [Order(Agent(0, partner=11.0), 10.0, 1.0)]
-    sellers = [Order(Agent(10), 5.0, 1.0), Order(Agent(11), 4.0, 1.0)]
+    buyers = [Order(_Agent(0, partner=11.0), 10.0, 1.0)]
+    sellers = [Order(_Agent(10, partner=-1.0), 5.0, 1.0), Order(_Agent(11, partner=-1.0), 4.0, 1.0)]
     trades = SampleAndSwitch(sample=2).match(buyers, sellers, _Model())
     assert trades[0].seller.id == 11
 
@@ -226,3 +237,20 @@ def test_order_book_is_a_pairing_of_the_matching_law():
     Simulation(system).run(1)
     assert len(PAIRS) == 1
     assert PAIRS[0][1] == EARLIEST[0]
+
+
+@pytest.mark.parametrize(
+    ('protocol', 'option'),
+    [
+        (BilateralSearch(pricing='auction'), 'pricing'),
+        (RationedQueue(order='age'), 'order'),
+        (OrderBook(arrival='never'), 'arrival'),
+        (DeferredAcceptance(pricing='auction'), 'pricing'),
+    ],
+)
+def test_protocol_check_rejects_unknown_options(protocol, option):
+    """Test that checking a protocol, as validating its market does, rejects an unknown option."""
+    with pytest.raises(ValueError, match=f'Unknown {option}'):
+        protocol.check()
+    with pytest.raises(ValueError, match=f'Unknown {option}'):
+        MarketInteraction('market', buyers='buyers', sellers='sellers', protocol=protocol).check()

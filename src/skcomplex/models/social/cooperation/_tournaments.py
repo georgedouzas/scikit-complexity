@@ -71,8 +71,8 @@ def play(first: npt.ArrayLike, second: npt.ArrayLike, rounds: int = 6) -> tuple[
 
 def _offspring(parent: AgentView, rng: np.random.Generator) -> Array:
     """Return the genome of a parent, with one gene flipped with the mutation probability."""
-    genome = np.array(parent.genome, dtype=float)
-    if rng.random() < parent.mutation:
+    genome = np.array(parent.state('genome'), dtype=float)
+    if rng.random() < parent.parameter('mutation'):
         index = int(rng.integers(GENES))
         genome[index] = 1.0 - genome[index]
     return genome
@@ -167,7 +167,7 @@ class TournamentInteraction(BaseInteraction):
         totals = np.zeros(len(agents))
         for position, first in enumerate(order):
             second = order[(position + 1) % len(order)]
-            scores = play(agents[first].genome, agents[second].genome, self.rounds)
+            scores = play(agents[first].state('genome'), agents[second].state('genome'), self.rounds)
             totals[first] += scores[0]
             totals[second] += scores[1]
         return totals / (2 * self.rounds)
@@ -183,13 +183,13 @@ class TournamentInteraction(BaseInteraction):
         if len(agents) < 2:  # noqa: PLR2004
             return
         fitness = self._melee(agents, model.rng)
-        dead = np.flatnonzero(model.rng.random(len(agents)) < agents[0].death)
+        dead = np.flatnonzero(model.rng.random(len(agents)) < agents[0].parameter('death'))
         parents = model.rng.choice(len(agents), size=len(dead), p=fitness / fitness.sum())
         genomes = [_offspring(agents[parent], model.rng) for parent in parents]
         for agent, value in zip(agents, fitness, strict=True):
-            agent.fitness = float(value)
+            agent.set_state('fitness', float(value))
         for index, genome in zip(dead, genomes, strict=True):
-            agents[index].genome = genome
+            agents[index].set_state('genome', genome)
 
 
 @register_model(

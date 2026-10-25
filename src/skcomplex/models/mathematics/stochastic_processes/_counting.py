@@ -70,8 +70,8 @@ class BernoulliTrialComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.outcome = float(model.rng.random() < agent.p)
-        agent.successes += agent.outcome
+        agent.set_state('outcome', float(model.rng.random() < agent.parameter('p')))
+        agent.set_state('successes', agent.state('successes') + agent.state('outcome'))
 
 
 @register_model(

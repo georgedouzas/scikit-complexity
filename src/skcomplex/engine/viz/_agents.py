@@ -85,7 +85,7 @@ class AgentsVisual(BaseVisual):
 
     def _agent_colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""
-        if self.color_by is None or not len(snapshot):
+        if self.color_by is None or not len(snapshot.ids):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
         if self.color_range is not None:
@@ -128,7 +128,7 @@ class AgentsVisual(BaseVisual):
         """
         colors, labels = self._agent_colors(snapshot), [str(agent) for agent in snapshot.ids]
         if self.position is not None:
-            positions = np.asarray(snapshot.values[self.position], dtype=float).reshape(len(snapshot), -1)
+            positions = np.asarray(snapshot.values[self.position], dtype=float).reshape(len(snapshot.ids), -1)
             if positions.shape[1] == 1:
                 entity = f'{path}/{self.position}'
                 if entity not in self.styled_:
@@ -159,7 +159,7 @@ class AgentsVisual(BaseVisual):
                 ),
             )
             return
-        positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot), -1)
+        positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot.ids), -1)
         if isinstance(space, LatticeSpace):
             positions = positions + 0.5
         if isinstance(space, ContinuousSpace):

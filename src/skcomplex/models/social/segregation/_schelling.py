@@ -65,8 +65,8 @@ class ResidentComponent(ElementComponent):
         neighbors = agent.neighbors()
         if not neighbors:
             return
-        similar = sum(neighbor.kind == agent.kind for neighbor in neighbors) / len(neighbors)
-        if similar < agent.threshold:
+        similar = sum(neighbor.state('kind') == agent.state('kind') for neighbor in neighbors) / len(neighbors)
+        if similar < agent.parameter('threshold'):
             agent.move_to(model.random_empty_cell())
 
 

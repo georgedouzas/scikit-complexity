@@ -270,10 +270,10 @@ class TumblerComponent(ElementComponent):
                 The model.
         """
         position = np.asarray(agent.location, dtype=float)
-        heading = np.array([math.cos(agent.theta), math.sin(agent.theta)])
-        agent.move_to(np.mod(position + agent.speed * heading, agent.width))
-        if model.rng.random() < -math.expm1(-agent.tumble_rate):
-            agent.theta = float(model.rng.uniform(0.0, 2 * math.pi))
+        heading = np.array([math.cos(agent.state('theta')), math.sin(agent.state('theta'))])
+        agent.move_to(np.mod(position + agent.parameter('speed') * heading, agent.parameter('width')))
+        if model.rng.random() < -math.expm1(-agent.parameter('tumble_rate')):
+            agent.set_state('theta', float(model.rng.uniform(0.0, 2 * math.pi)))
 
 
 def _swimmers(

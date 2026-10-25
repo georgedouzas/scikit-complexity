@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import contextlib
 import heapq
 import itertools
 import math
 import warnings
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import numpy as np
 from matching.games import HospitalResident
 
-from ....core.base import BaseInteraction, BaseLaw, role
+from ....core.base import BaseInteraction, BaseLaw, SimulationError, role
 from ....core.laws import Symbols
 from ....formalisms.agents import RuleLaw
 
@@ -78,10 +79,6 @@ class Trade:
     quantity: float
     price: float
 
-    def __iter__(self) -> Iterator[Any]:
-        """Return the buyer and the seller, so a trade is a pair of the matching law."""
-        return iter((self.buyer, self.seller))
-
 
 def _book(trades: list[Trade], buyer: Order, seller: Order, price: float) -> None:
     """Record a trade of the largest quantity both sides can trade at a price and update both orders."""
@@ -103,7 +100,7 @@ def _price(buyer: Order, seller: Order, pricing: str) -> float:
     return (buyer.limit + seller.limit) / 2
 
 
-def _check(value: str, allowed: tuple[str, ...], name: str) -> None:
+def _check_option(value: str, allowed: tuple[str, ...], name: str) -> None:
     """Raise an error for an option outside the allowed ones."""
     if value not in allowed:
         error_msg = f'Unknown {name} {value!r}. Use one of {allowed}.'
@@ -114,13 +111,30 @@ class Protocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
     Subclasses implement `match(buyers, sellers, model)`, which receives the orders of the participants with something
-    to trade and returns trades whose quantities respect the orders' quantities and budgets. A protocol is also a
-    pairing of the core's matching law: called with the buyers and sellers, it reads their orders from the states `bid`,
-    `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, which unpack as pairs of
-    buyer and seller.
+    to trade and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which
+    raises an error for an invalid option. A protocol's `evaluate` is also a pairing of the core's matching law: given
+    the buyers and sellers, it reads their orders from the states `bid`, `demand`, and `money` of buyers and `ask` and
+    `supply` of sellers, and returns the trades, whose `buyer` and `seller` are the paired agents.
     """
 
-    def __call__(
+    def _check(self) -> Self:
+        """Return the protocol with its options checked; accept every option by default."""
+        return self
+
+    def check(self) -> Self:
+        """Return the protocol with its options checked.
+
+        Returns:
+            protocol:
+                The checked protocol.
+
+        Raises:
+            ValueError:
+                An option of the protocol is unknown.
+        """
+        return self._check()
+
+    def evaluate(
         self,
         left: Sequence[Any],
         right: Sequence[Any],
@@ -199,9 +213,10 @@ class BilateralSearch(Protocol):
     tries: int = 1
     pricing: str = 'midpoint'
 
-    def __post_init__(self) -> None:
-        """Check the pricing rule."""
-        _check(self.pricing, PRICINGS, 'pricing')
+    def _check(self) -> Self:
+        """Return the protocol after checking the pricing rule."""
+        _check_option(self.pricing, PRICINGS, 'pricing')
+        return self
 
     def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
         """Return the trades of random meetings."""
@@ -293,9 +308,10 @@ class RationedQueue(Protocol):
 
     order: str = 'random'
 
-    def __post_init__(self) -> None:
-        """Check the order of the queue."""
-        _check(self.order, ORDERS, 'order')
+    def _check(self) -> Self:
+        """Return the protocol after checking the order of the queue."""
+        _check_option(self.order, ORDERS, 'order')
+        return self
 
     def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
         """Return the trades of the queue."""
@@ -424,9 +440,10 @@ class OrderBook(Protocol):
 
     arrival: str = 'random'
 
-    def __post_init__(self) -> None:
-        """Check the order of arrival."""
-        _check(self.arrival, ('random', 'sequential'), 'arrival')
+    def _check(self) -> Self:
+        """Return the protocol after checking the order of arrival."""
+        _check_option(self.arrival, ('random', 'sequential'), 'arrival')
+        return self
 
     def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
         """Return the trades of the continuous double auction."""
@@ -504,13 +521,13 @@ class CallAuction(Protocol):
 def _cheaper(buyer: Any, seller: Any) -> float:  # noqa: ANN401
     """Return the preference of a buyer for a seller, higher for a lower ask."""
     del buyer
-    return -float(seller.ask) if _has(seller, 'ask') else 0.0
+    return -_read(seller, 'ask', 0.0)
 
 
 def _richer(seller: Any, buyer: Any) -> float:  # noqa: ANN401
     """Return the preference of a seller for a buyer, higher for a higher bid."""
     del seller
-    return float(buyer.bid) if _has(buyer, 'bid') else 0.0
+    return _read(buyer, 'bid', 0.0)
 
 
 @dataclass(frozen=True)
@@ -542,9 +559,10 @@ class DeferredAcceptance(Protocol):
     seller_preference: Preference | None = None
     pricing: str = 'ask'
 
-    def __post_init__(self) -> None:
-        """Check the pricing rule."""
-        _check(self.pricing, PRICINGS, 'pricing')
+    def _check(self) -> Self:
+        """Return the protocol after checking the pricing rule."""
+        _check_option(self.pricing, PRICINGS, 'pricing')
+        return self
 
     def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
         """Return the trades of the stable matching."""
@@ -591,26 +609,24 @@ class DeferredAcceptance(Protocol):
         return trades
 
 
-def _has(agent: Any, name: str | None) -> bool:  # noqa: ANN401
-    """Check whether an agent has a state or parameter."""
-    if name is None:
-        return False
-    try:
-        getattr(agent, name)
-    except AttributeError:
-        return False
-    return True
-
-
 def _read(agent: Any, name: str | None, default: float) -> float:  # noqa: ANN401
-    """Return a state or parameter of an agent, or a default when it has none."""
-    return float(getattr(agent, name)) if name is not None and _has(agent, name) else default
+    """Return a state or parameter of an agent, or a default when it has neither."""
+    if name is None:
+        return default
+    for read in (agent.state, agent.parameter):
+        try:
+            return float(read(name))
+        except SimulationError:
+            continue
+    return default
 
 
 def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
     """Set a state of an agent when it has one."""
-    if name is not None and _has(agent, name):
-        setattr(agent, name, value)
+    if name is None:
+        return
+    with contextlib.suppress(SimulationError):
+        agent.set_state(name, value)
 
 
 class MarketInteraction(BaseInteraction):
@@ -701,6 +717,11 @@ class MarketInteraction(BaseInteraction):
         self.goods = goods
         self.on_trade = on_trade
 
+    def _check(self) -> None:
+        """Raise an error for an undeclared or missing value, or an unknown option of the protocol."""
+        super()._check()
+        self.protocol.check()
+
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.
 
@@ -760,8 +781,7 @@ class MarketInteraction(BaseInteraction):
             (buyer, self.demand, -trade.quantity),
             (seller, self.supply, -trade.quantity),
         ):
-            if name is not None and _has(agent, name):
-                setattr(agent, name, getattr(agent, name) + change)
+            _write(agent, name, _read(agent, name, 0.0) + change)
         if self.on_trade is not None:
             self.on_trade(trade, model)
 

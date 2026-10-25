@@ -6,7 +6,7 @@ from ._commons import (
     HerderComponent,
     PastureComponent,
     RegulatorInteraction,
-    RichestPasture,
+    richest_pasture,
     tragedy_of_the_commons,
 )
 from ._extraction import FisheryComponent, OilEconomyComponent, fishery_capital, oil_economy
@@ -27,7 +27,6 @@ __all__: list[str] = [
     'OilEconomyComponent',
     'PastureComponent',
     'RegulatorInteraction',
-    'RichestPasture',
     'StockComponent',
     'cocoa',
     'fishery_capital',
@@ -36,5 +35,6 @@ __all__: list[str] = [
     'hilsa_fishery',
     'oil_economy',
     'optimal_harvesting',
+    'richest_pasture',
     'tragedy_of_the_commons',
 ]

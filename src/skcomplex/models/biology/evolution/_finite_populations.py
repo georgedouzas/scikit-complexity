@@ -135,7 +135,7 @@ class MoranStepInteraction(BaseInteraction):
         individuals = model.agents(self.population)
         selection = model.parameter('selection')
         mutation = model.parameter('mutation')
-        traits = np.asarray([individual.trait for individual in individuals], dtype=float)
+        traits = np.asarray([individual.state('trait') for individual in individuals], dtype=float)
         rng = model.rng
         for _ in range(len(traits)):
             weights = (1 + selection) ** traits
@@ -145,8 +145,8 @@ class MoranStepInteraction(BaseInteraction):
                 child += 1 if rng.random() < 0.5 else -1  # noqa: PLR2004
             traits[rng.integers(len(traits))] = child
         for individual, trait in zip(individuals, traits, strict=True):
-            individual.trait = trait
-            individual.fitness = (1 + selection) ** trait
+            individual.set_state('trait', trait)
+            individual.set_state('fitness', (1 + selection) ** trait)
 
 
 class TangledNatureStepInteraction(BaseInteraction):
@@ -212,7 +212,7 @@ class TangledNatureStepInteraction(BaseInteraction):
     def _reproduce(self, model: ModelView, alive: list[AgentView], counts: Array, chosen: int) -> None:
         """Replace an organism by two offspring with probability `1 / (1 + exp(-H))`."""
         parent = alive[chosen]
-        genome = int(parent.trait)
+        genome = int(parent.state('trait'))
         size = len(alive)
         weight = model.parameter('k') / size * _couplings(self.seed, self.length)[genome] @ counts
         weight -= model.parameter('mu') * size
@@ -247,7 +247,9 @@ class TangledNatureStepInteraction(BaseInteraction):
                 The model.
         """
         alive = model.agents(self.organisms)
-        counts = np.bincount([int(organism.trait) for organism in alive], minlength=2**self.length).astype(float)
+        counts = np.bincount([int(organism.state('trait')) for organism in alive], minlength=2**self.length).astype(
+            float,
+        )
         p_kill = model.parameter('p_kill')
         for _ in range(int(len(alive) / p_kill)):
             if not alive:
@@ -255,7 +257,7 @@ class TangledNatureStepInteraction(BaseInteraction):
             self._reproduce(model, alive, counts, int(model.rng.integers(len(alive))))
             if alive and model.rng.random() < p_kill:
                 victim = int(model.rng.integers(len(alive)))
-                counts[int(alive[victim].trait)] -= 1
+                counts[int(alive[victim].state('trait'))] -= 1
                 alive.pop(victim).remove()
 
 
@@ -327,7 +329,7 @@ class AdaptiveClimbingInteraction(BaseInteraction):
                 The model.
         """
         individuals = model.agents(self.population)
-        genome = int(individuals[0].trait)
+        genome = int(individuals[0].state('trait'))
         current = _random_fitness(genome, self.seed)
         rng = model.rng
         mutated = rng.random(len(individuals)) < model.parameter('u')
@@ -338,8 +340,8 @@ class AdaptiveClimbingInteraction(BaseInteraction):
         if _random_fitness(best, self.seed) <= current and not mutated.all():
             return
         for individual in individuals:
-            individual.trait = float(best)
-            individual.fitness = _random_fitness(best, self.seed)
+            individual.set_state('trait', float(best))
+            individual.set_state('fitness', _random_fitness(best, self.seed))
 
 
 class ClimberComponent(ElementComponent):
@@ -403,12 +405,12 @@ class ClimberComponent(ElementComponent):
             model:
                 The model.
         """
-        n, k, seed = int(agent.n), int(agent.k), int(agent.seed)
-        mutant = int(agent.genome) ^ (1 << int(model.rng.integers(n)))
+        n, k, seed = int(agent.parameter('n')), int(agent.parameter('k')), int(agent.parameter('seed'))
+        mutant = int(agent.state('genome')) ^ (1 << int(model.rng.integers(n)))
         fitness = _nk_fitness(mutant, n, k, seed)
-        if fitness > agent.fitness:
-            agent.genome = float(mutant)
-            agent.fitness = fitness
+        if fitness > agent.state('fitness'):
+            agent.set_state('genome', float(mutant))
+            agent.set_state('fitness', fitness)
 
 
 @register_model(

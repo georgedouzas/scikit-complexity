@@ -34,7 +34,7 @@ def _check_acyclic(formalism: 'Formalism') -> None:
         if name == formalism.name:
             error_msg = f'The dependencies of the formalism {formalism.name!r} form a cycle through itself. Remove one.'
             raise RegistryError(error_msg)
-        if name not in seen and name in FORMALISMS:
+        if name not in seen and name in FORMALISMS.keys:
             seen.add(name)
             stack += FORMALISMS.resolve(name).depends
 
@@ -42,7 +42,7 @@ def _check_acyclic(formalism: 'Formalism') -> None:
 def _check_dependencies(formalism: 'Formalism') -> None:
     """Raise an error for dependencies that lead back to the formalism or are not registered."""
     _check_acyclic(formalism)
-    missing = [name for name in formalism.depends if name not in FORMALISMS]
+    missing = [name for name in formalism.depends if name not in FORMALISMS.keys]
     if missing:
         error_msg = (
             f'The formalism {formalism.name!r} depends on {", ".join(map(repr, missing))}, which is not registered. '
@@ -53,7 +53,7 @@ def _check_dependencies(formalism: 'Formalism') -> None:
 
 def _is_registered(formalism: 'Formalism') -> bool:
     """Check whether a formalism is registered, raising an error when another formalism holds its name."""
-    if formalism.name not in FORMALISMS:
+    if formalism.name not in FORMALISMS.keys:
         return False
     if FORMALISMS.resolve(formalism.name) == formalism:
         return True
@@ -129,7 +129,7 @@ def registered_formalisms() -> tuple['Formalism', ...]:
         >>> all(formalism.name for formalism in registered_formalisms())
         True
     """
-    return tuple(FORMALISMS.resolve(name) for name in FORMALISMS)
+    return tuple(FORMALISMS.resolve(name) for name in FORMALISMS.keys)
 
 
 @dataclass(frozen=True)

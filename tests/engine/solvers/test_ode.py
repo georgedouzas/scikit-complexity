@@ -572,7 +572,7 @@ def test_exact_jacobian_follows_parameter_changes():
         states[option] = stepper.run(0.5, x, changed, 1.0)
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()
-            np.testing.assert_allclose(jacobian, problem.jacobian(0.5, x, changed).toarray())
+            np.testing.assert_allclose(jacobian, problem.jacobian.evaluate(0.5, x, changed).toarray())
     assert _relative(states['exact'], states['dense']) < 1e-5
 
 

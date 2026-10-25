@@ -110,10 +110,10 @@ class Trajectory:
             KeyError:
                 The name is neither a state nor a parameter.
         """
-        if name in self.problem.states:
+        if self.problem.states.has(name):
             entry = self.problem.states.entry(name)
             return self._present(name, entry.domain.decode(np.asarray(self.problem.states.read(self.states, name))))
-        if name in self.problem.parameters:
+        if self.problem.parameters.has(name):
             entry = self.problem.parameters.entry(name)
             values = entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._present(name, values)
@@ -159,7 +159,7 @@ class Trajectory:
             (problem.states, self.problem.states, states, self.states),
             (problem.parameters, self.problem.parameters, parameters, self.parameters),
         ):
-            for entry in layout:
+            for entry in layout.entries:
                 origin = source.entry(entry.name)
                 columns = np.asarray(values)[:, origin.start : origin.start + origin.size].reshape(
                     frames,

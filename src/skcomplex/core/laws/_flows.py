@@ -20,6 +20,7 @@ from ..base import (
     LawClass,
     LawKind,
     Requires,
+    SimulationError,
     SymbolicVector,
     Trait,
     ValidationError,
@@ -53,7 +54,7 @@ def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str 
 
     Args:
         source:
-            The agent the amount leaves, as the rule receives it.
+            The agent view the amount leaves, as the rule receives it.
 
         sink:
             The agent the amount enters.
@@ -72,23 +73,29 @@ def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str 
             An agent has no such state.
 
     Examples:
-        >>> from types import SimpleNamespace
         >>> from skcomplex.core.laws import transfer
-        >>> first, second = SimpleNamespace(level=10.0), SimpleNamespace(level=0.0)
+        >>> class HolderAgent:
+        ...     def __init__(self, states):
+        ...         self.states = states
+        ...     def state(self, name):
+        ...         return self.states[name]
+        ...     def set_state(self, name, value):
+        ...         self.states[name] = value
+        >>> first, second = HolderAgent({'level': 10.0}), HolderAgent({'level': 0.0})
         >>> transfer(first, second, 4.0, 'level')
-        >>> first.level, second.level
+        >>> first.state('level'), second.state('level')
         (6.0, 4.0)
     """
     target = state if sink_state is None else sink_state
-    for agent, name in ((source, state), (sink, target)):
-        if not hasattr(agent, name):
-            error_msg = f'The transfer of {amount} reads the state {name!r}, which the agent {agent!r} does not have.'
-            raise ValidationError(error_msg)
-    if source is sink and state == target:
+    try:
+        source_value, sink_value = source.state(state), sink.state(target)
+    except (KeyError, SimulationError) as error:
+        error_msg = f'The transfer of {amount} reads a state that an agent does not have. {error}'
+        raise ValidationError(error_msg) from error
+    if source == sink and state == target:
         return
-    source_value, sink_value = getattr(source, state), getattr(sink, target)
-    setattr(source, state, source_value - amount)
-    setattr(sink, target, sink_value + amount)
+    source.set_state(state, source_value - amount)
+    sink.set_state(target, sink_value + amount)
 
 
 def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:

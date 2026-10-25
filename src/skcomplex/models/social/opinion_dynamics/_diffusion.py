@@ -91,12 +91,15 @@ class BelieverComponent(ElementComponent):
             model:
                 The model.
         """
-        belief = np.array(agent.belief, dtype=float)
+        belief = np.array(agent.state('belief'), dtype=float)
         for neighbor in agent.neighbors():
-            weights = np.asarray(neighbor.belief, dtype=float)
+            weights = np.asarray(neighbor.state('belief'), dtype=float)
             levels = np.flatnonzero(weights == weights.max())
-            belief[levels[int(model.rng.integers(len(levels)))]] += agent.learning * neighbor.influence
-        agent.belief, agent.caring = belief, float(np.argmax(belief))
+            belief[levels[int(model.rng.integers(len(levels)))]] += agent.parameter('learning') * neighbor.state(
+                'influence',
+            )
+        agent.set_state('belief', belief)
+        agent.set_state('caring', float(np.argmax(belief)))
 
 
 class AdopterComponent(ElementComponent):
@@ -196,7 +199,7 @@ class AdoptionInteraction(BaseInteraction):
     def _shift(self, agents: list[AgentView], model: ModelView) -> None:
         """Move a share of the agents one unit in a random direction."""
         for agent in agents:
-            if model.rng.random() < agent.shifting:
+            if model.rng.random() < agent.parameter('shifting'):
                 angle = model.rng.uniform(0, 2 * np.pi)
                 position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
                 agent.move_to(np.mod(position, self.size))
@@ -213,18 +216,18 @@ class AdoptionInteraction(BaseInteraction):
             return
         self._shift(agents, model)
         positions = np.array([agent.location for agent in agents], dtype=float)
-        adopted = np.array([agent.adopted for agent in agents], dtype=float)
-        circles = _circles(positions, self.size, agents[0].reach)
+        adopted = np.array([agent.state('adopted') for agent in agents], dtype=float)
+        circles = _circles(positions, self.size, agents[0].parameter('reach'))
         adopters = circles @ adopted
         if self.mode == 'infection':
             following = (adopted > 0) | (adopters > 0)
         else:
             members = circles.sum(axis=1)
             percent = np.where(members > 0, 100 * adopters / np.maximum(members, 1), 100 * adopted.mean())
-            thresholds = np.array([agent.threshold for agent in agents], dtype=float)
+            thresholds = np.array([agent.state('threshold') for agent in agents], dtype=float)
             following = (adopted > 0) | (percent > thresholds)
         for agent, value in zip(agents, following, strict=True):
-            agent.adopted = float(value)
+            agent.set_state('adopted', float(value))
 
 
 @register_model(

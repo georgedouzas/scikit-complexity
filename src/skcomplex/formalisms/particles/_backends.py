@@ -495,7 +495,7 @@ class LammpsSolver(ExternalSolver):
         sub_problem = self.external_
         assert sub_problem is not None
         parameters = sub_problem.initial_parameters.copy()
-        for entry in sub_problem.parameters:
+        for entry in sub_problem.parameters.entries:
             parameters[entry.indices] = self.parameters_[self.problem_.parameters.entry(entry.name).indices]
         return parameters
 

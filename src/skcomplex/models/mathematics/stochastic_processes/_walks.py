@@ -115,11 +115,11 @@ class AgeingWalkerComponent(ElementComponent):
             model:
                 The model.
         """
-        if model.rng.random() < agent.p / (1 + agent.ups) ** agent.nu:
-            agent.x += 1
-            agent.ups += 1
+        if model.rng.random() < agent.parameter('p') / (1 + agent.state('ups')) ** agent.parameter('nu'):
+            agent.set_state('x', agent.state('x') + 1)
+            agent.set_state('ups', agent.state('ups') + 1)
             return
-        agent.x -= 1
+        agent.set_state('x', agent.state('x') - 1)
 
 
 @register_model(

@@ -106,7 +106,7 @@ class SaverComponent(ElementComponent):
     def save(self, agent, model):
         """Add the rate to the savings."""
         del model
-        agent.savings += agent.rate
+        agent.set_state('savings', agent.state('savings') + agent.parameter('rate'))
 
 
 HeaterComponent = ElementComponent.define(

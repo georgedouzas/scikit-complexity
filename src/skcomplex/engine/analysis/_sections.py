@@ -118,7 +118,7 @@ def poincare_section(
         True
     """
     problem = _problem(system)
-    if state not in problem.states or problem.states.entry(state).size != 1:
+    if not problem.states.has(state) or problem.states.entry(state).size != 1:
         error_msg = f'{state!r} is not a scalar state. Available states are: {", ".join(problem.states.names)}.'
         raise AnalysisError(error_msg)
     index = problem.states.entry(state).start
