@@ -12,7 +12,7 @@ from skcomplex.formalisms.rewriting import (
     GraphProductionLaw,
     HostGraphComponent,
     ProductionLaw,
-    Rewrite,
+    RewriteLaw,
     WordComponent,
     WordGeometry,
 )
@@ -29,14 +29,16 @@ def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):
     interface = nx.Graph()
     interface.add_nodes_from('ab')
     production = GraphProductionLaw(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
-    graph = System(
-        components=[HostGraphComponent('graph', graph=nx.cycle_graph(3))],
-        interactions=[Rewrite('rules', target='graph', rules=[production])],
+    SubdividedComponent = HostGraphComponent.define(
+        'SubdividedComponent',
+        laws=lambda s: [RewriteLaw([production])],
     )
-    tree = System(
-        components=[WordComponent('tree', axiom='F', geometry=WordGeometry(angle=30.0, dimension=3))],
-        interactions=[Rewrite('rules', target='tree', rules=[ProductionLaw('F', 'F[&F][/^F]')])],
+    TreeComponent = WordComponent.define(
+        'TreeComponent',
+        laws=lambda s: [RewriteLaw([ProductionLaw('F', 'F[&F][/^F]')])],
     )
+    graph = System(components=[SubdividedComponent('graph', graph=nx.cycle_graph(3))])
+    tree = System(components=[TreeComponent('tree', axiom='F', geometry=WordGeometry(angle=30.0, dimension=3))])
     plain = System(components=[WordComponent('word', axiom='F', geometry=WordGeometry())])
     assert _views(graph) == [rrb.GraphView, rrb.TimeSeriesView]
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]

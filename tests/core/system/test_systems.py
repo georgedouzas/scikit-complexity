@@ -26,7 +26,7 @@ from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
 from skcomplex.formalisms.quantum import GeneratorLaw, HilbertDomain, QuantumView, is_quantum
-from skcomplex.formalisms.rewriting import ProductionLaw, Rewrite, StructureDomain, WordComponent, structure_of
+from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, StructureDomain, WordComponent, structure_of
 from skcomplex.models.biology.ecology import PopulationComponent
 
 
@@ -237,10 +237,8 @@ def test_element_with_hilbert_state_runs_unitary_dynamics():
 def test_sequence_state_is_rewritten_in_parallel():
     """Test that an element with a sequence state is rewritten by its productions at every step."""
     rules = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-    system = System(
-        components=[WordComponent('algae', axiom='A')],
-        interactions=[Rewrite('rules', target='algae', rules=rules)],
-    )
+    AlgaeComponent = WordComponent.define('AlgaeComponent', laws=lambda s: [RewriteLaw(rules)])
+    system = System(components=[AlgaeComponent('algae', axiom='A')])
     trajectory = Simulation(system).run(until=4).trajectory_
     assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
     assert structure_of(WordComponent) == 'sequence'

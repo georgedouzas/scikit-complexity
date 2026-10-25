@@ -2894,19 +2894,23 @@ which later generations do not change.
 
 ### Words and productions
 
-A `Rewrite` interaction rewrites its target with fixed rules. Strings are words of one-character symbols, and
-`Module` gives a symbol parameters.
+A word, a patch, or a host graph rewrites itself by the rewriting laws it returns from `laws`. A `RewriteLaw` holds
+fixed rules, and every generation applies the rules of all the laws of a component at once. Strings are words of
+one-character symbols, and `Module` gives a symbol parameters.
 
 ```python
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.formalisms.rewriting import Module, ProductionLaw, Rewrite, WordComponent
+from skcomplex.formalisms.rewriting import Module, ProductionLaw, RewriteLaw, WordComponent
 
-algae = System(
-    components=[WordComponent('algae', axiom='A')],
-    interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
-)
+
+class AlgaeComponent(WordComponent):
+    def laws(self, s):
+        return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
+
+
+algae = System(components=[AlgaeComponent('algae', axiom='A')])
 trajectory = Simulation(algae).run(until=5).trajectory_
 print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
@@ -2915,31 +2919,28 @@ A production can be stochastic, with probabilities that sum to one per predecess
 simulation's random stream. It can depend on a left or a right context, which skips the word's `ignore` symbols and
 treats bracketed branches as Prusinkiewicz and Lindenmayer (1990) do, and it then takes precedence over context-free
 productions. A parametric production binds the predecessor's parameters to symbols, with a condition and successor
-parameters written as expressions of them and of the parameters of a `Rewriting` interaction, which `schedule` and
+parameters written as expressions of them and of the parameters of the rewritten component, which `schedule` and
 `update_parameters` change between generations.
 
 ```python
-from skcomplex.formalisms.rewriting import Module, ProductionLaw, WordComponent
+from skcomplex.formalisms.rewriting import Module, ProductionLaw, RewriteLaw, WordComponent
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.base import parameter, symbol
-from skcomplex.formalisms.rewriting import Rewriting
 
 x = symbol('x')
 
 
-class Shrinking(Rewriting):
+class ShrinkingComponent(WordComponent):
     ratio: float = parameter(0.5)
 
-    def productions(self, s):
-        return [ProductionLaw(Module('A', (x,)), [Module('F', (x,)), Module('A', (s.ratio * x,))], condition=x > 0.1)]
+    def laws(self, s):
+        shrink = ProductionLaw(Module('A', (x,)), [Module('F', (x,)), Module('A', (s.ratio * x,))], condition=x > 0.1)
+        return [RewriteLaw([shrink])]
 
 
-plant = System(
-    components=[WordComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})],
-    interactions=[Shrinking('growth', target='plant')],
-)
+plant = System(components=[ShrinkingComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
 print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
@@ -2956,26 +2957,33 @@ maps relative to it. Structures with a geometry report `<element>.length` and `<
 `bounds()` and `raster(resolution)`, a boolean grid that `box_counting_dimension` reads.
 
 ```python
-from skcomplex.formalisms.rewriting import ProductionLaw, Rewrite, WordComponent
+from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, WordComponent
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.engine.analysis import box_counting_dimension
 from skcomplex.formalisms.rewriting import Affine, PatchComponent, Prototile, SubstitutionLaw, WordGeometry
 
-koch = System(
-    components=[WordComponent('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))],
-    interactions=[Rewrite('rules', target='koch', rules=[ProductionLaw('F', 'F+F--F+F')])],
-)
+
+class KochComponent(WordComponent):
+    def laws(self, s):
+        return [RewriteLaw([ProductionLaw('F', 'F+F--F+F')])]
+
+
+koch = System(components=[KochComponent('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))])
 curve = Simulation(koch).run(until=4).trajectory_.structure('koch', 4)
 print(len(curve.segments()), round(curve.length(), 6))
 
 interval = Prototile('interval', [(0, 0), (1, 0)])
 thirds = [('interval', Affine(scale=1 / 3)), ('interval', Affine(scale=1 / 3, translation=(2 / 3, 0)))]
-cantor = System(
-    components=[PatchComponent('cantor', prototiles=[interval])],
-    interactions=[Rewrite('rules', target='cantor', rules=[SubstitutionLaw('interval', thirds)])],
-)
+
+
+class CantorComponent(PatchComponent):
+    def laws(self, s):
+        return [RewriteLaw([SubstitutionLaw('interval', thirds)])]
+
+
+cantor = System(components=[CantorComponent('cantor', prototiles=[interval])])
 trajectory = Simulation(cantor).run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
@@ -2992,7 +3000,7 @@ A `GraphProductionLaw` gives a left graph, an interface, and a right graph that 
 drawn from the random stream, and skips matches whose deleted nodes would leave dangling edges.
 
 ```python
-from skcomplex.formalisms.rewriting import Rewrite
+from skcomplex.formalisms.rewriting import RewriteLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
@@ -3003,10 +3011,14 @@ from skcomplex.formalisms.rewriting import GraphProductionLaw, HostGraphComponen
 interface = nx.Graph()
 interface.add_nodes_from('ab')
 subdivide = GraphProductionLaw(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
-ring = System(
-    components=[HostGraphComponent('ring', graph=nx.cycle_graph(4))],
-    interactions=[Rewrite('rules', target='ring', rules=[subdivide])],
-)
+
+
+class RingComponent(HostGraphComponent):
+    def laws(self, s):
+        return [RewriteLaw([subdivide])]
+
+
+ring = System(components=[RingComponent('ring', graph=nx.cycle_graph(4))])
 print(Simulation(ring, random_state=0).run(until=3).trajectory_.values('ring.size').tolist())
 ```
 

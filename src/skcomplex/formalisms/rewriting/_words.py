@@ -139,7 +139,7 @@ class _Successor:
 
 @dataclass(frozen=True)
 class Parameters:
-    """Parameter symbols of the rewriting interactions, in the order of the parameter vector.
+    """Parameter symbols of the rewritten elements, in the order of the parameter vector.
 
     Args:
         symbols:
@@ -183,7 +183,7 @@ class Parameters:
         if free:
             error_msg = (
                 f'{owner} uses {", ".join(sorted(map(str, free)))}, which is neither a parameter of its predecessor '
-                'nor a parameter of its interaction. Declare it with `parameter` on the interaction.'
+                'nor a parameter of its component. Declare it with `parameter` on the word, patch, or host graph.'
             )
             raise RewritingError(error_msg)
         return numpy_function(self.time, [*variables, *self.symbols], values)

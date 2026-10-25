@@ -7,7 +7,16 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, RoleError, ValidationError, parameter, symbol
+from skcomplex.core.base import (
+    BaseInteraction,
+    BaseLaw,
+    Form,
+    IncompatibleLawsError,
+    LawKind,
+    ValidationError,
+    parameter,
+    symbol,
+)
 from skcomplex.core.problems import BaseProblem, Problem
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import box_counting_dimension
@@ -24,8 +33,7 @@ from skcomplex.formalisms.rewriting import (
     PatchStructure,
     ProductionLaw,
     Prototile,
-    Rewrite,
-    Rewriting,
+    RewriteLaw,
     RewritingCompiler,
     RewritingError,
     RewritingProblem,
@@ -40,19 +48,29 @@ from skcomplex.models.biology.ecology import PopulationComponent
 X = symbol('x')
 
 
-class GrowthInteraction(Rewriting):
-    """Parametric production `A(x) → F(x) A(x·R)` while `x > 0.1`."""
+class GrowthComponent(WordComponent):
+    """Word with the parametric production `A(x) → F(x) A(x·R)` while `x > 0.1`."""
 
     R: float = parameter(0.5)
 
-    def productions(self, s):
-        """Return the production."""
-        return [ProductionLaw(Module('A', (X,)), [Module('F', (X,)), Module('A', (X * s.R,))], condition=X > 0.1)]
+    def laws(self, s):
+        """Return the rewriting law of the production."""
+        production = ProductionLaw(Module('A', (X,)), [Module('F', (X,)), Module('A', (X * s.R,))], condition=X > 0.1)
+        return [RewriteLaw([production])]
+
+
+class AlgaeComponent(WordComponent):
+    """Word with the productions `A → AB` and `B → A` of the algae of Lindenmayer."""
+
+    def laws(self, s):
+        """Return the rewriting law of the productions."""
+        return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
 
 
 def _system(element, *rules):
-    """Return a system of one rewritten element and its fixed rules."""
-    return System(components=[element], interactions=[Rewrite('rules', target=element.label, rules=list(rules))])
+    """Return a system of one element of a type that returns a rewriting law of fixed rules from its laws."""
+    kind = type(element).define(f'Rewritten{type(element).__name__}', laws=lambda s: [RewriteLaw(list(rules))])
+    return System(components=[kind(**element.get_params(deep=False))])
 
 
 def _fibonacci():
@@ -144,21 +162,20 @@ def test_context_takes_precedence():
 
 def test_parametric_growth():
     """Test parametric productions with a condition and successor parameters of a system parameter."""
-    word = WordComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})
-    system = System(components=[word], interactions=[GrowthInteraction('growth', target='plant')])
+    word = GrowthComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})
+    system = System(components=[word])
     simulation = Simulation(system).run(until=6)
     trajectory = simulation.trajectory_
     assert trajectory.structure('plant', 5).text == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
     assert trajectory.structure('plant', 6).text == trajectory.structure('plant', 5).text
-    assert trajectory.values('growth.R')[0] == 0.5
+    assert trajectory.values('plant.R')[0] == 0.5
     assert trajectory.structure('plant', 1).modules()[1] == Module('A', (0.5,))
 
 
 def test_parameter_change_between_generations():
     """Test that a production parameter changed by a schedule applies from the next generation."""
-    word = WordComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})
-    system = System(components=[word], interactions=[GrowthInteraction('growth', target='plant')])
-    trajectory = Simulation(system, schedule={'growth.R': lambda t: 0.25}).run(until=1).trajectory_
+    word = GrowthComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})
+    trajectory = Simulation(System(components=[word]), schedule={'plant.R': lambda t: 0.25}).run(until=1).trajectory_
     assert trajectory.structure('plant', 1).text == 'F(1) A(0.25)'
 
 
@@ -200,9 +217,11 @@ def test_malformed_systems():
         )
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
         compile_system(System(components=[WordComponent('word', axiom='A'), PopulationComponent('rabbits')]))
-    with pytest.raises(RoleError, match='which is not a word'):
+    with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
+        compile_system(System(components=[WordComponent('word', axiom='A')], interactions=[BaseInteraction('rules')]))
+    with pytest.raises(RewritingError, match='returns ProductionLaw from `laws`'):
         compile_system(
-            System(components=[WordComponent('word', axiom='A')], interactions=[Rewrite('rules', target='other')]),
+            System(components=[WordComponent.define('BareComponent', laws=lambda s: [ProductionLaw('A', 'B')])('w')]),
         )
     with pytest.raises(RewritingError, match='rewritten by ProductionLaws'):
         compile_system(_system(WordComponent('word', axiom='A'), SubstitutionLaw('A', [])))
@@ -467,11 +486,7 @@ def test_registered_formalisms_list_rewriting():
 
 def test_snapshot_is_a_structure_state():
     """Test that the rewriter hands its structures and measures to the simulation as a structure state."""
-    system = System(
-        components=[WordComponent('algae', axiom='A')],
-        interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
-    )
-    snapshot = Simulation(system).run(until=2).stepper_.snapshot_
+    snapshot = Simulation(System(components=[AlgaeComponent('algae', axiom='A')])).run(until=2).stepper_.snapshot_
     assert isinstance(snapshot, StructureState)
     assert snapshot.structures['algae'].parts == 3
 
@@ -480,3 +495,11 @@ def test_rewriting_problem_is_a_base_problem_and_not_the_compilers():
     """Test that a rewriting problem derives from the problem base alone."""
     assert issubclass(RewritingProblem, BaseProblem)
     assert not issubclass(RewritingProblem, Problem)
+
+
+def test_rule_of_a_word():
+    """Test that a word rewrites itself by the rewriting law it returns, which is a law and not an interaction."""
+    trajectory = Simulation(System(components=[AlgaeComponent('algae', axiom='A')])).run(until=5).trajectory_
+    assert trajectory.structure('algae', 5).text == 'ABAABABAABAAB'
+    assert issubclass(RewriteLaw, BaseLaw)
+    assert not issubclass(RewriteLaw, BaseInteraction)

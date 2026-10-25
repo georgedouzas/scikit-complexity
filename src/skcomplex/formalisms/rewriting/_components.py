@@ -130,7 +130,7 @@ class WordComponent(ElementComponent):
     """Element that holds a word of modules rewritten in parallel by string productions.
 
     Its states are the count of every symbol whose name is a word of letters, digits, and underscores, and the length
-    `size` of the word.
+    `size` of the word. A subclass returns the rewriting laws of the word from `laws`.
 
     Args:
         label:
@@ -189,7 +189,8 @@ class WordComponent(ElementComponent):
 class PatchComponent(ElementComponent):
     """Element that holds tiles, each a prototile under an affine placement, replaced in parallel by substitutions.
 
-    Its states are the count of every prototile and the number `size` of tiles.
+    Its states are the count of every prototile and the number `size` of tiles. A subclass returns the rewriting laws
+    of the patch from `laws`.
 
     Args:
         label:
@@ -243,7 +244,8 @@ class PatchComponent(ElementComponent):
 class HostGraphComponent(ElementComponent):
     """Element that holds a graph rewritten by double-pushout graph productions.
 
-    Its states are the count of nodes of every `label` attribute that is a word, and the number `size` of nodes.
+    Its states are the count of nodes of every `label` attribute that is a word, and the number `size` of nodes. A
+    subclass returns the rewriting laws of the graph from `laws`.
 
     Args:
         label:

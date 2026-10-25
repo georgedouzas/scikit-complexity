@@ -3,9 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 
-from ....core.base import ValidationError
+from ....core.base import NumericDomain, ValidationError, parameter
+from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.rewriting import (
@@ -13,13 +16,142 @@ from ....formalisms.rewriting import (
     PatchComponent,
     ProductionLaw,
     Prototile,
-    Rewrite,
+    RewriteLaw,
+    RewritingLaw,
     SubstitutionLaw,
     WordComponent,
     WordGeometry,
 )
 
 SHAPES = ('triangle', 'carpet')
+
+
+def _sierpinski_tiles(shape: str) -> tuple[Prototile, list[tuple[str, Affine]]]:
+    """Return the prototile of a Sierpiński shape and the scaled copies that replace it."""
+    if shape == 'triangle':
+        height = np.sqrt(3) / 2
+        corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
+        pieces = [('triangle', Affine(scale=0.5, translation=corner)) for corner in corners]
+        return Prototile('triangle', [(0.0, 0.0), (1.0, 0.0), (0.5, height)]), pieces
+    if shape == 'carpet':
+        cells = [(column, row) for row in range(3) for column in range(3) if (column, row) != (1, 1)]
+        pieces = [('square', Affine(scale=1 / 3, translation=(column / 3, row / 3))) for column, row in cells]
+        return Prototile('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
+    error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
+    raise ValidationError(error_msg)
+
+
+class KochComponent(WordComponent):
+    """Word rewritten by the production `F → F+F--F+F` of the Koch curve.
+
+    Args:
+        label:
+            The label of the word.
+
+        **settings:
+            The settings and the values of the declared variables of a word, by name.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.fractals import KochComponent
+        >>> KochComponent('koch', axiom='F').laws(None)[0].productions()[0].text
+        'F → F+F--F+F'
+    """
+
+    def laws(self, s: Symbols) -> list[RewritingLaw]:
+        """Return the production of the Koch curve.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rewriting law of the word.
+        """
+        del s
+        return [RewriteLaw([ProductionLaw('F', 'F+F--F+F')])]
+
+
+class CantorComponent(PatchComponent):
+    """Patch of intervals, each replaced by its first and its last part of the length `ratio`.
+
+    Args:
+        label:
+            The label of the patch.
+
+        **settings:
+            The settings and the values of the declared variables of a patch, by name:
+
+            ratio:
+                The length of each kept part relative to its interval.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.fractals import CantorComponent
+        >>> CantorComponent('cantor', ratio=0.25).ratio
+        0.25
+    """
+
+    ratio: float = parameter(1 / 3, domain=NumericDomain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[RewritingLaw]:
+        """Return the substitution of every interval by its two outer parts.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rewriting law of the patch.
+        """
+        pieces = [
+            ('interval', Affine(scale=s.ratio)),
+            ('interval', Affine(scale=s.ratio, translation=(1 - s.ratio, 0))),
+        ]
+        return [RewriteLaw([SubstitutionLaw('interval', pieces)])]
+
+
+class SierpinskiComponent(PatchComponent):
+    """Patch of triangles or squares, each replaced by the scaled copies of the Sierpiński triangle or carpet.
+
+    Args:
+        label:
+            The label of the patch.
+
+        shape:
+            `'triangle'` or `'carpet'`.
+
+        **settings:
+            The settings and the values of the declared variables of a patch, by name.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.fractals import SierpinskiComponent
+        >>> len(SierpinskiComponent('sierpinski', shape='carpet').laws(None)[0].productions()[0].pieces)
+        8
+    """
+
+    def __init__(self, label: str, *, shape: str = 'triangle', **settings: Any) -> None:  # noqa: ANN401
+        super().__init__(label, **settings)
+        self.shape = shape
+
+    def laws(self, s: Symbols) -> list[RewritingLaw]:
+        """Return the substitution of every polygon by its scaled copies.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rewriting law of the patch.
+
+        Raises:
+            ValidationError:
+                The shape is unknown.
+        """
+        del s
+        prototile, pieces = _sierpinski_tiles(self.shape)
+        return [RewriteLaw([SubstitutionLaw(prototile.name, pieces)])]
 
 
 @register_model(
@@ -48,17 +180,14 @@ def koch_curve(angle: float = 60.0) -> System:
         >>> run('koch_curve', settings={'until': 3}).trajectory_.values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
-    word = WordComponent(
+    word = KochComponent(
         'koch',
         axiom='F',
         alphabet='F+-',
         geometry=WordGeometry(angle=angle, step=1.0, contraction=1 / 3),
         bounds=(-0.03, -0.05, 1.03, 0.35),
     )
-    return System(
-        components=[word],
-        interactions=[Rewrite('rules', target='koch', rules=[ProductionLaw('F', 'F+F--F+F')])],
-    )
+    return System(components=[word])
 
 
 @register_model(
@@ -95,11 +224,8 @@ def cantor_set(ratio: float = 1 / 3) -> System:
         error_msg = f'ratio = {ratio!r} must lie between 0 and 1/2.'
         raise ValidationError(error_msg)
     interval = Prototile('interval', [(0.0, 0.0), (1.0, 0.0)])
-    pieces = [('interval', Affine(scale=ratio)), ('interval', Affine(scale=ratio, translation=(1 - ratio, 0.0)))]
-    patch = PatchComponent('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
     return System(
-        components=[patch],
-        interactions=[Rewrite('rules', target='cantor', rules=[SubstitutionLaw(pieces[0][0], pieces)])],
+        components=[CantorComponent('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
     )
 
 
@@ -137,20 +263,5 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
         >>> run('sierpinski_substitution', settings={'until': 2}).trajectory_.values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
-    if shape == 'triangle':
-        height = np.sqrt(3) / 2
-        prototile = Prototile('triangle', [(0.0, 0.0), (1.0, 0.0), (0.5, height)])
-        corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
-        pieces = [('triangle', Affine(scale=0.5, translation=corner)) for corner in corners]
-    elif shape == 'carpet':
-        prototile = Prototile('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])
-        cells = [(column, row) for row in range(3) for column in range(3) if (column, row) != (1, 1)]
-        pieces = [('square', Affine(scale=1 / 3, translation=(column / 3, row / 3))) for column, row in cells]
-    else:
-        error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
-        raise ValidationError(error_msg)
-    patch = PatchComponent('sierpinski', prototiles=[prototile], filled=filled)
-    return System(
-        components=[patch],
-        interactions=[Rewrite('rules', target='sierpinski', rules=[SubstitutionLaw(pieces[0][0], pieces)])],
-    )
+    prototile, _ = _sierpinski_tiles(shape)
+    return System(components=[SierpinskiComponent('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])

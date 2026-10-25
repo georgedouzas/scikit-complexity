@@ -1,11 +1,11 @@
-"""Define rewriting laws: productions on words, substitutions of tiles, and graph productions."""
+"""Define rewriting laws: productions on words, substitutions of tiles, graph productions, and the laws holding them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import networkx as nx
 import numpy as np
@@ -88,7 +88,7 @@ class ProductionLaw(BaseLaw):
 
     The predecessor's parameters are symbols bound to the parameters of each matching module. The condition, the
     successor's parameters, and the probability are expressions of these symbols and of the parameters of the
-    interaction that returns the production. A production with a left or a right context matches only modules whose
+    component whose laws hold the production. A production with a left or a right context matches only modules whose
     neighbours, skipping the ignored symbols of the word and its bracketed branches, spell the context.
 
     Args:
@@ -193,8 +193,8 @@ class Prototile:
 class Affine:
     """Affine map of the plane: a reflection across the x axis, a rotation, a scale, and a translation, in order.
 
-    The scale, the rotation, and the translation can be expressions of the parameters of the interaction that
-    returns the substitution, which are evaluated at every generation.
+    The scale, the rotation, and the translation can be expressions of the parameters of the component whose laws
+    hold the substitution, which are evaluated at every generation.
 
     Args:
         scale:
@@ -327,4 +327,75 @@ class GraphProductionLaw(BaseLaw):
         return set(self.right.nodes) - set(self.interface.nodes)
 
 
-type RewritingLaw = ProductionLaw | SubstitutionLaw | GraphProductionLaw
+type Production = ProductionLaw | SubstitutionLaw | GraphProductionLaw
+
+
+@dataclass(frozen=True, eq=False)
+class RewritingLaw(BaseLaw):
+    """Base of the laws by which a word, a patch, or a host graph rewrites itself in parallel at every generation.
+
+    A word, a patch, or a host graph returns its rewriting laws from `laws`, and every generation applies the
+    productions of all of them at once. A child gives its productions through the hook `_productions`, and the
+    productions may use the parameters of the component through the namespace that `laws` receives.
+
+    Examples:
+        >>> from skcomplex.core.base import BaseInteraction
+        >>> from skcomplex.formalisms.rewriting import RewriteLaw, RewritingLaw
+        >>> issubclass(RewriteLaw, RewritingLaw), issubclass(RewriteLaw, BaseInteraction)
+        (True, False)
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
+
+    def _productions(self) -> tuple[Production, ...]:
+        """Return the productions of the law, none by default."""
+        return ()
+
+    def productions(self) -> tuple[Production, ...]:
+        """Return the productions, substitutions, or graph productions of the law.
+
+        Returns:
+            productions:
+                The productions, applied in parallel at every generation.
+        """
+        return self._productions()
+
+
+@dataclass(frozen=True, eq=False)
+class RewriteLaw(RewritingLaw):
+    """Law that rewrites a word, a patch, or a host graph by fixed productions, substitutions, or graph productions.
+
+    Args:
+        rules:
+            The productions, substitutions, or graph productions.
+
+    Raises:
+        RewritingError:
+            A rule is not a production, a substitution, or a graph production, once the law is checked.
+
+    Examples:
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw
+        >>> RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]).productions()[1].text
+        'B → A'
+    """
+
+    rules: Sequence[Production] = ()
+
+    def _check(self) -> Self:
+        """Return the law, raising an error for a rule that is not a production, a substitution, or a graph rule."""
+        wrong = [
+            rule for rule in self.rules if not isinstance(rule, ProductionLaw | SubstitutionLaw | GraphProductionLaw)
+        ]
+        if wrong:
+            error_msg = (
+                f'RewriteLaw takes productions, substitutions, or graph productions, but got {wrong[0]!r}. Give '
+                'ProductionLaw, SubstitutionLaw, or GraphProductionLaw rules.'
+            )
+            raise RewritingError(error_msg)
+        return self
+
+    def _productions(self) -> tuple[Production, ...]:
+        """Return the fixed rules."""
+        return tuple(self.rules)

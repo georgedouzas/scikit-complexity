@@ -4,13 +4,13 @@ from ...core.base import Form
 from .._formalism import Formalism, register
 from ._components import HostGraphComponent, PatchComponent, StructureDomain, WordComponent, structure_of
 from ._geometry import WordGeometry
-from ._interactions import Rewrite, Rewriting
 from ._laws import (
     Affine,
     GraphProductionLaw,
     Module,
     ProductionLaw,
     Prototile,
+    RewriteLaw,
     RewritingError,
     RewritingLaw,
     SubstitutionLaw,
@@ -35,8 +35,7 @@ __all__: list[str] = [
     'PatchStructure',
     'ProductionLaw',
     'Prototile',
-    'Rewrite',
-    'Rewriting',
+    'RewriteLaw',
     'RewritingCompiler',
     'RewritingError',
     'RewritingLaw',
@@ -55,8 +54,8 @@ __all__: list[str] = [
 register(
     Formalism(
         'rewriting',
-        laws=(ProductionLaw, SubstitutionLaw, GraphProductionLaw),
-        components=(WordComponent, PatchComponent, HostGraphComponent, Rewriting, Rewrite),
+        laws=(ProductionLaw, SubstitutionLaw, GraphProductionLaw, RewritingLaw, RewriteLaw),
+        components=(WordComponent, PatchComponent, HostGraphComponent),
         compilers=(RewritingCompiler(),),
         forms=(Form.REWRITING,),
         solvers={'rewriter': RewritingSolver},

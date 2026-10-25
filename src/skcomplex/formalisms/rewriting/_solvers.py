@@ -21,18 +21,13 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.formalisms.rewriting import WordComponent
-        >>> from skcomplex.formalisms.rewriting import Rewrite
-        >>> from skcomplex.formalisms.rewriting import ProductionLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.rewriting import RewritingSolver
-        >>> system = System(
-        ...     components=[WordComponent('algae', axiom='A')],
-        ...     interactions=[
-        ...         Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])
-        ...     ],
-        ... )
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, RewritingSolver, WordComponent
+        >>> class AlgaeComponent(WordComponent):
+        ...     def laws(self, s):
+        ...         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
+        >>> system = System(components=[AlgaeComponent('algae', axiom='A')])
         >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
