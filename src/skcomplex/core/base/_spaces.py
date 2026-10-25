@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from sklearn.base import BaseEstimator
 
@@ -35,3 +35,28 @@ class BaseTime(BaseEstimator):
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the name of the time."""
         return f'{type(self).__name__}()'
+
+
+class BaseNeighborhood:
+    """Base of the neighbourhoods, the members a law reads around a member of a space.
+
+    A neighbourhood is a value: its arguments are kept as given, and `check` returns the neighbourhood with them
+    checked and normalized.
+    """
+
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized, itself by default."""
+        return self
+
+    def check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized.
+
+        Returns:
+            neighborhood:
+                The checked neighbourhood.
+
+        Raises:
+            ValidationError:
+                An argument of the neighbourhood is invalid, such as a negative radius.
+        """
+        return self._check()

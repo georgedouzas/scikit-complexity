@@ -106,11 +106,11 @@ def test_laws_reject_values_that_are_not_operators():
     """Test that the quantum laws check their operator and rate."""
     q = _namespace(QubitComponent('q'), 'q')
     with pytest.raises(ValidationError, match='Generator takes'):
-        GeneratorLaw(1.0)
+        GeneratorLaw(1.0).check()
     with pytest.raises(ValidationError, match='Dissipator takes'):
-        DissipatorLaw('q')
+        DissipatorLaw('q').check()
     with pytest.raises(ValidationError, match='rate'):
-        DissipatorLaw(q.minus, 'fast')
+        DissipatorLaw(q.minus, 'fast').check()
 
 
 def test_neighbor_pairs_list_lattice_and_network_bonds():

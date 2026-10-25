@@ -5,16 +5,13 @@
 
 import itertools
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from typing import ClassVar
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Self
 
 import numpy as np
 import numpy.typing as npt
 
-from ..base import (
-    Requires,
-    SpaceKind,
-)
+from ..base import BaseNeighborhood, Requires, SpaceKind
 from ._spaces import SiteSpace
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
@@ -230,6 +227,7 @@ class LatticeSpace(SiteSpace['Neighborhood']):
         if not isinstance(neighborhood, Neighborhood):
             error_msg = f'A lattice reads a neighbourhood of offsets, but it was given {neighborhood!r}.'
             raise ValueError(error_msg)  # noqa: TRY004
+        neighborhood = neighborhood.check()
         if neighborhood.offsets and len(neighborhood.offsets[0]) != self.n_dim:
             error_msg = (
                 f'The neighbourhood has offsets of dimension {len(neighborhood.offsets[0])}, but the lattice has '
@@ -300,7 +298,7 @@ class LatticeSpace(SiteSpace['Neighborhood']):
 
 
 @dataclass(frozen=True)
-class Neighborhood:
+class Neighborhood(BaseNeighborhood):
     """Ordered offsets of the sites a local rule reads, with the site itself as the zero offset when included.
 
     Args:
@@ -319,12 +317,15 @@ class Neighborhood:
 
     offsets: tuple[Offset, ...]
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized."""
+        changes: dict[str, Any] = {}
         offsets = tuple(tuple(int(step) for step in np.atleast_1d(offset)) for offset in self.offsets)
         if len({len(offset) for offset in offsets}) > 1:
             error_msg = 'Every offset of a neighbourhood has the same number of dimensions.'
             raise ValueError(error_msg)
-        object.__setattr__(self, 'offsets', offsets)
+        changes['offsets'] = offsets
+        return replace(self, **changes) if changes else self
 
     def __len__(self) -> int:
         """Return the number of offsets."""

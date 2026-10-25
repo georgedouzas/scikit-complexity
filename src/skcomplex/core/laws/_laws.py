@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
-from typing import Any, ClassVar, cast
+from dataclasses import dataclass, field, replace
+from typing import Any, ClassVar, Self, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -56,11 +56,6 @@ def _checked_matrix(description: str, matrix: object) -> tuple[tuple[object, ...
     return tuple(
         tuple(_checked_value(f'entry of the matrix of the {description}', entry) for entry in row) for row in rows
     )
-
-
-def _check_value(law: object, name: str, description: str) -> None:
-    """Replace a value field of a frozen law by its checked value."""
-    object.__setattr__(law, name, _checked_value(description, getattr(law, name)))
 
 
 def _is_process(process: object) -> bool:
@@ -166,9 +161,11 @@ class RateLaw(BaseLaw):
     value: object
     order: int | None = None
 
-    def __post_init__(self) -> None:
-        """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -238,9 +235,10 @@ class NoiseLaw(BaseLaw):
     process: Process = None
     conserved: bool = False
 
-    def __post_init__(self) -> None:
-        """Check the value, the convention, and the process of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
             raise ValidationError(error_msg)
@@ -256,6 +254,7 @@ class NoiseLaw(BaseLaw):
                 'process per link of the lattice. Remove the process.'
             )
             raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -329,16 +328,17 @@ class JumpLaw(BaseLaw):
     reset: Mapping[Any, object] | None = None
     label: str | None = None
 
-    def __post_init__(self) -> None:
-        """Check the clock and the increments of the jump."""
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if (self.rate is None) == (self.waiting is None):
             error_msg = 'A jump fires at a rate or after a waiting time. Give exactly one of them.'
             raise ValidationError(error_msg)
         _check_clock_options(self)
         if self.waiting is not None:
-            _check_value(self, 'waiting', 'waiting time of a jump')
-            return
-        _check_value(self, 'rate', f'rate of the jump of {", ".join(map(str, self.changes))}')
+            changes['waiting'] = _checked_value('waiting time of a jump', self.waiting)
+            return replace(self, **changes) if changes else self
+        changes['rate'] = _checked_value(f'rate of the jump of {", ".join(map(str, self.changes))}', self.rate)
         for state, increment in self.changes.items():
             if not _is_number(increment):
                 error_msg = (
@@ -346,6 +346,7 @@ class JumpLaw(BaseLaw):
                     'number.'
                 )
                 raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -375,9 +376,11 @@ class UpdateLaw(BaseLaw):
     target: Target
     value: object
 
-    def __post_init__(self) -> None:
-        """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -403,7 +406,7 @@ class TransitionLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import TransitionLaw
         >>> x, q = symbol('x'), symbol('q')
-        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).matrix[0]
+        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).check().matrix[0]
         (q, -q + 1)
     """
 
@@ -418,9 +421,11 @@ class TransitionLaw(BaseLaw):
     target: Expression
     matrix: Sequence[Sequence[object]]
 
-    def __post_init__(self) -> None:
-        """Check the matrix of the law."""
-        object.__setattr__(self, 'matrix', _checked_matrix(f'transition law of {self.target}', self.matrix))
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['matrix'] = _checked_matrix(f'transition law of {self.target}', self.matrix)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -464,9 +469,11 @@ class EmissionLaw(BaseLaw):
     source: Expression
     matrix: Sequence[Sequence[object]]
 
-    def __post_init__(self) -> None:
-        """Check the matrix of the law."""
-        object.__setattr__(self, 'matrix', _checked_matrix(f'emission law of {self.target}', self.matrix))
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['matrix'] = _checked_matrix(f'emission law of {self.target}', self.matrix)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -498,9 +505,11 @@ class BoundaryLaw(BaseLaw):
     target: Target
     value: object
 
-    def __post_init__(self) -> None:
-        """Check the value of the law."""
-        _check_value(self, 'value', f'value of the {type(self).__name__} of {self.target}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -547,13 +556,15 @@ class Objective(BaseLaw):
     sense: str = 'min'
     label: str = 'objective'
 
-    def __post_init__(self) -> None:
-        """Check the values and the sense of the objective."""
-        _check_value(self, 'expression', f'running value of the objective {self.label}')
-        _check_value(self, 'terminal', f'terminal value of the objective {self.label}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['expression'] = _checked_value(f'running value of the objective {self.label}', self.expression)
+        changes['terminal'] = _checked_value(f'terminal value of the objective {self.label}', self.terminal)
         if self.sense not in SENSES:
             error_msg = f'Unknown sense {self.sense!r} of the objective {self.label}. Use one of {", ".join(SENSES)}.'
             raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -631,9 +642,11 @@ class RenewalLaw(BaseLaw):
     reset: Mapping[Any, object] | None = None
     label: str | None = None
 
-    def __post_init__(self) -> None:
-        """Check the waiting time of the law."""
-        _check_value(self, 'waiting', 'waiting time of a renewal law')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['waiting'] = _checked_value('waiting time of a renewal law', self.waiting)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True, init=False)

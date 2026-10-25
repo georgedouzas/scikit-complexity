@@ -324,6 +324,7 @@ class CayleySpace(SiteSpace[Memory]):
             >>> space.index_table(Memory(('1', 'a'))).tolist()
             [[0, 1], [1, 2], [2, 0]]
         """
+        neighborhood = neighborhood.check()
         if not isinstance(neighborhood, Memory):
             error_msg = f'A group space reads a memory set of group elements, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)

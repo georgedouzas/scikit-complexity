@@ -75,7 +75,7 @@ def test_neighborhoods_are_ordered():
     assert len(Neighborhood.von_neumann(2)) == 12
     assert len(Neighborhood.moore(n_dim=3)) == 26
     with pytest.raises(ValueError, match='same number of dimensions'):
-        Neighborhood(((0, 1), (1,)))
+        Neighborhood(((0, 1), (1,))).check()
 
 
 def test_rule_30_matches_published_pattern():
@@ -169,7 +169,7 @@ def test_checkerboard_needs_bipartite_neighbourhood():
 def test_unknown_schedule_is_rejected():
     """Test that an unknown schedule names the known ones."""
     with pytest.raises(ValueError, match='synchronous'):
-        LocalRuleLaw(None, Neighborhood.radius(), lambda *values: values[0], schedule='parallel')
+        LocalRuleLaw(None, Neighborhood.radius(), lambda *values: values[0], schedule='parallel').check()
 
 
 def test_forest_fire_is_reproducible():

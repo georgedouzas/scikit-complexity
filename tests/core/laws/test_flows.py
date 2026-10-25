@@ -249,7 +249,7 @@ def test_flow_between_quantities_is_rejected():
 def test_flow_holders_and_labels_are_checked():
     """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
     with pytest.raises(ValidationError, match='both of its holders'):
-        TransferLaw(Source(), Sink(), 1.0)
+        TransferLaw(Source(), Sink(), 1.0).check()
     twice = ElementComponent.define(
         'TwiceComponent',
         states={'x': state(1.0)},
@@ -373,7 +373,7 @@ def test_transfer_moves_between_states_and_checks_names():
 def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
     """Test that invariants of members take module-level functions, which pickle."""
     with pytest.raises(ValidationError, match='cannot be pickled'):
-        Invariant('lambda', lambda agent: 0.0)
+        Invariant('lambda', lambda agent: 0.0).check()
     data = pickle.dumps(Invariant('equity', attrgetter('equity')))
     invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
     assert invariant.label == 'equity'

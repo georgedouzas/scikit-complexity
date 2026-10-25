@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
-from typing import Any, ClassVar
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Self
 
 from ...core.base import (
     BaseLaw,
@@ -90,10 +90,13 @@ class LocalRuleLaw(BaseLaw):
     schedule: str = 'synchronous'
     stochastic: bool = False
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValueError(error_msg)
+        return replace(self, **changes) if changes else self
 
     @property
     def targets(self) -> tuple[Expression, ...]:
@@ -266,10 +269,13 @@ class MoveLaw(BaseLaw):
     values: tuple[float, ...] = ()
     width: float = 0.0
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if self.kind not in MOVES:
             error_msg = f'Unknown move {self.kind!r}. Use one of {", ".join(MOVES)}.'
             raise ValueError(error_msg)
+        return replace(self, **changes) if changes else self
 
     @classmethod
     def flip(cls, target: Expression) -> 'MoveLaw':
@@ -352,7 +358,9 @@ class SamplerLaw(BaseLaw):
     temperature: object = 1.0
     schedule: str = 'checkerboard'
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if self.kind not in SAMPLERS:
             error_msg = f'Unknown sampler {self.kind!r}. Use one of {", ".join(SAMPLERS)}.'
             raise ValueError(error_msg)
@@ -361,6 +369,7 @@ class SamplerLaw(BaseLaw):
                 f'Unknown Monte Carlo schedule {self.schedule!r}. Use one of {", ".join(MONTE_CARLO_SCHEDULES)}.'
             )
             raise ValueError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -456,13 +465,16 @@ class ExtremalLaw(BaseLaw):
     repeat: int = 1
     label: str | None = None
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if self.extremum not in EXTREMA:
             error_msg = f'Unknown extremum {self.extremum!r}. Use one of {", ".join(EXTREMA)}.'
             raise ValueError(error_msg)
         if int(self.repeat) < 1:
             error_msg = f'An extremal law applies at least once per step, but its repeat is {self.repeat}.'
             raise ValueError(error_msg)
+        return replace(self, **changes) if changes else self
 
     @property
     def targets(self) -> tuple[Expression, ...]:

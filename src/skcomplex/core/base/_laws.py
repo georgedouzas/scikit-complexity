@@ -4,7 +4,7 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from ._errors import RegistryError
 from ._kinds import LawClass, LawKind, Requires, Trait
@@ -149,6 +149,26 @@ class BaseLaw:
     time_class: ClassVar[LawClass]
     traits: ClassVar[frozenset[Trait]] = frozenset()
     requires: ClassVar[Requires] = Requires()
+
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, the law itself by default."""
+        return self
+
+    def check(self) -> Self:
+        """Return the law with its values checked and normalized.
+
+        Laws are values, so checking returns a law rather than changing this one. Validation checks every law of a
+        system before compiling it.
+
+        Returns:
+            law:
+                The checked law, with its values as Sage expressions.
+
+        Raises:
+            ValidationError:
+                A value of the law is invalid, such as a NumPy array or a SymPy expression.
+        """
+        return self._check()
 
 
 LAWS = Registry[type[BaseLaw]]('law')

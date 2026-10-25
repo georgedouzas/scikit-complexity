@@ -205,7 +205,7 @@ LeakyComponent = ElementComponent.define(
 def test_noise_rejects_unknown_process():
     """Test that a noise law rejects a process that is neither a label nor a handle."""
     with pytest.raises(ValidationError, match='process'):
-        NoiseLaw(symbol('n'), 1.0, process=3)
+        NoiseLaw(symbol('n'), 1.0, process=3).check()
 
 
 def test_pendulum_as_written_matches_solved_form():
@@ -245,7 +245,7 @@ def test_equation_takes_two_sides():
     """Test that an equation takes either a relation or two sides."""
     assert EquationLaw(1, 2).rhs == 2
     with pytest.raises(ValueError, match='left and a right side'):
-        EquationLaw(1)
+        EquationLaw(1).check()
 
 
 @pytest.mark.parametrize(
@@ -313,7 +313,7 @@ def test_objective_declares_constraint_kind_and_times():
 def test_objective_rejects_unknown_sense():
     """Test that an objective takes the sense `min` or `max` only."""
     with pytest.raises(ValidationError, match='Unknown sense'):
-        Objective(symbol('x'), sense='best')
+        Objective(symbol('x'), sense='best').check()
 
 
 def test_objective_compiles_running_and_terminal_values():
@@ -395,4 +395,4 @@ def test_undeclared_change_names_the_state_and_the_quantity():
 def test_jump_rejects_option_of_other_clock(arguments, message):
     """Test that a jump rejects at construction an option of the clock it does not use."""
     with pytest.raises(ValidationError, match=message):
-        JumpLaw(**arguments)
+        JumpLaw(**arguments).check()

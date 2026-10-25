@@ -255,7 +255,14 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
             'laws, which its edges do not take.'
         )
         raise ValidationError(error_msg)
-    return list(declared)
+    checked = []
+    for law in declared:
+        try:
+            checked.append(law.check())
+        except ValidationError as error:
+            error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
+            raise ValidationError(error_msg) from error
+    return checked
 
 
 def census_of(system: System, nodes: list[Node]) -> Census:

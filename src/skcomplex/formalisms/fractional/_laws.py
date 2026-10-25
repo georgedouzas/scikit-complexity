@@ -60,4 +60,3 @@ class FractionalNoiseLaw(NoiseLaw):
         object.__setattr__(self, 'convention', convention)
         object.__setattr__(self, 'process', None)
         object.__setattr__(self, 'conserved', False)
-        self.__post_init__()

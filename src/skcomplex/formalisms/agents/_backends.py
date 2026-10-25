@@ -1049,10 +1049,10 @@ class MesaSolver(Solver):
                 for invariant in spec.invariants:
                     key = (agent.unique_id, spec.path, invariant.label)
                     first = self._invariant_values.setdefault(key, invariant.value_of(view))
-                    invariant.check(view, first, f'agent {view.id} of {spec.path}')
+                    invariant._verify(view, first, f'agent {view.id} of {spec.path}')
         for model, owner, invariant in self._model_invariants:
             first = self._invariant_values.setdefault((-1, owner, invariant.label), invariant.value_of(model))
-            invariant.check(model, first, owner)
+            invariant._verify(model, first, owner)
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""

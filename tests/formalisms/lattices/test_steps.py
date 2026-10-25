@@ -296,7 +296,7 @@ def test_extremal_maximum_and_ties():
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
     with pytest.raises(ValueError, match='extremum'):
-        ExtremalLaw(None, Adjacency(), _renew, extremum='median')
+        ExtremalLaw(None, Adjacency(), _renew, extremum='median').check()
 
 
 def test_extremal_runs_are_reproducible_across_backends():
