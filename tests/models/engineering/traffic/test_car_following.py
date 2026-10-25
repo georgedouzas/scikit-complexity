@@ -141,7 +141,10 @@ def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
     per_car = per_car.trajectory_
     for variable in ('x', 'v'):
         np.testing.assert_allclose(
-            group.values(f'cars.{variable}'), _cars(per_car, 20, variable), rtol=1e-8, atol=1e-12
+            group.values(f'cars.{variable}'),
+            _cars(per_car, 20, variable),
+            rtol=1e-8,
+            atol=1e-12,
         )
 
 

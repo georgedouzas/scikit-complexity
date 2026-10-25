@@ -50,7 +50,7 @@ def test_brusselator_and_heat_stay_bounded():
     assert values.max() < 20
     trajectory = Simulation(heat_diffusion((32, 32)), dt=5).run(until=50).trajectory_
     assert trajectory.values('plate.u').sum(axis=1) == pytest.approx(
-        np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum())
+        np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum()),
     )
 
 

@@ -41,7 +41,11 @@ trajectory = simulation.trajectory_
 fig, (settling, speed) = plt.subplots(1, 2, figsize=(10, 4))
 settling.plot(trajectory.values('charger.omega'), trajectory.values('charger.I'))
 settling.plot(
-    trajectory.values('charger.omega')[-1], trajectory.values('charger.I')[-1], 'o', color='black', label='steady state'
+    trajectory.values('charger.omega')[-1],
+    trajectory.values('charger.I')[-1],
+    'o',
+    color='black',
+    label='steady state',
 )
 settling.set_xlabel('angular speed omega')
 settling.set_ylabel('current I')

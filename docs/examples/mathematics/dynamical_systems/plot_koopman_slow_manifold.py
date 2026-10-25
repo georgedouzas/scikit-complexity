@@ -79,7 +79,10 @@ plane.legend()
 for orbit in orbits[:3]:
     eigen.semilogy(times, np.abs(orbit.values('flow.x1')), color='tab:orange', linewidth=1)
     eigen.semilogy(
-        times, np.abs(orbit.values('flow.x2') - b * orbit.values('flow.x1') ** 2), color='tab:green', linewidth=1
+        times,
+        np.abs(orbit.values('flow.x2') - b * orbit.values('flow.x1') ** 2),
+        color='tab:green',
+        linewidth=1,
     )
 eigen.semilogy(times, np.exp(MU * times), 'k--', label='exp(mu t)')
 eigen.semilogy(times, np.exp(LAM * times), 'k:', label='exp(lam t)')

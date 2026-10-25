@@ -13,7 +13,7 @@ def test_double_auction_budget_constraint_is_efficient(protocol):
     """Zero-intelligence traders with budget constraints realise over 90% of the surplus, without them much less."""
     constrained = _run_observed(double_auction(30, 30, protocol=protocol), 10).values('ledger.efficiency')[1:]
     unconstrained = _run_observed(double_auction(30, 30, protocol=protocol, constrained=False), 10).values(
-        'ledger.efficiency'
+        'ledger.efficiency',
     )[1:]
     assert constrained.mean() > 0.9
     assert unconstrained.mean() < constrained.mean() - 0.1

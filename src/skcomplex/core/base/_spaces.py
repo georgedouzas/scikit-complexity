@@ -42,10 +42,11 @@ class BaseSpace(BaseEstimator):
     """Base class of spaces, where the members of groups live and which give vector states their dimension.
 
     `prepare()` checks the arguments and derives the facts of the space, and `run(site, neighborhood=None)` returns the
-    sites around a site. A child sets the prepared attributes in `_prepare`, and answers the neighbourhood hooks the engine
-    reads: `_index_table` gives the neighbour of every site in every slot of a neighbourhood, `_ball` the neighbourhood
-    within a radius, `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the neighbourhood
-    that `run` reads when it is given none. A space without sites, such as a continuous one, answers none of them.
+    sites around a site. A child sets the prepared attributes in `_prepare`, and answers the neighbourhood hooks the
+    engine reads: `_index_table` gives the neighbour of every site in every slot of a neighbourhood, `_ball` the
+    neighbourhood within a radius, `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the
+    neighbourhood that `run` reads when it is given none. A space without sites, such as a continuous one, answers none
+    of them.
 
     The class variable `space_kind` names the kind of the space that laws require, and `lacks` the options of the kind
     the space does not offer, such as `'regular-geometry'` for the checkerboard schedule of a square lattice and

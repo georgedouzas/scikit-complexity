@@ -19,10 +19,14 @@ def _truth_table(arity, function):
 def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
     """Test that the total cost never rises, and that it falls further when redesigns change fewer components."""
     modular = _run(
-        built := nk_technology(10, 1), 2000, observables=describe('nk_technology').observables_of(built)
+        built := nk_technology(10, 1),
+        2000,
+        observables=describe('nk_technology').observables_of(built),
     ).values('total_cost')
     coupled = _run(
-        built := nk_technology(10, 4), 2000, observables=describe('nk_technology').observables_of(built)
+        built := nk_technology(10, 4),
+        2000,
+        observables=describe('nk_technology').observables_of(built),
     ).values('total_cost')
     for costs in (modular, coupled):
         assert np.all(np.diff(costs) <= 1e-12)

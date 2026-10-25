@@ -16,7 +16,8 @@ def test_rice_milling_passes_the_harvest_through():
     assert trajectory.values('mill.milling')[last_years].mean() == pytest.approx(2000.0, rel=0.05)
     assert trajectory.values('mill.rice_sales')[last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
     np.testing.assert_allclose(
-        trajectory.values('mill.husk_output'), 0.2 / 0.65 * trajectory.values('mill.milled_rice')
+        trajectory.values('mill.husk_output'),
+        0.2 / 0.65 * trajectory.values('mill.milled_rice'),
     )
     assert trajectory.values('mill.paddy').max() > 2 * trajectory.values('mill.paddy').min()
 

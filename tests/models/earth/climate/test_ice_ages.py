@@ -28,7 +28,9 @@ def test_carbon_cycle_is_excitable():
     large = _run(carbon_cycle(w=2050.0), until=20.0, dt=0.1)
     for trajectory in (small, large):
         assert np.allclose(
-            [trajectory.values('ocean.c')[-1], trajectory.values('ocean.w')[-1]], [83.58, 2197.37], atol=0.1
+            [trajectory.values('ocean.c')[-1], trajectory.values('ocean.w')[-1]],
+            [83.58, 2197.37],
+            atol=0.1,
         )
     assert np.ptp(small.values('ocean.c')) < 20.0
     assert np.ptp(large.values('ocean.c')) > 100.0

@@ -37,10 +37,15 @@ untreated = Simulation(create(MODEL, dose=0.0), dt=0.5, solver=solver).run(until
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
     cells.semilogy(
-        trajectory.times, trajectory.values('tumour.Ap') + trajectory.values('tumour.Ac'), label=f'live cells, {name}'
+        trajectory.times,
+        trajectory.values('tumour.Ap') + trajectory.values('tumour.Ac'),
+        label=f'live cells, {name}',
     )
     cells.semilogy(
-        trajectory.times, trajectory.values('tumour.An').clip(1e-3), linestyle=':', label=f'necrotic, {name}'
+        trajectory.times,
+        trajectory.values('tumour.An').clip(1e-3),
+        linestyle=':',
+        label=f'necrotic, {name}',
     )
     vessels.semilogy(trajectory.times, trajectory.values('tumour.Vbp').clip(1e-6), label=f'periphery, {name}')
     vessels.semilogy(trajectory.times, trajectory.values('tumour.Vbc').clip(1e-6), linestyle=':', label=f'core, {name}')

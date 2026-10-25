@@ -265,7 +265,8 @@ class LammpsSolver(ExternalSolver):
         ...     interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
-        >>> positions = Simulation(system, solver=LammpsSolver(dt=0.005), dt=0.1).run(until=0.5).trajectory_.values('gas.x')
+        >>> trajectory = Simulation(system, solver=LammpsSolver(dt=0.005), dt=0.1).run(until=0.5).trajectory_
+        >>> positions = trajectory.values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True
     """

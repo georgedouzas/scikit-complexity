@@ -278,8 +278,8 @@ class Simulation(BaseEstimator):
     def _loop(self, until: float) -> None:
         """Advance frame by frame from the current time until `until` or until a stop is requested.
 
-        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it
-        acquired, such as an external process.
+        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it acquired,
+        such as an external process.
         """
         origin, first = self.time_, self._step
         self.clock_.prepare()

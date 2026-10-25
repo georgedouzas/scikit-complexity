@@ -110,9 +110,9 @@ class Protocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
     Subclasses implement `match(buyers, sellers, model)`, which receives the orders of the participants with something
-    to trade and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which
-    raises an error for an invalid option. A protocol's `evaluate` is also a pairing of the core's matching law: given
-    the buyers and sellers, it reads their orders from the states `bid`, `demand`, and `money` of buyers and `ask` and
+    to trade and returns trades whose quantities respect the orders' quantities and budgets, and `_check`, which raises
+    an error for an invalid option. A protocol's `evaluate` is also a pairing of the core's matching law: given the
+    buyers and sellers, it reads their orders from the states `bid`, `demand`, and `money` of buyers and `ask` and
     `supply` of sellers, and returns the trades, whose `buyer` and `seller` are the paired agents.
     """
 

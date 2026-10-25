@@ -57,7 +57,11 @@ spread.legend()
 headways = np.mod(np.roll(trajectory.values('cars.x'), -1, axis=1) - trajectory.values('cars.x'), 40.0)
 late = trajectory.times > 150
 cycle.plot(
-    headways[late].ravel(), trajectory.values('cars.v')[late].ravel(), '.', markersize=2, label='all cars, t > 150'
+    headways[late].ravel(),
+    trajectory.values('cars.v')[late].ravel(),
+    '.',
+    markersize=2,
+    label='all cars, t > 150',
 )
 grid = np.linspace(0.0, 5.0, 200)
 cycle.plot(grid, np.tanh(grid - 2.0) + np.tanh(2.0), color='black', label='V(h)')

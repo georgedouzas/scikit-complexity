@@ -53,8 +53,8 @@ def step_count(t: float, until: float, dt: float) -> int:
 class Solver(BaseSolver[Problem]):
     """Base of the solvers of the compiler's problem, which run its events, renewals, delays, and boundary laws.
 
-    Every call to `run` receives the current parameters, so parameter changes apply at the next call, and applies
-    the boundary laws of the problem after every internal step.
+    Every call to `run` receives the current parameters, so parameter changes apply at the next call, and applies the
+    boundary laws of the problem after every internal step.
     """
 
     def _check_capabilities(self, problem: Problem) -> None:

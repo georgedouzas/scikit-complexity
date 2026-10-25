@@ -24,7 +24,7 @@ def test_payne_conserves_cars_and_keeps_equilibrium():
     """Test that the Payne model conserves the cars and keeps uniform flow at the equilibrium speed."""
     trajectory = Simulation(payne(50), dt=0.1, solver=SSPRKSolver()).run(until=0.5).trajectory_
     assert trajectory.values('road.rho').sum(axis=1) == pytest.approx(
-        np.full(6, trajectory.values('road.rho')[0].sum())
+        np.full(6, trajectory.values('road.rho')[0].sum()),
     )
     uniform = Simulation(payne(50, bump=0.0), dt=0.1, solver=SSPRKSolver()).run(until=0.5).trajectory_
     assert np.ptp(uniform.values('road.q')[-1]) < 1e-12

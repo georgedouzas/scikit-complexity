@@ -129,7 +129,8 @@ def test_renewal_stepper_exposes_the_renewal_count_observable():
     trajectory = _trajectory(System(components=[CounterComponent.group('c', 5)]), 10, 0.5)
     times = np.concatenate([record.times for record in trajectory.events])
     assert np.array_equal(
-        trajectory.values('ticks.renewals'), np.searchsorted(np.sort(times), trajectory.times, 'right')
+        trajectory.values('ticks.renewals'),
+        np.searchsorted(np.sort(times), trajectory.times, 'right'),
     )
 
 

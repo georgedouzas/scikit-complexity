@@ -32,6 +32,9 @@ from skcomplex.formalisms.fields import FieldComponent, MeshSpace
 from skcomplex.formalisms.lattices import SamplerLaw
 from skcomplex.formalisms.quantum import GeneratorLaw
 
+from ...formalisms import outside
+
+TEST_TERMS = {str(outside.DECAY), str(outside.DECAYING)}
 INVENTORY = Path(str(files('tests'))).parent / 'docs' / 'overview' / 'inventory.toml'
 
 
@@ -40,13 +43,15 @@ def test_vocabulary_matches_inventory():
     inventory = tomllib.loads(INVENTORY.read_text())['vocabulary']
     assert set(inventory) == set(vocabulary())
     for category, terms in vocabulary().items():
-        assert set(inventory[category]) == {str(term) for term in terms}, category
+        assert set(inventory[category]) == {str(term) for term in terms} - TEST_TERMS, category
 
 
 def test_inventory_law_classes_match_core():
     """Test that every law of the inventory vocabulary has the time semantics of the core law kind."""
     laws = tomllib.loads(INVENTORY.read_text())['vocabulary']['laws']
     for law in law_classes():
+        if str(law.law_kind) in TEST_TERMS:
+            continue
         assert laws[str(law.law_kind)]['class'] == str(law.time_class), law
 
 

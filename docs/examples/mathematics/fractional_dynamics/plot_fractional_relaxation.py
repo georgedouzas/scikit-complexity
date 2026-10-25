@@ -62,7 +62,12 @@ for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
     exact = mittag_leffler(order, 1.0, -(times**order))
     ax.loglog(
-        times, run.values('relaxation.x')[1:], 'o', markersize=2, color=np.array(color) / 255, label=f'order {order}'
+        times,
+        run.values('relaxation.x')[1:],
+        'o',
+        markersize=2,
+        color=np.array(color) / 255,
+        label=f'order {order}',
     )
     ax.loglog(times, exact, '-', linewidth=0.8, color='black')
     if order < 1:

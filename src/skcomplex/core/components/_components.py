@@ -460,9 +460,8 @@ def _probe_namespace(component_type: type[BaseComponent | BaseInteraction]) -> S
     """Return the namespace of free symbols of the declared names of a type, which probing its laws reads.
 
     An element type gives its states, their companions, and its parameters, with `other`, the neighbour of a member,
-    holding the same names. An interaction gives its parameters and an empty namespace per role, or an empty tuple
-    for a variadic role, since the names of the
-    bound elements are not known before compiling. Both give the time `t`.
+    holding the same names. An interaction gives its parameters and an empty namespace per role, or an empty tuple for a
+    variadic role, since the names of the bound elements are not known before compiling. Both give the time `t`.
     """
     declared = component_type._declarations()
     names = {name: symbol(name) for name, item in declared.items() if item.kind != VariableKind.ROLE}

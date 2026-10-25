@@ -189,7 +189,8 @@ def test_observable_module_function_pickles():
     restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
     expected = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_.values('total')
     assert np.allclose(
-        Simulation(system, dt=0.5, observables=restored).run(until=1).trajectory_.values('total'), expected
+        Simulation(system, dt=0.5, observables=restored).run(until=1).trajectory_.values('total'),
+        expected,
     )
 
 
@@ -262,7 +263,9 @@ def test_observable_reads_plain_reduction_of_its_members():
     simulation = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
     trajectory = simulation.run(until=2).trajectory_
     np.testing.assert_allclose(
-        trajectory.values('spread'), np.asarray(trajectory.values('u.x')).var(axis=1), rtol=1e-12
+        trajectory.values('spread'),
+        np.asarray(trajectory.values('u.x')).var(axis=1),
+        rtol=1e-12,
     )
 
 
