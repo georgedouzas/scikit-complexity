@@ -120,7 +120,7 @@ class CayleySpace(BaseSpace):
     quotient, numbered by word length and then by order of discovery, so a ball is a prefix of every larger ball. A
     cell at the site `g` reads the site `g s` for every element `s` of a memory set, and a neighbour outside a ball, or
     reached through a site outside it, reads the value `fill`. Without a ball or a quotient the group must be finite,
-    and the sites are all its elements. Fitting the space enumerates its sites, and running a rule reads only its
+    and the sites are all its elements. Preparing the space enumerates its sites, and running a rule reads only its
     neighbour table.
 
     Args:
@@ -162,10 +162,10 @@ class CayleySpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.formalisms.groups import CayleySpace, permutation_group
-        >>> space = CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]]), ball=3).fit()
+        >>> space = CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]]), ball=3).prepare()
         >>> space.size_, space.words_[:4], space.ball_sizes_
         (6, ['1', 'a', 'b', 'b^-1'], [1, 4, 6, 6])
-        >>> CayleySpace(permutation_group([[1, 2, 0]])).fit().run(0).tolist()
+        >>> CayleySpace(permutation_group([[1, 2, 0]])).prepare().run(0).tolist()
         [1, 2]
     """
 
@@ -218,10 +218,10 @@ class CayleySpace(BaseSpace):
         sizes = _bound_sizes(self.group, self.ball, self.max_sites)
         if sizes[-1] <= self.max_sites:
             return
-        fits = len(sizes) - 2
+        prepares = len(sizes) - 2
         error_msg = (
-            f'The ball of radius {self.ball} exceeds the limit of {self.max_sites} sites. The largest radius that fits '
-            f'is {fits}, with at most {sizes[fits]} sites.'
+            f'The ball of radius {self.ball} exceeds the limit of {self.max_sites} sites. The largest radius that prepares '
+            f'is {prepares}, with at most {sizes[prepares]} sites.'
         )
         raise SpaceTooLargeError(error_msg)
 
@@ -249,7 +249,7 @@ class CayleySpace(BaseSpace):
                 raise ValidationError(error_msg)
         return self.quotient
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Enumerate the sites, and set their words, their neighbours by generator, their edges, and their positions."""
         group = self._sites_group()
         built = _enumerate(group.word_problem(), len(group.generators), self.ball, self.max_sites)

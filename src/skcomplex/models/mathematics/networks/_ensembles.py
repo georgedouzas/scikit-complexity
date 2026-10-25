@@ -161,7 +161,7 @@ def _variable_network(
         element=element,
         on='sites',
         variable=True,
-        capacity=space.fit().size_,
+        capacity=space.prepare().size_,
         values=values,
         visual=DEGREE_VISUAL,
     )

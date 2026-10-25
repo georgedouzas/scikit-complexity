@@ -238,7 +238,7 @@ def symbols_of(s: Symbols, names: Sequence[str]) -> list[Expression]:
 class BaseSurrogate(BaseEstimator):
     """Base class of the surrogate systems fitted to series, which forecast by simulating the fitted system.
 
-    `fit(data)` fits the surrogate to a trajectory, a series, or a sequence of them, sampled at one uniform step, and
+    `prepare(data)` fits the surrogate to a trajectory, a series, or a sequence of them, sampled at one uniform step, and
     `run(steps)` forecasts the variables over a number of samples after the last sample of the last series. This base
     runs the fitted system from that sample, and a child may forecast faster.
 

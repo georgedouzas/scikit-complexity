@@ -59,7 +59,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
 
     form: ClassVar[Form] = Form.REWRITING
 
-    def _fit(self, problem: RewritingProblem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: RewritingProblem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the structures at generation 0.
 
         Args:
@@ -72,7 +72,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
             until:
                 The end time of the run.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         values = problem.initial_parameters
         self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
         self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}

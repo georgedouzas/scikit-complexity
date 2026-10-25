@@ -161,11 +161,11 @@ def _epidemic():
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
-def test_backend_fits_the_form_and_runs_the_kernels(backend):
-    """Test that a backend fitted to a form and a size returns the lowering of the kernels when run."""
-    fitted = backend().fit(Form.ODE, 2)
-    assert (fitted.form_, fitted.size_) == (Form.ODE, 2)
-    lowering = fitted.run({}, {})
+def test_backend_prepares_the_form_and_runs_the_kernels(backend):
+    """Test that a backend prepared for a form and a size returns the lowering of the kernels when run."""
+    prepared = backend().prepare(Form.ODE, 2)
+    assert (prepared.form_, prepared.size_) == (Form.ODE, 2)
+    lowering = prepared.run({}, {})
     assert isinstance(lowering, Lowering)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
@@ -367,7 +367,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
         backend=numba_backend if backend == 'numba' else backend,
     )
     stepper = RK4Solver(dt=0.001)
-    stepper.fit(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert np.allclose(state, np.e, rtol=1e-10)
 

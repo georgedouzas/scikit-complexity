@@ -11,7 +11,7 @@ from ...core.base import BaseEstimator
 class BaseClock(BaseEstimator):
     """Base class of clocks, which decide how long to wait between frames.
 
-    A clock is fitted at the start of a run with `fit()`, which marks the wall time, and `run(elapsed)` waits until a
+    A clock is prepared at the start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits until a
     frame that is `elapsed` simulated time units after the start is due. Subclasses implement `_run`.
 
     Attributes:
@@ -22,7 +22,7 @@ class BaseClock(BaseEstimator):
             The largest delay of a frame behind its due time, in seconds.
     """
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Mark the wall time at which the run starts."""
         self.started_ = time.perf_counter()
         self.max_lag_ = 0.0
@@ -41,7 +41,7 @@ class AsFastAsPossibleClock(BaseClock):
 
     Examples:
         >>> from skcomplex.engine.runtime import AsFastAsPossibleClock
-        >>> clock = AsFastAsPossibleClock().fit()
+        >>> clock = AsFastAsPossibleClock().prepare()
         >>> clock.run(10.0)
     """
 
@@ -57,7 +57,7 @@ class RealTimeClock(BaseClock):
 
     Examples:
         >>> from skcomplex.engine.runtime import RealTimeClock
-        >>> clock = RealTimeClock(speed=100.0).fit()
+        >>> clock = RealTimeClock(speed=100.0).prepare()
         >>> clock.run(1.0)
         >>> clock.max_lag_ < 0.1
         True

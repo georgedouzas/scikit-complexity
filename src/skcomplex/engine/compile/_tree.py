@@ -151,7 +151,7 @@ def _with_capacity(
 
 
 def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
-    """Check whether two fitted network spaces have the same nodes, edges, and layers, such as clones of one network."""
+    """Check whether two prepared network spaces have the same nodes, edges, and layers, such as clones of one network."""
     if list(first.graphs_) != list(second.graphs_):
         return False
     if (first.capacity, first.fill, list(first.hyperedges)) != (second.capacity, second.fill, list(second.hyperedges)):
@@ -165,10 +165,10 @@ def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
 
 
 def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
-    """Return a fitted space, or the first network space seen that equals it, so clones of a network share one.
+    """Return a prepared space, or the first network space seen that equals it, so clones of a network share one.
 
-    A space is fitted here unless it was fitted before, such as a group space whose ball was enumerated once. A space
-    whose arguments are not valid stays unfitted, and validation reports it from its check.
+    A space is prepared here unless it was prepared before, such as a group space whose ball was enumerated once. A space
+    whose arguments are not valid stays unprepared, and validation reports it from its check.
     """
     if space is None:
         return None
@@ -177,7 +177,7 @@ def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | No
             return known
     try:
         if not hasattr(space, 'size_'):
-            space.fit()
+            space.prepare()
     except ValidationError:
         seen.append(space)
         return space
@@ -397,7 +397,7 @@ def declared_times(system: System, scope: str = '', inherited: TimeKind | None =
         times:
             The time of every system by path, `None` for a system without a declared time.
     """
-    time = system.time.fit().time_kind_ if system.time is not None else inherited
+    time = system.time.prepare().time_kind_ if system.time is not None else inherited
     times = {scope: time}
     for child in system.systems:
         times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))

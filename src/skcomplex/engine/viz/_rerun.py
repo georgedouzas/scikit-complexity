@@ -57,7 +57,7 @@ def _renewal_text(record: RenewalRecord) -> str:
 class RerunObserver(BaseObserver):
     """Observer that logs frames to Rerun, with entity paths that follow the system tree.
 
-    `fit(problem)` creates the recording and fits the visual of every element and agent group, `run(frame)` logs a
+    `prepare(problem)` creates the recording and prepares the visual of every element and agent group, `run(frame)` logs a
     frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines,
     logs every element with the visual its type declares, logs every parameter under `parameters/<name>`, and logs
     the renewals of renewal laws since the previous frame as text entries under `renewals/<label>`. A subclass logs
@@ -92,7 +92,7 @@ class RerunObserver(BaseObserver):
             The blueprint sent with the recording, or `None`.
 
         visuals_:
-            The fitted visuals of the elements and the agent groups, in the order they are logged.
+            The prepared visuals of the elements and the agent groups, in the order they are logged.
 
         logged_frames_:
             The number of frames logged.
@@ -148,7 +148,7 @@ class RerunObserver(BaseObserver):
         error_msg = f'blueprint = {self.blueprint!r} is not supported. Use None, \'default\', or a Rerun blueprint.'
         raise ValidationError(error_msg)
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Create the recording, send it to its sinks, and fit a visual to every element and agent group."""
         self.blueprint_ = self._resolve_blueprint(problem)
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
@@ -166,8 +166,8 @@ class RerunObserver(BaseObserver):
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
         agents = getattr(problem, 'agents', ())
         self.visuals_: list[BaseVisual] = [
-            *(resolve_visual(element.visual).fit(element, problem) for element in getattr(problem, 'elements', ())),
-            *(agents_visual_of(group, problem).fit(group, problem) for group in agents),
+            *(resolve_visual(element.visual).prepare(element, problem) for element in getattr(problem, 'elements', ())),
+            *(agents_visual_of(group, problem).prepare(group, problem) for group in agents),
         ]
         space = getattr(problem, 'agent_space', None)
         if isinstance(space, NetworkSpace):

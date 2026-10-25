@@ -27,8 +27,8 @@ MODEL = 'rotating_swing'
 class SwingObserver(RerunObserver):
     """Observer that also logs the chain angle and the angular velocity of the stand."""
 
-    def _fit(self, problem):
-        super()._fit(problem)
+    def _prepare(self, problem):
+        super()._prepare(problem)
         for name, color in (('chain angle', [250, 150, 60]), ('stand speed', [90, 170, 230])):
             path = 'chairs/' + name.replace(' ', '_')
             self.recording_.log(path, rr.SeriesLines(colors=color, names=name, widths=2), static=True)

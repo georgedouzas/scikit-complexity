@@ -170,11 +170,11 @@ class BodiesVisual(BaseVisual):
         self.marks = marks
         self.radius = radius
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
         self.drawn_: set[str] = set()
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _bodies(self, values: dict[str, Any]) -> npt.NDArray[np.float64]:
         """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""
@@ -299,7 +299,7 @@ class BodiesVisual(BaseVisual):
         Returns:
             views:
                 A 2D spatial view with the element path as origin, bounded by the rods at full length around the
-                pivot or by the outline, and fitted to the drawing otherwise, and a time series view of the states.
+                pivot or by the outline, and prepared to the drawing otherwise, and a time series view of the states.
         """
         if not isinstance(element, CompiledElement):
             return []

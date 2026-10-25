@@ -117,7 +117,7 @@ def _scalar_views(problem: BaseProblem) -> list[rrb.View]:
         visual = resolve_visual(element.visual)
         if not isinstance(visual, ScalarsVisual):
             continue
-        for view in visual.fit(element, problem).views_:
+        for view in visual.prepare(element, problem).views_:
             groups.setdefault(_type_name(element), []).append((element, view))
     views: list[rrb.View] = []
     for name, members in groups.items():
@@ -140,7 +140,7 @@ def _element_views(problem: BaseProblem) -> tuple[list[rrb.View], list[rrb.View]
         visual = resolve_visual(element.visual)
         if isinstance(visual, ScalarsVisual):
             continue
-        for view in visual.fit(element, problem).views_:
+        for view in visual.prepare(element, problem).views_:
             if isinstance(view, rrb.TimeSeriesView):
                 series.append(view)
             elif isinstance(visual, PointsVisual):
@@ -155,7 +155,7 @@ def _agent_views(problem: BaseProblem) -> list[rrb.View]:
     views: list[rrb.View] = []
     agents: CompiledAgents
     for agents in getattr(problem, 'agents', ()):
-        views += agents_visual_of(agents, problem).fit(agents, problem).views_
+        views += agents_visual_of(agents, problem).prepare(agents, problem).views_
     if getattr(problem, 'agent_space', None) is None:
         return views
     by_class: dict[type, list[rrb.View]] = {}

@@ -211,7 +211,7 @@ class CollocationSolver(OptimalControlSolver):
             np.concatenate([state_upper, np.tile(upper, points)]),
         )
 
-    def _prepare(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the Jacobians of the rates and the gradients of the costs symbolically.
 
         Args:

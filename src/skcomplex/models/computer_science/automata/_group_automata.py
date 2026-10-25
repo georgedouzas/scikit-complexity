@@ -243,7 +243,7 @@ def _majority_system(
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
-    cells = _random_cells(space.fit().size_, density, random_state)
+    cells = _random_cells(space.prepare().size_, density, random_state)
     return System(components=[MajorityCellComponent.lattice('cells', space, alive=cells, memory=memory)])
 
 
@@ -331,7 +331,7 @@ def lamplighter_automaton(
         39
     """
     space = CayleySpace(lamplighter(), ball=radius)
-    cells = _random_cells(space.fit().size_, density, random_state)
+    cells = _random_cells(space.prepare().size_, density, random_state)
     return System(components=[ParityCellComponent.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
 
 

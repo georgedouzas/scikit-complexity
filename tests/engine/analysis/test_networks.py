@@ -26,6 +26,7 @@ def _schelling_contacts() -> nx.Graph:
     """Return the network of neighbouring residents of a relaxed Schelling model, with their groups."""
     trajectory = run('schelling', width=30, height=30, random_state=0, settings={'until': 100}).trajectory_
     snapshot = snapshots_of(trajectory)
+    assert snapshot.positions is not None
     cells = {tuple(int(item) for item in place): index for index, place in enumerate(snapshot.positions[-1])}
     group = next(values for values in snapshot.states.values())[-1]
     graph = nx.Graph()

@@ -74,7 +74,7 @@ def test_group_space_is_a_lattice_kind_space():
 def test_group_space_numbers_sites_by_word_length():
     """Test that the words of the sites grow in length and that a ball is a prefix of a larger ball."""
     group = finitely_presented_group(['a', 'b'])
-    small, large = CayleySpace(group, ball=2).fit(), CayleySpace(group, ball=3).fit()
+    small, large = CayleySpace(group, ball=2).prepare(), CayleySpace(group, ball=3).prepare()
     assert small.words_ == large.words_[: small.size_]
     assert list(large.lengths_) == sorted(large.lengths_)
     assert small.words_[:3] == ['1', 'a', 'a^-1']
@@ -82,7 +82,7 @@ def test_group_space_numbers_sites_by_word_length():
 
 def test_group_space_index_table_reads_outside_as_size():
     """Test that the identity reads itself, its generators the sites one letter away, and the boundary the fill."""
-    space = CayleySpace(finitely_presented_group(['a']), ball=1).fit()
+    space = CayleySpace(finitely_presented_group(['a']), ball=1).prepare()
     table = space._index_table(Memory(('1', 'a')))
     assert table[:, 0].tolist() == list(range(space.size_))
     assert table[0, 1] == space.words_.index('a')
@@ -94,18 +94,18 @@ def test_group_space_index_table_reads_outside_as_size():
 def test_group_space_index_table_needs_a_memory_set():
     """Test that a neighbourhood of offsets is rejected on a group space."""
     with pytest.raises(ValidationError, match='memory set'):
-        CayleySpace(permutation_group([[1, 0]])).fit().run(0, Neighborhood.radius())
+        CayleySpace(permutation_group([[1, 0]])).prepare().run(0, Neighborhood.radius())
 
 
 def test_group_space_positions_lie_on_rings():
     """Test that every site sits at the distance of its word length from the identity at the origin."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).fit()
+    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).prepare()
     np.testing.assert_allclose(np.linalg.norm(space.positions_, axis=1), space.lengths_)
 
 
 def test_group_space_edges_join_sites_by_generators():
     """Test that the edges of a cyclic group of order 4 form a cycle of one generator."""
-    space = CayleySpace(permutation_group([[1, 2, 3, 0]])).fit()
+    space = CayleySpace(permutation_group([[1, 2, 3, 0]])).prepare()
     assert sorted((first, second) for first, second, _ in space.edges_) == [(0, 1), (1, 3), (2, 0), (3, 2)]
     assert len(neighbor_pairs(space, space.size_)) == 4
 
@@ -119,9 +119,9 @@ def test_group_space_rejects_a_ball_and_a_quotient():
 def test_group_space_quotient_must_satisfy_the_relators():
     """Test that a quotient in which a relator is not the identity is rejected."""
     group = finitely_presented_group(['a'], ['a^3'])
-    assert CayleySpace(group, quotient=permutation_group([[1, 2, 0]])).fit().size_ == 3
+    assert CayleySpace(group, quotient=permutation_group([[1, 2, 0]])).prepare().size_ == 3
     with pytest.raises(ValidationError, match='not a quotient'):
-        CayleySpace(group, quotient=permutation_group([[1, 0]])).fit()
+        CayleySpace(group, quotient=permutation_group([[1, 0]])).prepare()
 
 
 def test_group_space_check_names_the_largest_radius_that_fits():
@@ -133,7 +133,7 @@ def test_group_space_check_names_the_largest_radius_that_fits():
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_local_rule_free_group_majority(backend):
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=6).fit()
+    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
     alive = _run(System(components=[CellComponent.lattice('cells', space, alive=cells)]), 1, backend)['cells.alive']
     table = space._index_table(FREE_MEMORY)
@@ -144,7 +144,7 @@ def test_local_rule_free_group_majority(backend):
 
 def test_local_rule_keeps_the_orientation_of_the_memory():
     """Test that on the Heisenberg group a cell copies the value at `g a`, not at `a g`."""
-    space = CayleySpace(matrix_group(HEISENBERG), ball=3).fit()
+    space = CayleySpace(matrix_group(HEISENBERG), ball=3).prepare()
     elements = {space.words_[site]: site for site in range(space.size_)}
     cells = np.zeros(space.size_)
     cells[elements['b']] = 1.0
@@ -155,7 +155,7 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
 
 def test_local_rule_runs_without_gap(monkeypatch):
     """Test that a rule on a built ball of an automaton group steps many times with GAP unavailable."""
-    space = CayleySpace(automaton_group(GRIGORCHUK), ball=4).fit()
+    space = CayleySpace(automaton_group(GRIGORCHUK), ball=4).prepare()
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
     system = System(components=[CopyComponent.lattice('cells', space, alive=cells)])
     monkeypatch.setitem(sys.modules, 'sage.all__sagemath_gap', None)
@@ -164,7 +164,7 @@ def test_local_rule_runs_without_gap(monkeypatch):
 
 def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
-    space = CayleySpace(automaton_group(GRIGORCHUK), quotient=2).fit()
+    space = CayleySpace(automaton_group(GRIGORCHUK), quotient=2).prepare()
     cells = np.arange(space.size_) % 2.0
     alive = _run(System(components=[CopyComponent.lattice('cells', space, alive=cells)]), 3)['cells.alive']
     assert space.size_ == 8

@@ -260,7 +260,7 @@ class ReservoirSurrogate(BaseSurrogate):
         >>> import numpy as np
         >>> from skcomplex.engine.analysis import ReservoirSurrogate, Series
         >>> times = np.arange(400.0)
-        >>> surrogate = ReservoirSurrogate().fit(Series(times, np.sin(0.1 * times)[:, None], ['x']))
+        >>> surrogate = ReservoirSurrogate().prepare(Series(times, np.sin(0.1 * times)[:, None], ['x']))
         >>> surrogate.states_
         ['x', 'memory_0', 'memory_1']
         >>> bool(abs(surrogate.run(10)[-1, 0] - np.sin(0.1 * 409)) < 0.01)
@@ -307,7 +307,7 @@ class ReservoirSurrogate(BaseSurrogate):
             error_msg = f'The reservoir kind {self.kind!r} is unknown. Choose one of {RESERVOIR_KINDS}.'
             raise AnalysisError(error_msg)
 
-    def _fit(self, data: SurrogateData) -> None:
+    def _prepare(self, data: SurrogateData) -> None:
         """Drive the reservoir by the series, fit its readout, and set the surrogate system and its errors."""
         samples = samples_of(data, self.names)
         node = _reservoir_node(

@@ -19,8 +19,8 @@ from ._utils import Vector
 class BaseSolver[P: BaseProblem](BaseEstimator):
     """Base of the solvers, which advance a problem of one form through time.
 
-    A solver is fitted to a problem with `fit(problem, rng, until)` and advances a state with `run(t, x, p, until)`,
-    which returns the state at time `until`. The last call `run(..., final=True)` releases what fitting acquired, such
+    A solver is prepared for a problem with `prepare(problem, rng, until)` and advances a state with `run(t, x, p, until)`,
+    which returns the state at time `until`. The last call `run(..., final=True)` releases what preparing acquired, such
     as an external process. Subclasses set the class variable `form` and implement `_advance`, and solvers that keep
     events, agents, or other state outside the state vector also implement `_collect`. Solvers that also solve other
     forms list them in `forms`. Solvers that treat diffusion implicitly set `implicit`, so they do not warn about the
@@ -30,7 +30,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
 
     Attributes:
         problem_:
-            The problem the solver is fitted to.
+            The problem the solver is prepared to.
 
         rng_:
             The random number generator of stochastic solvers.
@@ -68,7 +68,7 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
     snapshot_: object | None
     agents_: Mapping[str, list[Any]]
 
-    def _fit(self, problem: P, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: P, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the solver for a problem and a run that ends at a time.
 
         Args:

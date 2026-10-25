@@ -15,7 +15,7 @@ class RingSpace(BaseSpace):
         """Store the number of sites."""
         self.n = n
 
-    def _fit(self):
+    def _prepare(self):
         """Set the facts of the ring."""
         self.size_, self.n_dim_, self.shape_ = self.n, 1, (self.n,)
         self.positions_ = np.arange(self.n, dtype=float)[:, None]
@@ -43,8 +43,8 @@ class TickTime(BaseTime):
 
 
 def test_child_space_runs_through_the_hooks_of_the_base():
-    """Test that a space written with `_fit` and the table hooks is fitted and run by the verbs of the base."""
-    space = RingSpace().fit()
+    """Test that a space written with `_prepare` and the table hooks is prepared and run by the verbs of the base."""
+    space = RingSpace().prepare()
     assert (space.size_, space.n_dim_, space.periodic_) == (4, 1, True)
     assert space.run(0).tolist() == [3, 1]
     assert space.run(1, (2,)).tolist() == [3]
@@ -57,11 +57,11 @@ def test_child_space_runs_through_the_hooks_of_the_base():
 def test_space_without_sites_answers_no_neighbourhood_hook(hook, argument):
     """Test that a space without sites raises a space error for every neighbourhood hook."""
     with pytest.raises(SpaceError, match='no sites'):
-        getattr(EmptySpace().fit(), hook)(*argument)
+        getattr(EmptySpace().prepare(), hook)(*argument)
 
 
-def test_base_time_fits_its_kind_and_runs_its_ends():
-    """Test that the base time fits its kind without a schedule and runs the start and the end."""
-    time = TickTime().fit()
+def test_base_time_prepares_its_kind_and_runs_its_ends():
+    """Test that the base time prepares its kind without a schedule and runs the start and the end."""
+    time = TickTime().prepare()
     assert (time.time_kind_, time.schedule_) == (TimeKind.CONTINUOUS, None)
     assert time.run(2.0).tolist() == [0.0, 2.0]

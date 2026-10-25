@@ -115,7 +115,7 @@ def test_nested_system_inherits_time():
 def test_unknown_schedule_is_rejected():
     """Test that a schedule other than the known ones or phases is rejected."""
     with pytest.raises(ValidationError, match='schedule'):
-        DiscreteTime(schedule='parallel').fit()
+        DiscreteTime(schedule='parallel').prepare()
 
 
 def test_static_time_rejects_dynamic_laws():
@@ -151,7 +151,7 @@ def test_continuous_space_checks_its_box():
 
 def test_agents_and_fields_share_one_lattice_kind():
     """Test that agents and fields both live on lattice spaces, which declare agent neighbourhoods and capacities."""
-    space = LatticeSpace((4, 3), boundary='periodic', neighborhood='von_neumann', capacity=1).fit()
+    space = LatticeSpace((4, 3), boundary='periodic', neighborhood='von_neumann', capacity=1).prepare()
     assert (space.shape_, space.periodic_, space.capacity) == ((4, 3), True, 1)
     assert sorted(space.run(0).tolist()) == [1, 2, 3, 9]
     assert str(space.space_kind) == 'lattice'
@@ -162,7 +162,7 @@ def test_network_hyperedges_hold_nodes_of_the_graph():
     graph = nx.complete_graph(3)
     assert NetworkSpace(graph, hyperedges=[(0, 1, 2)]).hyperedges == [(0, 1, 2)]
     with pytest.raises(ValidationError, match='hyperedge'):
-        NetworkSpace(graph, hyperedges=[(0, 7)]).fit()
+        NetworkSpace(graph, hyperedges=[(0, 7)]).prepare()
 
 
 class CellComponent(ElementComponent):

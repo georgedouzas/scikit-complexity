@@ -75,7 +75,7 @@ def _check_value_rows(group: 'GroupComponent') -> None:
     if group.size is None:
         return
     declarations = group.element._declarations()
-    dimensions = group.space.fit().shape_ if isinstance(group.space, LatticeSpace) else None
+    dimensions = group.space.prepare().shape_ if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
         if declaration is None or not isinstance(declaration.domain, NumericDomain):
@@ -290,7 +290,7 @@ class ElementComponent(BaseComponent):
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
-        space.fit()
+        space.prepare()
         if isinstance(space, NetworkSpace):
             nodes = list(space.graph.nodes)
             values = {
@@ -366,7 +366,7 @@ class GroupComponent(BaseComponent):
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
         >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').size
         6
-        >>> herds = GroupComponent('herds', element=PopulationComponent, size=3).fit()
+        >>> herds = GroupComponent('herds', element=PopulationComponent, size=3).prepare()
         >>> herds.default_visual_ == PopulationComponent.visual
         True
     """
@@ -422,12 +422,12 @@ class GroupComponent(BaseComponent):
         """Return the label, element type, and size."""
         return f'{type(self).__name__}({self.label!r}, element={self.element.__name__}, size={self.size})'
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set `declarations_` and `default_visual_`, the visual of the group when it sets none.
 
         The default visual of a group is the visual of its element type.
         """
-        super()._fit()
+        super()._prepare()
         self.default_visual_ = self.element.visual
 
 

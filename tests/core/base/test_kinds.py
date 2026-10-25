@@ -42,7 +42,7 @@ def test_term_survives_copy_and_pickle():
 def test_term_value_cannot_be_set():
     """Test that the value of a term is read only."""
     with pytest.raises(AttributeError, match='value'):
-        Trait.FORMLESS.value = 'other'  # type: ignore[misc]
+        Trait.FORMLESS.value = 'other'
 
 
 def test_term_text_and_name():

@@ -66,7 +66,7 @@ def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices,
         >>> import networkx as nx
         >>> from skcomplex.core.problems._neighbourhoods import network_rows
         >>> from skcomplex.core.space import Adjacency, NetworkSpace
-        >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)).fit(), Adjacency())]
+        >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)).prepare(), Adjacency())]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
     """
     indptr, others, edges = space.adjacency_[neighborhood.layer]
@@ -88,7 +88,7 @@ def lattice_rows(space: BaseSpace, neighborhood: Neighborhood | Memory) -> Rows:
 
     Args:
         space:
-            The fitted lattice or other space of sites.
+            The prepared lattice or other space of sites.
 
         neighborhood:
             The neighbourhood of offsets, or the memory set of a group space.
@@ -100,7 +100,7 @@ def lattice_rows(space: BaseSpace, neighborhood: Neighborhood | Memory) -> Rows:
     Examples:
         >>> from skcomplex.core.problems._neighbourhoods import lattice_rows
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
-        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').fit(), Neighborhood(((-1,), (1,))))
+        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').prepare(), Neighborhood(((-1,), (1,))))
         >>> [item.tolist() for item in rows]
         [[0, 1, 3, 4], [1, 0, 2, 1]]
     """
@@ -115,7 +115,7 @@ def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
 
     Args:
         space:
-            The fitted space of the group.
+            The prepared space of the group.
 
     Returns:
         neighbourhood:
@@ -124,7 +124,7 @@ def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
     Examples:
         >>> from skcomplex.core.problems._neighbourhoods import default_neighborhood
         >>> from skcomplex.core.space import LatticeSpace
-        >>> len(default_neighborhood(LatticeSpace((4, 4)).fit()).offsets)
+        >>> len(default_neighborhood(LatticeSpace((4, 4)).prepare()).offsets)
         8
     """
     if isinstance(space, NetworkSpace | LatticeSpace):

@@ -66,7 +66,7 @@ def test_component_stores_companions_without_class_attributes():
     assert not hasattr(PendulumComponent, 'theta_d1')
     assert (bob.theta, bob.theta_d1) == (0.1, 0.5)
     assert {'theta', 'theta_d1'} <= set(bob.get_params())
-    assert list(bob.fit().declarations_) == ['theta', 'theta_d1']
+    assert list(bob.prepare().declarations_) == ['theta', 'theta_d1']
 
 
 def test_component_rejects_unknown_and_missing_arguments():
@@ -96,14 +96,14 @@ def test_interaction_rejects_a_layer_when_checked():
         interaction.check()
 
 
-def test_component_runs_its_laws_and_fits_its_declarations():
-    """Test that `run` returns the laws of the `laws` hook and `fit` sets the declarations."""
+def test_component_runs_its_laws_and_prepares_its_declarations():
+    """Test that `run` returns the laws of the `laws` hook and `prepare` sets the declarations."""
     growth = BaseInteraction.define(
         'GrowthInteraction',
         roles=['target'],
         parameters={'r': 1.0},
         laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
-    )('growth', target='rabbits').fit()
+    )('growth', target='rabbits').prepare()
     assert list(growth.declarations_) == ['target', 'r']
     n, r = symbol('n'), symbol('r')
     (law,) = growth.run(Symbols(target=Symbols(n=n), r=r))
@@ -252,7 +252,7 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
     weights = simulation.run(until=1.0).trajectory_['synapses.w'][-1]
-    sources, targets = space.fit().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
     assert np.allclose(weights[~coactive], 0.1, atol=1e-12)
@@ -360,7 +360,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
-    sources, targets = space.fit().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     assert np.allclose(drift, expected, atol=1e-12)

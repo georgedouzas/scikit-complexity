@@ -40,7 +40,7 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
     """
     for key in SYSTEM_COMPILERS:
         compiler = SYSTEM_COMPILERS.resolve(key)
-        if compiler.fit(system).claims_:
+        if compiler.prepare(system).claims_:
             return compiler
     return None
 
@@ -48,19 +48,19 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
 class BaseSystemCompiler(BaseEstimator):
     """Compiler of a formalism that compiles a whole system it claims into a problem of the formalism's form.
 
-    `fit(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=..., solver=...,
-    initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_fit` and `_run`.
+    `prepare(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=..., solver=...,
+    initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_prepare` and `_run`.
     Validation of a claimed system checks its structure and leaves the rest to the compiler, which raises an error for a
     system it cannot compile.
 
     Attributes:
         claims_:
-            Whether the compiler compiles the fitted system.
+            Whether the compiler compiles the prepared system.
     """
 
     claims_: bool
 
-    def _fit(self, system: System) -> None:
+    def _prepare(self, system: System) -> None:
         """Set `claims_`, whether the compiler compiles a system.
 
         Args:

@@ -422,7 +422,7 @@ class _MemberReductions:
 class ObservableEvaluator:
     """Evaluator of every observable of a problem from a state vector, a parameter vector, and the agents.
 
-    Fitting compiles every observable into a getter, in declaration order, the fitted `getters_`.
+    Preparing compiles every observable into a getter, in declaration order, the prepared `getters_`.
 
     Args:
         problem:
@@ -435,14 +435,14 @@ class ObservableEvaluator:
         >>> system = System(components=[PopulationComponent.group('herd', 2, n=[2.0, 6.0])])
         >>> total = Observable('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
-        >>> ObservableEvaluator(problem).fit().evaluate(0.0, problem.initial_state, problem.initial_parameters)
+        >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
     """
 
     def __init__(self, problem: BaseProblem) -> None:
         self.problem = problem
 
-    def fit(self) -> Self:
+    def prepare(self) -> Self:
         """Compile every observable into a getter, in declaration order.
 
         Returns:

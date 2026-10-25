@@ -25,11 +25,11 @@ def _series(labels):
 )
 def test_surrogate_names_states_after_variables(labels, states):
     """Test that the states take the last part of every label, or the whole label where those clash."""
-    assert DMDSurrogate().fit(_series(labels)).states_ == states
+    assert DMDSurrogate().prepare(_series(labels)).states_ == states
 
 
 def test_surrogate_accepts_steps_with_rounding_noise():
     """Test that steps equal up to rounding count as uniform."""
     times = np.arange(30) * 0.1
-    decomposition = DMDSurrogate().fit(Series(times, np.exp(-times)[:, None], ['x']))
+    decomposition = DMDSurrogate().prepare(Series(times, np.exp(-times)[:, None], ['x']))
     assert decomposition.dt_ == pytest.approx(0.1)

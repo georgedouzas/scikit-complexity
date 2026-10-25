@@ -55,10 +55,10 @@ class CayleyVisual(BaseVisual):
         self.low = low
         self.high = high
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _log_edges(self, recording: rr.RecordingStream, path: str, space: CayleySpace) -> None:
         """Log the edges of every generator once, as static data."""

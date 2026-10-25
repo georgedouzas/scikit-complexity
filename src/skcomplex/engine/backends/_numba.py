@@ -255,7 +255,7 @@ class NumbaBackend(BaseBackend):
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of the fitted form compiled with Numba.
+        """Return the numeric functions of the prepared form compiled with Numba.
 
         Args:
             kernels:

@@ -142,10 +142,10 @@ class TraitsVisual(AgentsVisual):
         self.shown = shown
         self.histogram_first = histogram_first
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
         self.spans_: dict[str, tuple[float, float]] = {}
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""

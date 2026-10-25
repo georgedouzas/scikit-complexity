@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from skcomplex.core.base import BaseSpace
+from skcomplex.core.problems import Problem
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame
 from skcomplex.engine.solvers import AgentSnapshot
@@ -16,8 +17,9 @@ from skcomplex.models import create
 
 @pytest.fixture(scope='module')
 def log_agents() -> Callable[..., BaseVisual]:
-    """Return a function that fits a visual to agents at a path in a space and logs one frame per snapshot of them."""
+    """Return a function that prepares a visual to agents at a path in a space and logs one frame per snapshot of them."""
     problem = compile_system(create('moran_process'))
+    assert isinstance(problem, Problem)
 
     def log(
         visual: BaseVisual,
@@ -27,12 +29,19 @@ def log_agents() -> Callable[..., BaseVisual]:
         space: BaseSpace | None = None,
     ) -> BaseVisual:
         """Fit a visual to agents with the traits of the first snapshot, log every snapshot, and return the visual."""
-        fitted = replace(problem, agent_space=space)
+        prepared = replace(problem, agent_space=space)
         values = dict(snapshots[0].values)
         agents = replace(problem.agents[0], path=path, states=tuple(values), values=values)
-        visual.fit(agents, fitted)
+        visual.prepare(agents, prepared)
         for step, snapshot in enumerate(snapshots):
-            frame = Frame(step, float(step), fitted.initial_state, fitted.initial_parameters, fitted, {path: snapshot})
+            frame = Frame(
+                step,
+                float(step),
+                prepared.initial_state,
+                prepared.initial_parameters,
+                prepared,
+                {path: snapshot},
+            )
             visual.run(frame, recording)
         return visual
 

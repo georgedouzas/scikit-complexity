@@ -133,7 +133,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...     laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=0.75)],
         ... )
         >>> problem = compile_system(System(components=[WalkerComponent.group('walkers', 500)]))
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).fit(problem, np.random.default_rng(0))
+        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(np.var(state)), 1)
         1.0
@@ -157,7 +157,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         self.horizon = horizon
         self.max_increments = max_increments
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -174,7 +174,7 @@ class FractionalEulerMaruyamaSolver(Solver):
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         if problem.delays or problem.events:
             error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)

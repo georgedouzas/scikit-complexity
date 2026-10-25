@@ -1034,7 +1034,7 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
 class QuantumCompiler(BaseSystemCompiler):
     """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
 
-    def _fit(self, system: System) -> None:
+    def _prepare(self, system: System) -> None:
         """Set `claims_`, whether a system holds a quantum element or group.
 
         Args:

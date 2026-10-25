@@ -236,7 +236,7 @@ def hegselmann_krause(
         >>> len(np.unique(np.round(trajectory['people.opinion'][-1], 6))) <= 3
         True
     """
-    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).fit()
+    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
     opinions = np.random.default_rng(random_state).random(space.size_)
     people = ConfidentComponent.lattice('people', space, opinion=opinions, confidence=confidence)
     return System(components=[people], time=DiscreteTime())

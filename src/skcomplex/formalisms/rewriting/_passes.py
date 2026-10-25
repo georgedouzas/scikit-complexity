@@ -545,7 +545,7 @@ class RewritingProblem(BaseProblem):
 class RewritingCompiler(BaseSystemCompiler):
     """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
 
-    def _fit(self, system: System) -> None:
+    def _prepare(self, system: System) -> None:
         """Set `claims_`, whether a system holds a word, a patch, or a host graph.
 
         Args:

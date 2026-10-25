@@ -45,7 +45,7 @@ class NumpyBackend(BaseBackend):
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of the fitted form evaluated with NumPy.
+        """Return the numeric functions of the prepared form evaluated with NumPy.
 
         Args:
             kernels:

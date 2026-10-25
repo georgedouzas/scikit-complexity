@@ -59,7 +59,10 @@ def _points(archetype, field):
 def test_bodies_visual_draws_double_pendulum():
     """Test that bobs, a rod strip from the pivot, a fading trail of the lower bob, and the angles are logged."""
     problem, frames = _frames(create('double_pendulum'), steps=20, dt=0.01)
-    visual, logs = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1]).fit(problem.elements[0], problem), Logs()
+    visual, logs = (
+        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1]).prepare(problem.elements[0], problem),
+        Logs(),
+    )
     for frame in frames:
         visual.run(frame, logs)
     element = problem.elements[0]
@@ -81,7 +84,7 @@ def test_bodies_visual_logs_outline_once():
     """Test that the outline of a billiard table is logged once as a static line strip."""
     problem, frames = _frames(create('circular_billiard'), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
-    visual, logs = BodiesVisual(('x', 'y'), outline=[circle]).fit(problem.elements[0], problem), Logs()
+    visual, logs = BodiesVisual(('x', 'y'), outline=[circle]).prepare(problem.elements[0], problem), Logs()
     for frame in frames:
         visual.run(frame, logs)
     assert len(logs.of('particle/outline')) == 1
@@ -91,7 +94,7 @@ def test_bodies_visual_logs_outline_once():
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
     problem = Simulation(create('double_pendulum')).run(until=0.0).problem_
-    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True).fit(problem.elements[0], problem).views_
+    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True).prepare(problem.elements[0], problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
@@ -106,13 +109,13 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
     problem, frames = _frames(create('circular_billiard'), steps=1, dt=0.05)
     visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]))
     with pytest.raises(ValidationError, match='pairs of coordinates'):
-        visual.fit(problem.elements[0], problem).run(frames[0], Logs())
+        visual.prepare(problem.elements[0], problem).run(frames[0], Logs())
 
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
     problem, frames = _frames(create('stormer_problem'), steps=5, dt=0.02)
-    visual, logs = BodiesVisual(('x', 'y', 'z')).fit(problem.elements[0], problem), Logs()
+    visual, logs = BodiesVisual(('x', 'y', 'z')).prepare(problem.elements[0], problem), Logs()
     for frame in frames:
         visual.run(frame, logs)
     assert type(logs.of('charge/bodies')[-1]).__name__ == 'Points3D'

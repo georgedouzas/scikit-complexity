@@ -32,9 +32,9 @@ type Sites = BaseSpace
 
 
 def _fitted(space: Sites) -> Sites:
-    """Return a space of sites, fitting it on its first use."""
+    """Return a space of sites, preparing it on its first use."""
     if not hasattr(space, 'size_'):
-        space.fit()
+        space.prepare()
     return space
 
 

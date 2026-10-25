@@ -207,8 +207,8 @@ class Simulation(BaseEstimator):
         self._adaptive = self.problem_.adaptive_parameters if isinstance(self.problem_, Problem) else {}
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
-        self.observables_ = ObservableEvaluator(self.problem_).fit()
-        self.stepper_.fit(self.problem_, np.random.default_rng(self.random_state), until)
+        self.observables_ = ObservableEvaluator(self.problem_).prepare()
+        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
         initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
@@ -230,7 +230,7 @@ class Simulation(BaseEstimator):
         self._error: BaseException | None = None
         self._compile_functions()
         for observer in self.observers_:
-            observer.fit(self.problem_)
+            observer.prepare(self.problem_)
 
     def _compile_functions(self) -> None:
         """Call every numeric function of the problem and its partitions once, before the clock starts."""
@@ -298,7 +298,7 @@ class Simulation(BaseEstimator):
         acquired, such as an external process.
         """
         origin, first = self.time_, self._step
-        self.clock_.fit()
+        self.clock_.prepare()
         self._apply_schedule()
         if first == 0:
             self._emit(0)

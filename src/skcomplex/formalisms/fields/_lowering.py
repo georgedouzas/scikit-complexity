@@ -64,7 +64,7 @@ def _mesh_matrices(
     nodes = np.frombuffer(points).reshape(shape)
     elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
     space = MeshSpace(nodes, elements)
-    basis = Basis(space.fit().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
+    basis = Basis(space.prepare().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
     stiffness = asm(laplace, basis).tocsr()
     lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
     return stiffness, lumped
@@ -297,7 +297,7 @@ class FieldLowering:
                 self._tables[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
                 dimensions = cast('LatticeSpace', space).shape_
-                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).fit()
+                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).prepare()
                 table = lattice._index_table(Neighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
                 self._tables[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self._tables[key]

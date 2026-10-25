@@ -51,7 +51,7 @@ def _pushed_gas(n=500):
 class FrameCounterObserver(BaseObserver):
     """Observer that keeps the times of the frames it receives."""
 
-    def _fit(self, problem):
+    def _prepare(self, problem):
         """Start with no frames."""
         self.times_ = []
         self.stopped_ = False
@@ -448,9 +448,9 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
 class _ReleaseCountingSolver(RK4Solver):
     """RK4 solver that counts the final runs that release it."""
 
-    def _fit(self, problem, rng, until=float('inf')):
+    def _prepare(self, problem, rng, until=float('inf')):
         """Fit the solver and start with no release."""
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         self.releases_ = 0
 
     def _release(self):

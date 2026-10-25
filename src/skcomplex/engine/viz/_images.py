@@ -65,10 +65,10 @@ class ImageVisual(BaseVisual):
         self.high = high
         self.history = history
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element, forget the rows of earlier runs, and set the views."""
         self.rows_: dict[str, deque[npt.NDArray[np.float64]]] = {}
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _history_of(self, sites: int) -> int:
         """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
@@ -168,10 +168,10 @@ class ImageVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ImageVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
-            >>> [str(view.origin) for view in ImageVisual().fit(problem.elements[0], problem).views_]
+            >>> [str(view.origin) for view in ImageVisual().prepare(problem.elements[0], problem).views_]
             ['cells/u', 'cells/v']
             >>> problem = compile_system(create('elementary_automaton'))
-            >>> [str(view.origin) for view in ImageVisual().fit(problem.elements[0], problem).views_]
+            >>> [str(view.origin) for view in ImageVisual().prepare(problem.elements[0], problem).views_]
             ['cells/space_time/alive', 'cells/alive']
         """
         if not isinstance(element, CompiledElement):

@@ -16,7 +16,7 @@ from ._shifts import shift_arguments
 
 def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
     """Return the read of the member at an offset of every member of a group of `rows` members."""
-    lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).fit()
+    lattice = LatticeSpace((rows,), boundary=boundary, fill=fill).prepare()
     table = lattice._index_table(Neighborhood(((offset,),)))[:, 0]
     ghost = fill if boundary == 'fixed' else None
     kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)

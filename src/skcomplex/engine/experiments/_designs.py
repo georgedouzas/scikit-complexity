@@ -26,12 +26,12 @@ def _scale(bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
 class BaseDesign(BaseEstimator):
     """Base class of designs, which give rows of values by factory argument or dotted path.
 
-    Fitting a design sets its rows, and running it returns them. Designs concatenate with `concat`, which runs the rows
+    Preparing a design sets its rows, and running it returns them. Designs concatenate with `concat`, which runs the rows
     of both, and cross with `product`, which runs every pair of rows.
 
     Attributes:
         rows_:
-            One mapping from factory argument or dotted path to value per row, set by `fit`.
+            One mapping from factory argument or dotted path to value per row, set by `prepare`.
     """
 
     rows_: list[Row]
@@ -40,12 +40,12 @@ class BaseDesign(BaseEstimator):
         """Return the rows of the design, one empty row by default."""
         return [{}]
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the rows of the design."""
         self.rows_ = self._rows()
 
     def _run(self) -> list[Row]:
-        """Return a copy of the fitted rows."""
+        """Return a copy of the prepared rows."""
         return [dict(row) for row in self.rows_]
 
     def concat(self, other: 'BaseDesign') -> 'RowsDesign':
@@ -59,7 +59,7 @@ class BaseDesign(BaseEstimator):
             design:
                 The design of the rows of both designs.
         """
-        return RowsDesign([*self.fit().run(), *other.fit().run()])
+        return RowsDesign([*self.prepare().run(), *other.prepare().run()])
 
     def product(self, other: 'BaseDesign') -> 'RowsDesign':
         """Return the design that runs every combination of a row of this design and a row of another.
@@ -72,7 +72,7 @@ class BaseDesign(BaseEstimator):
             design:
                 The design of every combination, the values of `other` overriding shared names.
         """
-        return RowsDesign([{**first, **second} for first in self.fit().run() for second in other.fit().run()])
+        return RowsDesign([{**first, **second} for first in self.prepare().run() for second in other.prepare().run()])
 
 
 class _SampledDesign(BaseDesign):
@@ -119,7 +119,7 @@ class RowsDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import RowsDesign
-        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).fit().run()
+        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).prepare().run()
         [{'growth.r': 0.5}, {'growth.r': 1.0}]
     """
 
@@ -147,7 +147,7 @@ class GridDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import GridDesign
-        >>> len(GridDesign(r=[0.5, 1.0], K=[100, 200, 300]).fit().run())
+        >>> len(GridDesign(r=[0.5, 1.0], K=[100, 200, 300]).prepare().run())
         6
     """
 
@@ -180,7 +180,7 @@ class RandomDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import RandomDesign
-        >>> len(RandomDesign(5, r=(0.1, 1.0), random_state=0).fit().run())
+        >>> len(RandomDesign(5, r=(0.1, 1.0), random_state=0).prepare().run())
         5
     """
 
@@ -200,7 +200,7 @@ class LatinHypercubeDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import LatinHypercubeDesign
-        >>> rows = LatinHypercubeDesign(4, r=(0.0, 1.0), random_state=0).fit().run()
+        >>> rows = LatinHypercubeDesign(4, r=(0.0, 1.0), random_state=0).prepare().run()
         >>> sorted(int(row['r'] * 4) for row in rows)
         [0, 1, 2, 3]
     """
@@ -225,7 +225,7 @@ class SobolDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import SobolDesign
-        >>> len(SobolDesign(8, r=(0.0, 1.0), random_state=0).fit().run())
+        >>> len(SobolDesign(8, r=(0.0, 1.0), random_state=0).prepare().run())
         8
     """
 

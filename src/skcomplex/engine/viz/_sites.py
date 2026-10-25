@@ -72,11 +72,11 @@ class SiteVisual(BaseVisual):
         self.low = low
         self.high = high
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
         self.changing_: dict[str, int] = {}
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _log_graph(
         self,
@@ -149,7 +149,7 @@ class SiteVisual(BaseVisual):
             if isinstance(space, NetworkSpace):
                 self._log_graph(recording, path, space, values)
                 continue
-            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).fit()
+            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).prepare()
             positions = lattice.positions_
             if positions.shape[1] == 1:
                 positions = np.column_stack([positions[:, 0], np.zeros(len(positions))])
@@ -181,7 +181,7 @@ class SiteVisual(BaseVisual):
             >>> NodeComponent = ElementComponent.define('NodeComponent', states={'value': state(0.0)})
             >>> system = System(components=[NodeComponent.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)
-            >>> [type(view).__name__ for view in SiteVisual().fit(problem.elements[0], problem).views_]
+            >>> [type(view).__name__ for view in SiteVisual().prepare(problem.elements[0], problem).views_]
             ['GraphView']
         """
         if not isinstance(element, CompiledElement):

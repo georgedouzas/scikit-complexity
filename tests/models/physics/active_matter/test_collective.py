@@ -25,7 +25,7 @@ def _mean_neighbors(positions, size, radius):
 def test_motility_induced_phase_separation_gathers_disks():
     """Test that fast repulsive swimmers gather into clusters without passing through each other."""
     model = motility_induced_phase_separation(200)
-    size = model.space.fit().extent_[0]
+    size = model.space.prepare().extent_[0]
     trajectory = (
         Simulation(model, dt=0.5, solver=EulerMaruyamaSolver(dt=0.005), random_state=0).run(until=5).trajectory_
     )

@@ -67,7 +67,7 @@ class ConservationObserver(BaseObserver):
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the quantities of the problem.
 
         Raises:
@@ -121,7 +121,7 @@ class InvariantObserver(BaseObserver):
             The value of every invariant at the first frame.
     """
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the invariants of the problem."""
         stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
         self.invariants_ = dict(stock_flow.invariants) if stock_flow is not None else {}

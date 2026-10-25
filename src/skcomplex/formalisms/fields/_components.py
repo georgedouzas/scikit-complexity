@@ -69,7 +69,7 @@ class FieldComponent(GroupComponent):
         ... )
         >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).size
         200
-        >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).fit().default_visual_.kind
+        >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).prepare().default_visual_.kind
         'image'
     """
 
@@ -87,7 +87,7 @@ class FieldComponent(GroupComponent):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[str | None]] | None = None,
     ) -> None:
-        size = space.fit().size_
+        size = space.prepare().size_
         super().__init__(label, element=element, size=size, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
@@ -129,13 +129,13 @@ class FieldComponent(GroupComponent):
             raise ValueError(error_msg)
         return kind, value
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set `declarations_` and `default_visual_`, the visual of the field when it sets none.
 
         The default visual is an image on a lattice and a colored mesh on a mesh. On a network the field takes the
         visual of its element type, or the sites of the network when the type declares none.
         """
-        super()._fit()
+        super()._prepare()
         declared: VisualSpec = self.element.visual
         if isinstance(self.space, LatticeSpace):
             self.default_visual_ = VisualSpec('image')

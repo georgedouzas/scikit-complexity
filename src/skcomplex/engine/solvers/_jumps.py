@@ -43,7 +43,7 @@ class GillespieSolver(Solver):
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
-        >>> stepper = GillespieSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper = GillespieSolver().prepare(problem, np.random.default_rng(0))
         >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
         [0.0, 10.0]
     """
@@ -66,7 +66,7 @@ class GillespieSolver(Solver):
 
     form: ClassVar[Form] = Form.JUMP
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -83,7 +83,7 @@ class GillespieSolver(Solver):
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
@@ -168,7 +168,7 @@ class RenewalSolver(Solver):
         ...     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
         ... )
         >>> problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
-        >>> stepper = RenewalSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper = RenewalSolver().prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0)
         >>> bool(np.all(state[:3] > 50))
         True

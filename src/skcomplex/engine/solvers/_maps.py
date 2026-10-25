@@ -31,7 +31,7 @@ class IterationSolver(Solver):
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
-        >>> stepper = IterationSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper = IterationSolver().prepare(problem, np.random.default_rng(0))
         >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).tolist()
         [4.0]
     """
@@ -54,7 +54,7 @@ class IterationSolver(Solver):
 
     form: ClassVar[Form] = Form.DISCRETE
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -71,7 +71,7 @@ class IterationSolver(Solver):
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:

@@ -154,7 +154,7 @@ class _Schedule(BaseObserver):
         self.schedule = schedule
         self.simulation = simulation
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Sort the changes by time."""
         self.pending_ = sorted(self.schedule, key=lambda change: change[0])
 

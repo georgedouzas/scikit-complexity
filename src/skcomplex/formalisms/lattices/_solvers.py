@@ -23,7 +23,7 @@ class LatticeSolver(Solver):
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
         >>> from skcomplex.formalisms.lattices import LatticeSolver
         >>> problem = compile_system(elementary_automaton(30, size=11))
-        >>> stepper = LatticeSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper = LatticeSolver().prepare(problem, np.random.default_rng(0))
         >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
@@ -83,7 +83,7 @@ class MonteCarloSolver(LatticeSolver):
         >>> from skcomplex.models.physics.statistical_mechanics import ising
         >>> from skcomplex.formalisms.lattices import MonteCarloSolver
         >>> problem = compile_system(ising(size=8, temperature=1.0))
-        >>> stepper = MonteCarloSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper = MonteCarloSolver().prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 50.0)
         >>> bool(abs(state.mean()) > 0.9)
         True

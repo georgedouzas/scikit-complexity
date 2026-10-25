@@ -25,7 +25,7 @@ GENERATORS = [
 
 def _edges(space):
     """Return the edges of a network space as a sorted list of node index pairs."""
-    sources, targets = space.fit().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     return sorted(zip(sources.tolist(), targets.tolist(), strict=True))
 
 
@@ -42,14 +42,14 @@ def test_generators_reproduce_their_network_from_a_random_stream(generate):
     """Test that every random generator reproduces its network from generators of the same random stream."""
     first = generate(np.random.default_rng(3))
     second = generate(np.random.default_rng(3))
-    assert first.fit().size_ == second.fit().size_
+    assert first.prepare().size_ == second.prepare().size_
     assert _edges(first) == _edges(second)
 
 
 def test_deterministic_generators_build_their_graphs():
     """Test that the complete and grid networks have the edges of their graphs and the grid its coordinates."""
     assert NetworkSpace.complete(6).graph.number_of_edges() == 15
-    grid = NetworkSpace.grid((3, 4)).fit()
+    grid = NetworkSpace.grid((3, 4)).prepare()
     assert grid.size_ == 12
     assert grid.positions_[5].tolist() == [1.0, 1.0]
     assert grid.graph.has_edge(5, 6)
@@ -67,17 +67,17 @@ def test_configuration_model_drops_parallel_edges_and_self_loops():
 
 def test_spatial_generators_store_node_positions():
     """Test that the Waxman and random geometric networks store positions that join near nodes."""
-    space = NetworkSpace.random_geometric(60, 0.2, seed=2).fit()
+    space = NetworkSpace.random_geometric(60, 0.2, seed=2).prepare()
     positions = space.positions_
     sources, targets = space.edges_[None]
     assert positions.shape == (60, 2)
     assert np.all(np.linalg.norm(positions[sources] - positions[targets], axis=1) <= 0.2)
-    assert NetworkSpace.waxman(30, seed=1).fit().positions_.shape == (30, 2)
+    assert NetworkSpace.waxman(30, seed=1).prepare().positions_.shape == (30, 2)
 
 
 def test_nodes_without_a_position_lie_on_a_circle():
     """Test that the nodes of a graph without stored positions get the positions of a circular layout."""
-    positions = NetworkSpace(nx.path_graph(4)).fit().positions_
+    positions = NetworkSpace(nx.path_graph(4)).prepare().positions_
     assert positions.shape == (4, 2)
     assert np.allclose(np.linalg.norm(positions, axis=1), 1.0)
 
@@ -87,15 +87,15 @@ def test_list_edges_orders_undirected_ends_and_keeps_directions():
     undirected = nx.Graph()
     undirected.add_nodes_from(['a', 'b', 'c'])
     undirected.add_edges_from([('c', 'a'), ('b', 'c')])
-    assert [item.tolist() for item in NetworkSpace(undirected).fit().edges_[None]] == [[0, 1], [2, 2]]
-    directed = NetworkSpace(nx.DiGraph([(2, 0), (0, 1)])).fit()
+    assert [item.tolist() for item in NetworkSpace(undirected).prepare().edges_[None]] == [[0, 1], [2, 2]]
+    directed = NetworkSpace(nx.DiGraph([(2, 0), (0, 1)])).prepare()
     assert list(directed.graph.nodes) == [2, 0, 1]
     assert [item.tolist() for item in directed.edges_[None]] == [[0, 1], [1, 2]]
 
 
 def test_compute_adjacency_lists_neighbours_with_their_edges():
     """Test that the adjacency lists every neighbour with the edge that joins it, successors on a directed graph."""
-    space = NetworkSpace(nx.Graph([(0, 1), (1, 2), (0, 2)])).fit()
+    space = NetworkSpace(nx.Graph([(0, 1), (1, 2), (0, 2)])).prepare()
     indptr, indices, edges = space.adjacency_[None]
     sources, targets = space.edges_[None]
     for node in range(3):
@@ -105,7 +105,7 @@ def test_compute_adjacency_lists_neighbours_with_their_edges():
             strict=True,
         ):
             assert {int(sources[edge]), int(targets[edge])} == {node, int(neighbour)}
-    directed = NetworkSpace(nx.DiGraph([(0, 1), (2, 1)])).fit()
+    directed = NetworkSpace(nx.DiGraph([(0, 1), (2, 1)])).prepare()
     indptr, indices, _ = directed.adjacency_[None]
     assert np.diff(indptr).tolist() == [1, 0, 1]
 
@@ -113,7 +113,7 @@ def test_compute_adjacency_lists_neighbours_with_their_edges():
 def test_layers_hold_relations_over_the_same_nodes():
     """Test that a network space resolves the graph and the edges of every layer by its label."""
     work = Layer('work', nx.complete_graph(4))
-    space = NetworkSpace(nx.path_graph(4), layers=[work]).fit()
+    space = NetworkSpace(nx.path_graph(4), layers=[work]).prepare()
     assert list(space.graphs_) == [None, 'work']
     assert space.graphs_['work'] is work.graph
     assert len(space.edges_['work'][0]) == 6
@@ -135,7 +135,7 @@ def test_network_space_rejects_inconsistent_layers(layers, message):
     """Test that a layer over other nodes and two layers of one label raise an error."""
     space = NetworkSpace(nx.path_graph(4), layers=layers)
     with pytest.raises(ValidationError, match=message):
-        space.fit()
+        space.prepare()
 
 
 def test_edges_of_an_unknown_layer_list_the_layers_of_the_space():
@@ -146,8 +146,8 @@ def test_edges_of_an_unknown_layer_list_the_layers_of_the_space():
 
 
 def test_network_space_runs_the_neighbours_of_a_node():
-    """Test that running a fitted network space returns the neighbours of a node, and its facts are fitted."""
-    space = NetworkSpace(nx.star_graph(3)).fit()
+    """Test that running a prepared network space returns the neighbours of a node, and its facts are prepared."""
+    space = NetworkSpace(nx.star_graph(3)).prepare()
     assert (space.size_, space.n_dim_, space.shape_, space.periodic_) == (4, 1, (4,), False)
     assert space.run(0).tolist() == [1, 2, 3]
     assert space.run(2).tolist() == [0]

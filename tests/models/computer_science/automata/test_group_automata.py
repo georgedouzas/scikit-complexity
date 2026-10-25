@@ -60,7 +60,7 @@ def test_grigorchuk_automaton_in_the_viewer():
             """Keep a logged entity."""
             logged.append((static, archetype))
 
-    visual = CayleyVisual(low=0, high=1).fit(problem.elements[0], problem)
+    visual = CayleyVisual(low=0, high=1).prepare(problem.elements[0], problem)
     trajectory = simulation.trajectory_
     for index in (0, len(trajectory.times) - 1):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)

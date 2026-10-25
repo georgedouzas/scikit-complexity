@@ -99,7 +99,7 @@ class KineticSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem and draw the particles of the initial state.
 
         Args:
@@ -117,7 +117,7 @@ class KineticSolver(Solver):
                 The problem has another form, laws other than encounters, or no encounter, `n` or `dt` is not
                 positive, or a density of the initial state is negative.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         self._check_problem(problem)
         self._encounters = cast('KineticProblem', problem).encounters
         self.densities_ = _densities(self._encounters)

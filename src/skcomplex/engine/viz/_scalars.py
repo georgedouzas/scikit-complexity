@@ -56,10 +56,10 @@ class ScalarsVisual(BaseVisual):
     def __init__(self, components: Sequence[int] | None = None) -> None:
         self.components = components
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element, forget the styled series of earlier runs, and set the views."""
         self.styled_: set[str] = set()
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _value(self, value: object) -> object:
         """Return the chosen components of a vector value, or the value itself."""
@@ -109,7 +109,7 @@ class ScalarsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ScalarsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('lotka_volterra'))
-            >>> view = ScalarsVisual().fit(problem.elements[0], problem).views_[0]
+            >>> view = ScalarsVisual().prepare(problem.elements[0], problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')
         """

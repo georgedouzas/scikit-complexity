@@ -93,7 +93,7 @@ def test_scalars_visual_logs_nested_paths():
     simulation = Simulation(system).run(until=0.0)
     element = simulation.problem_.elements[0]
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    ScalarsVisual().fit(element, frame.problem).run(frame, recording)
+    ScalarsVisual().prepare(element, frame.problem).run(frame, recording)
     assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
 
 
@@ -108,7 +108,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
     simulation = Simulation(system).run(until=0.0)
     recording = LoggedPaths()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    PointsVisual(position='x').fit(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
+    PointsVisual(position='x').prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
     assert recording.logs[0][1] == archetype
     assert ('ball/v', 'Scalars') in recording.logs
 
@@ -167,7 +167,7 @@ def test_visual_base_log_is_abstract():
     problem = simulation.problem_
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
     with pytest.raises(NotImplementedError):
-        BaseVisual().fit(problem.elements[0], problem).run(frame, None)
+        BaseVisual().prepare(problem.elements[0], problem).run(frame, None)
 
 
 def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
@@ -198,7 +198,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = LoggedPaths()
     visual = PointsVisual(position='x', color_by='v', color_range=(0.0, 2.0), states=())
-    visual.fit(simulation.problem_.elements[0], simulation.problem_)
+    visual.prepare(simulation.problem_.elements[0], simulation.problem_)
     colors = []
     recording.log = lambda path, archetype: colors.append(archetype.colors.as_arrow_array().to_pylist())
     visual.run(frame, recording)
@@ -318,7 +318,7 @@ def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
     problem = compile_system(System(components=[FieldComponent('medium', TurningComponent, LatticeSpace((4, 4)))]))
-    views = ImageVisual().fit(problem.elements[0], problem).views_
+    views = ImageVisual().prepare(problem.elements[0], problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 
 
@@ -385,7 +385,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     simulation = Simulation(system, dt=1.0, random_state=0, record=True).run(until=3)
     trajectory, problem = simulation.trajectory_, simulation.problem_
     element = next(item for item in problem.elements if item.path == 'nodes')
-    visual, recording = SiteVisual().fit(element, problem), _AllLogs()
+    visual, recording = SiteVisual().prepare(element, problem), _AllLogs()
     for index in range(len(trajectory)):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem)
         visual.run(frame, recording)

@@ -280,9 +280,9 @@ def report_fallbacks(
 class BaseBackend(BaseEstimator):
     """Base class of backends, which turn kernels into the numeric functions of a form.
 
-    `fit(form, size)` fixes the form of the problem and the size of its state vector, which every lowering of the
+    `prepare(form, size)` fixes the form of the problem and the size of its state vector, which every lowering of the
     backend shares, and `run(kernels, changes, reductions=..., draws=...)` returns the `Lowering` of the kernels.
-    Subclasses set the class variable `name` and implement the hook `_run`, reading the fitted `form_` and `size_`.
+    Subclasses set the class variable `name` and implement the hook `_run`, reading the prepared `form_` and `size_`.
 
     Attributes:
         form_:
@@ -296,7 +296,7 @@ class BaseBackend(BaseEstimator):
 
     name: ClassVar[str]
 
-    def _fit(self, form: Form, size: int) -> None:
+    def _prepare(self, form: Form, size: int) -> None:
         """Store the form of the problem and the size of its state vector.
 
         Args:
@@ -317,7 +317,7 @@ class BaseBackend(BaseEstimator):
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of the fitted form.
+        """Return the numeric functions of the prepared form.
 
         Args:
             kernels:

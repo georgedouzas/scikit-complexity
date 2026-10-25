@@ -128,7 +128,7 @@ def _lower(compilation: Compilation) -> dict[str, object]:
     draws = drawing.draws
     lowering = cast(
         'Lowering',
-        backend.fit(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
+        backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
     )
     functions: dict[str, object] = vars(lowering).copy()
     if draws is not None and functions.get('update') is not None:

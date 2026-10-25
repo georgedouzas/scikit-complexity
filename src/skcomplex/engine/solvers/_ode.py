@@ -223,7 +223,7 @@ class ScipyODESolver(Solver):
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = ScipyODESolver(rtol=1e-8).fit(problem, np.random.default_rng(0))
+        >>> stepper = ScipyODESolver(rtol=1e-8).prepare(problem, np.random.default_rng(0))
         >>> x = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(x[0]), 4)
         2.7183
@@ -252,7 +252,7 @@ class ScipyODESolver(Solver):
         self.atol = atol
         self.jacobian = jacobian
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem, with no integrator yet.
 
         Args:
@@ -273,7 +273,7 @@ class ScipyODESolver(Solver):
             ValidationError:
                 The exact Jacobian is asked for laws without a symbolic form.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         if self.method != 'auto' and self.method not in METHODS:
             error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
@@ -644,7 +644,7 @@ class RK4Solver(Solver):
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = RK4Solver(dt=0.001).fit(problem, np.random.default_rng(0))
+        >>> stepper = RK4Solver(dt=0.001).prepare(problem, np.random.default_rng(0))
         >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 10)
         2.7182818285
     """
@@ -793,7 +793,7 @@ class VelocityVerletSolver(Solver):
         ...         space=ContinuousSpace(n_dim=1),
         ...     ),
         ... )
-        >>> stepper = VelocityVerletSolver(dt=0.1).fit(problem, np.random.default_rng(0))
+        >>> stepper = VelocityVerletSolver(dt=0.1).prepare(problem, np.random.default_rng(0))
         >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).round(10).tolist()
         [1.0, 2.0]
     """
@@ -812,7 +812,7 @@ class VelocityVerletSolver(Solver):
     def __init__(self, dt: float = 1e-3) -> None:
         self.dt = dt
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper and find the position and velocity components of the problem.
 
         Args:
@@ -829,7 +829,7 @@ class VelocityVerletSolver(Solver):
             SolverError:
                 The problem is not an ODE, or has states that are neither positions nor velocities.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         reject_hybrid(problem, type(self).__name__)
         self.positions_, self.velocities_ = _position_pairs(problem)
 

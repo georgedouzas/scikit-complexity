@@ -22,7 +22,7 @@ class ContinuousTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.space import ContinuousTime
-        >>> str(ContinuousTime().fit().time_kind_)
+        >>> str(ContinuousTime().prepare().time_kind_)
         'continuous'
     """
 
@@ -40,7 +40,7 @@ class DiscreteTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.space import DiscreteTime
-        >>> time = DiscreteTime(schedule='random-sequential').fit()
+        >>> time = DiscreteTime(schedule='random-sequential').prepare()
         >>> time.schedule_, time.run(3).tolist()
         ('random-sequential', [0.0, 1.0, 2.0, 3.0])
     """
@@ -59,7 +59,7 @@ class DiscreteTime(BaseTime):
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a Schedule.'
             raise ValidationError(error_msg)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the kind of the time and its schedule."""
         self.time_kind_ = self.kind
         self.schedule_ = self.schedule
@@ -74,7 +74,7 @@ class StaticTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.space import StaticTime
-        >>> StaticTime().fit().run(10.0).tolist()
+        >>> StaticTime().prepare().run(10.0).tolist()
         [0.0]
     """
 

@@ -45,14 +45,14 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).fit().run(0, Neighborhood.moore())
+    neighbours = LatticeSpace((10, 10)).prepare().run(0, Neighborhood.moore())
     assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
-    assert LatticeSpace((5,), boundary='fixed').fit().run(0, Neighborhood.radius()).tolist() == [0, 1]
-    assert LatticeSpace((5,), boundary='reflecting').fit().run(0, Neighborhood.radius(2))[:2].tolist() == [1, 0]
+    assert LatticeSpace((5,), boundary='fixed').prepare().run(0, Neighborhood.radius()).tolist() == [0, 1]
+    assert LatticeSpace((5,), boundary='reflecting').prepare().run(0, Neighborhood.radius(2))[:2].tolist() == [1, 0]
     EdgeComponent = ElementComponent.define(
         'EdgeComponent',
         states={'value': 0.0},

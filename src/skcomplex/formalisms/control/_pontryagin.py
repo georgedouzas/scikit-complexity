@@ -155,7 +155,7 @@ class PontryaginSolver(OptimalControlSolver):
             return np.where(values > 0, lower, upper)
         return np.clip(values, lower, upper)
 
-    def _prepare(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the costate equations, the terminal costates, and the control law symbolically.
 
         Args:

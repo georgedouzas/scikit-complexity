@@ -29,7 +29,7 @@ def _lorenz_trajectory():
 
 def test_sindy_surrogate_rediscovers_lorenz():
     """Test that SINDy recovers the seven terms of the Lorenz system with coefficients within 1%."""
-    model = SINDySurrogate(degree=2).fit(_lorenz_trajectory())
+    model = SINDySurrogate(degree=2).prepare(_lorenz_trajectory())
     found = {
         (row, feature): value
         for row, values in enumerate(model.coefficients_)
@@ -42,7 +42,7 @@ def test_sindy_surrogate_rediscovers_lorenz():
 
 def test_sindy_surrogate_surrogate_validates_with_ode_solver():
     """Test that a SINDy surrogate of Lorenz validates, declares continuous time, and gets an ODE solver."""
-    model = SINDySurrogate().fit(_lorenz_trajectory())
+    model = SINDySurrogate().prepare(_lorenz_trajectory())
     report = validate(model.system_)
     assert not report.errors
     assert isinstance(model.system_.time, ContinuousTime)
@@ -52,7 +52,7 @@ def test_sindy_surrogate_surrogate_validates_with_ode_solver():
 def test_sindy_surrogate_surrogate_follows_trajectory():
     """Test that the surrogate run from the first sample follows the trajectory for a short time."""
     trajectory = _lorenz_trajectory()
-    model = SINDySurrogate().fit(trajectory)
+    model = SINDySurrogate().prepare(trajectory)
     run = Simulation(model.system_, dt=0.002).run(until=0.5).trajectory_
     assert np.allclose(run['surrogate.x'], trajectory['lorenz.x'][:251], atol=0.05)
     assert model.training_error_ < 1e-3
@@ -61,7 +61,7 @@ def test_sindy_surrogate_surrogate_follows_trajectory():
 def test_sindy_surrogate_fits_series_of_measured_data():
     """Test that SINDy fits a series of measured data with a degree-one library."""
     times = np.arange(0.0, 2.0, 0.001)
-    model = SINDySurrogate(degree=1).fit(Series(times, np.exp(-2 * times)[:, None], ['decay.n']))
+    model = SINDySurrogate(degree=1).prepare(Series(times, np.exp(-2 * times)[:, None], ['decay.n']))
     assert model.features_ == ['1', 'n']
     assert model.coefficients_.round(3).tolist() == [[0.0, -2.0]]
 
@@ -72,7 +72,7 @@ def test_sindy_surrogate_run_continues_lotka_volterra():
     trajectory = Simulation(create('lotka_volterra'), solver=solver, dt=0.01).run(until=20.0).trajectory_
     names = ['prey.n', 'predators.n']
     values = np.column_stack([trajectory[name] for name in names])
-    model = SINDySurrogate(degree=2, threshold=0.01).fit(Series(trajectory.times[:1001], values[:1001], names))
+    model = SINDySurrogate(degree=2, threshold=0.01).prepare(Series(trajectory.times[:1001], values[:1001], names))
     assert isinstance(model.system_, System)
     assert isinstance(model.training_error_, float)
     forecast = model.run(50)

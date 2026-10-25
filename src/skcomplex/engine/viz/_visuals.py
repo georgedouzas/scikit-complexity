@@ -22,7 +22,7 @@ from ._utils import _network_layout
 class BaseVisual(BaseEstimator):
     """Base class of visuals, which log the state of one element or agent group to a Rerun recording.
 
-    `fit(element, problem)` keeps the element, forgets what earlier frames left, and sets the Rerun views that show
+    `prepare(element, problem)` keeps the element, forgets what earlier frames left, and sets the Rerun views that show
     what the visual logs. `run(frame, recording)` logs the element at one frame: a compiled element through the hook
     `_log`, and agents through the hook `_log_agents` with the snapshot of the frame. Subclasses implement `_log`,
     `_log_agents`, or both, declare their views with `_views`, and are registered under a name with `register_visual`.
@@ -41,7 +41,7 @@ class BaseVisual(BaseEstimator):
             The Rerun views that show what the visual logs, each with an entity path of the element as origin.
     """
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element and the space of the agents, forget earlier layouts, and set the views."""
         self.element_ = element
         self.space_: BaseSpace | None = getattr(problem, 'agent_space', None)

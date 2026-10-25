@@ -239,7 +239,7 @@ def basin_stability(
     """
 
     if vectorized:
-        rows = RandomDesign(n, random_state=random_state, **bounds).fit().run()
+        rows = RandomDesign(n, random_state=random_state, **bounds).prepare().run()
         values = {path: [row[path] for row in rows] for path in bounds}
         settings = {'dt': arguments.get('dt'), 'random_state': random_state}
         trajectory, system = _ensemble(source, values, until, settings)

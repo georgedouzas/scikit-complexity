@@ -261,9 +261,9 @@ def test_group_with_invalid_values_fails_validation_with_its_path():
         compile_system(system)
 
 
-def test_group_default_visual_is_fitted():
-    """Test that a fitted group holds the visual of its element type as its default visual."""
-    group = PopulationComponent.group('herds', 3).fit()
+def test_group_default_visual_is_prepared():
+    """Test that a prepared group holds the visual of its element type as its default visual."""
+    group = PopulationComponent.group('herds', 3).prepare()
     assert group.default_visual_ == PopulationComponent.visual
     assert list(group.declarations_) == []
 

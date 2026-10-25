@@ -17,7 +17,7 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
 
     Args:
         space:
-            The space of sites or the network, fitted here unless it was fitted before.
+            The space of sites or the network, prepared here unless it was prepared before.
 
         size:
             The number of members, one per site or node.
@@ -42,7 +42,7 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
         error_msg = f'Neighbours are defined on a space of sites, such as a lattice, or on a network, not on {space!r}.'
         raise ValidationError(error_msg)
     if not hasattr(space, 'size_'):
-        space.fit()
+        space.prepare()
     return space._neighbor_pairs(layer)
 
 

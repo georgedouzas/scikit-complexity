@@ -41,8 +41,8 @@ class BaseNeighborhood:
 class BaseSpace(BaseEstimator):
     """Base class of spaces, where the members of groups live and which give vector states their dimension.
 
-    `fit()` checks the arguments and derives the facts of the space, and `run(site, neighborhood=None)` returns the
-    sites around a site. A child sets the fitted attributes in `_fit`, and answers the neighbourhood hooks the engine
+    `prepare()` checks the arguments and derives the facts of the space, and `run(site, neighborhood=None)` returns the
+    sites around a site. A child sets the prepared attributes in `_prepare`, and answers the neighbourhood hooks the engine
     reads: `_index_table` gives the neighbour of every site in every slot of a neighbourhood, `_ball` the neighbourhood
     within a radius, `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the neighbourhood
     that `run` reads when it is given none. A space without sites, such as a continuous one, answers none of them.
@@ -80,14 +80,14 @@ class BaseSpace(BaseEstimator):
         ...     def __init__(self, n=4):
         ...         self.n = n
         ...
-        ...     def _fit(self):
+        ...     def _prepare(self):
         ...         self.size_, self.n_dim_, self.shape_ = self.n, 1, (self.n,)
         ...         self.positions_ = np.arange(self.n, dtype=float)[:, None]
         ...         self.periodic_, self.default_visual_ = True, 'sites'
         ...
         ...     def _run(self, site, neighborhood=None):
         ...         return np.array([(site - 1) % self.n, (site + 1) % self.n])
-        >>> RingSpace().fit().run(0).tolist()
+        >>> RingSpace().prepare().run(0).tolist()
         [3, 1]
     """
 
@@ -158,7 +158,7 @@ class BaseSpace(BaseEstimator):
 class BaseTime(BaseEstimator):
     """Base class of the time of a system, which decides the laws the system may hold.
 
-    Subclasses set the class variable `kind`. `fit()` checks the arguments and derives the kind and the schedule of
+    Subclasses set the class variable `kind`. `prepare()` checks the arguments and derives the kind and the schedule of
     the time, and `run(until)` returns the times of the frames of a run up to a time.
 
     Attributes:
@@ -174,7 +174,7 @@ class BaseTime(BaseEstimator):
     time_kind_: TimeKind
     schedule_: Any
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the kind of the time and no schedule."""
         self.time_kind_ = self.kind
         self.schedule_ = None

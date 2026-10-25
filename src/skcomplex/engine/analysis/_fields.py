@@ -21,7 +21,7 @@ from ._kinds import DataKind, analysis
 from ._spatial import correlation_function
 
 type Array = npt.NDArray[np.float64]
-LENGTH_METHODS = ('moment', 'fit')
+LENGTH_METHODS = ('moment', 'prepare')
 DOMAIN_METHODS = ('moment', 'zero')
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 EIGENVALUE = symbol('_eigenvalue_')
@@ -138,7 +138,7 @@ def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
     if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
         error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
         raise AnalysisError(error_msg)
-    return field, field.space.fit()
+    return field, field.space.prepare()
 
 
 def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -259,7 +259,7 @@ def correlation_length(
             The values on the grid, or a stack of frames when `frames` is true.
 
         method:
-            `'moment'` or `'fit'`.
+            `'moment'` or `'prepare'`.
 
         spacing:
             The distance between neighbouring sites.
@@ -286,7 +286,7 @@ def correlation_length(
         error_msg = f'Unknown method {method!r}. Use one of {", ".join(LENGTH_METHODS)}.'
         raise AnalysisError(error_msg)
     grids = _frames(field, frames=frames)
-    if method == 'fit':
+    if method == 'prepare':
         return _fitted_length(grids, spacing)
     return _moment_length(grids, spacing)
 

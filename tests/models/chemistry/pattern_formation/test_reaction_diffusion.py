@@ -59,7 +59,7 @@ def test_gray_scott_streams_images(tmp_path):
     recording = Images()
     for step in range(len(simulation.trajectory_)):
         frame = Frame(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, simulation.problem_)
-        resolve_visual(element.visual).fit(element, frame.problem).run(frame, recording)
+        resolve_visual(element.visual).prepare(element, frame.problem).run(frame, recording)
     assert recording.images == [('cells/u', 'Image'), ('cells/v', 'Image')] * 3
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
     Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0), observers=[observer]).run(until=40)

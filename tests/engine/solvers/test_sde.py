@@ -29,7 +29,7 @@ def test_euler_maruyama_without_noise_matches_ode():
     )
     problem = compile_system(system)
     stepper = EulerMaruyamaSolver(dt=1e-4)
-    stepper.fit(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert state[0] == pytest.approx(np.e, rel=1e-3)
 
@@ -40,7 +40,7 @@ def test_euler_maruyama_nonpositive_dt_raises_error():
         System(components=[AssetComponent('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
     )
     stepper = EulerMaruyamaSolver(dt=0.0)
-    stepper.fit(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='positive'):
         stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
 
@@ -52,7 +52,7 @@ def test_euler_maruyama_same_seed_on_both_backends():
         problem = compile_system(geometric_brownian_motion(), backend=backend)
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
-        stepper.fit(problem, rng)
+        stepper.prepare(problem, rng)
         states.append(stepper.run(0.1, problem.initial_state, problem.initial_parameters, 0.4))
         three_steps = np.random.default_rng(0)
         for _ in range(3):

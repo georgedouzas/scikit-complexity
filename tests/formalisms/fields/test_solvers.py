@@ -185,7 +185,7 @@ def test_l_shaped_steady_state_converges_at_second_order():
     errors = []
     for refine in (2, 3, 4, 5):
         simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEulerSolver(dt=10.0)).run(until=500)
-        nodes = MeshSpace.l_shape(refine).fit().positions_
+        nodes = MeshSpace.l_shape(refine).prepare().positions_
         away = np.hypot(nodes[:, 0], nodes[:, 1]) > 0.25
         errors.append(np.abs(simulation.state_ - harmonic(nodes[:, 0], nodes[:, 1]))[away].max())
     ratios = np.asarray(errors[:-1]) / np.asarray(errors[1:])
@@ -207,7 +207,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
     element = simulation.problem_.elements[0]
     recording = Meshes()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    resolve_visual(element.visual).fit(element, frame.problem).run(frame, recording)
+    resolve_visual(element.visual).prepare(element, frame.problem).run(frame, recording)
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
     Simulation(heat_l_shape(1), dt=0.1, observers=[observer]).run(until=0.2)
@@ -273,8 +273,8 @@ def test_imex2_second_call_restarts_history():
     problem = compile_system(kuramoto_sivashinsky())
     x, p = problem.initial_state, problem.initial_parameters
     stepper, fresh = IMEX2Solver(dt=0.01), IMEX2Solver(dt=0.01)
-    stepper.fit(problem, np.random.default_rng(0))
-    fresh.fit(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
+    fresh.prepare(problem, np.random.default_rng(0))
     first = stepper.run(0.0, x, p, 0.1)
     second = stepper.run(0.0, x, p, 0.1)
     assert np.array_equal(first, second)

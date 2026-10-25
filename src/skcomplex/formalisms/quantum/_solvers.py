@@ -153,7 +153,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         del problem
         return []
 
-    def _fit(self, problem: QuantumProblem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: QuantumProblem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
@@ -170,7 +170,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             SolverError:
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblem) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'

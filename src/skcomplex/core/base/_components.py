@@ -59,7 +59,7 @@ class BaseComponent(BaseEstimator):
     that stores them and passes the label and the remaining values on.
 
     `check()` rejects a value the type does not declare and a declared variable without a default that is not given,
-    `fit()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from the
+    `prepare()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from the
     hook `laws` that a type overrides. Validation checks every component of a system.
 
     Args:
@@ -79,7 +79,7 @@ class BaseComponent(BaseEstimator):
         >>> from skcomplex.core.components import ElementComponent
         >>> class PendulumComponent(ElementComponent):
         ...     theta: float = state(0.0, order=2)
-        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5).fit()
+        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5).prepare()
         >>> list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1')
         (['theta', 'theta_d1'], 0.5, False)
     """
@@ -112,7 +112,7 @@ class BaseComponent(BaseEstimator):
         """
         _check_declared(self, BaseComponent)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set `declarations_`, the declarations of the type."""
         self.declarations_ = type(self)._declarations()
 
@@ -248,7 +248,7 @@ class BaseInteraction(BaseEstimator):
     update laws the edge member.
 
     `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a
-    type that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `fit()` sets
+    type that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `prepare()` sets
     `declarations_`, and `run(s)` returns the laws of the interaction for a namespace of symbols, from the hook `laws`.
 
     Attributes:
@@ -294,7 +294,7 @@ class BaseInteraction(BaseEstimator):
             )
             raise ValidationError(error_msg)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set `declarations_`, the declarations of the type."""
         self.declarations_ = type(self)._declarations()
 

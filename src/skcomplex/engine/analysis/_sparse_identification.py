@@ -120,7 +120,7 @@ class SINDySurrogate(BaseSurrogate):
         >>> import numpy as np
         >>> from skcomplex.engine.analysis import SINDySurrogate, Series
         >>> times = np.arange(0.0, 2.0, 0.001)
-        >>> surrogate = SINDySurrogate(degree=1).fit(Series(times, np.exp(-2 * times)[:, None], ['x']))
+        >>> surrogate = SINDySurrogate(degree=1).prepare(Series(times, np.exp(-2 * times)[:, None], ['x']))
         >>> surrogate.features_, surrogate.coefficients_.round(3).tolist()
         (['1', 'x'], [[0.0, -2.0]])
     """
@@ -145,7 +145,7 @@ class SINDySurrogate(BaseSurrogate):
         self.validation = validation
         self.label = label
 
-    def _fit(self, data: SurrogateData) -> None:
+    def _prepare(self, data: SurrogateData) -> None:
         """Fit the sparse model to the series and set the surrogate system, its errors, and its coefficients."""
         samples = samples_of(data, self.names)
         states = state_names(samples.labels)

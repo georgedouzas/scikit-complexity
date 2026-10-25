@@ -486,7 +486,7 @@ def test_mesa_solver_run_sets_agents_and_snapshot():
     """Test that every run of the Mesa solver sets the alive agents by group and the snapshot of the step."""
     system = System(components=[BreederComponent.group('breeders', 2, variable=True)])
     problem = compile_system(system)
-    solver = MesaSolver().fit(problem, np.random.default_rng(0), 3.0)
+    solver = MesaSolver().prepare(problem, np.random.default_rng(0), 3.0)
     assert len(solver.agents_['breeders']) == 2
     solver.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
     assert len(solver.agents_['breeders']) == 8

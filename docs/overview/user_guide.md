@@ -285,7 +285,7 @@ PendulumComponent = ElementComponent.define(
     parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
     laws=lambda s: [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
 )
-bob = PendulumComponent('bob', theta_d1=0.5).fit()
+bob = PendulumComponent('bob', theta_d1=0.5).prepare()
 print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1'))
 ```
 
@@ -1189,7 +1189,7 @@ A new formalism needs no change to the shared core. It declares its contribution
 - A `BaseSystemCompiler` claims the systems it compiles, setting `claims_` when it is fitted to a system, and its `run`
   turns each into a `Problem` of the new form.
 - A solver is a `Solver` that declares the form it advances and what it supports. It implements `_advance`, which
-  advances the state from one time to the next. The runtime calls `fit(problem, rng, until)` before the first frame
+  advances the state from one time to the next. The runtime calls `prepare(problem, rng, until)` before the first frame
   and `run(t, x, p, until)` at every frame, which returns the state and sets `events_`, `stopped_at_`, `snapshot_`,
   and `agents_`. The last run, `run(..., final=True)`, releases what fitting acquired, such as an external process.
 - `depends` names the formalisms it builds on, which must be registered first.
@@ -1258,7 +1258,7 @@ class DecayProblem(Problem):
 
 
 class DecayCompiler(BaseSystemCompiler):
-    def _fit(self, system):
+    def _prepare(self, system):
         self.claims_ = bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
 
     def _run(self, system, *, backend, solver, initial_state):
@@ -1697,16 +1697,16 @@ Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(sh
 with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `ElementComponent.lattice(label, space, **values)` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
 
-Every space speaks the verbs of the framework. `space.fit()` checks its arguments and derives its facts, which end in
+Every space speaks the verbs of the framework. `space.prepare()` checks its arguments and derives its facts, which end in
 `_`: the number of sites `size_`, the dimension `n_dim_`, the shape of the arrays of its sites `shape_`, the position
 of every site `positions_`, whether it wraps `periodic_`, and the visual of its groups `default_visual_`.
 `space.run(site, neighborhood=None)` returns the sites around a site, in the order of a neighbourhood or of the
-space's own. Compiling a system fits its spaces, so a space needs `fit()` only when its facts are read before.
+space's own. Compiling a system fits its spaces, so a space needs `prepare()` only when its facts are read before.
 
 ```python
 from skcomplex.core.space import LatticeSpace
 
-space = LatticeSpace((4, 3), neighborhood='von_neumann').fit()
+space = LatticeSpace((4, 3), neighborhood='von_neumann').prepare()
 print(space.size_, space.shape_, space.periodic_, space.run(0).tolist())
 ```
 
@@ -1926,7 +1926,7 @@ first = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 second = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 print(sorted(first.graph.edges) == sorted(second.graph.edges))
 
-space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))]).fit()
+space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))]).prepare()
 print(list(space.graphs_), [item.tolist() for item in space.edges_['work']])
 ```
 
@@ -2327,7 +2327,7 @@ from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
-tree = CayleySpace(free, ball=4).fit()
+tree = CayleySpace(free, ball=4).prepare()
 memory = Memory.generators(free)
 MajorityComponent = ElementComponent.define(
     'MajorityComponent',
@@ -2337,7 +2337,7 @@ MajorityComponent = ElementComponent.define(
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(components=[MajorityComponent.lattice('cells', tree, alive=cells)])
 print(tree.ball_sizes_, Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
-print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).fit().words_)
+print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).prepare().words_)
 ```
 
 Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
@@ -2350,7 +2350,7 @@ from skcomplex.formalisms.groups import CayleySpace
 
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
-ball, quotient = CayleySpace(grigorchuk_group(), ball=6).fit(), CayleySpace(grigorchuk_group(), quotient=3).fit()
+ball, quotient = CayleySpace(grigorchuk_group(), ball=6).prepare(), CayleySpace(grigorchuk_group(), quotient=3).prepare()
 print(ball.ball_sizes_, quotient.size_)
 ```
 
@@ -3141,7 +3141,7 @@ appears as two images, its modulus under `<path>/<state>/modulus` colored over t
 `<path>/<state>/real` and `<path>/<state>/imag`. A group can set its own visual with
 `ParticleComponent.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual`, implements the hook `_log`
 for elements or `_log_agents` for agents, and is registered with `register_visual`, and an element type selects it with
-its `visual` class variable. `visual.fit(element, problem)` prepares a visual for one element and sets its views
+its `visual` class variable. `visual.prepare(element, problem)` prepares a visual for one element and sets its views
 `views_`, and `visual.run(frame, recording)` logs the element at a frame.
 
 ### Layouts and blueprints
@@ -3204,7 +3204,7 @@ stocks = Experiment('harvesting', scenarios=policies, until=80, outputs=['land/s
 print([round(float(row['land/stock.n'])) for row in stocks.rows])
 ```
 
-- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. `fit` sets their
+- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. `prepare` sets their
   rows in `rows_` and `run` returns them. They cross with `product` and concatenate with `concat`, and their bounds are
   pairs or SciPy distributions.
 - `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars. Results
@@ -3497,8 +3497,8 @@ print(round(recurrence_quantification(sine).determinism, 2))
 ### Surrogates fitted to data
 
 `DMDSurrogate`, `SINDySurrogate`, and `ReservoirSurrogate` are estimators: they take their settings when built,
-`fit` them to one or more trajectories or series sampled at a uniform step, and `run(steps)` forecasts the variables
-over that many samples after the last sample. `fit` sets `system_`, a `System` of one surrogate element, which
+`prepare` them to one or more trajectories or series sampled at a uniform step, and `run(steps)` forecasts the variables
+over that many samples after the last sample. `prepare` sets `system_`, a `System` of one surrogate element, which
 `validate` checks and `Simulation` runs like a hand-written system, and `training_error_` and `validation_error_`, the
 relative errors of the fit on the training samples and on the end of every series held out by `validation`. A forecast
 simulates `system_` from the last sample, and the DMD and reservoir surrogates compute it directly.
@@ -3523,11 +3523,11 @@ from skcomplex.engine.compile import validate
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = Series(times, np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-decomposition = DMDSurrogate().fit(spiral)
+decomposition = DMDSurrogate().prepare(spiral)
 print(np.sort(decomposition.eigenvalues_.imag).round(3), validate(decomposition.system_).ok)
-sparse = SINDySurrogate(degree=1, threshold=0.05).fit(spiral)
+sparse = SINDySurrogate(degree=1, threshold=0.05).prepare(spiral)
 print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.run(50).shape)
-reservoir = ReservoirSurrogate().fit(spiral)
+reservoir = ReservoirSurrogate().prepare(spiral)
 forecast = Simulation(reservoir.system_).run(until=50).trajectory_
 print(type(reservoir.system_.time).__name__, np.allclose(forecast['surrogate.x'][1:], reservoir.run(50)[:, 0]))
 ```

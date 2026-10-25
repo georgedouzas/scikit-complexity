@@ -50,7 +50,7 @@ def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) 
 
     Args:
         space:
-            The space, fitted here unless it was fitted before.
+            The space, prepared here unless it was prepared before.
 
         on:
             `'sites'`, `'edges'`, or `'hyperedges'`.
@@ -70,7 +70,7 @@ def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) 
             The space does not have the part.
     """
     if not hasattr(space, 'size_'):
-        space.fit()
+        space.prepare()
     if on == 'sites' and space.size_ is not None:
         return int(space.size_)
     if on == 'edges' and isinstance(space, NetworkSpace):
@@ -183,9 +183,9 @@ class NetworkSpace(BaseSpace):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.space import Layer, NetworkSpace
-        >>> NetworkSpace(nx.cycle_graph(5)).fit().size_
+        >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
         5
-        >>> space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))]).fit()
+        >>> space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))]).prepare()
         >>> list(space.graphs_), space.graphs_['work'].number_of_edges()
         ([None, 'work'], 3)
         >>> [item.tolist() for item in space.edges_[None]]
@@ -242,7 +242,7 @@ class NetworkSpace(BaseSpace):
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the graph, the edges, and the adjacency of every layer, and the position of every node."""
         self.size_ = int(self.graph.number_of_nodes())
         self.n_dim_ = 1
@@ -557,7 +557,7 @@ class NetworkSpace(BaseSpace):
         """Return a spatial network of nodes placed at random, joined with a probability that decays with distance.
 
         Two nodes at distance `d` join with probability `beta exp(-d / (alpha L))`, where `L` is the largest distance
-        in the domain. Every node stores its position in the node attribute `pos`, which gives the fitted `positions_`.
+        in the domain. Every node stores its position in the node attribute `pos`, which gives the prepared `positions_`.
 
         Args:
             n:
@@ -584,7 +584,7 @@ class NetworkSpace(BaseSpace):
 
         Examples:
             >>> from skcomplex.core.space import NetworkSpace
-            >>> NetworkSpace.waxman(20, seed=1).fit().positions_.shape
+            >>> NetworkSpace.waxman(20, seed=1).prepare().positions_.shape
             (20, 2)
         """
         return cls(nx.waxman_graph(n, beta=beta, alpha=alpha, domain=domain, seed=seed), layers=layers)
@@ -601,7 +601,7 @@ class NetworkSpace(BaseSpace):
     ) -> 'NetworkSpace':
         """Return a spatial network of nodes placed at random in the unit cube, joined within a distance.
 
-        Every node stores its position in the node attribute `pos`, which gives the fitted `positions_`.
+        Every node stores its position in the node attribute `pos`, which gives the prepared `positions_`.
 
         Args:
             n:

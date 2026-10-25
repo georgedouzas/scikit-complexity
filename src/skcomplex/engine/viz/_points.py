@@ -88,12 +88,12 @@ class PointsVisual(BaseVisual):
         self.states = states
         self.trail = trail
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
         self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
         self.span_: tuple[float, float] | None = None
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _point_colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points over the given range, or over a range widened to every value so far."""
@@ -203,7 +203,7 @@ class PointsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import PointsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('ideal_gas', n_molecules=10, n_dim=3))
-            >>> views = PointsVisual(position='x', states=()).fit(problem.elements[0], problem).views_
+            >>> views = PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """

@@ -91,7 +91,7 @@ def test_euler_maruyama_rejects_fractional_noise():
     """Test that the Euler-Maruyama stepper names the fractional Euler-Maruyama stepper for fractional noise."""
     problem = compile_system(_walkers(0.7, members=2))
     with pytest.raises(SolverError, match=r'FractionalEulerMaruyamaSolver'):
-        EulerMaruyamaSolver().fit(problem, np.random.default_rng(0))
+        EulerMaruyamaSolver().prepare(problem, np.random.default_rng(0))
 
 
 def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():

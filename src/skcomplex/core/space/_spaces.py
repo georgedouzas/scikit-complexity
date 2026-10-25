@@ -43,9 +43,9 @@ class ContinuousSpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.core.space import ContinuousSpace
-        >>> ContinuousSpace(10.0, 5.0, boundary='periodic').fit().extent_
+        >>> ContinuousSpace(10.0, 5.0, boundary='periodic').prepare().extent_
         (10.0, 5.0)
-        >>> ContinuousSpace(n_dim=3).fit().n_dim_
+        >>> ContinuousSpace(n_dim=3).prepare().n_dim_
         3
     """
 
@@ -101,7 +101,7 @@ class ContinuousSpace(BaseSpace):
             error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
             raise ValidationError(error_msg)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the extent of the box, its dimension, and its boundary, with no sites."""
         self.extent_ = tuple(float(side) for side in (self.sides or self.extent))
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)

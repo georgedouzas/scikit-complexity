@@ -58,12 +58,12 @@ class LatticeSpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.core.space import LatticeSpace
-        >>> space = LatticeSpace((10, 20)).fit()
+        >>> space = LatticeSpace((10, 20)).prepare()
         >>> space.size_, space.n_dim_, space.shape_
         (200, 2, (10, 20))
         >>> space.run(0).tolist()
         [199, 180, 181, 19, 1, 39, 20, 21]
-        >>> LatticeSpace((2, 2), geometry='triangular').fit().positions_.round(3).tolist()
+        >>> LatticeSpace((2, 2), geometry='triangular').prepare().positions_.round(3).tolist()
         [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
     """
 
@@ -116,7 +116,7 @@ class LatticeSpace(BaseSpace):
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValidationError(error_msg)
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the shape, the size, the spacings, and the position of every site."""
         shape = tuple(np.ravel(self.shape).tolist())
         self.shape_ = tuple(int(size) for size in shape)

@@ -61,7 +61,7 @@ class EventsObserver(BaseObserver):
         """Keep the condition."""
         self.condition = condition
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Start with no events."""
         self.events_: list[object] = []
         self.passed_ = True

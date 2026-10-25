@@ -13,12 +13,12 @@ from ._trajectories import Trajectory
 class BaseObserver(BaseEstimator):
     """Base class of objects that receive the frames of a simulation.
 
-    A simulation calls `fit(problem)` with the compiled problem before the first frame, `run(frame)` with every frame,
-    and `run(final=True)` without a frame once the run stops, which releases what fitting acquired. Subclasses
-    override any of the hooks `_fit`, `_run`, and `_release`.
+    A simulation calls `prepare(problem)` with the compiled problem before the first frame, `run(frame)` with every frame,
+    and `run(final=True)` without a frame once the run stops, which releases what preparing acquired. Subclasses
+    override any of the hooks `_prepare`, `_run`, and `_release`.
     """
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Prepare for a run of the compiled problem; prepare nothing by default."""
 
     def _run(self, frame: Frame | None = None) -> None:
@@ -45,7 +45,7 @@ class RecorderObserver(BaseObserver):
         3
     """
 
-    def _fit(self, problem: BaseProblem) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
         """Keep the problem and forget earlier frames."""
         self.problem_ = problem
         self.frames_: list[Frame] = []

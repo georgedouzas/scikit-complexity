@@ -13,11 +13,11 @@ from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 
 def test_ordered_phases_are_a_schedule():
     """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = DiscreteTime(schedule=PhasesSchedule([Phase('produce'), Phase('trade'), Phase('consume')])).fit()
+    time = DiscreteTime(schedule=PhasesSchedule([Phase('produce'), Phase('trade'), Phase('consume')])).prepare()
     assert isinstance(time.schedule_, Schedule)
     assert [phase.name for phase in time.schedule_.phases] == ['produce', 'trade', 'consume']
     with pytest.raises(ValidationError, match='repeat a name'):
-        DiscreteTime(schedule=PhasesSchedule([Phase('trade'), Phase('trade')])).fit()
+        DiscreteTime(schedule=PhasesSchedule([Phase('trade'), Phase('trade')])).prepare()
 
 
 def test_phase_rejects_unknown_activation():

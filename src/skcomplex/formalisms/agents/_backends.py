@@ -806,7 +806,7 @@ class MesaSolver(Solver):
         """Return a seed for Mesa drawn from the stepper's random number generator."""
         return int(self.rng_.integers(0, MAX_SEED))
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Build the Mesa model of an agent-based problem.
 
         Args:
@@ -823,7 +823,7 @@ class MesaSolver(Solver):
             SolverError:
                 The problem is not agent-based.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: dict[str, Any] = {}
         self.deposits_ = np.zeros(problem.states.size)
@@ -1133,7 +1133,7 @@ class MesaSolver(Solver):
                 The problem has no such observable.
         """
         if self._evaluator is None:
-            self._evaluator = ObservableEvaluator(self.problem_).fit()
+            self._evaluator = ObservableEvaluator(self.problem_).prepare()
         values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self._agents_of)
         if name not in values:
             error_msg = f'No observable named {name!r}. Available observables are: {", ".join(values) or "none"}.'

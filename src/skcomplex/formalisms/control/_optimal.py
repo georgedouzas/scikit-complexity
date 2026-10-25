@@ -303,7 +303,7 @@ class OptimalControlSolver(Solver):
         cost = self._cost(times, states, controls, p)
         return ControlSolution(times, full, dict(costates or {}), cost, iterations)
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
 
         Args:
@@ -321,7 +321,7 @@ class OptimalControlSolver(Solver):
                 The problem is not an ODE, or has no objective, no bounded adaptive parameter, or laws the solver
                 cannot differentiate symbolically, or the run has no end.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         control_problem = _ControlProblem.of(problem)
         if not math.isfinite(until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
@@ -331,7 +331,7 @@ class OptimalControlSolver(Solver):
         self.rates_ = control_problem.function(control_problem.rates)
         self.running_ = control_problem.function([control_problem.running])
         self.terminal_ = control_problem.function([control_problem.terminal])
-        self._prepare(control_problem)
+        self._set_up_control(control_problem)
         self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
         self.initial_state_ = self.solution_.state_at(0.0)
 
@@ -368,7 +368,7 @@ class OptimalControlSolver(Solver):
             raise SolverError(error_msg)
         return self.solution_.state_at(until)
 
-    def _prepare(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive what the solver needs from the optimal control problem, once per compiled problem.
 
         Args:

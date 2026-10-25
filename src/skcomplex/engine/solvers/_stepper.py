@@ -114,7 +114,7 @@ class Solver(BaseSolver[Problem]):
             time = bound
         return state
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -132,7 +132,7 @@ class Solver(BaseSolver[Problem]):
                 The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
                 integrate.
         """
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         self._check_capabilities(problem)
         self.locator_ = EventLocator(problem)
         self.renewals_ = RenewalClock(problem, rng, self.locator_) if problem.renewals else None
@@ -206,7 +206,7 @@ class ExternalSolver(Solver):
     """Base class of solvers that translate a compiled problem into a third-party library.
 
     Subclasses set the class variables `name` and `forms`, and implement `_unsupported`, `_build`, and `_advance`.
-    Before the first frame, `fit` checks every element, interaction, and law, and raises one error that lists
+    Before the first frame, `prepare` checks every element, interaction, and law, and raises one error that lists
     everything the library cannot run.
     """
 
@@ -248,7 +248,7 @@ class ExternalSolver(Solver):
         """
         raise NotImplementedError
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Check that the library supports a problem and build its model.
 
         Args:
@@ -272,5 +272,5 @@ class ExternalSolver(Solver):
             items = '; '.join(unsupported)
             error_msg = f'The {self.name} backend cannot run this system. Unsupported: {items}.'
             raise BackendError(error_msg)
-        super()._fit(problem, rng, until)
+        super()._prepare(problem, rng, until)
         self._build(problem, rng)

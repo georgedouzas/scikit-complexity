@@ -132,7 +132,7 @@ class CoSimulationSolver(Solver):
         self.scheme = scheme
         self.split = split
 
-    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Partition the problem when asked, and build and seed the stepper of every partition.
 
         Args:
@@ -168,7 +168,7 @@ class CoSimulationSolver(Solver):
         for partition, generator in zip(problem.partitions, generators, strict=True):
             solver = given.get(partition.name, 'auto')
             stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
-            stepper.fit(partition.problem, generator, until)
+            stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
         self._aggregates = [element for element in problem.elements if isinstance(element.element, Aggregate)]
         self.initial_state_ = initial_state

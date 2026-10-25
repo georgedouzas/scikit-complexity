@@ -77,11 +77,11 @@ class AgentsVisual(BaseVisual):
         self.radius = radius
         self.position = position
 
-    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
         self.styled_: set[str] = set()
         self.span_: tuple[float, float] | None = None
-        super()._fit(element, problem)
+        super()._prepare(element, problem)
 
     def _agent_colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""
@@ -187,7 +187,7 @@ class AgentsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import AgentsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('voter_model'))
-            >>> type(AgentsVisual().fit(problem.agents[0], problem).views_[0]).__name__
+            >>> type(AgentsVisual().prepare(problem.agents[0], problem).views_[0]).__name__
             'GraphView'
         """
         if self.position is not None and isinstance(element, CompiledAgents):

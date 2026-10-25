@@ -150,7 +150,7 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.formalisms.rewriting import GeometryVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('koch_curve'))
-            >>> [type(view).__name__ for view in GeometryVisual().fit(problem.elements[0], problem).views_]
+            >>> [type(view).__name__ for view in GeometryVisual().prepare(problem.elements[0], problem).views_]
             ['Spatial2DView', 'TimeSeriesView']
         """
         del problem

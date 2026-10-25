@@ -112,14 +112,14 @@ def test_traits_visual_logs_each_agent_of_small_groups(log_agents):
 def test_traits_visual_shows_chosen_statistics_first():
     """Test that the first view shows the chosen statistics of the colored trait."""
     problem = compile_system(create('tangled_nature', organisms=20))
-    view = TraitsVisual(color_by='trait', shown=('distinct',)).fit(problem.agents[0], problem).views_[0]
+    view = TraitsVisual(color_by='trait', shown=('distinct',)).prepare(problem.agents[0], problem).views_[0]
     assert view.contents == ['+ /organisms/trait/distinct']
 
 
 def test_traits_visual_can_show_the_histogram_first():
     """Test that a traits visual can put the histogram of its trait before its time series."""
     problem = compile_system(create('deffuant'))
-    views = TraitsVisual(color_by='opinion', histogram_first=True).fit(problem.agents[0], problem).views_
+    views = TraitsVisual(color_by='opinion', histogram_first=True).prepare(problem.agents[0], problem).views_
     assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
 
 
@@ -144,7 +144,7 @@ def test_charbonneau_traffic_has_a_space_time_view():
     problem = compile_system(create('charbonneau_traffic'))
     visual = agents_visual_of(problem.agents[0], problem)
     assert not isinstance(visual, TraitsVisual)
-    views = visual.fit(problem.agents[0], problem).views_
+    views = visual.prepare(problem.agents[0], problem).views_
     assert (type(views[0]).__name__, str(views[0].origin)) == ('TimeSeriesView', 'cars/x')
 
 

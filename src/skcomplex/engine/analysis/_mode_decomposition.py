@@ -127,7 +127,7 @@ class DMDSurrogate(BaseSurrogate):
         >>> from skcomplex.engine.analysis import DMDSurrogate, Series
         >>> times = np.arange(0.0, 10.0, 0.1)
         >>> series = Series(times, np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-        >>> surrogate = DMDSurrogate().fit(series)
+        >>> surrogate = DMDSurrogate().prepare(series)
         >>> np.sort(surrogate.eigenvalues_.imag).round(6).tolist()
         [-1.0, 1.0]
         >>> bool(np.allclose(surrogate.run(5)[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
@@ -154,7 +154,7 @@ class DMDSurrogate(BaseSurrogate):
         self.validation = validation
         self.label = label
 
-    def _fit(self, data: SurrogateData) -> None:
+    def _prepare(self, data: SurrogateData) -> None:
         """Fit the decomposition to the series and set the surrogate system, its errors, and its modes."""
         samples = samples_of(data, self.names)
         lifted, labels, states = _lift(samples, self.dictionary)

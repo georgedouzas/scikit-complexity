@@ -38,7 +38,7 @@ class MeshSpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.formalisms.fields import MeshSpace
-        >>> mesh = MeshSpace.rectangle(4, 3).fit()
+        >>> mesh = MeshSpace.rectangle(4, 3).prepare()
         >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape
         (20, 2, (20, 2))
         >>> mesh.run(0).tolist()
@@ -55,7 +55,7 @@ class MeshSpace(BaseSpace):
         self.points = points
         self.cells = cells
 
-    def _fit(self) -> None:
+    def _prepare(self) -> None:
         """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
         points = np.asarray(self.points, dtype=float)
         skfem = _skfem()

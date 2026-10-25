@@ -440,7 +440,7 @@ def hexagonal_forest_fire(
         >>> hexagonal_forest_fire(graph=nx.cycle_graph(12)).elements[0].size
         12
     """
-    space = (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).fit()
+    space = (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).prepare()
     size = int(space.size_ or 0)
     initial = (
         (np.random.default_rng(random_state).random(size) < density).astype(float)

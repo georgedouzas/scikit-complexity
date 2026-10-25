@@ -62,7 +62,7 @@ def test_lattices_log_images():
     recording = Images()
     simulation = Simulation(ising(8, initial='up'), dt=1).run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    ImageVisual(low=-1, high=1).fit(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
+    ImageVisual(low=-1, high=1).prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
     ((path, image),) = recording.images
     assert path == 'spins/spin'
     assert type(image).__name__ == 'Image'
