@@ -12,8 +12,8 @@ import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
 from ...core.base import AnalysisError
+from ...core.problems import NetworkSnapshot
 from ...core.space import NetworkSpace
-from ..compile import NetworkSnapshot
 from ._kinds import DataKind, analysis
 from ._statistics import fit_power_law
 

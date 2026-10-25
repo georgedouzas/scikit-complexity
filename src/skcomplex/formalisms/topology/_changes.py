@@ -10,7 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import Vector
-from ...engine.compile import CapacityRows, Kernel, NetworkSnapshot, ReductionPass, reads_reductions
+from ...core.problems import Kernel, NetworkSnapshot, ReductionSchedule, reads_reductions
+from ...engine.compile import CapacityRows
 from ._requests import TopologyRequest
 
 type Indices = npt.NDArray[np.intp]
@@ -237,7 +238,7 @@ class Topology:
     networks: tuple[NetworkRows, ...]
     requests: tuple[CompiledRequest, ...] = ()
     channels: dict[int, CompiledRequest] = field(default_factory=dict)
-    reductions: ReductionPass = field(default_factory=ReductionPass)
+    reductions: ReductionSchedule = field(default_factory=ReductionSchedule)
 
     @property
     def layers(self) -> tuple[tuple[str, str | None], ...]:

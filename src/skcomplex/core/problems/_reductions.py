@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 
-from ...core.base import Entry, Expression, Indices, Vector
-from ...core.system import reduce_values
+from ..base import Entry, Expression, Indices, Vector
+from ..system import reduce_values
 from ._neighbourhoods import CompiledNeighborhood
 from ._printing import numpy_function
 from ._reads import Read
@@ -149,7 +149,7 @@ class CompiledReduction:
 
 
 @dataclass
-class ReductionPass:
+class ReductionSchedule:
     """Reductions of a problem, evaluated in dependency order into the extended parameter vector.
 
     Args:

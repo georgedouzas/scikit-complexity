@@ -47,9 +47,8 @@ from ...core.laws import (
     where,
 )
 from ...core.laws._laws import RenewalLaw
-from ._kernels import Reference, Source
-from ._printing import numpy_function
-from ._problem import Draws, SampledDraw, _MarkovMatrix
+from ...core.problems import Draws, Reference, Source, numpy_function
+from ...core.problems._problem import SampledDraw, _MarkovMatrix
 
 ALPHABET_DOMAINS = (NumericDomain.INTEGER, NumericDomain.NONNEGATIVE_INTEGER, NumericDomain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})

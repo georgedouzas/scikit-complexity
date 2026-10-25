@@ -40,15 +40,21 @@ from ....core.laws import (
     neighborhoods_in,
     reductions_in,
 )
+from ....core.problems import ReductionSchedule, Reference, Source
+from ....core.problems._neighbourhoods import (
+    ACTIVE_THRESHOLD,
+    CompiledNeighborhood,
+    PairRead,
+    default_neighborhood,
+    neighbor_search,
+)
+from ....core.problems._reads import Read
+from ....core.problems._reductions import CompiledReduction
 from ....core.space import Adjacency
 from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations
-from .._kernels import Reference, Source
-from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead, default_neighborhood, neighbor_search
 from .._pipeline import BasePass
-from .._reads import Read
-from .._reductions import CompiledReduction, ReductionPass
 from .._specs import KernelSpec, activity_symbol, group_space
 from .._stochastic import DrawLowering
 
@@ -459,7 +465,7 @@ class ReductionsPass(BasePass):
             _prune_foreign(spec, declarations)
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.reductions = ReductionPass(
+        compilation.reductions = ReductionSchedule(
             tuple(reductions.found.values()),
             reductions.parameters,
             tuple(reductions.neighbourhoods.values()),

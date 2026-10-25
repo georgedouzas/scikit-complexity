@@ -8,10 +8,11 @@ import numpy as np
 import scipy.sparse
 
 from ...core.base import Expression, ValidationError
+from ...core.problems import SCALAR_DIALECT, ReductionSchedule, print_expressions
+from ...core.problems._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
+from ...core.problems._reads import Read
+from ...core.problems._reductions import CompiledReduction
 from ...core.space import Cone, Nearest
-from ..compile._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
-from ..compile._printing import SCALAR_DIALECT, print_expressions
-from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ._numba_source import INDENT, _hoist_layout, _Source
 
 
@@ -254,7 +255,7 @@ def _neighborhood_lines(source: _Source, reduction: CompiledNeighborhood, index:
     return lines
 
 
-def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool) -> None:
+def _reduce_function(source: _Source, reductions: ReductionSchedule, parallel: bool) -> None:
     """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
     extents = [
         f'_L{2 * source.slot(item.entry)}_ + _L{2 * source.slot(item.entry) + 1}_ * {item.entry.columns}'
@@ -276,7 +277,7 @@ def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool)
     source.lines += ['', '', *_hoist_layout(lines)]
 
 
-def _reductions_compile(reductions: ReductionPass) -> bool:
+def _reductions_compile(reductions: ReductionSchedule) -> bool:
     """Check whether every reduction prints in Numba's dialect."""
     try:
         for reduction in reductions.reductions:

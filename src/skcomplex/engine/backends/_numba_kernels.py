@@ -8,7 +8,8 @@ import hashlib
 from numba.core.dispatcher import Dispatcher
 
 from ...core.base import Expression
-from ..compile._kernels import EdgeSearch, Kernel, Output, PairSearch, Reference, Source
+from ...core.problems import EdgeSearch, Kernel, Output, Reference, Source
+from ...core.problems._kernels import PairSearch
 from ._numba_source import INDENT, _emit_values, _hoist_layout, _index, _is_shared, _single_reads, _Source, _vector
 
 

@@ -28,7 +28,7 @@ from ...core.base import (
     Vector,
     components_of,
 )
-from ..compile import Problem, VectorFunction
+from ...core.problems import Problem, VectorFunction
 from ._hybrid import (
     RESTART,
     History,

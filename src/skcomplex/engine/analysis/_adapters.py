@@ -12,9 +12,10 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import AnalysisError, CategoricalDomain, Form, NumericDomain
+from ...core.problems import Problem
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.system import System
-from ..compile import Problem, compile_system, observables_of
+from ..compile import compile_system, observables_of
 from ..experiments import ExperimentResult
 from ..runtime import Trajectory
 from ._kinds import ANALYSES, AnalysisEntry, DataKind

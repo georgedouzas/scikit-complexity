@@ -27,15 +27,12 @@ from ....core.base import (
     vector,
 )
 from ....core.laws import BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
+from ....core.problems import CompiledEvent, ReductionSchedule, Reference, Source, VectorFunction, numpy_function
+from ....core.problems._hybrid import _Breakpoints, _Delay
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._hybrid import CompiledEvent, _Breakpoints, _Delay
-from .._kernels import Reference, Source
 from .._lowering import calls_of
 from .._pipeline import BasePass
-from .._printing import numpy_function
-from .._problem import VectorFunction
-from .._reductions import ReductionPass
 from .._specs import KernelSpec
 
 type Scalars = Callable[[float, Vector, Vector], list[float]]
@@ -272,7 +269,7 @@ def _reset_function(
     spec: KernelSpec,
     event: EventLaw,
     time: Expression,
-    reductions: ReductionPass,
+    reductions: ReductionSchedule,
 ) -> VectorFunction | None:
     """Return a function that sets the states an event resets, all from the state before the event."""
     reset = event.reset or {}
@@ -324,7 +321,7 @@ def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
 def compile_events(
     events: list[tuple[KernelSpec, EventLaw]],
     time: Expression,
-    reductions: ReductionPass,
+    reductions: ReductionSchedule,
 ) -> tuple[CompiledEvent, ...]:
     """Return the events of a system compiled into guard and reset functions of the state vector.
 
@@ -365,7 +362,7 @@ def compile_events(
 def hidden_events(
     specs: list[tuple[KernelSpec, list[BaseLaw]]],
     time: Expression,
-    reductions: ReductionPass,
+    reductions: ReductionSchedule,
 ) -> tuple[CompiledEvent, ...]:
     """Return one hidden event per condition on the states of single components that switches a law of a flow.
 

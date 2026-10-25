@@ -13,8 +13,9 @@ import qutip
 
 from ...core.base import AnalysisError, Form, Layout, ParameterError, Vector
 from ...core.laws import Symbols
+from ...core.problems import Problem
 from ...core.system import System
-from ..compile import Problem, compile_system
+from ..compile import compile_system
 from ..runtime import Trajectory
 
 DIAGONAL_TOLERANCE = 1e-12

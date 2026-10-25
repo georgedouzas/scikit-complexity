@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, ValidationError
 from ...core.laws import NoiseLaw
+from ...core.problems import NoiseProcess, Output, Reference, Source
 from ...core.space import LatticeSpace
-from ...engine.compile import NoiseProcess, Output, Reference, Source
 from ._components import FieldComponent
 
 type Indices = npt.NDArray[np.intp]

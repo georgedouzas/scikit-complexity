@@ -25,9 +25,7 @@ from ...core.base import (
 )
 from ...core.laws import Draw, draws_in, has_reductions, is_draw
 from ...core.laws._laws import RenewalLaw
-from ._kernels import Reference, Source
-from ._printing import numpy_function
-from ._problem import RenewalRecord
+from ...core.problems import Reference, RenewalRecord, Source, numpy_function
 from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 

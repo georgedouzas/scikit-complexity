@@ -13,8 +13,9 @@ import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ...core.base import Entry, Form, NumericDomain, ParameterError, SimulationError, ValidationError, Vector
+from ...core.problems import BaseBackend, Problem, with_initial_state
 from ...core.system import Observable, System
-from ..compile import BaseBackend, ObservableEvaluator, Problem, compile_system, validate, with_initial_state
+from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
 from ._clocks import AsFastAsPossibleClock, BaseClock
 from ._conservation import InvariantObserver

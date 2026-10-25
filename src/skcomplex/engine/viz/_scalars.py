@@ -9,7 +9,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..compile import CompiledAgents, CompiledElement, Problem
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import SERIES_COLORS
 from ._utils import PARTS, log_scalars

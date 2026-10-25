@@ -20,7 +20,7 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ..compile import Problem
+from ...core.problems import Problem
 from ._hybrid import reject_hybrid
 from ._stepper import Solver, register_solver
 

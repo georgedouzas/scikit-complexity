@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import BaseLaw, Layout, ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
+from ...core.problems import EdgeSearch, Kernel, Lowered, Output, Problem, ReductionSchedule
 from ...core.space import NetworkSpace
 from ...engine.compile import (
     BasePass,
@@ -17,14 +18,8 @@ from ...engine.compile import (
     BlockLaws,
     Compilation,
     Declarations,
-    EdgeSearch,
-    Kernel,
     KernelSpec,
     Laws,
-    Lowered,
-    Output,
-    Problem,
-    ReductionPass,
     capacity_rows,
     group_space,
     mask_of,
@@ -199,7 +194,7 @@ def _topology(
     lowered: Lowered,
     apart: Laws,
     declarations: Declarations,
-    reductions: ReductionPass,
+    reductions: ReductionSchedule,
     jumps: dict[int, tuple[KernelSpec, TopologyRequest]],
 ) -> Topology | None:
     """Return the topology pass of the variable groups of networks and the requests of laws, or `None` without them."""
@@ -334,7 +329,7 @@ class TopologyFunctionsPass(BasePass):
             cast('Lowered', compilation.kernels),
             cast('Laws', compilation.reduced_apart),
             cast('Declarations', compilation.layout),
-            cast('ReductionPass', compilation.reductions),
+            cast('ReductionSchedule', compilation.reductions),
             compilation.facts['request_jumps'],
         )
         if topology is not None and (topology.requests or topology.channels):

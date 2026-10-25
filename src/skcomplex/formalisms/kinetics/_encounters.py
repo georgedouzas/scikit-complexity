@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import BaseLaw, Expression, ValidationError, symbols_of
-from ...engine.compile import Reference, Source
+from ...core.problems import Reference, Source
 from ._contractions import CompiledEncounter, Indices, TableValues
 from ._laws import DestructionLaw, EncounterLaw, is_encounter
 

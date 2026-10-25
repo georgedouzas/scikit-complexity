@@ -14,15 +14,23 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BackendWarning, BaseLaw, Expression, Form, Layout, NumericDomain, Vector, wrap_angle
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from .._backends import BaseBackend, Lowering, resolve_backend
+from ....core.problems import (
+    Accelerated,
+    BaseBackend,
+    Kernel,
+    Lowered,
+    Lowering,
+    Output,
+    ReductionSchedule,
+    Source,
+    VectorFunction,
+    resolve_backend,
+)
+from ....core.problems._real_parts import real_components_of
 from .._compilation import Compilation
 from .._declarations import Declarations, member_count
 from .._forms import is_stepwise
-from .._kernels import Kernel, Lowered, Output, Source
 from .._pipeline import BasePass
-from .._problem import Accelerated, VectorFunction
-from .._real_parts import real_components_of
-from .._reductions import ReductionPass
 from .._stochastic import DrawLowering, stochastic_update
 
 
@@ -113,7 +121,7 @@ def _lower(compilation: Compilation) -> dict[str, object]:
     form = cast('Form', compilation.form)
     lowered = cast('Lowered', compilation.kernels)
     declarations = cast('Declarations', compilation.layout)
-    reductions = cast('ReductionPass', compilation.reductions)
+    reductions = cast('ReductionSchedule', compilation.reductions)
     drawing = cast('DrawLowering', compilation.drawing)
     backend = _chosen_backend(compilation, form, member_count(list(declarations.blocks.values())))
     kernels, size = lowered.kernels, declarations.ends[True]

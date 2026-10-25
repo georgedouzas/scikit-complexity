@@ -8,10 +8,10 @@ from typing import cast
 import numpy as np
 
 from ....core.base import ValidationError
+from ....core.problems._problem import _MarkovMatrix
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import BasePass
-from .._problem import _MarkovMatrix
 from .._specs import KernelSpec
 from .._stochastic import MatrixLaw, compile_matrix, markov_laws
 

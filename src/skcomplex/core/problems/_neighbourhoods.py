@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ...core.base import Entry, Expression, Indices, ValidationError, Variable, Vector
-from ...core.space import (
+from ..base import Entry, Expression, Indices, ValidationError, Variable, Vector
+from ..space import (
     Adjacency,
     Cone,
     ContinuousSpace,
@@ -63,7 +63,7 @@ def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices,
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.engine.compile._neighbourhoods import network_rows
+        >>> from skcomplex.core.problems._neighbourhoods import network_rows
         >>> from skcomplex.core.space import Adjacency, NetworkSpace
         >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)), Adjacency())]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
@@ -97,7 +97,7 @@ def lattice_rows(space: LatticeSpace, neighborhood: Neighborhood) -> Rows:
             The row starts and the neighbours of every site.
 
     Examples:
-        >>> from skcomplex.engine.compile._neighbourhoods import lattice_rows
+        >>> from skcomplex.core.problems._neighbourhoods import lattice_rows
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed'), Neighborhood(((-1,), (1,))))
         >>> [item.tolist() for item in rows]
@@ -121,7 +121,7 @@ def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
             The neighbourhood, or `None` for a space without one of its own.
 
     Examples:
-        >>> from skcomplex.engine.compile._neighbourhoods import default_neighborhood
+        >>> from skcomplex.core.problems._neighbourhoods import default_neighborhood
         >>> from skcomplex.core.space import LatticeSpace
         >>> len(default_neighborhood(LatticeSpace((4, 4))))
         8
@@ -179,7 +179,7 @@ def cone_heading(cone: Cone, states: Mapping[str, Variable], n_dim: int) -> str:
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import ElementComponent
-        >>> from skcomplex.engine.compile._neighbourhoods import cone_heading
+        >>> from skcomplex.core.problems._neighbourhoods import cone_heading
         >>> from skcomplex.core.base import VariableKind, declarations_of
         >>> from skcomplex.core.space import Cone
         >>> BoidComponent = ElementComponent.define(
@@ -577,7 +577,7 @@ def reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.compile._neighbourhoods import reduce_pairs
+        >>> from skcomplex.core.problems._neighbourhoods import reduce_pairs
         >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
         >>> reduce_pairs('mean', readers, np.ones(3), np.array([1.0, 3.0, 5.0]), counts).tolist()
         [2.0, 0.0, 5.0]

@@ -18,8 +18,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, SolverError, ValidationError, symbol
 from ...core.laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
+from ...core.problems import numpy_function
 from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
-from ...engine.compile import numpy_function
 from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SamplerLaw
 
 type Vector = npt.NDArray[np.float64]

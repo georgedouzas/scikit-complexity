@@ -22,7 +22,7 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ...engine.compile import Problem
+from ...core.problems import Problem
 from ...engine.solvers import Solver
 
 GRID_TOLERANCE = 1e-9

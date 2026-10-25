@@ -13,7 +13,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.base import ValidationError
-from ..compile import CompiledAgents, CompiledElement, Problem
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
 from ._utils import UPWARD, _radius_of, log_scalars

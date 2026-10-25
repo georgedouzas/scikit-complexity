@@ -29,7 +29,7 @@ from sage.all__sagemath_symbolics import (
 
 from skcomplex.core.base import symbol
 from skcomplex.core.laws import both, either, mod, where
-from skcomplex.engine.compile import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
+from skcomplex.core.problems import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
 from skcomplex.formalisms.particles._lepton import LeptonPrinter
 
 X, Y = symbol('x'), symbol('y')

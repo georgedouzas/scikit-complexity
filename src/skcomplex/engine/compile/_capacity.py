@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import CapacityError, Entry, Indices, VariableKind, Vector, declarations_of
+from ...core.problems._neighbourhoods import ACTIVE_THRESHOLD
 from ._declarations import ACTIVE, ENDS, Block, Declarations
-from ._neighbourhoods import ACTIVE_THRESHOLD
 from ._tree import coerce_value
 
 

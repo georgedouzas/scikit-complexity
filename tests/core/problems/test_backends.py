@@ -20,6 +20,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.problems import BaseBackend
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend, _numba
@@ -445,3 +446,24 @@ def test_kernel_falling_back_to_python_is_reported(numba_backend):
         problem = compile_system(system, backend=numba_backend)
     assert len([item for item in found if item.category is BackendWarning]) == 1
     assert problem.backends == {'ODE': 'numba', 'rate': 'python'}
+
+
+def test_backends_derive_from_the_backend_base():
+    """Test that the code backends of the engine derive from the backend base of the core."""
+    assert issubclass(NumbaBackend, BaseBackend)
+    assert issubclass(NumpyBackend, BaseBackend)
+
+
+def test_backends_load_on_demand():
+    """Test that compiling with a named backend imports the engine's backends through the registered loader."""
+    code = (
+        'import sys\n'
+        'from skcomplex.engine.compile import compile_system\n'
+        'from skcomplex.models import create\n'
+        "assert 'skcomplex.engine.backends' not in sys.modules\n"
+        "compile_system(create('lotka_volterra'), backend='numpy')\n"
+        "print('skcomplex.engine.backends' in sys.modules)\n"
+    )
+    command = [sys.executable, '-c', code]
+    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
+    assert output.strip() == 'True'

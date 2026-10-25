@@ -8,8 +8,9 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from ...core.base import ValidationError
+from ...core.problems import Problem
 from ...core.system import Observable, System
-from ..compile import Problem, compile_system
+from ..compile import compile_system
 from ..runtime import MODELS
 
 type Source = str | Callable[..., System] | System

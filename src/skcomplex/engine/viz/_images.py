@@ -12,7 +12,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.base import NumericDomain
-from ..compile import CompiledAgents, CompiledElement, Problem
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE

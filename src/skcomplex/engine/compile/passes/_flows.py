@@ -8,13 +8,12 @@ from typing import cast
 
 from ....core.base import BaseLaw
 from ....core.laws import Auxiliary, Invariant, TransferLaw
+from ....core.problems import Problem, StockFlow
 from .._census import Census
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._flows import StockFlowPass, quantities_of
 from .._pipeline import BasePass
-from .._problem import Problem
-from .._quantities import StockFlow
 from .._specs import KernelSpec
 
 

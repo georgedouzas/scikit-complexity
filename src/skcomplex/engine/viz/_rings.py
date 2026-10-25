@@ -8,7 +8,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.base import wrap_angle
-from ..compile import CompiledAgents, CompiledElement, Problem
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _phase_colors
 from ._utils import UPWARD, _radius_of, log_scalars

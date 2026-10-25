@@ -14,8 +14,8 @@ import rerun.blueprint as rrb
 from rerun import bindings
 
 from ...core.base import ValidationError
+from ...core.problems import CompiledElement, Problem, RenewalRecord
 from ...core.space import NetworkSpace
-from ..compile import CompiledElement, Problem, RenewalRecord
 from ..runtime import BaseObserver, Frame
 from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint

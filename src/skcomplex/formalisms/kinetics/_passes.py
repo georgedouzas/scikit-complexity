@@ -9,16 +9,8 @@ from typing import Any, cast
 import numpy as np
 
 from ...core.base import Vector
-from ...engine.compile import (
-    BaseBackend,
-    BasePass,
-    Compilation,
-    Declarations,
-    Laws,
-    Problem,
-    member_count,
-    resolve_backend,
-)
+from ...core.problems import BaseBackend, Problem, resolve_backend
+from ...engine.compile import BasePass, Compilation, Declarations, Laws, member_count
 from ._contractions import CompiledEncounter
 from ._encounters import compile_encounters
 from ._laws import is_encounter

@@ -21,8 +21,9 @@ from skcomplex.core.base import (
     vocabulary,
 )
 from skcomplex.core.laws import RateLaw, UpdateLaw
+from skcomplex.core.problems import BACKENDS
 from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.engine.compile import BACKENDS, SOLVERS, missing_declarations
+from skcomplex.engine.compile import SOLVERS, missing_declarations
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.fields import FieldComponent, MeshSpace

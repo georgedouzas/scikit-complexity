@@ -13,8 +13,8 @@ import numpy.typing as npt
 from scipy import linalg, special
 
 from ...core.base import AnalysisError
+from ...core.problems import Problem
 from ...core.system import System
-from ..compile import Problem
 from ..runtime import Simulation, Trajectory
 from ._kinds import DataKind, analysis
 

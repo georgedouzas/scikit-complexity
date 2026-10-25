@@ -42,13 +42,13 @@ from ...core.base import (
 from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
 from ...core.laws._neighbourhoods import NeighborReduction
+from ...core.problems import BACKENDS, BaseBackend
+from ...core.problems._neighbourhoods import cone_heading, position_state
 from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace
 from ...core.system import Observable, System
-from ._backends import BACKENDS, BaseBackend
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
-from ._neighbourhoods import cone_heading, position_state
 from ._noise import process_covariance
 from ._observables import _with_observables, held_observables, with_held_observables
 from ._pipeline import _registered_passes, registered_checks, run_passes

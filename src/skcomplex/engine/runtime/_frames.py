@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import Vector
-from ..compile import Problem, Record
+from ...core.problems import Problem, Record
 from ..solvers import AgentSnapshot
 
 

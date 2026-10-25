@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, symbols_of
-from ...engine.compile import numpy_function
+from ...core.problems import numpy_function
 from ._components import WordComponent
 from ._geometry import WordGeometry
 from ._kernels import (

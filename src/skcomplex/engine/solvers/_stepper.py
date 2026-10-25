@@ -13,7 +13,8 @@ import numpy as np
 from numba.extending import register_jitable
 
 from ...core.base import BackendError, BaseSolver, Form, LawKind, SolverError, Vector
-from ..compile import SOLVERS, Problem, Record, solver_registry
+from ...core.problems import Problem, Record
+from ..compile import SOLVERS, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
 

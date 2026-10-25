@@ -8,6 +8,7 @@ from dataclasses import replace
 from typing import cast
 
 from ...core.base import BaseLaw, Form, Trait, ValidationError, has_trait
+from ...core.problems import Problem, Source, resolve_backend
 from ...core.space import NetworkSpace, SiteSpace
 from ...engine.compile import (
     BasePass,
@@ -18,10 +19,7 @@ from ...engine.compile import (
     Issue,
     KernelSpec,
     Laws,
-    Problem,
-    Source,
     member_count,
-    resolve_backend,
     target_references,
 )
 from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SampleLaw, SamplerLaw

@@ -35,8 +35,9 @@ from ...core.base import (
     declarations_of,
 )
 from ...core.components import GroupComponent
+from ...core.problems import CompiledAgents, Problem
 from ...core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem
+from ...engine.compile import ObservableEvaluator
 from ...engine.solvers import AgentSnapshot, AgentState, Solver
 from ._laws import RuleLaw
 from ._spaces import DEFAULT_PHASE, Phase, PhasesSchedule

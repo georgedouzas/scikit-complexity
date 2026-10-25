@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import Expression
-from ...engine.compile import numpy_function
+from ...core.problems import numpy_function
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]

@@ -10,8 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.problems import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
 from ...core.space import LatticeSpace, NetworkSpace
-from ..compile import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
 from ..runtime import Frame
 from ._colors import palette_colors
 from ._utils import GRID_RADIUS, NODE_SPACING, _network_layout

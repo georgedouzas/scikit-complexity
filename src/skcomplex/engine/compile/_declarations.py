@@ -30,8 +30,8 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import Symbols
+from ...core.problems import Reference, Source
 from ...core.space import NetworkSpace
-from ._kernels import Reference, Source
 from ._tree import Node, coerce_value, shape_of
 
 ACTIVE = '_active'

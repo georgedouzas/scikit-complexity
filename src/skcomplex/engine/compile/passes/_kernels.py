@@ -8,10 +8,10 @@ from typing import cast
 
 from ....core.base import BaseLaw, Expression, Layout, Trait, ValidationError, components_of, has_trait, symbols_of
 from ....core.laws import BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.problems import Kernel, Lowered, Output, Reference, Source
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._kernels import Kernel, Lowered, Output, Reference, Source
 from .._lowering import symbolic_components
 from .._noise import noise_process, process_keys
 from .._pipeline import BasePass

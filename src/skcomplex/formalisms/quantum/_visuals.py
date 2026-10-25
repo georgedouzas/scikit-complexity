@@ -8,8 +8,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ...core.space import LatticeSpace
-from ...engine.compile import CompiledAgents, CompiledElement, Problem
 from ...engine.runtime import Frame
 from ...engine.viz import SPACE_TIME, ImageVisual, log_scalars
 from ._components import view_of

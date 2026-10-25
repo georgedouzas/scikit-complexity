@@ -6,7 +6,7 @@
 import numpy as np
 
 from ...core.base import ConservationError, SimulationError, Vector
-from ..compile import Problem, StockFlow
+from ...core.problems import Problem, StockFlow
 from ._frames import Frame
 from ._observers import BaseObserver
 

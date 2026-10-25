@@ -3,18 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import importlib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
 from ...core.base import Form, IncompatibleLawsError, LawKind, Registry
+from ...core.problems import BACKENDS
 from ...core.system import System
-from ._backends import _load_backends
 from ._census import Census
 from ._forms import fits_form
 from ._issues import Issue
 
 SOLVERS = Registry[type[Any]]('solver')
+
+
+def _load_backends(key: object = None) -> None:
+    """Import `skcomplex.engine.backends`, whose modules register the backends and the solvers that run in them."""
+    del key
+    importlib.import_module('skcomplex.engine.backends')
 
 
 def _solved(kinds: set[LawKind], solvers: list[Any]) -> bool:
@@ -161,3 +168,6 @@ class _Plan:
 
     partitions: tuple[_PlannedPartition, ...]
     issues: tuple[Issue, ...]
+
+
+BACKENDS.register_loader(_load_backends)

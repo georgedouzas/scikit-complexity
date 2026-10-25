@@ -10,7 +10,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...engine.compile import CompiledAgents, CompiledElement, Problem
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ...engine.runtime import Frame
 from ...engine.viz import NODE_SPACING, UPWARD, BaseVisual, palette_colors
 from ._spaces import CayleySpace

@@ -14,8 +14,9 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import AnalysisError, ConservationError, Expression, symbols_of
 from ...core.laws._flows import delay_parts
+from ...core.problems import LoopTerm, Problem, StockFlow, numpy_function
 from ...core.system import System
-from ..compile import LoopTerm, Problem, StockFlow, compile_system, numpy_function
+from ..compile import compile_system
 from ..runtime import Trajectory
 
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}

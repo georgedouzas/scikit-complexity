@@ -10,8 +10,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import AnalysisError, Form, Vector
+from ...core.problems import CompiledEvent, EventRecord, Problem
 from ...core.system import System
-from ..compile import CompiledEvent, EventRecord, Problem, compile_system
+from ..compile import compile_system
 from ..runtime import Simulation
 from ..solvers import Solver
 

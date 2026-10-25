@@ -25,8 +25,9 @@ from ...core.base import (
     Vector,
 )
 from ...core.components import Aggregate
+from ...core.problems import Partition, Problem
 from ...core.system import reduce_values
-from ..compile import Partition, Problem, partition_system
+from ..compile import partition_system
 from ._snapshots import AgentState
 from ._stepper import Solver, register_solver, resolve_solver
 

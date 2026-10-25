@@ -27,8 +27,9 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
+from ...core.problems import CompiledElement, CompiledInteraction, Problem
 from ...core.system import System
-from ...engine.compile import BaseSystemCompiler, CompiledElement, CompiledInteraction, Node, Problem, flatten_system
+from ...engine.compile import BaseSystemCompiler, Node, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of
 from ._interactions import Rewriting
 from ._laws import GraphProductionLaw, ProductionLaw, RewritingError, RewritingLaw, SubstitutionLaw

@@ -15,10 +15,11 @@ from ....core.base import (
     declarations_of,
 )
 from ....core.laws import BoundaryLaw, Symbols, either, mod, where
+from ....core.problems import Source
+from ....core.problems._kernels import PairSearch
 from ....core.space import ContinuousSpace
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction
-from .._kernels import PairSearch, Source
 from .._pipeline import BasePass
 from .._specs import KernelSpec, resolve_role
 from .._tree import Node

@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import BaseLaw, Expression, Layout, ValidationError, VariableKind, Vector, declarations_of
 from ...core.laws import BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.problems import Output, Problem, Source
 from ...core.space import LatticeSpace
 from ...engine.compile import (
     BasePass,
@@ -26,9 +27,6 @@ from ...engine.compile import (
     KernelSpec,
     Laws,
     Node,
-    Output,
-    Problem,
-    Source,
     target_references,
 )
 from ._components import FieldComponent

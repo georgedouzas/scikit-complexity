@@ -9,11 +9,11 @@ import numpy as np
 
 from ....core.base import Form, Layout, VariableKind, VisualSpec, declarations_of
 from ....core.components import GroupComponent
+from ....core.problems import CompiledElement, CompiledInteraction, Problem, ReductionSchedule
+from ....core.problems._problem import _MarkovMatrix
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._pipeline import BasePass
-from .._problem import CompiledElement, CompiledInteraction, Problem, _MarkovMatrix
-from .._reductions import ReductionPass
 from .._specs import KernelSpec
 from .._tree import Node
 from ._events import breakpoints_in, compile_delays, compile_events, hidden_events
@@ -95,7 +95,7 @@ def _problem_of(compilation: Compilation) -> Problem:
     blocks = list(declarations.blocks.values())
     form = cast('Form', compilation.form)
     reduced = cast('Laws', compilation.reduced)
-    reductions = cast('ReductionPass', compilation.reductions)
+    reductions = cast('ReductionSchedule', compilation.reductions)
     time = declarations.time
     functions = cast('dict[str, Any]', compilation.functions)
     return Problem(

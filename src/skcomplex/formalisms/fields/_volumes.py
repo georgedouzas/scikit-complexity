@@ -13,8 +13,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, solve
 
 from ...core.base import Expression, ValidationError, symbol
+from ...core.problems import Reference, Source, numpy_function
 from ...core.space import LatticeSpace
-from ...engine.compile import Reference, Source, numpy_function
 from ._components import FieldComponent
 from ._laws import FluxLaw
 

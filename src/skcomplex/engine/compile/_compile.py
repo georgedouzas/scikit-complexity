@@ -9,14 +9,13 @@ from typing import cast
 import numpy as np
 
 from ...core.base import Form
+from ...core.problems import BaseBackend, Partition, Problem, with_initial_state
 from ...core.system import Observable, System
-from ._backends import BaseBackend
 from ._compilation import Compilation
 from ._declarations import is_interaction
 from ._observables import _with_observables, check_held_reads
 from ._pipeline import _registered_passes, run_passes
 from ._planner import _Plan
-from ._problem import Partition, Problem, with_initial_state
 from ._system_compilers import claiming_compiler
 from ._tree import Node
 from ._validation import validate

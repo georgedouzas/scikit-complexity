@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
 
-from ...core.base import Expression, ValidationError
+from ..base import Expression, ValidationError
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
 CALL = re.compile(r'[\w.]+\(\{0\}(, \{\d\})*(, [\w.]+)?\)')
@@ -145,7 +145,7 @@ class Dialect:
             Whether complex numbers print as Python complex literals instead of raising an error.
 
     Examples:
-        >>> from skcomplex.engine.compile import Dialect, print_expressions
+        >>> from skcomplex.core.problems import Dialect, print_expressions
         >>> from skcomplex.core.base import symbol
         >>> x = symbol('x')
         >>> dialect = Dialect('plain', {'exp': 'exp({0})'}, {})
@@ -212,7 +212,7 @@ def print_expressions(
             An expression uses a function the dialect has no equivalent for, with the dialect's error type.
 
     Examples:
-        >>> from skcomplex.engine.compile import NUMPY_DIALECT, print_expressions
+        >>> from skcomplex.core.problems import NUMPY_DIALECT, print_expressions
         >>> from skcomplex.core.base import symbol
         >>> x = symbol('x')
         >>> print_expressions([(x + 1) ** 2, 3 * (x + 1) ** 2], NUMPY_DIALECT)
@@ -343,7 +343,7 @@ def numpy_function(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.compile import numpy_function
+        >>> from skcomplex.core.problems import numpy_function
         >>> from skcomplex.core.base import symbol
         >>> t, x = symbol('t'), symbol('x')
         >>> numpy_function(t, [x], [t * x, x**2])(2.0, np.array([1.0, 3.0]))

@@ -9,15 +9,13 @@ from typing import Any
 
 from ...core.base import BaseLaw, Expression, Form
 from ...core.laws import EventLaw
+from ...core.problems import BaseBackend, Lowered, Output, Problem, ReductionSchedule
+from ...core.problems._problem import _MarkovMatrix
 from ...core.system import System
-from ._backends import BaseBackend
 from ._census import Census
 from ._declarations import Block, Declarations
 from ._jacobians import ExactJacobian
-from ._kernels import Lowered, Output
 from ._planner import _Plan
-from ._problem import Problem, _MarkovMatrix
-from ._reductions import ReductionPass
 from ._renewals import BoundRenewal
 from ._specs import KernelSpec
 from ._stochastic import DrawLowering, MatrixLaw
@@ -180,7 +178,7 @@ class Compilation:
     form: Form | None = None
     reduced: Laws | None = None
     reduced_apart: Laws | None = None
-    reductions: ReductionPass | None = None
+    reductions: ReductionSchedule | None = None
     kernels: Lowered | None = None
     functions: dict[str, Any] | None = None
     jacobian: ExactJacobian | None = None

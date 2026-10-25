@@ -7,7 +7,7 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import I
 
-from ...core.base import Expression, components_of
+from ..base import Expression, components_of
 
 
 def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
@@ -24,7 +24,7 @@ def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
     Examples:
         >>> from sage.all__sagemath_symbolics import I
         >>> from skcomplex.core.base import symbol, vector
-        >>> from skcomplex.engine.compile._real_parts import real_components_of
+        >>> from skcomplex.core.problems._real_parts import real_components_of
         >>> x, y = symbol('x'), symbol('y')
         >>> real_components_of(vector([x + I * y, 2 * x]))
         [x, y, 2*x]

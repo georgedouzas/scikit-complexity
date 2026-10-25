@@ -29,8 +29,9 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Symbols
+from skcomplex.core.problems import CompiledElement, Problem
 from skcomplex.core.system import System
-from skcomplex.engine.compile import BaseSystemCompiler, CompiledElement, Problem
+from skcomplex.engine.compile import BaseSystemCompiler
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 

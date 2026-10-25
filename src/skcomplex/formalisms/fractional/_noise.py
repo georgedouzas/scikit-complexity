@@ -25,7 +25,7 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ...engine.compile import Problem
+from ...core.problems import Problem
 from ...engine.solvers import Solver
 
 EIGENVALUE_TOLERANCE = 1e-10

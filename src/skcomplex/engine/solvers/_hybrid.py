@@ -12,7 +12,7 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ...core.base import SolverError, Vector
-from ..compile import CompiledEvent, EventRecord, Problem, Record
+from ...core.problems import CompiledEvent, EventRecord, Problem, Record
 
 type Interpolant = Callable[[float], Vector]
 type Bounded = Callable[[float, Vector, Vector], Vector]

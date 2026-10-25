@@ -30,21 +30,17 @@ from ...core.base import (
     symbols_of,
 )
 from ...core.laws import NoiseLaw
+from ...core.problems import BACKENDS, FractionalRows, Kernel, Lowered, Problem
 from ...engine.compile import (
-    BACKENDS,
     BasePass,
     BlockLaws,
     Census,
     CensusRecord,
     Compilation,
     Declarations,
-    FractionalRows,
     Issue,
-    Kernel,
     KernelSpec,
-    Lowered,
     Node,
-    Problem,
     declared_times,
     is_interaction,
     names_of,

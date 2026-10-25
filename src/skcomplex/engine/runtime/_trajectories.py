@@ -9,11 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import (
-    NetworkSnapshot,
-    Problem,
-    Record,
-)
+from ...core.problems import NetworkSnapshot, Problem, Record
 from ..solvers import AgentSnapshot
 
 

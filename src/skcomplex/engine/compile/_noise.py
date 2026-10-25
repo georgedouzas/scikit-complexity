@@ -12,8 +12,8 @@ import numpy.typing as npt
 from ...core.base import Expression, ValidationError, components_of
 from ...core.components import Wiener
 from ...core.laws import NoiseLaw
+from ...core.problems import NoiseProcess
 from ._declarations import Declarations
-from ._kernels import NoiseProcess
 from ._specs import KernelSpec
 
 type ProcessKey = tuple[str, str, Any]

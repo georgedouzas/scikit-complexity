@@ -7,14 +7,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from ..core.base import BaseComponent, BaseInteraction, BaseLaw, BaseSpace, Form, Registry, RegistryError, register_laws
+from ..core.problems import BaseBackend, register_backend
 from ..engine.compile import (
-    BaseBackend,
     BasePass,
     BaseSystemCompiler,
     Binding,
     Check,
     OwnerRule,
-    register_backend,
     register_binding,
     register_check,
     register_combined,

@@ -11,7 +11,7 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import (
+from ..base import (
     BaseInteraction,
     BaseLaw,
     BaseProblem,
@@ -26,9 +26,9 @@ from ...core.base import (
     VisualSpec,
     declarations_of,
 )
-from ...core.components import ElementComponent, GroupComponent
-from ...core.laws import Invariant
-from ...core.system import Observable, System
+from ..components import ElementComponent, GroupComponent
+from ..laws import Invariant
+from ..system import Observable, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._quantities import StockFlow, _CompiledObjective
 from ._real_parts import real_components_of

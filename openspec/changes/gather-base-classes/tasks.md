@@ -20,7 +20,7 @@
   `ExternalBackend` to `engine/solvers`.
 - [x] 2.3 Rename `SystemPass` to `BaseSystemCompiler`, unrelated to `BasePass`, and its subclasses to
   `QuantumCompiler`, `RewritingCompiler`, and `DecayCompiler`. Verify with the scenario "Quantum compiler".
-- [ ] 2.4 Add `core/problems` with `Problem`, the kernels, reductions, neighbourhoods, printing, lowering, and
+- [x] 2.4 Add `core/problems` with `Problem`, the kernels, reductions, neighbourhoods, printing, lowering, and
   `BaseBackend` with its registry, moved from `engine/compile`, and replace the run-time import of the backends with
   a loader the engine registers. Verify with the scenarios "Backend base", "Backends load on demand", and "Unrelated
   bases".

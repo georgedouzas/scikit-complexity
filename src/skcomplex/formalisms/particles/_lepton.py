@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import BackendError, Expression, NumericDomain, symbol, symbols_of
-from ...engine.compile import Dialect, print_expressions
+from ...core.problems import Dialect, print_expressions
 
 LEPTON = Dialect(
     'Lepton',

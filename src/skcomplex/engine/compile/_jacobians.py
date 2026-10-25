@@ -13,9 +13,9 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, Indices, ValidationError, Vector, symbols_of
-from ._kernels import Kernel, Output, Reference, Source, member_indices
-from ._printing import numpy_function
-from ._reductions import CompiledReduction, ReductionPass
+from ...core.problems import Kernel, Output, ReductionSchedule, Reference, Source, numpy_function
+from ...core.problems._kernels import member_indices
+from ...core.problems._reductions import CompiledReduction
 
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
@@ -180,7 +180,7 @@ class ExactJacobian:
     """
 
     kernels: tuple[Kernel, ...]
-    reductions: ReductionPass
+    reductions: ReductionSchedule
     size: int
     time: Expression
     volumes: tuple[_ConservationLaw, ...] = ()

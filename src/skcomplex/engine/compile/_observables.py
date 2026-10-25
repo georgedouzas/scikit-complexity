@@ -30,16 +30,14 @@ from ...core.base import (
 )
 from ...core.components import Aggregate
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
+from ...core.problems import Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
+from ...core.problems._quantities import _Recorded
+from ...core.problems._reads import Read
+from ...core.problems._real_parts import real_components_of
+from ...core.problems._reductions import CompiledReduction
 from ...core.system import Observable, System, reduce_values
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
-from ._kernels import Reference, Source
-from ._printing import numpy_function
-from ._problem import Getter, Problem
-from ._quantities import _Recorded
-from ._reads import Read
-from ._real_parts import real_components_of
-from ._reductions import CompiledReduction, ReductionPass
 from ._specs import Observed
 from ._tree import Node
 
@@ -609,7 +607,7 @@ class ObservableEvaluator:
         expression = lowering.lower(expression)
         readers = {item: _read_of(read) for item, read in lowering.reads.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
-        reductions = ReductionPass(tuple(lowering.found.values()), lowering.parameters)
+        reductions = ReductionSchedule(tuple(lowering.found.values()), lowering.parameters)
 
         def read_expression(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
             values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))

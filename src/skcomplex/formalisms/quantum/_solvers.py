@@ -23,7 +23,7 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ...engine.compile import Problem
+from ...core.problems import Problem
 from ...engine.solvers import Solver
 from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 

@@ -9,7 +9,7 @@ from collections.abc import Callable
 import numpy as np
 
 from ...core.base import Vector
-from ..compile import Problem
+from ...core.problems import Problem
 from ._hybrid import EventLocator
 
 type Step = Callable[[float, Vector, Vector, Vector], Vector]

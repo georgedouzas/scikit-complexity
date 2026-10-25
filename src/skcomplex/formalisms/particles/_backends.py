@@ -32,9 +32,10 @@ from ...core.base import (
     symbol,
 )
 from ...core.laws import Symbols
+from ...core.problems import CompiledElement, CompiledInteraction, Problem
 from ...core.space import ContinuousSpace
 from ...core.system import System
-from ...engine.compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, compile_system
+from ...engine.compile import SOLVERS, compile_system
 from ...engine.solvers import ExternalSolver, step_count
 from ._components import ParticleComponent
 from ._interactions import PairPotentialInteraction

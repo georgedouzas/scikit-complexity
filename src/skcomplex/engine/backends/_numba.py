@@ -31,21 +31,28 @@ from ...core.base import (
     Vector,
 )
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ..compile._backends import (
-    AUTO_MEMBERS,
+from ...core.problems import (
+    Accelerated,
     BaseBackend,
+    Draws,
+    EdgeSearch,
+    Kernel,
     Lowering,
+    ReductionSchedule,
+    Reference,
+    Source,
+    reads_reductions,
+    register_backend,
+)
+from ...core.problems._backends import (
+    AUTO_MEMBERS,
     adding_function,
     assigning_function,
     concatenating_function,
-    reads_reductions,
-    register_backend,
     report_fallbacks,
 )
-from ..compile._kernels import EdgeSearch, Kernel, Reference, Source, jump_channels, lower_noise
-from ..compile._neighbourhoods import EdgeRows, MetricSearch
-from ..compile._problem import Accelerated, Draws
-from ..compile._reductions import ReductionPass
+from ...core.problems._kernels import jump_channels, lower_noise
+from ...core.problems._neighbourhoods import EdgeRows, MetricSearch
 from ..solvers import step_count
 from . import _numba_neighbours, _numba_stencils
 from ._numba_kernels import _edge_kernel, _entry_function, _is_compilable, _member_kernel, _output_count, _pair_kernel
@@ -129,7 +136,7 @@ def _search_entries(search: object) -> dict[str, Entry]:
     return found
 
 
-def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionPass) -> dict[str, Entry]:
+def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionSchedule) -> dict[str, Entry]:
     """Return every entry the kernels and the reductions of a problem read, by name."""
     entries = {
         reference.entry.name: reference.entry
@@ -247,7 +254,7 @@ class NumbaBackend(BaseBackend):
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
         *,
-        reductions: ReductionPass | None = None,
+        reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form compiled with Numba.
@@ -284,7 +291,7 @@ class NumbaBackend(BaseBackend):
             JumpLaw: kernels.get(JumpLaw, []) if form is Form.JUMP else [],
             UpdateLaw: kernels.get(UpdateLaw, []) if form is Form.DISCRETE else [],
         }
-        reductions = reductions or ReductionPass()
+        reductions = reductions or ReductionSchedule()
         reduced = bool(reductions.steps)
         fused = _reductions_compile(reductions)
         compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
@@ -350,7 +357,7 @@ class NumbaBackend(BaseBackend):
         module: ModuleType,
         layout: np.ndarray,
         loop: str | None,
-        reductions: ReductionPass,
+        reductions: ReductionSchedule,
         draws: Draws | None,
     ) -> Lowering:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""

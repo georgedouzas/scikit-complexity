@@ -9,9 +9,10 @@ from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 from skcomplex.core.base import BaseInteraction, ValidationError, state, symbol
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw, both, derivative, either, lag, mod, series, where
+from skcomplex.core.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.formalisms.particles import ParticleComponent

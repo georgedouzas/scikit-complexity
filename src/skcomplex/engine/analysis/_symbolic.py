@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_s
 from sage.symbolic.function_factory import function as formal_function
 
 from ...core.base import AnalysisError, Expression, Form, components_of
+from ...core.problems import Problem
 from ...core.system import System
-from ..compile import Problem, compile_system
+from ..compile import compile_system
 from ._assumptions import declare_domains
 from ._fractional import mittag_leffler
 

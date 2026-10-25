@@ -9,8 +9,9 @@ import rerun as rr
 from skcomplex.core.base import Form, SolverError
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import JumpLaw, RateLaw, bernoulli, draw, mean, normal
+from skcomplex.core.problems import RenewalRecord
 from skcomplex.core.system import System
-from skcomplex.engine.compile import RenewalRecord, compile_system
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
 from skcomplex.engine.viz import RerunObserver

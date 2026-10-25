@@ -8,18 +8,9 @@ from typing import ClassVar
 
 from ...core.base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ..compile._backends import (
-    BaseBackend,
-    Lowering,
-    adding_function,
-    assigning_function,
-    concatenating_function,
-    register_backend,
-    with_reductions,
-)
-from ..compile._kernels import Kernel, Reference, jump_channels, lower_noise
-from ..compile._problem import Draws
-from ..compile._reductions import ReductionPass
+from ...core.problems import BaseBackend, Draws, Kernel, Lowering, ReductionSchedule, Reference, register_backend
+from ...core.problems._backends import adding_function, assigning_function, concatenating_function, with_reductions
+from ...core.problems._kernels import jump_channels, lower_noise
 
 
 class NumpyBackend(BaseBackend):
@@ -53,7 +44,7 @@ class NumpyBackend(BaseBackend):
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
         *,
-        reductions: ReductionPass | None = None,
+        reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form evaluated with NumPy.

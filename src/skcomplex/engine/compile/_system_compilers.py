@@ -6,8 +6,8 @@
 from collections.abc import Mapping
 
 from ...core.base import Registry
+from ...core.problems import Problem
 from ...core.system import System
-from ._problem import Problem
 
 SYSTEM_COMPILERS = Registry['BaseSystemCompiler']('system compiler')
 

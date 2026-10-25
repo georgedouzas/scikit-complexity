@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import SR
 from scipy.linalg import solve_continuous_are
 
 from ...core.base import AnalysisError, Expression, Form, ValidationError
+from ...core.problems import Problem
 from ...core.system import System
-from ..compile import Problem, compile_system
+from ..compile import compile_system
 from ._stability import dynamics_of
 
 type Matrix = npt.NDArray[np.float64]

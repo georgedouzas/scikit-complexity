@@ -12,10 +12,10 @@ import numpy as np
 from ....core.base import BaseLaw, Expression, Form, NumericDomain, components_of, symbol
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw
 from ....core.laws._laws import RenewalLaw
+from ....core.problems import Problem
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations
 from .._pipeline import BasePass
-from .._problem import Problem
 from .._renewals import BoundRenewal, CompiledRenewal, compile_renewal
 from .._specs import KernelSpec
 

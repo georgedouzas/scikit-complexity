@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import importlib
 import warnings
 from abc import abstractmethod
 from collections.abc import Mapping
@@ -13,7 +12,7 @@ from typing import ClassVar, cast
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ...core.base import (
+from ..base import (
     BackendError,
     BackendWarning,
     BaseLaw,
@@ -25,11 +24,11 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ..laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
 from ._problem import Accelerated, Draws, VectorFunction, WienerBlock, _JumpChannels
-from ._reductions import ReductionPass
+from ._reductions import ReductionSchedule
 
 AUTO_MEMBERS = 1000
 FUNCTION_KINDS: dict[str, type] = {
@@ -51,7 +50,7 @@ def _reads_reduction(kernel: Kernel, item: Expression) -> bool:
     return False
 
 
-def _unprinted_reduction(reductions: ReductionPass) -> str | None:
+def _unprinted_reduction(reductions: ReductionSchedule) -> str | None:
     """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
     for reduction in reductions.reductions:
         try:
@@ -67,11 +66,6 @@ def _unprinted_reduction(reductions: ReductionPass) -> str | None:
         except ValidationError:
             return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
     return None
-
-
-def _load_backends() -> None:
-    """Import `skcomplex.engine.backends`, whose modules register the backends and the solvers that run in them."""
-    importlib.import_module('skcomplex.engine.backends')
 
 
 def adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
@@ -217,7 +211,7 @@ class Lowering:
 
 def with_reductions(
     lowering: Lowering,
-    reductions: ReductionPass | None,
+    reductions: ReductionSchedule | None,
     kernels: Mapping[type, list[Kernel]] | None = None,
 ) -> Lowering:
     """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
@@ -249,7 +243,7 @@ def report_fallbacks(
     name: str,
     used: Mapping[type, list[Kernel]],
     compiled: Mapping[type, bool],
-    reductions: ReductionPass,
+    reductions: ReductionSchedule,
 ) -> dict[str, str]:
     """Warn once about the law kinds whose kernels a compiling backend runs in Python, and return every kind's runner.
 
@@ -302,7 +296,7 @@ class BaseBackend(BaseEstimator):
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
         *,
-        reductions: ReductionPass | None = None,
+        reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form.
@@ -373,7 +367,6 @@ def resolve_backend(backend: str | BaseBackend, members: int) -> BaseBackend:
     """
     if isinstance(backend, BaseBackend):
         return backend
-    _load_backends()
     name = ('numba' if members >= AUTO_MEMBERS else 'numpy') if backend == 'auto' else backend
     try:
         return BACKENDS.resolve(name)()

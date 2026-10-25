@@ -14,8 +14,9 @@ from sage.all__sagemath_symbolics import SR, matrix, solve
 from scipy.optimize import root
 
 from ...core.base import AnalysisError, Expression, Form, components_of
+from ...core.problems import Problem
 from ...core.system import System
-from ..compile import Problem, compile_system
+from ..compile import compile_system
 from ._assumptions import declare_domains
 from ._groups import expand_groups
 

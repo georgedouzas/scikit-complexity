@@ -22,19 +22,8 @@ from ...core.base import (
 )
 from ...core.components import GroupComponent, probe_laws
 from ...core.laws import Invariant
-from ...engine.compile import (
-    BasePass,
-    Block,
-    BlockLaws,
-    Compilation,
-    CompiledAgents,
-    Declarations,
-    KernelSpec,
-    Laws,
-    Node,
-    Problem,
-    visual_of,
-)
+from ...core.problems import CompiledAgents, Problem
+from ...engine.compile import BasePass, Block, BlockLaws, Compilation, Declarations, KernelSpec, Laws, Node, visual_of
 from ._laws import MatchLaw, RuleLaw, runs_rules
 
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')

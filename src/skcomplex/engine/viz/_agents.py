@@ -11,8 +11,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.base import BaseSpace
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
-from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of

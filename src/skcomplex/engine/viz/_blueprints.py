@@ -11,8 +11,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.base import ValidationError
+from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ...core.system import Observable, System
-from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
+from ..compile import compile_system, observables_of
 from ._points import PointsVisual
 from ._scalars import ScalarsVisual
 from ._traits import agents_visual_of
