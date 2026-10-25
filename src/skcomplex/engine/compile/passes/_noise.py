@@ -13,7 +13,7 @@ from typing import cast
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseLaw, Expression, SymbolicVector, ValidationError, components_of
-from ....core.components import Wiener
+from ....core.components import WienerProcess
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.laws._laws import NOISE_CONVENTIONS
 from .._compilation import Compilation, Laws
@@ -54,7 +54,11 @@ def _reads_state(term: _NoiseTerm, state: tuple[str, int]) -> bool:
     )
 
 
-def _noise_correction(term: _NoiseTerm, terms: list[_NoiseTerm], wieners: Mapping[str, Wiener]) -> BaseLaw | None:
+def _noise_correction(
+    term: _NoiseTerm,
+    terms: list[_NoiseTerm],
+    wieners: Mapping[str, WienerProcess],
+) -> BaseLaw | None:
     """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
     alpha = NOISE_CONVENTIONS[term.law.convention]
     if not alpha or not isinstance(term.amplitude, Expression | int | float):

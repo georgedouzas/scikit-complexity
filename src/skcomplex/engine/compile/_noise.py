@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import Expression, ValidationError, components_of
-from ...core.components import Wiener
+from ...core.components import WienerProcess
 from ...core.laws import NoiseLaw
 from ...core.problems import NoiseProcess
 from ._declarations import Declarations
@@ -27,7 +27,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
     if found is None:
         error_msg = (
             f'A noise law of {spec.owner} names the process {item!r}, which is not a label or the handle `dW` of a '
-            'Wiener element bound to a role.'
+            '`WienerProcess` bound to a role.'
         )
         raise ValidationError(error_msg)
     return ('wiener', *found)
@@ -51,7 +51,7 @@ def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) ->
     return [_process_key(spec, item, declarations) for item in items]
 
 
-def process_covariance(first: object, second: object, wieners: Mapping[str, Wiener]) -> float:
+def process_covariance(first: object, second: object, wieners: Mapping[str, WienerProcess]) -> float:
     """Return the covariance per unit time of the increments of two processes, keys or independent markers."""
     if not (isinstance(first, tuple) and isinstance(second, tuple) and first[0] == 'wiener' == second[0]):
         return 1.0 if first == second else 0.0
@@ -73,8 +73,8 @@ def covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
         return vectors * np.sqrt(np.maximum(values, 0.0))
 
 
-def noise_process(key: ProcessKey | None, wieners: Mapping[str, Wiener]) -> NoiseProcess | None:
-    """Return the named Wiener process of a process key, with the covariance factor of a Wiener element."""
+def noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcess]) -> NoiseProcess | None:
+    """Return the named Wiener process of a process key, with the covariance factor of a `WienerProcess`."""
     if key is None:
         return None
     kind, owner, item = key

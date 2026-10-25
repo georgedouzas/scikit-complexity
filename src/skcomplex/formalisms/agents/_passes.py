@@ -139,7 +139,7 @@ def _bound_paths(node: Node) -> set[str]:
     paths = set()
     for name in declarations_of(type(node.component), VariableKind.ROLE):
         value = getattr(node.component, name)
-        for item in [value] if isinstance(value, str) else value or ():
+        for item in [value] if isinstance(value, str) else value if isinstance(value, list | tuple) else ():
             paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
     return paths
 

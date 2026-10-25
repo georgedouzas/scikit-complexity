@@ -89,7 +89,7 @@ def test_shared_process_keeps_difference(backend, stepper):
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_correlated_increments_reproduce_covariance(backend):
-    """Test that the frame increments of two states driven by a Wiener element have its covariance within 0.1."""
+    """Test that the frame increments of two states driven by a `WienerProcess` have its covariance within 0.1."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
     trajectory = (
         Simulation(_correlated(covariance), backend=backend, solver=EulerMaruyamaSolver(dt=1.0), random_state=0, dt=1.0)

@@ -13,6 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import I
 
 from ...core.base import (
+    BaseInteraction,
     Entry,
     Expression,
     LabelError,
@@ -28,11 +29,11 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import ElementComponent, GroupComponent, Wiener
+from ...core.components import ElementComponent, GroupComponent, WienerProcess
 from ...core.laws import Symbols
 from ...core.problems import Reference, Source
 from ...core.space import NetworkSpace
-from ._tree import Node, coerce_value, shape_of
+from ._tree import Node, coerce_value, noise_processes, shape_of
 
 ACTIVE = '_active'
 ENDS = ('_source', '_target')
@@ -185,22 +186,25 @@ class Declarations:
     initial_parameters: list[Vector] = field(default_factory=list)
     blocks: dict[str, Block] = field(default_factory=dict)
     ends: dict[bool, int] = field(default_factory=lambda: {True: 0, False: 0})
-    wieners: dict[str, Wiener] = field(default_factory=dict)
+    processes: dict[str, Block] = field(default_factory=dict)
     handles: dict[Expression, tuple[str, int]] = field(default_factory=dict)
 
-    def _declare_wiener(self, block: Block, wiener: Wiener) -> None:
-        """Add the handle `dW` of a Wiener element to its block, one symbol per process, and index its symbols."""
-        path = block.node.path
-        base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
-        handle = (
-            symbol(base)
-            if wiener.dimension == 1
-            else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
-        )
-        block.symbols['dW'] = handle
-        self.wieners[path] = wiener
-        for index, item in enumerate(components_of(handle)):
-            self.handles[item] = (path, index)
+    def _declare_processes(self, node: Node) -> None:
+        """Add a block with the handle `dW` of every Wiener process an interaction binds, one symbol per process."""
+        for path, wiener in noise_processes([node]).items():
+            if path in self.processes:
+                continue
+            block = Block(Node(path, node.scope, wiener, node.space))
+            base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
+            handle = (
+                symbol(base)
+                if wiener.dimension == 1
+                else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
+            )
+            block.symbols['dW'] = handle
+            self.processes[path] = block
+            for index, item in enumerate(components_of(handle)):
+                self.handles[item] = (path, index)
 
     def _declare(self, block: Block, variable: str, declaration: Variable, is_state: bool) -> None:
         """Add one variable of a component to its block."""
@@ -295,6 +299,11 @@ class Declarations:
         self.initial_states.append(initial)
         return entry
 
+    @property
+    def wieners(self) -> dict[str, WienerProcess]:
+        """Wiener processes that the noise roles of interactions bind, by path."""
+        return {path: cast('WienerProcess', block.node.component) for path, block in self.processes.items()}
+
     @cached_property
     def capacity(self) -> dict[str, Block]:
         """Blocks of the variable groups on the sites or edges of networks, by path."""
@@ -355,8 +364,8 @@ class Declarations:
             self._declare(block, variable, declaration, is_state=True)
         for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
             self._declare(block, variable, declaration, is_state=False)
-        if isinstance(node.component, Wiener):
-            self._declare_wiener(block, node.component)
+        if isinstance(node.component, BaseInteraction):
+            self._declare_processes(node)
         if node.active is not None:
             self._declare_topology(block)
         self.blocks[node.path] = block

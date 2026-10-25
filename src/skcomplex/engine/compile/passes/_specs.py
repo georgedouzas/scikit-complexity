@@ -29,6 +29,7 @@ class SpecsPass(BasePass):
         declarations = cast('Declarations', compilation.layout)
         blocks = list(declarations.blocks.values())
         elements = {block.node.path: block for block in blocks if not is_interaction(block.node)}
+        elements.update(declarations.processes)
         nodes = cast('list[Node]', compilation.nodes)
         observe = Observer(declarations, lowerable_observables(compilation.system, nodes))
         compilation.specs = [

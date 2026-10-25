@@ -423,7 +423,7 @@ class CompiledInteraction:
 
 @dataclass(frozen=True)
 class WienerBlock:
-    """Correlated Wiener processes of one Wiener element, a contiguous block of the processes of a problem.
+    """Correlated Wiener processes of one `WienerProcess`, a contiguous block of the processes of a problem.
 
     Args:
         start:

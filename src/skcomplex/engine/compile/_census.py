@@ -289,6 +289,7 @@ def census_of(system: System, nodes: list[Node]) -> Census:
         except SkcomplexError as error:
             errors.append((node.path, error))
     elements = {block.node.path: block for block in blocks if not is_interaction(block.node)}
+    elements.update(declarations.processes)
     observe = Observer(declarations, lowerable_observables(system, nodes))
     agents = {block.node.path for block in blocks if block.node.is_agent}
     records = []
@@ -328,7 +329,7 @@ class CensusRecord:
 
         processes:
             For a noise law, the Wiener process of every target component: `None` for an independent process,
-            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a Wiener element.
+            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a `WienerProcess`.
 
         driven:
             For a noise law, the state entry name and column of every target component.

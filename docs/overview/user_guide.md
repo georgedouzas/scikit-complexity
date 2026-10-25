@@ -466,10 +466,12 @@ print(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).run(unt
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
 every component and every group member takes its own independent process. Laws of one component, or of one member,
 that name the same label share one increment, so a reaction can drive every species it changes with one process. A
-`Wiener(label, dimension, covariance)` element declares processes whose increments over a step `h` have the covariance
-`h C`. An interaction binds it to a role, and its noise laws name process `k` with `s.<role>.dW[k]`, which every
-component, and every member of a group, can share. The covariance is fixed when the system compiles, and NumPy factors
-it once, so the steppers scale standard normal increments drawn from the run's random generator.
+`WienerProcess(label, dimension, covariance)` declares processes whose increments over a step `h` have the covariance
+`h C`. It is no component: an interaction binds it through a role declared with `role(noise=True)`, and its noise laws
+name process `k` with `s.<role>.dW[k]`, which every component, and every member of a group, can share. Interactions of
+one system that bind processes of one label share them and their correlations. The covariance is fixed when the system
+compiles, and NumPy factors it once, so the steppers scale standard normal increments drawn from the run's random
+generator.
 
 ```python
 import numpy as np
@@ -479,7 +481,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.core.base import role
-from skcomplex.core.components import Wiener
+from skcomplex.core.components import WienerProcess
 from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 
@@ -489,15 +491,16 @@ StockComponent = ElementComponent.define('StockComponent', states={'n': 0.0})
 class MarketInteraction(BaseInteraction):
     first: str = role()
     second: str = role()
-    noise: str = role()
+    noise: WienerProcess = role(noise=True)
 
     def laws(self, s):
         return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
 
 
+processes = WienerProcess('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
 market = System(
-    components=[StockComponent('a'), StockComponent('b'), Wiener('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])],
-    interactions=[MarketInteraction('drive', first='a', second='b', noise='market')],
+    components=[StockComponent('a'), StockComponent('b')],
+    interactions=[MarketInteraction('drive', first='a', second='b', noise=processes)],
 )
 trajectory = Simulation(market, solver=EulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
 print(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1])
@@ -542,7 +545,7 @@ print(density[-1].sum(), density[-1].std() > 0)
 ```
 
 Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
-that drives several states, `'correlated'`, the processes of a `Wiener` element with a covariance, and `'conserved'`,
+that drives several states, `'correlated'`, the processes of a `WienerProcess` with a covariance, and `'conserved'`,
 the link processes of conserved noise. `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four.
 `MilsteinSolver`, whose derivative-free correction holds for diagonal noise only, and the LAMMPS backend support diagonal
 noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists the declarations. In the library,
@@ -1132,7 +1135,8 @@ listed in their import order, so a package imports only the packages above it.
   kinds, forms, space kinds, and traits.
 - `space`: `BaseSpace` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
 - `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and flows.
-- `components`: `BaseComponent`, `ElementComponent`, `GroupComponent`, `Wiener`, and `Aggregate`.
+- `components`: `BaseComponent`, `ElementComponent`, `GroupComponent`, `Aggregate`, and `WienerProcess`, which is no
+  component.
 - `interactions`: `BaseInteraction` and the bindings of its roles.
 - `system`: `System`, `Observable`, and ensembles.
 - `compile`: validation and the pipeline of passes that turns a system into a problem.
@@ -1587,7 +1591,8 @@ print(simulation.trajectory_.values('out.x'), simulation.parameters_)
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
 read like a single element, while a variadic role gives one law the whole sequence. `random_boolean_network` and
-`yeast_cell_cycle` read the inputs of every node through one variadic role.
+`yeast_cell_cycle` read the inputs of every node through one variadic role. A role declared with `role(noise=True)`
+binds a `WienerProcess` instead of a path, as the section on shared and correlated noise shows.
 
 ### Several groups and member offsets
 

@@ -8,7 +8,7 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.base import BaseInteraction, BaseLaw, parameter, role
-from skcomplex.core.components import ElementComponent, Wiener
+from skcomplex.core.components import ElementComponent, WienerProcess
 from skcomplex.core.laws import NoiseLaw, RateLaw, Symbols, UpdateLaw
 from skcomplex.core.system import System
 
@@ -64,10 +64,17 @@ def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0)
 
 
 def _correlated(covariance: npt.ArrayLike | None) -> System:
-    """Return two holdings driven by a Wiener element of a covariance."""
+    """Return two holdings driven by a `WienerProcess` of a covariance."""
     return System(
-        components=[HoldingComponent('a'), HoldingComponent('b'), Wiener('market', dimension=2, covariance=covariance)],
-        interactions=[DriveInteraction('drive', first='a', second='b', noise='market')],
+        components=[HoldingComponent('a'), HoldingComponent('b')],
+        interactions=[
+            DriveInteraction(
+                'drive',
+                first='a',
+                second='b',
+                noise=WienerProcess('market', dimension=2, covariance=covariance),
+            ),
+        ],
     )
 
 
@@ -84,11 +91,11 @@ class CallableGrowthInteraction(BaseInteraction):
 
 
 class DriveInteraction(BaseInteraction):
-    """Unit noise on two elements from the two processes of a Wiener element."""
+    """Unit noise on two elements from the two processes of a `WienerProcess`."""
 
     first: str = role()
     second: str = role()
-    noise: str = role()
+    noise: WienerProcess = role(noise=True)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the noise of both elements."""

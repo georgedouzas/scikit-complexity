@@ -19,7 +19,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import ElementComponent, Wiener
+from skcomplex.core.components import ElementComponent, WienerProcess
 from skcomplex.core.laws import NoiseLaw, Objective, RateLaw, UpdateLaw, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
@@ -358,7 +358,7 @@ class MisuseInteraction(BaseInteraction):
     """Rate law that uses the handle of a Wiener process as a value."""
 
     target: str = role()
-    noise: str = role()
+    noise: WienerProcess = role(noise=True)
 
     def laws(self, s):
         """Return the rate."""
@@ -370,7 +370,7 @@ class CoupledInteraction(BaseInteraction):
 
     target: str = role()
     other: str = role()
-    noise: str = role()
+    noise: WienerProcess = role(noise=True)
 
     def laws(self, s):
         """Return the noise of the target, whose amplitude reads the other state."""
@@ -381,7 +381,7 @@ class SingleInteraction(BaseInteraction):
     """Itô noise on one element from a Wiener process."""
 
     target: str = role()
-    noise: str = role()
+    noise: WienerProcess = role(noise=True)
 
     def laws(self, s):
         """Return the noise."""
@@ -401,10 +401,10 @@ def test_validate_reports_mixed_conventions():
 def test_validate_reports_correction_out_of_scope():
     """Test that a Stratonovich law reading a state another component drives on its process is reported."""
     system = System(
-        components=[HoldingComponent('a'), HoldingComponent('b', n=1.0), Wiener('market')],
+        components=[HoldingComponent('a'), HoldingComponent('b', n=1.0)],
         interactions=[
-            CoupledInteraction('coupled', target='a', other='b', noise='market'),
-            SingleInteraction('single', target='b', noise='market'),
+            CoupledInteraction('coupled', target='a', other='b', noise=WienerProcess('market')),
+            SingleInteraction('single', target='b', noise=WienerProcess('market')),
         ],
     )
     (issue,) = [issue for issue in validate(system).issues if issue.code == 'noise-correction-scope']
@@ -433,8 +433,8 @@ def test_validate_reports_covariance_shape_and_symmetry(covariance):
 def test_validate_reports_handle_as_value():
     """Test that a Wiener handle used inside a rate law is reported with the law."""
     system = System(
-        components=[HoldingComponent('a'), Wiener('market')],
-        interactions=[MisuseInteraction('misuse', target='a', noise='market')],
+        components=[HoldingComponent('a')],
+        interactions=[MisuseInteraction('misuse', target='a', noise=WienerProcess('market'))],
     )
     (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-handle']
     assert 'RateLaw of misuse' in issue.message
@@ -442,13 +442,17 @@ def test_validate_reports_handle_as_value():
 
 
 def test_validate_reports_wiener_under_discrete_time():
-    """Test that a Wiener element in a system of discrete time is reported with the fix of continuous time."""
+    """Test that a `WienerProcess` in a system of discrete time is reported with the fix of continuous time."""
     CounterComponent = ElementComponent.define(
         'CounterComponent',
-        states={'k': state(0.0, domain=NumericDomain.REAL)},
-        laws=lambda s: [UpdateLaw(s.k, 1)],
+        states={'n': state(0.0, domain=NumericDomain.REAL)},
+        laws=lambda s: [UpdateLaw(s.n, 1)],
     )
-    system = System(components=[CounterComponent('counter'), Wiener('market')], time=DiscreteTime())
+    system = System(
+        components=[CounterComponent('counter')],
+        interactions=[SingleInteraction('single', target='counter', noise=WienerProcess('market'))],
+        time=DiscreteTime(),
+    )
     (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-time']
     assert issue.path == 'market'
     assert 'continuous time' in issue.fix

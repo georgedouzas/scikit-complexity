@@ -29,7 +29,7 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import GroupComponent
+from ...core.components import GroupComponent, WienerProcess
 from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
 from ...core.problems import EdgeSearch, Reference, Source
 from ...core.problems._kernels import Search
@@ -48,8 +48,9 @@ BINDINGS = Registry[Binding]('binding')
 
 
 def _resolve_path(node: Node, role: str, label: object, elements: dict[str, Block]) -> Block:
-    """Return the block of an element or group that a role of an interaction binds to by its label."""
-    path = f'{node.scope}{label}' if isinstance(label, str) else None
+    """Return the block of an element, a group, or Wiener processes that a role of an interaction binds to by label."""
+    name = label.label if isinstance(label, WienerProcess) else label
+    path = f'{node.scope}{name}' if isinstance(name, str) else None
     if path not in elements:
         where = node.scope.rstrip('/') or 'the root system'
         error_msg = (

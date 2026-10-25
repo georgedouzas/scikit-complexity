@@ -23,7 +23,7 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
+from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent
 from skcomplex.core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, neighbors
 from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
@@ -120,7 +120,6 @@ def test_component_parameters_list_settings_and_declared_names():
         'variable': None,
     }
     assert repr(aggregate) == "Aggregate(group='farmers', label='size', value=0.0)"
-    assert Wiener.get_argument_names() == ['dimension', 'covariance']
 
 
 def test_clone_keeps_declared_values():

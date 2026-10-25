@@ -181,7 +181,7 @@ class NoiseLaw(BaseLaw):
 
     Without a process, every component of the target and every member of a group gets its own independent Wiener
     process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
-    name a process of a `Wiener` element through a role share it across components and members.
+    name a process of a `WienerProcess` through a role share it across components and members.
 
     A conserved noise on a state of a field on a lattice adds `div(value eta)` instead, the finite-difference divergence
     of a random flux with one Wiener process per link between neighbouring sites. Every increment a site gains, its
@@ -204,7 +204,7 @@ class NoiseLaw(BaseLaw):
 
         process:
             `None` for independent processes, a label local to the component, a tuple of labels with one per
-            component of a vector target, or the handle `s.<role>.dW` or `s.<role>.dW[k]` of a `Wiener` element.
+            component of a vector target, or the handle `s.<role>.dW` or `s.<role>.dW[k]` of a `WienerProcess`.
 
         conserved:
             Whether the noise is the divergence of a random flux on the links of the lattice of a field, with the
@@ -253,7 +253,7 @@ class NoiseLaw(BaseLaw):
         if not _is_process(self.process):
             error_msg = (
                 f'The process of the noise law of {self.targets[0]} is {self.process!r}. Give a label, a tuple of '
-                'labels, or the handle `s.<role>.dW` of a Wiener element.'
+                'labels, or the handle `s.<role>.dW` of a `WienerProcess`.'
             )
             raise ValidationError(error_msg)
         if self.conserved and self.process is not None:

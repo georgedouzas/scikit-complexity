@@ -1,7 +1,7 @@
 """
 # Correlated geometric Brownian motions
 
-Two asset prices follow geometric Brownian motions driven by the two processes of one Wiener element, whose
+Two asset prices follow geometric Brownian motions driven by the two processes of one `WienerProcess`, whose
 covariance gives them the correlation `rho = 0.7`. The prices wander apart on their own drifts and volatilities, but
 they rise and fall together, and their log returns are correlated with `rho`.
 """
@@ -9,7 +9,8 @@ they rise and fall together, and their log returns are correlated with `rho`.
 # %%
 # The model is created by name from the catalog with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
 # and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama scheme. The default
-# blueprint shows both prices in one time series view, and the Wiener element, which has no states, draws no view.
+# blueprint shows both prices in one time series view. The `WienerProcess` that both motions bind is no component and
+# draws no view.
 
 import matplotlib.pyplot as plt
 import numpy as np

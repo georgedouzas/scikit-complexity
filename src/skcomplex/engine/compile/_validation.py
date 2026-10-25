@@ -39,7 +39,7 @@ from ...core.base import (
     declarations_of,
     law_classes,
 )
-from ...core.components import ElementComponent, GroupComponent, Wiener
+from ...core.components import ElementComponent, GroupComponent, WienerProcess
 from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
 from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend
@@ -54,7 +54,7 @@ from ._observables import _with_observables, held_observables, with_held_observa
 from ._pipeline import _registered_passes, registered_checks, run_passes
 from ._planner import _Plan, solver_classes, solver_registry
 from ._system_compilers import claiming_compiler
-from ._tree import Node, declared_times
+from ._tree import Node, declared_times, noise_processes
 from .passes._core import CORE_PASSES
 
 OPTIONAL_SOLVERS = {'lammps': 'lammps'}
@@ -390,11 +390,6 @@ def _order_issues(nodes: list[Node]) -> list[Issue]:
     ]
 
 
-def _wiener_nodes(nodes: list[Node]) -> list[tuple[str, Wiener]]:
-    """Return the path and the element of every Wiener element of a system."""
-    return [(node.path, node.component) for node in nodes if isinstance(node.component, Wiener)]
-
-
 def _matrix_problem(matrix: np.ndarray) -> str | None:
     """Return why a square covariance matrix is not symmetric positive semidefinite, or `None` when it is."""
     asymmetry = np.abs(matrix - matrix.T)
@@ -407,8 +402,8 @@ def _matrix_problem(matrix: np.ndarray) -> str | None:
     return None
 
 
-def _covariance_problem(wiener: Wiener) -> str | None:
-    """Return why the dimension or the covariance of a Wiener element is invalid, or `None` when both are valid."""
+def _covariance_problem(wiener: WienerProcess) -> str | None:
+    """Return why the dimension or the covariance of a `WienerProcess` is invalid, or `None` when both are valid."""
     dimension = wiener.dimension
     if not isinstance(dimension, int) or isinstance(dimension, bool) or dimension < 1:
         return f'Its dimension {dimension!r} is not a positive integer.'
@@ -424,17 +419,17 @@ def _covariance_problem(wiener: Wiener) -> str | None:
 
 
 def _wiener_issues(system: System, nodes: list[Node]) -> list[Issue]:
-    """Return the Wiener elements outside continuous time or with an invalid covariance."""
+    """Return the Wiener processes outside continuous time or with an invalid covariance."""
     times = declared_times(system)
     issues = []
-    for path, wiener in _wiener_nodes(nodes):
+    for path, wiener in noise_processes(nodes).items():
         time = times.get(path.rpartition('/')[0])
         if time is not None and not wiener.requires.accepts('time', time):
-            message = f'The Wiener element {path} declares Wiener processes, which exist only in continuous time.'
+            message = f'The Wiener processes {path} exist only in continuous time.'
             issues.append(Issue('wiener-time', path, message, 'Declare continuous time for its system.'))
         problem = _covariance_problem(wiener)
         if problem is not None:
-            message = f'The Wiener element {path} is invalid. {problem}'
+            message = f'The Wiener processes {path} are invalid. {problem}'
             fix = 'Give a symmetric positive semidefinite covariance with one row and column per process.'
             issues.append(Issue('wiener-covariance', path, message, fix))
     return issues
@@ -449,7 +444,7 @@ def _process_name(key: Any) -> str:  # noqa: ANN401
     """Return the name of a process key."""
     kind, path, item = key
     return (
-        f'the local process {item!r} of {path}' if kind == 'local' else f'process {item} of the Wiener element {path}'
+        f'the local process {item!r} of {path}' if kind == 'local' else f'process {item} of the Wiener processes {path}'
     )
 
 
@@ -490,7 +485,7 @@ def _convention_issues(records: list[CensusRecord]) -> list[Issue]:
     return issues
 
 
-def _sharer(record: CensusRecord, noisy: list[CensusRecord], wieners: dict[str, Wiener]) -> CensusRecord | None:
+def _sharer(record: CensusRecord, noisy: list[CensusRecord], wieners: dict[str, WienerProcess]) -> CensusRecord | None:
     """Return a noise law of another component that drives a state the amplitude of a law reads through its process."""
     for key, reads in zip(record.processes, record.reads, strict=True):
         if key is None:
@@ -504,7 +499,7 @@ def _sharer(record: CensusRecord, noisy: list[CensusRecord], wieners: dict[str, 
     return None
 
 
-def _scope_issues(records: list[CensusRecord], wieners: dict[str, Wiener]) -> list[Issue]:
+def _scope_issues(records: list[CensusRecord], wieners: dict[str, WienerProcess]) -> list[Issue]:
     """Return the noise laws of a convention whose drift correction needs an amplitude of another component."""
     noisy = _noise_records(records)
     issues = []
@@ -522,7 +517,7 @@ def _scope_issues(records: list[CensusRecord], wieners: dict[str, Wiener]) -> li
     return issues
 
 
-def _noise_needs(records: list[CensusRecord], wieners: dict[str, Wiener]) -> dict[NoiseKind, CensusRecord]:
+def _noise_needs(records: list[CensusRecord], wieners: dict[str, WienerProcess]) -> dict[NoiseKind, CensusRecord]:
     """Return the noise structures a system uses, each with the first law that needs it."""
     needs: dict[NoiseKind, CensusRecord] = {}
     states: dict[object, set[tuple[str, int]]] = {}
@@ -578,7 +573,7 @@ def _noise_fix(term: NoiseKind) -> str:
 
 def _noise_support_issues(
     records: list[CensusRecord],
-    wieners: dict[str, Wiener],
+    wieners: dict[str, WienerProcess],
     solver: object,
     backend: object,
 ) -> list[Issue]:
@@ -597,10 +592,10 @@ def _noise_support_issues(
 
 
 def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list[Issue]:
-    """Return the problems of the Wiener elements and the noise laws of a system."""
+    """Return the problems of the Wiener processes and the noise laws of a system."""
     nodes = cast('list[Node]', compilation.nodes)
     solver, backend = compilation.solver, compilation.backend
-    wieners = dict(_wiener_nodes(nodes))
+    wieners = noise_processes(nodes)
     issues = _wiener_issues(compilation.system, nodes) + _handle_issues(records)
     if any(issue.code == 'wiener-covariance' for issue in issues):
         return issues

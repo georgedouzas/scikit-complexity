@@ -657,7 +657,7 @@ def test_compile_system_gives_members_their_own_local_process():
 
 
 def test_compile_system_factors_covariance():
-    """Test that a Wiener element with a covariance lowers to one block whose factor reproduces it."""
+    """Test that a `WienerProcess` with a covariance lowers to one block whose factor reproduces it."""
     problem = compile_system(_correlated([[1.0, 0.6], [0.6, 2.0]]))
     (block,) = problem.noise_blocks
     assert (block.start, block.size) == (0, 2)

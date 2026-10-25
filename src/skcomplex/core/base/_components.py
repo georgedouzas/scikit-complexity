@@ -160,9 +160,9 @@ class BaseComponent(BaseEstimator):
                 The names, settings first.
 
         Examples:
-            >>> from skcomplex.core.components import Wiener
-            >>> Wiener.get_argument_names()
-            ['dimension', 'covariance']
+            >>> from skcomplex.formalisms.rewriting import HostGraphComponent
+            >>> HostGraphComponent.get_argument_names()
+            ['max_size', 'max_matches', 'graph']
         """
         return _argument_names(cls, BaseComponent)
 
@@ -338,9 +338,9 @@ class BaseInteraction(BaseEstimator):
                 The names, settings first.
 
         Examples:
-            >>> from skcomplex.core.components import Wiener
-            >>> Wiener.get_argument_names()
-            ['dimension', 'covariance']
+            >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
+            >>> CorrelatedGeometricBrownianMotionInteraction.get_argument_names()
+            ['index', 'layer', 'target', 'market', 'mu', 'sigma']
         """
         return _argument_names(cls, BaseInteraction)
 

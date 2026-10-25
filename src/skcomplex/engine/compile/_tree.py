@@ -17,15 +17,18 @@ from ...core.base import (
     BaseSpace,
     LabelError,
     NumericDomain,
+    RoleError,
     SkcomplexError,
     SpaceError,
     TimeKind,
     Trait,
     ValidationError,
     Variable,
+    VariableKind,
+    declarations_of,
     has_trait,
 )
-from ...core.components import ElementComponent, GroupComponent, probe_laws
+from ...core.components import ElementComponent, GroupComponent, WienerProcess, probe_laws
 from ...core.space import LatticeSpace, NetworkSpace
 from ...core.system import System
 
@@ -91,6 +94,52 @@ def _check_part(part: ElementComponent | GroupComponent | BaseInteraction, scope
         raise type(error)(error_msg) from error
 
 
+def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcess]:
+    """Return the Wiener processes that the noise roles of an interaction bind, after checking every role."""
+    processes = []
+    for name, declaration in declarations_of(type(interaction), VariableKind.ROLE).items():
+        value = getattr(interaction, name)
+        if declaration.noise != isinstance(value, WienerProcess):
+            expected = 'a WienerProcess' if declaration.noise else 'an element or group path'
+            error_msg = (
+                f'Interaction {scope}{interaction.label} binds its role {name!r} to {value!r}, but the role takes '
+                f'{expected}. Bind {expected}, and declare a role of Wiener processes with `role(noise=True)`.'
+            )
+            raise RoleError(error_msg)
+        if declaration.noise:
+            processes.append(value)
+    return processes
+
+
+def _same_process(first: WienerProcess, second: WienerProcess) -> bool:
+    """Check whether two Wiener processes of one label have the same dimension and covariance."""
+    if first.dimension != second.dimension:
+        return False
+    return bool(np.array_equal(np.asarray(first.covariance, dtype=object), np.asarray(second.covariance, dtype=object)))
+
+
+def _check_processes(system: System, scope: str, labels: set[str]) -> None:
+    """Raise an error for Wiener processes of one label that differ, or whose label another child of a system uses."""
+    found: dict[str, WienerProcess] = {}
+    for interaction in system.interactions:
+        for process in _bound_processes(interaction, scope):
+            _check_label(process.label, scope)
+            known = found.setdefault(process.label, process)
+            if not _same_process(known, process):
+                error_msg = (
+                    f'The interactions of {scope or "the root system"} bind two different Wiener processes labelled '
+                    f'{process.label!r}. Bind one process to every interaction that shares it, or give them two labels.'
+                )
+                raise LabelError(error_msg)
+    clashes = sorted(set(found) & labels)
+    if clashes:
+        error_msg = (
+            f'The Wiener process {clashes[0]!r} has the label of another child of {scope or "the root system"}. Give '
+            'it a label of its own.'
+        )
+        raise LabelError(error_msg)
+
+
 def _check_children(system: System, scope: str) -> None:
     """Raise an error for a child of the wrong type or a duplicated label."""
     children: list[tuple[ElementComponent | GroupComponent | BaseInteraction | System, type | tuple[type, ...]]] = [
@@ -115,6 +164,7 @@ def _check_children(system: System, scope: str) -> None:
             error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
             raise LabelError(error_msg)
         labels.add(child.label)
+    _check_processes(system, scope, labels)
 
 
 def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) -> ElementComponent | GroupComponent:
@@ -197,7 +247,7 @@ class Node:
             The path prefix of the system that holds the component.
 
         component:
-            The element, group, or interaction.
+            The element, group, or interaction, or the Wiener processes that the noise role of an interaction binds.
 
         space:
             The nearest enclosing space.
@@ -212,7 +262,7 @@ class Node:
 
     path: str
     scope: str
-    component: ElementComponent | GroupComponent | BaseInteraction
+    component: ElementComponent | GroupComponent | BaseInteraction | WienerProcess
     space: BaseSpace | None
     agent: bool = False
     active: int | None = None
@@ -324,6 +374,30 @@ def _flat_value(
         error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
         raise ValidationError(error_msg)
     return array.ravel()
+
+
+def noise_processes(nodes: list[Node]) -> dict[str, WienerProcess]:
+    """Return the Wiener processes that the noise roles of the interactions of a system tree bind, by path.
+
+    Interactions of one system that bind processes of one label share them, at the path of the label in that system.
+
+    Args:
+        nodes:
+            The nodes of the system tree.
+
+    Returns:
+        processes:
+            The Wiener processes by path, in the order the interactions first bind them.
+    """
+    processes: dict[str, WienerProcess] = {}
+    for node in nodes:
+        if not isinstance(node.component, BaseInteraction):
+            continue
+        for name, declaration in declarations_of(type(node.component), VariableKind.ROLE).items():
+            value = getattr(node.component, name)
+            if declaration.noise and isinstance(value, WienerProcess):
+                processes.setdefault(f'{node.scope}{value.label}', value)
+    return processes
 
 
 def is_topology_group(component: object, space: BaseSpace | None) -> bool:

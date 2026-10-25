@@ -339,16 +339,16 @@ class NoiseProcess:
 
     Args:
         key:
-            The identity of the process: a local label of a component, or the path of a Wiener element.
+            The identity of the process: a local label of a component, or the path of a `WienerProcess`.
 
         index:
-            The process within a Wiener element.
+            The process within a `WienerProcess`.
 
         dimension:
-            The number of processes of a Wiener element, or 0 for a local label, which takes one process per member.
+            The number of processes of a `WienerProcess`, or 0 for a local label, which takes one process per member.
 
         factor:
-            The factor `L` with `L L^T = C` of the covariance of a Wiener element, or `None` for the identity.
+            The factor `L` with `L L^T = C` of the covariance of a `WienerProcess`, or `None` for the identity.
 
         links:
             For the link processes of a conserved noise, the process of every evaluation index among the `dimension`

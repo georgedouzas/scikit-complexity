@@ -64,6 +64,10 @@ class Variable:
         variadic:
             Whether a role binds a sequence of element paths and group member references instead of one path.
 
+        noise:
+            Whether a role binds a set of Wiener processes, which the noise laws of the interaction draw, instead of
+            a path.
+
         per:
             The variadic role whose entries a parameter holds one value for, or `None`.
 
@@ -98,6 +102,7 @@ class Variable:
     lag_of: str | None = None
     index: int = 0
     variadic: bool = False
+    noise: bool = False
     per: str | None = None
     quantity: str | None = None
     history: Any = None
@@ -550,21 +555,30 @@ def parameter(
     return _declare_field(default, Variable(VariableKind.PARAMETER, domain.check(), vector, per=per))
 
 
-def role(*, variadic: bool = False) -> Any:
-    """Declare a role of an interaction, bound to an element path in the constructor.
+def role(*, variadic: bool = False, noise: bool = False) -> Any:
+    """Declare a role of an interaction, bound to an element path or to a set of Wiener processes in the constructor.
 
     A plain role binds one element path, one group path, or one group member reference `<group>[<index>]`, and laws
     read a bound member like a single element whose states stay in the group. A variadic role binds a sequence of
     element paths and group member references, and laws read it as a tuple of namespaces, one per entry in the given
-    order.
+    order. A noise role binds a `WienerProcess`, whose processes the noise laws of the interaction name through the
+    handle `s.<role>.dW`. Interactions of one system that bind processes of one label share them and their
+    correlations.
 
     Args:
         variadic:
             Whether the role binds a sequence of entries instead of one path.
 
+        noise:
+            Whether the role binds a set of Wiener processes instead of a path.
+
     Returns:
         field:
             A required dataclass field that carries the declaration.
+
+    Raises:
+        ValueError:
+            The role is both variadic and a noise role.
 
     Examples:
         >>> from skcomplex.core.base import role
@@ -580,8 +594,17 @@ def role(*, variadic: bool = False) -> Any:
         ...     inputs: list[str] = role(variadic=True)
         >>> SumInteraction('sum', target='total', inputs=['a', 'nodes[3]']).inputs
         ['a', 'nodes[3]']
+        >>> from skcomplex.core.components import WienerProcess
+        >>> class ShockInteraction(BaseInteraction):
+        ...     target: str = role()
+        ...     market: WienerProcess = role(noise=True)
+        >>> ShockInteraction('shock', target='stock', market=WienerProcess('market', dimension=2)).market.dimension
+        2
     """
-    return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic))
+    if variadic and noise:
+        error_msg = 'A role takes either `variadic=True` or `noise=True`, not both.'
+        raise ValueError(error_msg)
+    return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic, noise=noise))
 
 
 def declared_fields(component: Any) -> dict[str, Any]:

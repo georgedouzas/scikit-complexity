@@ -6,7 +6,7 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
-from ....core.components import Wiener
+from ....core.components import WienerProcess
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -15,14 +15,14 @@ from ._assets import AssetComponent
 
 
 class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
-    """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a Wiener element.
+    """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a `WienerProcess`.
 
     Args:
         label:
             The label of the interaction.
 
         index:
-            The process of the Wiener element.
+            The process of the `WienerProcess`.
 
         **values:
             The values of the declared variables, by name:
@@ -31,7 +31,7 @@ class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
                 The path of the asset.
 
             market:
-                The path of the Wiener element whose process drives the price.
+                The Wiener processes, one of which drives the price.
 
             mu:
                 The drift.
@@ -40,13 +40,15 @@ class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
                 The volatility.
 
     Examples:
+        >>> from skcomplex.core.components import WienerProcess
         >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
-        >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market='market', index=1).index
+        >>> market = WienerProcess('market', dimension=2)
+        >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market=market, index=1).index
         1
     """
 
     target: str = role()
-    market: str = role()
+    market: WienerProcess = role(noise=True)
     mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
     sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
 
@@ -90,7 +92,7 @@ def correlated_geometric_brownian_motion(
 ) -> System:
     """Return two assets whose prices follow geometric Brownian motions driven by correlated Wiener processes.
 
-    A Wiener element of dimension 2 with the covariance `[[1, rho], [rho, 1]]` drives the two prices, so their log
+    A `WienerProcess` of dimension 2 with the covariance `[[1, rho], [rho, 1]]` drives the two prices, so their log
     returns over a short time have the correlation `rho`.
 
     Args:
@@ -108,24 +110,22 @@ def correlated_geometric_brownian_motion(
 
     Returns:
         system:
-            The model, with the assets `first` and `second` and the Wiener element `market`.
+            The model, with the assets `first` and `second`, whose motions share the Wiener processes `market`.
 
     Examples:
         >>> from skcomplex.models.economics.finance import correlated_geometric_brownian_motion
-        >>> correlated_geometric_brownian_motion(rho=0.5).elements[2].covariance
+        >>> correlated_geometric_brownian_motion(rho=0.5).interactions[1].market.covariance
         [[1.0, 0.5], [0.5, 1.0]]
     """
     labels = ('first', 'second')
+    market = WienerProcess('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]])
     return System(
-        components=[
-            *(AssetComponent(label, price=price) for label, price in zip(labels, prices, strict=True)),
-            Wiener('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]]),
-        ],
+        components=[AssetComponent(label, price=price) for label, price in zip(labels, prices, strict=True)],
         interactions=[
             CorrelatedGeometricBrownianMotionInteraction(
                 f'{label}_motion',
                 target=label,
-                market='market',
+                market=market,
                 index=index,
                 mu=drift,
                 sigma=volatility,

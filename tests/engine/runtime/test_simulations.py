@@ -427,7 +427,7 @@ def test_simulation_schedules_a_bounded_control():
 
 
 def test_correlated_noise_repeats_with_same_seed():
-    """Test that two runs of a correlated Wiener element with random state 0 on the Numba backend are equal."""
+    """Test that two runs of a correlated `WienerProcess` with random state 0 on the Numba backend are equal."""
     system = _correlated([[1.0, 0.5], [0.5, 1.0]])
     runs = [
         Simulation(system, backend='numba', random_state=0, dt=0.1).run(until=2).trajectory_.states for _ in range(2)
