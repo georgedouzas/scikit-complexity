@@ -49,7 +49,6 @@ class TallyComponent(ElementComponent):
     value: float = state(0.0)
 
     def __init__(self, label, *, source='', **values):
-        """Store the label, the source, and the values."""
         super().__init__(label, **values)
         self.source = source
 
