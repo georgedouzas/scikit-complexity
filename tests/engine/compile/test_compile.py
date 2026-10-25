@@ -7,6 +7,7 @@ import pytest
 import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
 
 from skcomplex.core.base import (
+    BaseInteraction,
     Expression,
     Form,
     IncompatibleLawsError,
@@ -22,7 +23,6 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, mod
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System

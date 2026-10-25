@@ -6,6 +6,7 @@ from sage.all__sagemath_symbolics import sin
 
 import skcomplex.formalisms.control  # noqa: F401  # registers the optimal control solvers objectives compile for
 from skcomplex.core.base import (
+    BaseInteraction,
     ConservationError,
     LawKind,
     NumericDomain,
@@ -17,7 +18,6 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import (
     EquationLaw,
     Invariant,

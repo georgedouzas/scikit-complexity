@@ -2,9 +2,8 @@
 
 import pytest
 
-from skcomplex.core.base import NumericDomain, VariableKind, declarations_of, parameter, role, state
+from skcomplex.core.base import BaseInteraction, NumericDomain, VariableKind, declarations_of, parameter, role, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 
 
 class ValveComponent(ElementComponent):

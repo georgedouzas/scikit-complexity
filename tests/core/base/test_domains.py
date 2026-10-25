@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import (
+    BaseInteraction,
     NumericDomain,
     ValidationError,
     state,
 )
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

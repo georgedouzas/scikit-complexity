@@ -4,9 +4,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.base import AnalysisError, BaseInteraction
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw, total
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import divergence, fixed_points, jacobian, nullclines, stability

@@ -3,9 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, state
+from ....core.base import BaseInteraction, NumericDomain, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import UpdateLaw, lag
 from ....core.system import System
 from ....engine.runtime import register_model

@@ -247,7 +247,6 @@ type = "layers"
 containers = ["skcomplex.core"]
 layers = [
     "system",
-    "interactions",
     "components",
     "laws",
     "space",

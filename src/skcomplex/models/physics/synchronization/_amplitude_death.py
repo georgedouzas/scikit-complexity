@@ -8,9 +8,8 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter
+from ....core.base import BaseInteraction, Expression, NumericDomain, ValidationError, VisualSpec, parameter
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, mean
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

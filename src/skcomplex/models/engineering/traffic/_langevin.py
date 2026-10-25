@@ -6,9 +6,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.base import BaseInteraction, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System

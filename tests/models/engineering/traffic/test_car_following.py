@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sqrt, tanh
 
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

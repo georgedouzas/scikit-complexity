@@ -7,8 +7,7 @@
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from .....core.base import BaseLaw, Expression, NumericDomain, SymbolicVector, parameter, role
-from .....core.interactions import BaseInteraction
+from .....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, SymbolicVector, parameter, role
 from .....core.laws import NoiseLaw, RateLaw, Symbols
 from .....formalisms.particles import (
     LammpsFix,

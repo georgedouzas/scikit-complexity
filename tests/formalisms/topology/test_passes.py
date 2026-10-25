@@ -6,9 +6,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import CapacityError, ComponentKind, SpaceKind, parameter, role
+from skcomplex.core.base import BaseInteraction, CapacityError, ComponentKind, SpaceKind, parameter, role
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import JumpLaw, UpdateLaw, neighbors, total
 from skcomplex.core.space import Adjacency, DiscreteTime, Layer, NetworkSpace, Radius
 from skcomplex.core.system import System

@@ -48,7 +48,7 @@ from sklearn.base import clone
 
 from skcomplex.core.base import NumericDomain, parameter, role, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import JumpLaw, RateLaw
 
 
@@ -139,7 +139,7 @@ A law can also be a Python function of time and current values, which covers rul
 
 ```python
 from skcomplex.core.base import role
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 
 class ThresholdInteraction(BaseInteraction):
@@ -159,7 +159,7 @@ included.
 
 ```python
 from skcomplex.core.base import NumericDomain, parameter, role
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 
 from sage.all__sagemath_symbolics import exp, sqrt
@@ -198,7 +198,7 @@ assigned to a module-level name equal to their name.
 
 ```python
 from skcomplex.core.base import NumericDomain, parameter, state
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 
 from skcomplex.core.components import ElementComponent
@@ -470,7 +470,7 @@ from skcomplex.core.system import System
 
 from skcomplex.core.base import role
 from skcomplex.core.components import Wiener
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 
 StockComponent = ElementComponent.define('StockComponent', states={'n': 0.0})
@@ -837,7 +837,7 @@ agents and equations exchange macroscopic quantities in a co-simulation. An obse
 
 ```python continuation
 import numpy as np
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import Observable, System
@@ -1499,7 +1499,7 @@ evaluated once per evaluation, before the member laws, at a cost linear in the s
 ```python
 import numpy as np
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
@@ -1537,7 +1537,7 @@ element, the elements keep their own state names, and reductions over the role r
 
 ```python
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw, total
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
@@ -1566,7 +1566,7 @@ the parameter component `<path>.<name>[<i>]`, which `update_parameters` and `sch
 ```python
 from skcomplex.core.base import parameter, role
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -1612,7 +1612,7 @@ Numba backends. The ring roads of `optimal_velocity` and `intelligent_driver_mod
 
 ```python
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
@@ -1951,7 +1951,7 @@ import numpy as np
 
 from skcomplex.core.base import parameter, role
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -1999,7 +1999,7 @@ import networkx as nx
 
 from skcomplex.engine.compile import compile_system
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw, neighbors
 from skcomplex.core.space import NetworkSpace
 from skcomplex.core.system import System
@@ -2133,7 +2133,7 @@ from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
 
 from skcomplex.engine.compile import validate
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.formalisms.kinetics import EncounterLaw
 
 
@@ -2181,7 +2181,7 @@ External actions need no primitive of their own.
 import numpy as np
 from skcomplex.core.base import parameter, role
 from skcomplex.formalisms.kinetics import EncounterLaw
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
@@ -2564,7 +2564,7 @@ runs inside the compiled kernels, and the NumPy backend calls it from Python.
 
 ```python
 from skcomplex.core.base import parameter, role
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
@@ -2718,7 +2718,7 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 from skcomplex.core.base import parameter, role
 from skcomplex.core.components import ElementComponent
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
@@ -3031,7 +3031,7 @@ from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
 from skcomplex.formalisms.quantum import GeneratorLaw, expectation
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

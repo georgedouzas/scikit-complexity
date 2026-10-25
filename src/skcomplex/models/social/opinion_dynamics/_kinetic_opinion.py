@@ -8,9 +8,8 @@ from functools import partial
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System

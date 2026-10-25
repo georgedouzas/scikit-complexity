@@ -8,9 +8,8 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols, UpdateLaw, maximum, neighbors, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System

@@ -16,6 +16,7 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
+    BaseInteraction,
     Expression,
     Form,
     IncompatibleLawsError,
@@ -28,7 +29,6 @@ from ...core.base import (
     vector,
 )
 from ...core.components import GroupComponent
-from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import Observable, System, reduce_values

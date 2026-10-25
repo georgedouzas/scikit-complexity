@@ -15,8 +15,7 @@ from typing import Any, ClassVar
 import numpy as np
 from matching.games import HospitalResident
 
-from ....core.base import BaseLaw, role
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, BaseLaw, role
 from ....core.laws import Symbols
 from ....formalisms.agents import RuleLaw
 

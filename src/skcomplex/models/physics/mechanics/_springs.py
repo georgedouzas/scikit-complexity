@@ -5,8 +5,7 @@
 
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import NumericDomain, parameter
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, NumericDomain, parameter
 from ....core.laws import RateLaw
 from ....core.space import ContinuousSpace
 from ....core.system import System

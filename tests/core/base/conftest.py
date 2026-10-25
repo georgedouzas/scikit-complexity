@@ -1,8 +1,7 @@
 """Share the helpers and fixtures of the tests below this directory."""
 
-from skcomplex.core.base import NumericDomain, parameter, state
+from skcomplex.core.base import BaseInteraction, NumericDomain, parameter, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import UpdateLaw
 
 HEALTH = NumericDomain.categorical('susceptible', 'infected', 'recovered')

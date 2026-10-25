@@ -9,8 +9,7 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, vector
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, vector
 from ....core.laws import RateLaw, Symbols, mod, series, where
 from ....core.space import ContinuousSpace
 from ....core.system import System

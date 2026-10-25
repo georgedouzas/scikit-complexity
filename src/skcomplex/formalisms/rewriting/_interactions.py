@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from typing import Any
 
 from ...core.base import (
+    BaseInteraction,
     role,
 )
-from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ._laws import RewritingLaw
 

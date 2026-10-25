@@ -10,9 +10,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System

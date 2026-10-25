@@ -6,9 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.base import NumericDomain, RoleError, ValidationError, parameter, state, symbol
+from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, parameter, state, symbol
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw, mean, total
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Frame, Simulation

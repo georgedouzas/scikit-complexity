@@ -5,9 +5,17 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
+from skcomplex.core.base import (
+    BaseInteraction,
+    Form,
+    IncompatibleLawsError,
+    SolverError,
+    ValidationError,
+    parameter,
+    role,
+    state,
+)
 from skcomplex.core.components import Aggregate, ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system

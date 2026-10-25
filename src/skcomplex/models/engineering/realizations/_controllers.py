@@ -6,9 +6,8 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ....core.base import BaseLaw, Expression, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, Expression, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import BoundaryLaw, RateLaw, Symbols, derivative, where
 
 

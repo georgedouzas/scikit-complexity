@@ -7,8 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, role, vector
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, vector
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System

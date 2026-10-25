@@ -5,8 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model

@@ -6,9 +6,10 @@
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from ..base import BaseSpace, BaseTime, ComponentKind
-from ..components import BaseComponent, ElementComponent, GroupComponent
-from ..interactions import BaseInteraction
+from sklearn.base import BaseEstimator
+
+from ..base import BaseInteraction, BaseSpace, BaseTime, ComponentKind
+from ..components import ElementComponent, GroupComponent
 
 LEGACY_ARGUMENTS = {
     'elements': 'Pass elements and groups in `components`.',
@@ -20,7 +21,7 @@ LEGACY_ARGUMENTS = {
 }
 
 
-class System(BaseComponent):
+class System(BaseEstimator):
     """Composition of components and the interactions between them, on a space, in a time.
 
     A system is defined by its components, its interactions, its space, and its time, and by nothing about how it
@@ -81,7 +82,7 @@ class System(BaseComponent):
             homes = ' '.join(LEGACY_ARGUMENTS.get(name, f'`{name}` is not an argument of System.') for name in legacy)
             error_msg = f'System got the arguments {", ".join(map(repr, legacy))}, which it no longer takes. {homes}'
             raise TypeError(error_msg)
-        super().__init__(label)
+        self.label = label
         self.components = components
         self.interactions = interactions
         self.space = space

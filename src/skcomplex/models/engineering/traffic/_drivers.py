@@ -7,9 +7,8 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System

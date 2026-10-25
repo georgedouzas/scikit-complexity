@@ -7,9 +7,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import atan2, cos, sin
 
-from skcomplex.core.base import NumericDomain, ValidationError, state, symbol, vector
+from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, state, symbol, vector
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import NEIGHBOR_REDUCTIONS, RateLaw, UpdateLaw, neighborhoods_in, neighbors, uniform
 from skcomplex.core.space import (
     Cone,

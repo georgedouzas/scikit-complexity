@@ -2,8 +2,8 @@
 
 import pytest
 
+from skcomplex.core.base import BaseInteraction
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of

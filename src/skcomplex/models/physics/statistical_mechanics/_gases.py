@@ -5,8 +5,7 @@
 
 import numpy as np
 
-from ....core.base import VisualSpec
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, VisualSpec
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model

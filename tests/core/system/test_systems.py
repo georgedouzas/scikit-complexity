@@ -6,9 +6,17 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import NumericDomain, SpaceError, TensorDomain, ValidationError, parameter, role, state
+from skcomplex.core.base import (
+    BaseInteraction,
+    NumericDomain,
+    SpaceError,
+    TensorDomain,
+    ValidationError,
+    parameter,
+    role,
+    state,
+)
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System

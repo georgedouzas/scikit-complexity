@@ -5,7 +5,7 @@
 - [x] 1.1 Regroup `core/base` into the modules of the design. Add `BaseDomain` with its kind, derive the domains from
   it, remove `AnyDomain`, and make validation read `domain.domain_kind`. Move the Hilbert and structure domains, and the
   errors of one formalism, to their formalisms. Verify with the scenarios "Formalism domain" and "Formalism types".
-- [ ] 1.2 Move the declaration code of `Component` into helpers of `core/base/_variables.py`. Add `BaseComponent`
+- [x] 1.2 Move the declaration code of `Component` into helpers of `core/base/_variables.py`. Add `BaseComponent`
   and `BaseInteraction`, derive the element and group classes from `BaseComponent`, and remove `Interaction` and
   `core/interactions`. Detach `System`, and rewrite every `isinstance` check against the base it means. Verify with
   the scenario "System and interaction".

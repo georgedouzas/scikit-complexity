@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ..base import (
+    BaseComponent,
     BaseLaw,
     BaseSpace,
     ComponentKind,
@@ -21,7 +22,6 @@ from ..base import (
     declarations_of,
 )
 from ..space import LatticeSpace, NetworkSpace, SiteSpace, part_count
-from ._component import BaseComponent
 
 PARTS = ('sites', 'edges', 'hyperedges')
 

@@ -6,9 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
-from skcomplex.core.base import ValidationError, state, symbol
+from skcomplex.core.base import BaseInteraction, ValidationError, state, symbol
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw, both, derivative, either, lag, mod, series, where
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System

@@ -8,6 +8,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import (
+    BaseInteraction,
     LabelError,
     NumericDomain,
     RoleError,
@@ -20,7 +21,6 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, RateLaw
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System

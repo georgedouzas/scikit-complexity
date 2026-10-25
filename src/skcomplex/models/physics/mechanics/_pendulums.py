@@ -8,9 +8,8 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseInteraction, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import EquationLaw, EventLaw, RateLaw, Symbols, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System

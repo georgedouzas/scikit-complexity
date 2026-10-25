@@ -11,9 +11,8 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System

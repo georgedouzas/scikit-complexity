@@ -10,6 +10,7 @@ from typing import cast
 
 from ...core.base import (
     BackendError,
+    BaseInteraction,
     BaseLaw,
     BaseSpace,
     LabelError,
@@ -20,7 +21,6 @@ from ...core.base import (
     declarations_of,
 )
 from ...core.components import GroupComponent, probe_laws
-from ...core.interactions import BaseInteraction
 from ...core.laws import Invariant
 from ...engine.compile import (
     BasePass,

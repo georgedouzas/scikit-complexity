@@ -8,9 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, total
 from ....core.system import System
 from ....engine.runtime import register_model

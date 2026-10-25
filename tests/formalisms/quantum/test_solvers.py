@@ -6,8 +6,7 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError, parameter, role
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import BaseInteraction, SolverError, parameter, role
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system

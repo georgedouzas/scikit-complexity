@@ -7,8 +7,16 @@ import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, ValidationError, parameter, role, symbol
-from skcomplex.core.interactions import BaseInteraction
+from skcomplex.core.base import (
+    BaseInteraction,
+    Form,
+    IncompatibleLawsError,
+    LawKind,
+    ValidationError,
+    parameter,
+    role,
+    symbol,
+)
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System

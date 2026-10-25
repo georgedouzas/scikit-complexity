@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import (
+    BaseInteraction,
     Form,
     IncompatibleLawsError,
     LabelError,
@@ -21,7 +22,6 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate

@@ -5,8 +5,9 @@
 
 import copy
 import dataclasses
+import inspect
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, cast
@@ -14,8 +15,10 @@ from typing import Any, cast
 import numpy as np
 
 from ._domains import BaseDomain, NumericDomain
+from ._errors import ArgumentError, LabelError
 
 METADATA_KEY = 'skcomplex'
+UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 
 
 class VariableKind(Enum):
@@ -178,6 +181,169 @@ def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, 
         companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
         fields[f'{name}_lag{index}'] = _declare_field(value, companion)
     return fields
+
+
+def _is_required(field: Any) -> bool:
+    """Check whether a declared field has no default."""
+    return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
+
+
+def _default_of(field: Any) -> Any:
+    """Return the default value a declared field carries, a fresh copy for a mutable default."""
+    factory = field.default_factory
+    return factory() if callable(factory) else field.default
+
+
+def _is_declaration(value: object) -> bool:
+    """Check whether a value is a field declared with `state`, `parameter`, or `role`."""
+    return isinstance(value, dataclasses.Field)
+
+
+def _laws_method(laws: Callable[..., list[Any]]) -> Callable[..., list[Any]]:
+    """Return a `laws` method from a function of the namespace, or of the instance and the namespace."""
+    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
+        return laws
+
+    def method(self: object, s: Any) -> list[Any]:
+        """Return the laws of the function."""
+        return laws(s)
+
+    method.__doc__ = laws.__doc__ or 'Return the laws of the type.'
+    return method
+
+
+def _caller_module() -> str:
+    """Return the module of the code that called `define`, three calls above this one, so the type pickles there."""
+    frame = inspect.currentframe()
+    for _ in range(3):
+        frame = frame.f_back if frame is not None else None
+    return frame.f_globals.get('__name__', __name__) if frame is not None else __name__
+
+
+def _fields(kind: type) -> dict[str, Any]:
+    """Return the declared fields of a type, after rejecting the names it reserves."""
+    fields = declared_fields(kind)
+    reserved = sorted(set(fields) & kind.reserved_names)  # type: ignore[attr-defined]
+    if reserved:
+        error_msg = (
+            f'{kind.__name__} declares the variable {reserved[0]!r}, whose name is reserved. Rename it, since '
+            f'{", ".join(sorted(kind.reserved_names))} are reserved names.'  # type: ignore[attr-defined]
+        )
+        raise LabelError(error_msg)
+    return fields
+
+
+def _settings(kind: type, root: type) -> dict[str, inspect.Parameter]:
+    """Return the keyword arguments of the constructors of a type up to its base, without `**values`."""
+    found: dict[str, inspect.Parameter] = {}
+    for klass in kind.__mro__:
+        init = vars(klass).get('__init__')
+        if init is None:
+            continue
+        parameters = list(inspect.signature(init).parameters.values())[1:]
+        for setting in parameters:
+            if setting.kind not in {setting.VAR_KEYWORD, setting.VAR_POSITIONAL}:
+                found.setdefault(setting.name, setting)
+        if klass is root or not any(item.kind is item.VAR_KEYWORD for item in parameters):
+            break
+    return found
+
+
+def _declare(instance: Any, label: str, values: Mapping[str, Any]) -> None:
+    """Store the label and the value of every declared name of an instance, the default for a name not given."""
+    kind = type(instance)
+    kind.declarations()
+    fields = _fields(kind)
+    unknown = sorted(set(values) - set(fields))
+    if unknown:
+        declared = ', '.join(fields) or 'none'
+        error_msg = (
+            f'{kind.__name__} got {", ".join(map(repr, unknown))}, which it does not declare. Its declared '
+            f'variables are {declared}.'
+        )
+        raise ArgumentError(error_msg)
+    missing = [name for name, field in fields.items() if name not in values and _is_required(field)]
+    if missing:
+        error_msg = f'{kind.__name__} needs the arguments {", ".join(map(repr, missing))}.'
+        raise ArgumentError(error_msg)
+    instance.label = label
+    for name, field in fields.items():
+        setattr(instance, name, values[name] if name in values else _default_of(field))
+
+
+def _define_type(
+    kind: type,
+    name: str,
+    module: str,
+    *,
+    roles: Sequence[str] = (),
+    states: Mapping[str, Any] | None = None,
+    parameters: Mapping[str, Any] | None = None,
+    laws: Callable[..., list[Any]] | None = None,
+    attributes: Mapping[str, Any] | None = None,
+) -> type:
+    """Return a subclass of a type built from declarations, a laws function, and class attributes, in a module.
+
+    A state or a parameter given as a plain value is declared with that value as its default.
+    """
+    fields = {
+        **{key: role() for key in roles},
+        **{key: value if _is_declaration(value) else state(value) for key, value in (states or {}).items()},
+        **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
+    }
+    namespace: dict[str, Any] = {'__module__': module, **(attributes or {}), **fields}
+    namespace['__qualname__'] = name
+    if laws is not None:
+        namespace['laws'] = _laws_method(laws)
+    new_type = type(name, (kind,), namespace)
+    new_type.declarations()  # type: ignore[attr-defined]
+    return new_type
+
+
+def _declarations(kind: type) -> dict[str, 'Variable']:
+    """Return the declarations of the states, parameters, and roles of a type, with the derived companions."""
+    return {name: cast('Variable', declaration_of(field)) for name, field in _fields(kind).items()}
+
+
+def _get_default(kind: type, root: type, name: str) -> Any:
+    """Return the default value of a declared name or a setting of a type."""
+    fields = _fields(kind)
+    if name in fields:
+        return _default_of(fields[name])
+    setting = _settings(kind, root).get(name)
+    if setting is None or setting.default is inspect.Parameter.empty:
+        error_msg = f'{kind.__name__} has no default for {name!r}.'
+        raise KeyError(error_msg)
+    return setting.default
+
+
+def _argument_names(kind: type, root: type) -> list[str]:
+    """Return the names the constructor of a type takes besides the label: its settings and the declared names."""
+    return [*(name for name in _settings(kind, root) if name != 'label'), *_fields(kind)]
+
+
+def _get_params(instance: Any, root: type, *, deep: bool) -> dict[str, Any]:
+    """Return the label, the settings, and the values of every declared name of an instance."""
+    params: dict[str, Any] = {}
+    for name in sorted(['label', *_argument_names(type(instance), root)]):
+        value = getattr(instance, name)
+        if deep and hasattr(value, 'get_params') and not isinstance(value, type):
+            params.update({f'{name}__{key}': item for key, item in value.get_params().items()})
+        params[name] = value
+    return params
+
+
+def _declared_repr(instance: Any, root: type, limit: int) -> str:
+    """Return the type, the label, and the arguments that differ from their defaults."""
+    defaults = {name: item.default for name, item in _settings(type(instance), root).items()}
+    defaults.update({name: _default_of(field) for name, field in _fields(type(instance)).items()})
+    shown = [
+        f'{name}={value!r}'
+        for name, value in _get_params(instance, root, deep=False).items()
+        if name not in defaults or any(defaults[name] is item for item in UNSET) or repr(value) != repr(defaults[name])
+    ]
+    text = f'{type(instance).__name__}({", ".join(shown)})'
+    return text if len(text) <= limit else f'{text[: limit - 4]}...)'
 
 
 def state(
@@ -349,7 +515,7 @@ def parameter(
 
     Examples:
         >>> from skcomplex.core.base import NumericDomain, parameter, role
-        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> from skcomplex.core.base import BaseInteraction
         >>> class GrowthInteraction(BaseInteraction):
         ...     r: float = parameter(1.0, domain=NumericDomain.POSITIVE)
         >>> GrowthInteraction('growth', r=0.5).r
@@ -397,7 +563,7 @@ def role(*, variadic: bool = False) -> Any:
 
     Examples:
         >>> from skcomplex.core.base import role
-        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> from skcomplex.core.base import BaseInteraction
         >>> class MortalityInteraction(BaseInteraction):
         ...     target: str = role()
         >>> MortalityInteraction('death', target='foxes').target

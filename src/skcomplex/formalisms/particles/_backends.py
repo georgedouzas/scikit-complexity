@@ -16,6 +16,7 @@ from lammps import lammps
 from ...core.base import (
     NUMERIC_DOMAINS,
     BackendError,
+    BaseInteraction,
     ComponentKind,
     Form,
     LawKind,
@@ -29,7 +30,6 @@ from ...core.base import (
     declarations_of,
     symbol,
 )
-from ...core.interactions import BaseInteraction
 from ...core.laws import Symbols
 from ...core.space import ContinuousSpace
 from ...core.system import System
@@ -193,7 +193,7 @@ def register_lammps_fix(interaction: type[BaseInteraction], command: FixCommand)
 
     Examples:
         >>> from skcomplex.formalisms.particles import NATIVE_FIXES, register_lammps_fix
-        >>> from skcomplex.core.interactions import BaseInteraction
+        >>> from skcomplex.core.base import BaseInteraction
         >>> class PushInteraction(BaseInteraction):
         ...     pass
         >>> register_lammps_fix(PushInteraction, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')

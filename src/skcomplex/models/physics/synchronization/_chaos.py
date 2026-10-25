@@ -5,9 +5,8 @@
 
 import numpy as np
 
-from ....core.base import Expression, NumericDomain, parameter
+from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model

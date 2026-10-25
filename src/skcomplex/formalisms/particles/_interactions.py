@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 from sage.all__sagemath_symbolics import SR, sqrt
 
 from ...core.base import (
+    BaseInteraction,
     BaseLaw,
     Expression,
     NumericDomain,
@@ -19,7 +20,6 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.interactions import BaseInteraction
 from ...core.laws import RateLaw, Symbols
 
 

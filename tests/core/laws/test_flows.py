@@ -8,9 +8,8 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.base import ConservationError, LabelError, ValidationError, parameter, role, state
+from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import (
     Auxiliary,
     BoundaryLaw,

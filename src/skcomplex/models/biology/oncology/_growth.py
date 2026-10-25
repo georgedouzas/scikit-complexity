@@ -7,9 +7,8 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import log
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model

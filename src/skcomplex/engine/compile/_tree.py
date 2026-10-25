@@ -13,6 +13,7 @@ import numpy.typing as npt
 
 from ...core.base import (
     BaseDomain,
+    BaseInteraction,
     BaseSpace,
     LabelError,
     NumericDomain,
@@ -24,7 +25,6 @@ from ...core.base import (
     has_trait,
 )
 from ...core.components import ElementComponent, GroupComponent, probe_laws
-from ...core.interactions import BaseInteraction
 from ...core.space import LatticeSpace, NetworkSpace, part_count
 from ...core.system import System
 

@@ -6,9 +6,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseInteraction, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System

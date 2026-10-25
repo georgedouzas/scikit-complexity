@@ -8,9 +8,18 @@ import pytest
 
 import skcomplex.formalisms.control  # registers the optimal control solvers the tests name
 import skcomplex.formalisms.particles  # noqa: F401  # registers the LAMMPS solver the tests name
-from skcomplex.core.base import Form, NoiseKind, NumericDomain, ValidationError, VisualSpec, parameter, role, state
+from skcomplex.core.base import (
+    BaseInteraction,
+    Form,
+    NoiseKind,
+    NumericDomain,
+    ValidationError,
+    VisualSpec,
+    parameter,
+    role,
+    state,
+)
 from skcomplex.core.components import ElementComponent, Wiener
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import NoiseLaw, Objective, RateLaw, UpdateLaw, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System

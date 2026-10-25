@@ -7,9 +7,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.base import BaseLaw, parameter, role
+from skcomplex.core.base import BaseInteraction, BaseLaw, parameter, role
 from skcomplex.core.components import ElementComponent, Wiener
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import NoiseLaw, RateLaw, Symbols, UpdateLaw
 from skcomplex.core.system import System
 

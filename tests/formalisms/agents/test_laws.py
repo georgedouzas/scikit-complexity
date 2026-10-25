@@ -2,9 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.base import state
+from skcomplex.core.base import BaseInteraction, state
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.agents import MatchLaw, RuleLaw, matches, random_pairing

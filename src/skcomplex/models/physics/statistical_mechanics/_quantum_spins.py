@@ -4,8 +4,7 @@
 # License: MIT
 from typing import Any, ClassVar
 
-from ....core.base import NumericDomain, ValidationError, parameter, role
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System

@@ -5,8 +5,15 @@
 
 from typing import cast
 
-from ....core.base import BaseLaw, Expression, ValidationError, VariableKind, components_of, declarations_of
-from ....core.interactions import BaseInteraction
+from ....core.base import (
+    BaseInteraction,
+    BaseLaw,
+    Expression,
+    ValidationError,
+    VariableKind,
+    components_of,
+    declarations_of,
+)
 from ....core.laws import BoundaryLaw, Symbols, either, mod, where
 from ....core.space import ContinuousSpace
 from .._compilation import BlockLaws, Compilation

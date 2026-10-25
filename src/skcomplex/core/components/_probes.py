@@ -5,9 +5,8 @@
 
 from typing import Any
 
-from ..base import BaseLaw, VariableKind, declarations_of, symbol
+from ..base import BaseComponent, BaseInteraction, BaseLaw, VariableKind, declarations_of, symbol
 from ..laws import Symbols
-from ._component import BaseComponent
 from ._components import GroupComponent
 
 
@@ -33,12 +32,12 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
         ['RateLaw']
     """
     if isinstance(component, GroupComponent):
-        component_type: type[BaseComponent] = component.element
-    elif isinstance(component, BaseComponent):
+        component_type: type[BaseComponent | BaseInteraction] = component.element
+    elif isinstance(component, BaseComponent | BaseInteraction):
         component_type = type(component)
     else:
         return None
-    if component_type.laws is BaseComponent.laws:
+    if component_type.laws in (BaseComponent.laws, BaseInteraction.laws):
         return []
     roles = declarations_of(component_type, VariableKind.ROLE)
     try:

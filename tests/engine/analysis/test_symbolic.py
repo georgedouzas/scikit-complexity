@@ -4,9 +4,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
-from skcomplex.core.base import AnalysisError, role, state
+from skcomplex.core.base import AnalysisError, BaseInteraction, role, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw, UpdateLaw, derivative, lag
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System

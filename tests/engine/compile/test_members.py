@@ -7,9 +7,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.base import ValidationError, role
+from skcomplex.core.base import BaseInteraction, ValidationError, role
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, shift_member
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System

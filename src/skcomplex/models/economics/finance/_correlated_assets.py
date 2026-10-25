@@ -5,9 +5,8 @@
 
 from typing import Any
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
 from ....core.components import Wiener
-from ....core.interactions import BaseInteraction
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model

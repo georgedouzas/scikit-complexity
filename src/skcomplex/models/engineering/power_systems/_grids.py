@@ -5,9 +5,8 @@
 
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseInteraction, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model

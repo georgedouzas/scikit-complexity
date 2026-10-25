@@ -8,9 +8,8 @@ import pytest
 import scipy.sparse
 from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 
-from skcomplex.core.base import NumericDomain, RoleError, ValidationError, state
+from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, count, maximum, mean, minimum, total, variance
 from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system

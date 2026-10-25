@@ -6,8 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ..core.base import BaseLaw, BaseSpace, Form, Registry, RegistryError, register_laws
-from ..core.components import BaseComponent
+from ..core.base import BaseComponent, BaseInteraction, BaseLaw, BaseSpace, Form, Registry, RegistryError, register_laws
 from ..engine.compile import (
     BaseBackend,
     BasePass,
@@ -195,7 +194,7 @@ class Formalism:
     name: str
     depends: tuple[str, ...] = ()
     laws: tuple[type[BaseLaw], ...] = ()
-    components: tuple[type[BaseComponent], ...] = ()
+    components: tuple[type[BaseComponent | BaseInteraction], ...] = ()
     spaces: tuple[type[BaseSpace], ...] = ()
     passes: tuple[BasePass | SystemPass, ...] = ()
     forms: tuple[Form, ...] = ()

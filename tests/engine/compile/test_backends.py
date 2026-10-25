@@ -8,9 +8,17 @@ import numba
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BackendError, BackendWarning, NumericDomain, SolverError, parameter, role, vector
+from skcomplex.core.base import (
+    BackendError,
+    BackendWarning,
+    BaseInteraction,
+    NumericDomain,
+    SolverError,
+    parameter,
+    role,
+    vector,
+)
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System

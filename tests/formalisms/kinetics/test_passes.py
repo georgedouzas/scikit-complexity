@@ -3,9 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import NumericDomain, ValidationError, parameter, role, state
+from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role, state
 from skcomplex.core.components import ElementComponent, GroupComponent
-from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate

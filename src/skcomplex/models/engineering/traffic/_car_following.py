@@ -6,9 +6,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sqrt, tanh
 
-from ....core.base import Expression, NumericDomain, parameter
+from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, delayed, mod, shift_member
 from ....core.system import System
 from ....engine.runtime import register_model

@@ -9,9 +9,8 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, UpdateLaw, neighbors
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System

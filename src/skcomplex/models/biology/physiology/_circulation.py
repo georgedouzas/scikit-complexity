@@ -8,9 +8,8 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model

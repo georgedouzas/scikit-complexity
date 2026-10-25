@@ -1,5 +1,6 @@
 """Bases of the framework and the helpers they are declared with."""
 
+from ._components import BaseComponent, BaseInteraction
 from ._domains import BaseDomain, CategoricalDomain, NumericDomain, TensorDomain
 from ._errors import (
     AnalysisError,
@@ -54,7 +55,9 @@ __all__: list[str] = [
     'ArgumentError',
     'BackendError',
     'BackendWarning',
+    'BaseComponent',
     'BaseDomain',
+    'BaseInteraction',
     'BaseLaw',
     'BaseSpace',
     'BaseTime',

@@ -7,9 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import NumericDomain, ValidationError, parameter, role
+from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System

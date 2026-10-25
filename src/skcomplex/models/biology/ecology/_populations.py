@@ -5,9 +5,8 @@
 
 from sage.all__sagemath_symbolics import pi, sin
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, state
+from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.interactions import BaseInteraction
 from ....core.laws import RateLaw, Symbols, delayed
 
 

@@ -6,8 +6,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from ....core.base import BaseLaw
-from ....core.interactions import BaseInteraction
+from ....core.base import BaseInteraction, BaseLaw
 from ....core.laws import Symbols
 from ....formalisms.agents import RuleLaw
 
