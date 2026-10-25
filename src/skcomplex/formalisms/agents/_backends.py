@@ -212,7 +212,7 @@ class ModelView:
         if bound is not None:
             return [bound] if isinstance(bound, str) else list(bound)
         try:
-            return [self._stepper.resolve_group(name, self._owner)]
+            return [self._stepper._resolve_group(name, self._owner)]
         except SimulationError as error:
             roles, owner = ', '.join(self._roles) or 'none', self._owner or 'the model'
             error_msg = f'No role or agent group named {name!r} for {owner}. Its roles are: {roles}. {error}'
@@ -305,7 +305,7 @@ class ModelView:
                 No role or group has that name.
         """
         stepper = self._stepper
-        return [AgentView(agent, stepper) for path in self._paths(name) for agent in stepper.group_agents(path)]
+        return [AgentView(agent, stepper) for path in self._paths(name) for agent in stepper._group_agents(path)]
 
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner, or of a group by path.
@@ -322,7 +322,7 @@ class ModelView:
             SimulationError:
                 No role or group has that name.
         """
-        return sum(len(self._stepper.group_agents(path)) for path in self._paths(name))
+        return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
 
     def _site(self, name: str, cell: object) -> int:
         """Return the member index of a field state's site at a cell or network node."""
@@ -419,7 +419,7 @@ class ModelView:
             SimulationError:
                 The group is not variable, so its size cannot change.
         """
-        return AgentView(self._stepper.create_agent(group, location, values), self._stepper)
+        return AgentView(self._stepper._create_agent(group, location, values), self._stepper)
 
     @property
     def round(self) -> int:
@@ -496,7 +496,7 @@ class ModelView:
             SimulationError:
                 The system has no such observable.
         """
-        return self._stepper.observable(name)
+        return self._stepper._observable(name)
 
     def set_parameter(self, name: str, value: float) -> None:
         """Set a parameter of any group or interaction during the run, recorded in the trajectory like any parameter.
@@ -517,7 +517,7 @@ class ModelView:
         if full not in layout:
             error_msg = f'No parameter named {name!r} to set. Available names are: {", ".join(layout.names)}.'
             raise SimulationError(error_msg)
-        self._stepper.set_parameter(full, value)
+        self._stepper._set_parameter(full, value)
 
 
 class AgentView:
@@ -539,7 +539,7 @@ class AgentView:
 
     def __getattr__(self, name: str) -> Any:  # noqa: ANN401
         """Return a state of the agent or a parameter of its group."""
-        spec = self._stepper.spec_of(self._agent)
+        spec = self._stepper._spec_of(self._agent)
         if name in spec.states:
             return getattr(self._agent, name)
         if name in spec.parameters:
@@ -550,7 +550,7 @@ class AgentView:
 
     def __setattr__(self, name: str, value: Any) -> None:  # noqa: ANN401
         """Set a state of the agent, at the end of the phase in a simultaneous phase."""
-        if name not in self._stepper.spec_of(self._agent).states:
+        if name not in self._stepper._spec_of(self._agent).states:
             error_msg = f'{name!r} is not a state of the agent, so it cannot be set.'
             raise AttributeError(error_msg)
         buffer = self._stepper.buffer_
@@ -575,7 +575,7 @@ class AgentView:
     @property
     def group(self) -> str:
         """Path of the agent's group."""
-        return self._stepper.spec_of(self._agent).path
+        return self._stepper._spec_of(self._agent).path
 
     @property
     def group_label(self) -> str:
@@ -681,11 +681,11 @@ class AgentView:
                 The other agents at the same place.
         """
         stepper = self._stepper
-        path = stepper.resolve_group(group, self.group) if group is not None else None
+        path = stepper._resolve_group(group, self.group) if group is not None else None
         return [
             AgentView(agent, stepper)
             for agent in self._agent.cell.agents
-            if agent is not self._agent and (path is None or stepper.spec_of(agent).path == path)
+            if agent is not self._agent and (path is None or stepper._spec_of(agent).path == path)
         ]
 
     def move_to(self, location: object) -> None:
@@ -711,7 +711,7 @@ class AgentView:
             SimulationError:
                 The agent's group is not variable, so its size cannot change.
         """
-        spec = self._stepper.spec_of(self._agent)
+        spec = self._stepper._spec_of(self._agent)
         _check_variable(spec, 'remove')
         declared = declarations_of(_agent_type(spec), VariableKind.STATE)
         held = {
@@ -751,9 +751,9 @@ class AgentView:
                 The group is not variable, so its size cannot change.
         """
         stepper = self._stepper
-        target = stepper.resolve_group(group, self.group) if group is not None else self.group
+        target = stepper._resolve_group(group, self.group) if group is not None else self.group
         place = location if location is not None else self.location
-        return AgentView(stepper.create_agent(target, place, values), stepper)
+        return AgentView(stepper._create_agent(target, place, values), stepper)
 
 
 class MesaSolver(Solver):
@@ -806,7 +806,7 @@ class MesaSolver(Solver):
         """Return a seed for Mesa drawn from the stepper's random number generator."""
         return int(self.rng_.integers(0, MAX_SEED))
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Build the Mesa model of an agent-based problem.
 
         Args:
@@ -816,11 +816,14 @@ class MesaSolver(Solver):
             rng:
                 The random number generator that seeds Mesa.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not agent-based.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: dict[str, Any] = {}
         self.deposits_ = np.zeros(problem.states.size)
@@ -863,6 +866,7 @@ class MesaSolver(Solver):
             self._populate(spec)
         self._populating = False
         self._check_invariants()
+        self._collect()
 
     def _agent_class(self, spec: CompiledAgents) -> type:
         """Return the Mesa agent class of a group, created on first use."""
@@ -904,7 +908,7 @@ class MesaSolver(Solver):
             else:
                 agent.cell = self.space_.all_cells.select_random_cell()
 
-    def resolve_group(self, group: str, scope: str = '') -> str:
+    def _resolve_group(self, group: str, scope: str = '') -> str:
         """Return the path of a group named relative to the system of a component, or by its path.
 
         Args:
@@ -929,7 +933,7 @@ class MesaSolver(Solver):
         error_msg = f'No agent group {group!r}. Available groups are: {", ".join(self._specs)}.'
         raise SimulationError(error_msg)
 
-    def create_agent(self, group: str, location: object, values: Mapping[str, object]) -> mesa.Agent:
+    def _create_agent(self, group: str, location: object, values: Mapping[str, object]) -> mesa.Agent:
         """Create an agent of a group with initial state values, placed at a location or a random place.
 
         Args:
@@ -950,7 +954,7 @@ class MesaSolver(Solver):
             SimulationError:
                 The group does not exist, or it is not variable, so its size cannot change.
         """
-        spec = self._specs[self.resolve_group(group)]
+        spec = self._specs[self._resolve_group(group)]
         if not self._populating:
             _check_variable(spec, 'create')
         agent_class = self._agent_class(spec)
@@ -976,9 +980,9 @@ class MesaSolver(Solver):
             location = _member_location(given, index, spec.size)
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
-            self.create_agent(spec.path, location, values)
+            self._create_agent(spec.path, location, values)
 
-    def spec_of(self, agent: mesa.Agent) -> CompiledAgents:
+    def _spec_of(self, agent: mesa.Agent) -> CompiledAgents:
         """Return the group of a Mesa agent created by the stepper.
 
         Args:
@@ -991,22 +995,13 @@ class MesaSolver(Solver):
         """
         return self._classes[type(agent)]
 
-    def agents_of(self, group: str) -> list[Any] | None:
-        """Return the alive Mesa agents of a group, or `None` when the model has no such group.
-
-        Args:
-            group:
-                The path of the group.
-
-        Returns:
-            agents:
-                The Mesa agents, or `None`.
-        """
-        if not any(spec.path == group for spec in self.problem_.agents):
+    def _agents_of(self, group: str) -> list[Any] | None:
+        """Return the alive Mesa agents of a group, or `None` when the model has no such group."""
+        if group not in self._specs:
             return None
-        return self.group_agents(group)
+        return self._group_agents(group)
 
-    def group_agents(self, group: str) -> list[mesa.Agent]:
+    def _group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.
 
         Args:
@@ -1044,7 +1039,7 @@ class MesaSolver(Solver):
     def _check_invariants(self) -> None:
         """Check the invariants of every agent and interaction against their values when they were first checked."""
         for spec in self._specs.values():
-            for agent in self.group_agents(spec.path) if spec.invariants else ():
+            for agent in self._group_agents(spec.path) if spec.invariants else ():
                 view = AgentView(agent, self)
                 for invariant in spec.invariants:
                     key = (agent.unique_id, spec.path, invariant.label)
@@ -1060,11 +1055,11 @@ class MesaSolver(Solver):
             return sorted(self.model_.agents, key=lambda agent: agent.unique_id)
         if phase.activation == 'by-type':
             paths = [
-                self.resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]
+                self._resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]
             ]
             ordered: list[mesa.Agent] = []
             for path in paths:
-                members = sorted(self.group_agents(path), key=lambda agent: agent.unique_id)
+                members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id)
                 ordered += [members[index] for index in self.model_.rng.permutation(len(members))]
             return ordered
         agents = sorted(self.model_.agents, key=lambda agent: agent.unique_id)
@@ -1076,7 +1071,7 @@ class MesaSolver(Solver):
             self.buffer_ = {}
         try:
             for agent in self._ordered_agents(phase):
-                spec = self.spec_of(agent)
+                spec = self._spec_of(agent)
                 view, model = AgentView(agent, self), self._views[spec.path]
                 for rule in _rules_of(spec.rules):
                     if getattr(agent, 'removed_', False):
@@ -1100,14 +1095,14 @@ class MesaSolver(Solver):
         if not any(remembering.values()):
             return
         for agent in self.model_.agents:
-            remembers = remembering[self.spec_of(agent).path]
+            remembers = remembering[self._spec_of(agent).path]
             if not remembers:
                 continue
             memories = agent.__dict__.setdefault('memories_', {})
             for name, window in remembers.items():
                 memories.setdefault(name, deque(maxlen=window)).append(getattr(agent, name))
 
-    def set_parameter(self, name: str, value: float) -> None:
+    def _set_parameter(self, name: str, value: float) -> None:
         """Set a parameter during a step, so the rules read it at once and the trajectory records it.
 
         Args:
@@ -1122,7 +1117,7 @@ class MesaSolver(Solver):
         if self._live is not None:
             self._live[indices] = value
 
-    def observable(self, name: str) -> Any:  # noqa: ANN401
+    def _observable(self, name: str) -> Any:  # noqa: ANN401
         """Return the current value of an observable of the problem.
 
         Args:
@@ -1139,13 +1134,13 @@ class MesaSolver(Solver):
         """
         if self._evaluator is None:
             self._evaluator = ObservableEvaluator(self.problem_)
-        values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self.agents_of)
+        values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self._agents_of)
         if name not in values:
             error_msg = f'No observable named {name!r}. Available observables are: {", ".join(values) or "none"}.'
             raise SimulationError(error_msg)
         return values[name]
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Run one Mesa step per integer time from `t` up to `until`.
 
         Args:
@@ -1173,16 +1168,13 @@ class MesaSolver(Solver):
             self.model_.step()
         return x
 
-    def snapshot(self) -> AgentState:
-        """Return the agents of every group and the reporters at the current step.
-
-        Returns:
-            state:
-                The agents and reporters.
-        """
-        groups = {}
+    def _collect(self) -> None:
+        """Set the agents of every group and the reporters at the current step."""
+        groups, agents = {}, {}
         for spec in self.problem_.agents:
-            agents = self.group_agents(spec.path)
-            groups[spec.path] = _snapshot_of(agents, {name: _attribute(name) for name in spec.states})
+            agents[spec.path] = self._group_agents(spec.path)
+            groups[spec.path] = _snapshot_of(agents[spec.path], {name: _attribute(name) for name in spec.states})
         reporters = {f'{path}.count': float(len(snapshot)) for path, snapshot in groups.items()}
-        return AgentState(groups, {**reporters, **self.reports_})
+        super()._collect()
+        self.snapshot_ = AgentState(groups, {**reporters, **self.reports_})
+        self.agents_ = agents

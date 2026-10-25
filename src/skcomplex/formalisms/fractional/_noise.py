@@ -133,9 +133,8 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...     laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=0.75)],
         ... )
         >>> problem = compile_system(System(components=[WalkerComponent.group('walkers', 500)]))
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).fit(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(np.var(state)), 1)
         1.0
     """
@@ -158,7 +157,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         self.horizon = horizon
         self.max_increments = max_increments
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -168,29 +167,22 @@ class FractionalEulerMaruyamaSolver(Solver):
             rng:
                 The random number generator.
 
+            until:
+                The end time of the run, the horizon of the drawn increments when the stepper has none.
+
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         if problem.delays or problem.events:
             error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)
-        self.horizon_ = self.horizon
+        self.horizon_ = self.horizon if self.horizon is not None else until
         self.hurst_: Vector | None = None
         self._origin = 0.0
         self._increments: npt.NDArray[np.float64] | None = None
         self._ordinary = np.ones(problem.noise_rows.size, dtype=bool)
-
-    def plan(self, until: float) -> None:
-        """Take the end time of a run as the horizon when the stepper has none.
-
-        Args:
-            until:
-                The end time of the run.
-        """
-        if self.horizon is None:
-            self.horizon_ = until
 
     def _hurst(self, p: Vector) -> Vector:
         """Return the Hurst index of every noise row, 1/2 for ordinary rows."""
@@ -246,7 +238,7 @@ class FractionalEulerMaruyamaSolver(Solver):
             raise SolverError(error_msg)
         return int(index)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate the drift and the noise from time `t` to time `until` on the grid of the drawn increments.
 
         Args:

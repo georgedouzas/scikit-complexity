@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from typing import ClassVar
 
 import numpy as np
@@ -42,9 +43,8 @@ class GillespieSolver(Solver):
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
-        >>> stepper = GillespieSolver()
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
+        >>> stepper = GillespieSolver().fit(problem, np.random.default_rng(0))
+        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
         [0.0, 10.0]
     """
 
@@ -66,7 +66,7 @@ class GillespieSolver(Solver):
 
     form: ClassVar[Form] = Form.JUMP
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -76,14 +76,17 @@ class GillespieSolver(Solver):
             rng:
                 The random number generator.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         reject_hybrid(problem, type(self).__name__)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Fire random events from time `t` until the next event falls after `until`.
 
         Args:
@@ -165,9 +168,8 @@ class RenewalSolver(Solver):
         ...     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
         ... )
         >>> problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
-        >>> stepper = RenewalSolver()
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0)
+        >>> stepper = RenewalSolver().fit(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0)
         >>> bool(np.all(state[:3] > 50))
         True
     """
@@ -185,7 +187,7 @@ class RenewalSolver(Solver):
     form: ClassVar[Form] = Form.RENEWAL
     renews: ClassVar[bool] = True
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Fire every renewal from time `t` up to time `until`, each member in time order.
 
         Args:

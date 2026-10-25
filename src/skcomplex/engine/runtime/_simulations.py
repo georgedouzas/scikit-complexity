@@ -208,9 +208,8 @@ class Simulation(BaseEstimator):
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)
-        self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
-        self.stepper_.plan(until)
-        initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
+        self.stepper_.fit(self.problem_, np.random.default_rng(self.random_state), until)
+        initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
         stock_flow = self.problem_.stock_flow if isinstance(self.problem_, Problem) else None
@@ -266,11 +265,11 @@ class Simulation(BaseEstimator):
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
-        external = self.stepper_.snapshot()
+        external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
         structures = external.structures if isinstance(external, StructureState) else {}
         reporters = external.reporters if isinstance(external, StructureState) else reporters
-        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
+        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_.get)
         frame = Frame(
             step,
             self.time_,
@@ -280,7 +279,7 @@ class Simulation(BaseEstimator):
             agents,
             reporters,
             observables,
-            tuple(self.stepper_.drain_events()),
+            tuple(self.stepper_.events_),
             structures,
         )
         for observer in self.observers_:
@@ -293,12 +292,17 @@ class Simulation(BaseEstimator):
             self.parameters_[indices] = values
 
     def _loop(self, until: float) -> None:
-        """Advance frame by frame from the current time until `until` or until a stop is requested."""
+        """Advance frame by frame from the current time until `until` or until a stop is requested.
+
+        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it
+        acquired, such as an external process.
+        """
         origin, first = self.time_, self._step
-        self.clock_.start()
+        self.clock_.fit()
         self._apply_schedule()
         if first == 0:
             self._emit(0)
+        released = False
         try:
             while self.time_ < until - TIME_TOLERANCE and not self._stop_requested.is_set():
                 self._running.wait()
@@ -307,8 +311,9 @@ class Simulation(BaseEstimator):
                 self._apply_pending()
                 self._step += 1
                 target = min(self._step * self.dt_, until)
-                self.state_ = self.stepper_.advance(self.time_, self.state_, self.parameters_, target)
-                stopped_at = self.stepper_.stopped_at
+                released = target >= until - TIME_TOLERANCE
+                self.state_ = self.stepper_.run(self.time_, self.state_, self.parameters_, target, final=released)
+                stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
                 self.time_ = target
@@ -318,8 +323,10 @@ class Simulation(BaseEstimator):
                 self._emit(self._step)
                 if stopped_at is not None:
                     break
-                self.clock_.wait(self.time_ - origin)
+                self.clock_.run(self.time_ - origin)
         finally:
+            if not released:
+                self.stepper_.run(self.time_, self.state_, self.parameters_, self.time_, final=True)
             for observer in self.observers_:
                 observer.on_stop()
 
@@ -420,7 +427,8 @@ class Simulation(BaseEstimator):
         """Continue a finished run from its last frame to `until` in the calling thread.
 
         The run keeps its state, parameters, stepper, clock, observers, and frame duration, applies pending parameter
-        changes, and appends its frames to the trajectory.
+        changes, and appends its frames to the trajectory. A solver that closes an external process at the end of a
+        run, such as `LammpsSolver`, cannot continue it.
 
         Args:
             until:
@@ -458,7 +466,7 @@ class Simulation(BaseEstimator):
         if not until > self.time_ + TIME_TOLERANCE:
             error_msg = f'Cannot extend the run to t = {until}, which is not later than its current time {self.time_}.'
             raise SimulationError(error_msg)
-        if self.stepper_.stopped_at is not None:
+        if self.stepper_.stopped_at_ is not None:
             error_msg = f'A terminal event ended the run at t = {self.time_}, so it cannot be extended.'
             raise SimulationError(error_msg)
         self._stop_requested.clear()

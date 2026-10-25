@@ -21,7 +21,7 @@ from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import flow_matrix
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
-from skcomplex.engine.solvers import GillespieSolver
+from skcomplex.engine.solvers import GillespieSolver, RK4Solver
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.particles import ParticleComponent
 from skcomplex.models import create
@@ -442,3 +442,32 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
     simulation = Simulation(geometric_brownian_motion(), backend=backend, random_state=0, dt=0.05)
     trajectory = simulation.run(until=0.5).trajectory_
     np.testing.assert_array_equal(trajectory['asset.price'], STORED_GEOMETRIC_BROWNIAN_MOTION)
+
+
+class _ReleaseCountingSolver(RK4Solver):
+    """RK4 solver that counts the final runs that release it."""
+
+    def _fit(self, problem, rng, until=float('inf')):
+        """Fit the solver and start with no release."""
+        super()._fit(problem, rng, until)
+        self.releases_ = 0
+
+    def _release(self):
+        """Count the release."""
+        self.releases_ += 1
+
+
+def test_simulation_releases_the_solver_at_the_last_frame():
+    """Test that a run fits the solver once and releases it with the run of its last frame."""
+    simulation = Simulation(_growth(), solver=_ReleaseCountingSolver(), dt=0.1).run(until=1)
+    assert simulation.stepper_.releases_ == 1
+    assert simulation.trajectory_.times.size == 11
+
+
+def test_simulation_releases_the_solver_after_a_stop():
+    """Test that a stopped background run releases its solver once."""
+    simulation = Simulation(_growth(r=0.0), solver=_ReleaseCountingSolver(), dt=0.01, clock=RealTimeClock(speed=1.0))
+    simulation.start()
+    time.sleep(0.05)
+    simulation.stop()
+    assert simulation.stepper_.releases_ == 1

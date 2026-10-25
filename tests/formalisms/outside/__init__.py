@@ -151,7 +151,7 @@ class ExactDecaySolver(Solver):
     )
     form: ClassVar[Form] = DECAYING
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Return the states decayed from time `t` to time `until`."""
         rates = p[np.asarray(cast('DecayProblem', self.problem_).rates, dtype=np.intp)]
         return x * np.exp(-rates * (until - t))

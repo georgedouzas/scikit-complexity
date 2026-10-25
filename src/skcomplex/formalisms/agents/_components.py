@@ -37,7 +37,7 @@ def memory(agent: Any, state: str, window: int | None = None) -> Array:  # noqa:
     """
     mesa_agent = object.__getattribute__(agent, '_agent')
     stepper = object.__getattribute__(agent, '_stepper')
-    element = stepper.spec_of(mesa_agent).element
+    element = stepper._spec_of(mesa_agent).element
     element_type = getattr(element, 'element', type(element))
     if state not in (getattr(element_type, 'remembers', None) or {}):
         error_msg = f'{element_type.__name__} does not remember {state!r}. List it in the class variable `remembers`.'

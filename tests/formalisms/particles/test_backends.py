@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp
 
-from skcomplex.core.base import BackendError, BaseSolver, Form, NumericDomain, parameter
+from skcomplex.core.base import BackendError, BaseSolver, Form, NumericDomain, SolverError, parameter
 from skcomplex.core.laws import where
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
@@ -189,10 +189,10 @@ def test_lammps_walls_confine_atoms_on_their_own():
     """Test that LAMMPS walls keep atoms inside a reflecting box without the framework's boundary step."""
     problem = compile_system(ideal_gas(500, kT=4.0, size=10.0, random_state=0))
     backend = LammpsSolver(dt=0.01)
-    backend.initialize(problem, np.random.default_rng(0))
+    backend.fit(problem, np.random.default_rng(0))
     state = problem.initial_state
     for step in range(20):
-        state = backend.advance(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5)
+        state = backend.run(step * 0.5, state, problem.initial_parameters, (step + 1) * 0.5)
         positions = problem.states.read(state, 'gas.x')
         assert np.all((positions >= 0) & (positions <= 10))
 
@@ -283,3 +283,14 @@ def test_lammps_solver_is_an_external_solver():
     """Test that the LAMMPS solver derives from the external solver and the solver base."""
     assert issubclass(LammpsSolver, ExternalSolver)
     assert issubclass(LammpsSolver, BaseSolver)
+
+
+def test_lammps_final_run_closes_the_instance():
+    """Test that the last frame of a run closes the LAMMPS instance, which runs again only once refitted."""
+    problem = compile_system(_lennard_jones_gas())
+    simulation = Simulation(problem, solver=LammpsSolver(dt=0.005), dt=0.05).run(until=0.1)
+    assert simulation.stepper_.released_
+    with pytest.raises(SolverError, match='closed its LAMMPS instance'):
+        simulation.extend(until=0.2)
+    solver = simulation.stepper_.fit(problem, np.random.default_rng(0))
+    assert not solver.released_

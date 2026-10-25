@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from typing import Any, ClassVar
 
 import numpy as np
@@ -58,7 +59,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
 
     form: ClassVar[Form] = Form.REWRITING
 
-    def initialize(self, problem: RewritingProblem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: RewritingProblem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the structures at generation 0.
 
         Args:
@@ -67,18 +68,22 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
 
             rng:
                 The random stream of stochastic productions and graph matches.
+
+            until:
+                The end time of the run.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         values = problem.initial_parameters
         self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
         self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}
+        self._collect()
 
     def _state(self) -> Vector:
         """Return the state vector of the counts and sizes of the current structures."""
         counts = [value for item in self.systems_ for value in item.counts(self.structures_[item.path])]
         return np.asarray(counts, dtype=float)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Rewrite every structure once per generation from `t` to `until`.
 
         Args:
@@ -105,16 +110,12 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
             }
         return self._state()
 
-    def snapshot(self) -> StructureState:
-        """Return the current structures and their measures.
-
-        Returns:
-            snapshot:
-                The structures, which later generations do not change, and their measures.
-        """
+    def _collect(self) -> None:
+        """Set the snapshot of the current structures, which later generations do not change, and their measures."""
         reporters: dict[str, float] = {}
         for path, structure in self.structures_.items():
             if structure.has_geometry:
                 reporters[f'{path}.length'] = structure.length()
                 reporters[f'{path}.area'] = structure.area()
-        return StructureState(dict(self.structures_), reporters)
+        self.events_ = []
+        self.snapshot_ = StructureState(dict(self.structures_), reporters)

@@ -1187,8 +1187,10 @@ A new formalism needs no change to the shared core. It declares its contribution
 - A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
 - A law class derives from `BaseLaw` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
 - A `BaseSystemCompiler` claims the systems it compiles and turns each into a `Problem` of the new form.
-- A solver is a `Solver` that declares the form it advances and what it supports, and advances the state from one
-  time to the next.
+- A solver is a `Solver` that declares the form it advances and what it supports. It implements `_advance`, which
+  advances the state from one time to the next. The runtime calls `fit(problem, rng, until)` before the first frame
+  and `run(t, x, p, until)` at every frame, which returns the state and sets `events_`, `stopped_at_`, `snapshot_`,
+  and `agents_`. The last run, `run(..., final=True)`, releases what fitting acquired, such as an external process.
 - `depends` names the formalisms it builds on, which must be registered first.
 
 The example below adds radioactive decay as a formalism with its own law, pass, and exact solver.
@@ -1293,7 +1295,7 @@ class ExactDecaySolver(Solver):
     )
     form: ClassVar[Form] = EXPONENTIAL_DECAY
 
-    def advance(self, t, x, p, until):
+    def _advance(self, t, x, p, until):
         return x * np.exp(-p[list(self.problem_.rates)] * (until - t))
 
 

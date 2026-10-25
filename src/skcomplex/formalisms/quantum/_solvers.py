@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
@@ -152,7 +153,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         del problem
         return []
 
-    def initialize(self, problem: QuantumProblem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: QuantumProblem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
@@ -162,11 +163,14 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             rng:
                 The random number generator that seeds quantum jumps.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblem) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
@@ -175,7 +179,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         self.solver_: Any = None
         self.parameters_: Vector | None = None
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Advance the state from time `t` to time `until` with the QuTiP solver.
 
         Args:

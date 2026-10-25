@@ -152,7 +152,7 @@ class CaputoSolver(Solver):
     form: ClassVar[Form] = Form.FRACTIONAL
     forms: ClassVar[frozenset[Form]] = frozenset({Form.ODE})
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -162,11 +162,14 @@ class CaputoSolver(Solver):
             rng:
                 The random number generator.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         if problem.delays or problem.events:
             error_msg = f'{type(self).__name__} does not integrate delays or events.'
             raise SolverError(error_msg)
@@ -256,7 +259,7 @@ class CaputoSolver(Solver):
         """
         raise NotImplementedError
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` on the grid of the run.
 
         Args:
@@ -447,9 +450,8 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
         >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
-        >>> stepper = GrunwaldLetnikovSolver(dt=0.001)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
+        >>> stepper = GrunwaldLetnikovSolver(dt=0.001).fit(problem, np.random.default_rng(0))
+        >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
     """
 
@@ -498,9 +500,8 @@ class L1Solver(ConvolutionSolver):
         ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
         >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
-        >>> stepper = L1Solver(dt=0.001)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
+        >>> stepper = L1Solver(dt=0.001).fit(problem, np.random.default_rng(0))
+        >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
     """
 
@@ -544,9 +545,8 @@ class FractionalABMSolver(CaputoSolver):
         ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
         >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
-        >>> stepper = FractionalABMSolver(dt=0.001)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> round(float(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
+        >>> stepper = FractionalABMSolver(dt=0.001).fit(problem, np.random.default_rng(0))
+        >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
     """
 

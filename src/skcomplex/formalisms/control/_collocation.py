@@ -211,7 +211,7 @@ class CollocationSolver(OptimalControlSolver):
             np.concatenate([state_upper, np.tile(upper, points)]),
         )
 
-    def prepare(self, control_problem: _ControlProblem) -> None:
+    def _prepare(self, control_problem: _ControlProblem) -> None:
         """Derive the Jacobians of the rates and the gradients of the costs symbolically.
 
         Args:
@@ -237,7 +237,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:

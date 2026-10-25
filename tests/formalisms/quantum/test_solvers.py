@@ -157,4 +157,4 @@ def test_quantum_solvers_follow_parameter_updates():
 def test_quantum_solvers_reject_classical_problems():
     """Test that a quantum solver refuses a classical problem."""
     with pytest.raises(SolverError):
-        LindbladSolver().initialize(compile_system(System()), np.random.default_rng(0))
+        LindbladSolver().fit(compile_system(System()), np.random.default_rng(0))
