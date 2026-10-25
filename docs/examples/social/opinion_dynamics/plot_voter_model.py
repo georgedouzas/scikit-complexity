@@ -43,7 +43,7 @@ edges = np.array(lattice.edges)
 fractions, interfaces = [], []
 for frame in range(len(simulation.trajectory_.times)):
     voters = simulation.trajectory_.agents('voters', frame)
-    opinion = np.empty(len(voters))
+    opinion = np.empty(len(voters.ids))
     opinion[np.ravel(voters.locations).astype(int)] = voters.values['opinion']
     fractions.append(opinion.mean())
     interfaces.append(np.mean(opinion[edges[:, 0]] != opinion[edges[:, 1]]))
