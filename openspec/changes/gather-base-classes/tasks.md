@@ -14,13 +14,19 @@
 
 ## 2. Problem, solver, and backend bases
 
-- [ ] 2.1 Move `Layout` and `Entry` to `core/base/_problems.py`. Add `BaseProblem`, derive `engine.compile.Problem`
-  from it, and derive the kinetic, quantum, and rewriting problems from `BaseProblem` with only the fields they use.
-- [ ] 2.2 Add the generic `BaseSolver`, and turn `Stepper` into `Solver(BaseSolver[Problem])`. Move
-  `ExternalBackend` to `engine/solvers`. Verify with the scenario "Solver over a base problem".
-- [ ] 2.3 Add the generic `BaseBackend`, with `Lowering`, to `core/base/_solvers.py`. Rename the engine bases with
-  the `Base` prefix, and derive `SystemPass` from `BasePass`. Verify with the scenarios "Unrelated bases" and
-  "Derived classes".
+- [x] 2.1 Move `Layout` and `Entry` to `core/base/_problems.py`, add `BaseProblem`, and derive the compiler's
+  `Problem` from it.
+- [x] 2.2 Add the generic `BaseSolver`, and turn `Stepper` into `Solver(BaseSolver[Problem])`. Move
+  `ExternalBackend` to `engine/solvers`.
+- [ ] 2.3 Rename `SystemPass` to `BaseSystemCompiler`, unrelated to `BasePass`, and its subclasses to
+  `QuantumCompiler`, `RewritingCompiler`, and `DecayCompiler`. Verify with the scenario "Quantum compiler".
+- [ ] 2.4 Add `core/problems` with `Problem`, the kernels, reductions, neighbourhoods, printing, lowering, and
+  `BaseBackend` with its registry, moved from `engine/compile`, and replace the run-time import of the backends with
+  a loader the engine registers. Verify with the scenarios "Backend base", "Backends load on demand", and "Unrelated
+  bases".
+- [ ] 2.5 Make the runtime read the compiler's fields only of a `Problem`, and derive the quantum and rewriting
+  problems from `BaseProblem` with the fields they use. Verify with the scenarios "Problem of a formalism", "Derived
+  classes", and "Solver over a base problem".
 
 ## 3. Names
 

@@ -56,7 +56,7 @@
   └── System             the whole, the one concrete system
   BaseLaw                a rule of change              → RateLaw, UpdateLaw, JumpLaw, ...
   BaseDomain             the values of a variable      → NumericDomain, CategoricalDomain, TensorDomain, ...
-  BaseProblem            a compiled system             → Problem, KineticProblem, QuantumProblem, RewritingProblem
+  BaseProblem            a compiled system             → Problem (then KineticProblem), QuantumProblem, RewritingProblem
   ```
 
   | Has | |
@@ -73,9 +73,6 @@
     `core/interactions` then holds nothing and is removed.
   - **`ElementComponent` and `GroupComponent` stay apart.** An element type declares a member, and a group holds
     members of one type. Neither is the other.
-  - **No protocol classes for the backend.** `BaseBackend` is generic over the kernel it lowers,
-    `BaseBackend[K]`, as `BaseSolver[P]` is over its problem. `Lowering`, the backend's output, moves to
-    `core/base`.
   - *Alternative:* `BaseSystem` and an `Interaction` under `BaseInteraction`, for symmetry. Rejected because each
     would be a base with a single class under it.
 
@@ -115,7 +112,7 @@
   | `_domains.py` | `BaseDomain`, `NumericDomain`, `CategoricalDomain`, `TensorDomain` | fundamental |
   | `_spaces.py` | `BaseSpace`, `BaseTime` | fundamental: where and when |
   | `_problems.py` | `BaseProblem`, `Layout`, `Entry` | fundamental |
-  | `_solvers.py` | `BaseSolver`, `BaseBackend`, `Lowering` | fundamental |
+  | `_solvers.py` | `BaseSolver` | fundamental |
   | `_variables.py` | `state`, `parameter`, `role`, `Variable`, `VariableKind`, and the declaration helpers | fundamental: how parts declare |
   | `_symbolic.py` | `symbol`, `vector`, `Expression`, `SymbolicVector`, and the symbol helpers | fundamental: what laws are written in |
   | `_kinds.py` | `Term` and every kind: `LawKind`, `LawClass`, `TimeKind`, `Trait`, `SpaceKind`, `ComponentKind`, `DomainKind`, `Binding`, `Requires`, `Form`, `Supports`, `OrderKind`, `NoiseKind`, `NUMERIC_DOMAINS`, `vocabulary` | vocabulary |
@@ -134,16 +131,46 @@
   one module of bases. `BaseClock` and `BaseDesign` go with them, because pacing a run and designing an experiment
   are runtime concepts.
 
-- **`BaseProblem` is what every solver reads:** `form`, `states`, `parameters`, `initial_state`,
-  `initial_parameters`, and `time`. `engine.compile.Problem` derives from it and keeps every other field. The
-  kinetic, quantum, and rewriting problems derive from `BaseProblem`, and keep only the fields they use.
+- **`BaseProblem` is what every solver and the runtime read:**
+  - It holds `form`, `states`, `parameters`, `initial_state`, `initial_parameters`, and `time`.
+  - The runtime runs any problem through these fields. It reads the compiler's other fields, such as `elements`,
+    `agents`, and `topology`, only of a `Problem`, after checking that the problem is one.
+  - The quantum and rewriting problems derive from `BaseProblem` alone, with the fields they use.
+  - `KineticProblem` stays a `Problem`, because ordinary compiler passes build it, and it adds the encounters.
+
+- **What a system compiles to is a core package.** The compiler's problem and the representation its numeric
+  functions are written from, sit in a new package, `core/problems`, after `system`:
+  - `Problem`;
+  - the kernels;
+  - the reductions;
+  - the neighbourhoods;
+  - the printing of expressions;
+  - the lowering a backend returns;
+  - `BaseBackend` with the registry of backends.
+
+  They depend on laws, spaces, components, and systems, so they cannot sit in `core/base`, which imports nothing
+  above it. `engine/compile` keeps what works on a system: the passes, the validation, and the planner.
+  - Today `_load_backends` imports `skcomplex.engine.backends` at run time. Instead, the engine registers a loader
+    on the backend registry, the way the model catalog does on the model registry. Then no core module reaches into
+    the engine.
+  - *Alternative:* the whole closure in `core/base`. Rejected because the base would then import every core
+    package.
+  - *Alternative:* `BaseBackend` in `engine/compile`. Rejected by the maintainer, who wants the backend base in the
+    core.
+
+- **A system compiler is not a pass.**
+  - A pass is a step of one compilation: it reads and writes the fields of the compilation through `run`.
+  - A system compiler claims a whole system of a formalism and compiles it to a problem in place of the pipeline,
+    through `claims` and `compile`.
+  - So `SystemPass` becomes `BaseSystemCompiler`, a plain class unrelated to `BasePass`. Its subclasses become
+    `QuantumCompiler` and `RewritingCompiler`, with `DecayCompiler` in the tests and documents.
 
 - **`BaseSolver` is the interface, and `Solver` adds the run machinery.**
   - `BaseSolver[P: BaseProblem]` declares `form`, `forms`, `supports`, and the flags. It defines the capability
     check, and the abstract `initialize`, `advance`, `plan`, and `initial_state`.
   - `engine/solvers` keeps `Solver(BaseSolver[Problem])`, with events, renewals, delays, and the solver registry.
-    Every solver of the compiler's problem derives from it. The quantum, rewriting, and kinetic solvers derive from
-    `BaseSolver` of their own problem.
+    Every solver of the compiler's problem derives from it, `KineticSolver` among them. The quantum and rewriting
+    solvers derive from `BaseSolver` of their own problem.
 
 - **A domain is a base.** `BaseDomain` declares `domain_kind`, `sage_domain`, `contains`, `encode`, and `decode`,
   with methods that raise `NotImplementedError` rather than `ABC`, so the `NumericDomain` enumeration can derive
