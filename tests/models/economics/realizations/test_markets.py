@@ -98,7 +98,7 @@ class BookInteraction(BaseInteraction):
     def laws(self, s):
         """Return the matching and the rule that records it."""
         return [
-            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'),
+            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential').evaluate, label='trades'),
             RuleLaw(self.record),
         ]
 

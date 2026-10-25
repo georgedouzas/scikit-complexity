@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import contextlib
 import heapq
 import itertools
 import math
@@ -16,7 +15,7 @@ from typing import Any, ClassVar, Self
 import numpy as np
 from matching.games import HospitalResident
 
-from ....core.base import BaseInteraction, BaseLaw, SimulationError, role
+from ....core.base import BaseInteraction, BaseLaw, role
 from ....core.laws import Symbols
 from ....formalisms.agents import RuleLaw
 
@@ -609,23 +608,25 @@ class DeferredAcceptance(Protocol):
         return trades
 
 
-def _read(agent: Any, name: str | None, default: float) -> float:  # noqa: ANN401
-    """Return a state or parameter of an agent, or a default when it has neither."""
+def _has(agent: Any, name: str | None) -> bool:  # noqa: ANN401
+    """Check whether an agent has a state or parameter."""
     if name is None:
-        return default
-    for read in (agent.state, agent.parameter):
-        try:
-            return float(read(name))
-        except SimulationError:
-            continue
-    return default
+        return False
+    try:
+        getattr(agent, name)
+    except AttributeError:
+        return False
+    return True
+
+
+def _read(agent: Any, name: str | None, default: float) -> float:  # noqa: ANN401
+    """Return a state or parameter of an agent, or a default when it has none."""
+    return float(getattr(agent, name)) if name is not None and _has(agent, name) else default
 
 
 def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
     """Set a state of an agent when it has one."""
-    if name is None:
-        return
-    with contextlib.suppress(SimulationError):
+    if name is not None and _has(agent, name):
         setattr(agent, name, value)
 
 
