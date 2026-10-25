@@ -29,16 +29,14 @@ abstract model, so reading that abstract model turns any of those files into a `
   vector functions, and data read from spreadsheets, macros, and variables subscripted over more than one range raise
   one error that lists every unsupported construct with its variable.
 - **Dependency:** PySD becomes a runtime dependency, imported lazily on the first read.
-- **Roadmap of integrations, in order.** This change is the first of a series that connects the library to the
-  ecosystem around it, each a change of its own:
-  1. **PySD**, this change, finished first since it is specified.
-  2. **JAX with diffrax**, a backend and solvers whose runs are differentiable and compiled.
-  3. **SBML**, reading and writing biochemical models through `libsbml`.
-  4. **FMI**, running Functional Mock-up Units as parts of a system and exporting systems as units.
-  5. **SALib**, global sensitivity analysis of a system's parameters over its runs.
-  6. **xarray exports**, trajectories as labelled datasets with their units and coordinates.
-  7. **SciML**, the Julia solvers of `DifferentialEquations.jl` through `diffeqpy`, for stiff and large systems.
-  8. **QuTiP**, solvers and analyses for quantum dynamics, beside the quantum formalism.
+- **Roadmap of integrations.** This change is the first of a series that connects the library to the ecosystem
+  around it, each a change of its own. The order and the place of each are in the design.
+  - **Importing models:** PySD, this change; SBML through libRoadRunner or Tellurium; FMI units through FMPy; NetLogo
+    models through pynetlogo.
+  - **Solvers and backends:** JAX with diffrax; SciML through diffeqpy and ModelingToolkit; QuTiP; SUNDIALS.
+  - **Data and interoperability:** xarray and pandas exports; igraph or graph-tool; NetCDF or Zarr storage.
+  - **Inference, calibration, and uncertainty:** SALib; PyMC or NumPyro with ArviZ; Optuna or `scipy.optimize`.
+  - **Scale-out:** Dask or Ray.
 
 ## Capabilities
 

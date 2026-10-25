@@ -35,22 +35,32 @@
 
 ## Roadmap
 
-The integrations after this change come in this order. Each is its own change with its own spec, since each adds a
-different capability.
+The integrations after this change. Each is its own change with its own spec, since each adds a different capability.
 
-| Order | Integration | Capability it gives | Where it plugs in |
+| Order | Integration | What it gives | Where it plugs in |
 |---|---|---|---|
-| 1 | PySD | reading Vensim and XMILE models | `core/system` readers, this change |
-| 2 | JAX and diffrax | compiled, differentiable runs | a `BaseBackend` lowering to JAX and solvers on diffrax |
-| 3 | SBML (`libsbml`) | reading and writing biochemical models | readers and writers beside the system dynamics readers |
-| 4 | FMI (`fmpy`) | external units in a system, and systems as units | a co-simulation partition, and an exporter |
-| 5 | SALib | global sensitivity of outputs to parameters | `engine/experiments`, as designs and an analysis |
-| 6 | xarray | trajectories as labelled datasets | an export method of `Trajectory` |
-| 7 | SciML (`diffeqpy`) | stiff and large systems on Julia solvers | solvers through the `ExternalSolver` contract |
-| 8 | QuTiP | quantum solvers and analyses | `formalisms/quantum` solvers and analyses |
+| 1 | PySD | Vensim and XMILE models as systems | `core/system` readers, this change |
+| 2 | JAX with diffrax | GPU runs, gradients for calibration and control, vectorised ensembles, in Python alone | a `BaseBackend` lowering to JAX and solvers on diffrax |
+| 3 | SBML via libRoadRunner or Tellurium | the biochemical models of BioModels | readers and writers beside the system dynamics readers |
+| 4 | FMI via FMPy | Modelica, Simulink, and Dymola models as units | each unit a partition of a co-simulation, and systems exported as units |
+| 5 | SALib | Sobol and Morris sensitivity | designs and an analysis in `engine/experiments` |
+| 6 | xarray and pandas | trajectories as labelled series for the PyData stack | export methods of `Trajectory` |
+| 7 | SciML via diffeqpy and ModelingToolkit | stiff ODEs, SDEs, jumps, and DAEs | solvers through the `ExternalSolver` contract |
+| 8 | QuTiP | open quantum systems, master equations, Lindblad | the quantum formalism lowering to QuTiP's solvers |
+| 9 | SUNDIALS (scikits.odes, or through SciML) | implicit and DAE solvers | solvers through the `ExternalSolver` contract |
+| 10 | NetLogo via pynetlogo | the NetLogo model library | a reader of NetLogo models, or a co-simulation partition |
+| 11 | PyMC or NumPyro with ArviZ | Bayesian calibration of parameters to data | `engine/experiments` calibration, NumPyro beside the JAX backend |
+| 12 | Optuna or `scipy.optimize` | parameter search and policy optimisation | searches over experiment designs |
+| 13 | igraph or graph-tool | network processes beyond what NetworkX handles | the network space and the network analyses |
+| 14 | NetCDF or Zarr | storage of large ensembles and fields | writers of trajectories and experiment results |
+| 15 | Dask or Ray | parallel ensembles and sweeps across cores and clusters | the executor of `engine/experiments` |
 
-PySD comes first because it is specified. JAX, SBML, FMI, SALib, and xarray come next because they widen what a
-modeller can bring in and take out. SciML and QuTiP come last, for depth in stiff and quantum dynamics.
+- **Order:** PySD comes first because it is specified. JAX, SBML, FMI, SALib, and xarray come next because they widen
+  what a modeller can bring in and take out, and JAX avoids a second runtime. SciML and QuTiP follow for depth in stiff
+  and quantum dynamics, then the rest.
+- **Dependencies:** a library that code outside `skcomplex.models` imports is a runtime dependency, imported lazily.
+  Julia and NetLogo need their own runtimes, so their solvers and readers report a named error when the runtime is
+  missing.
 
 ## Decisions
 
