@@ -17,6 +17,7 @@ from ...core.base import (
     BaseSpace,
     LabelError,
     NumericDomain,
+    SkcomplexError,
     SpaceError,
     TimeKind,
     Trait,
@@ -81,6 +82,15 @@ def _check_group(group: GroupComponent, scope: str) -> None:
         _check_network_lattice(space, group.size, where)
 
 
+def _check_part(part: ElementComponent | GroupComponent | BaseInteraction, scope: str) -> None:
+    """Check the arguments of an element, group, or interaction, raising its error with the path of the part."""
+    try:
+        part.check()
+    except SkcomplexError as error:
+        error_msg = f'{scope}{part.label}: {error}'
+        raise type(error)(error_msg) from error
+
+
 def _check_children(system: System, scope: str) -> None:
     """Raise an error for a child of the wrong type or a duplicated label."""
     children: list[tuple[ElementComponent | GroupComponent | BaseInteraction | System, type | tuple[type, ...]]] = [
@@ -96,9 +106,11 @@ def _check_children(system: System, scope: str) -> None:
             )
             error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
             raise ValidationError(error_msg)
+        _check_label(child.label, scope)
+        if not isinstance(child, System):
+            _check_part(child, scope)
         if isinstance(child, GroupComponent):
             _check_group(child, scope)
-        _check_label(child.label, scope)
         if child.label in labels:
             error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
             raise LabelError(error_msg)
@@ -333,7 +345,7 @@ def flatten_system(system: System, scope: str = '', space: BaseSpace | None = No
 
     Raises:
         ValidationError:
-            A child has the wrong type.
+            A child has the wrong type, or a component or interaction does not pass its check, named by its path.
 
         LabelError:
             A label is not valid or is duplicated among siblings.

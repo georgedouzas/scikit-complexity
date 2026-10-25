@@ -20,7 +20,7 @@ class JacobianPass(BasePass):
     reads = ('kernels', 'form', 'reductions', 'layout')
     writes = ('jacobian',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Derive the Jacobian of the drift.
 
         Args:

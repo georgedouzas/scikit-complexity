@@ -97,11 +97,13 @@ class DecayProblem(Problem):
 class DecayCompiler(BaseSystemCompiler):
     """Pass that compiles a system of nuclei into a problem of the decaying form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether every element of the system is a nucleus."""
-        return bool(system.elements) and all(isinstance(element, NucleusComponent) for element in system.elements)
+    def _fit(self, system: System) -> None:
+        """Set `claims_`, whether every element of the system is a nucleus."""
+        self.claims_ = bool(system.elements) and all(
+            isinstance(element, NucleusComponent) for element in system.elements
+        )
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,

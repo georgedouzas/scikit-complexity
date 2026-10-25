@@ -290,13 +290,13 @@ def _interaction_laws(
         group = groups[path]
         for first, second in neighbor_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
-            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
+            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.run(namespace))
         return
     roles = {
         name: _role_namespace(node, getattr(interaction, name), members, set(groups))
         for name in declarations_of(interaction, VariableKind.ROLE)
     }
-    _collect_laws(laws, node.path, interaction.laws(Symbols(**roles, **parameters)))
+    _collect_laws(laws, node.path, interaction.run(Symbols(**roles, **parameters)))
 
 
 @dataclass(frozen=True)
@@ -1034,20 +1034,16 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
 class QuantumCompiler(BaseSystemCompiler):
     """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether a system holds a quantum element or group.
+    def _fit(self, system: System) -> None:
+        """Set `claims_`, whether a system holds a quantum element or group.
 
         Args:
             system:
                 The system.
-
-        Returns:
-            claims:
-                Whether the system holds a quantum element or group.
         """
-        return contains_quantum(system)
+        self.claims_ = contains_quantum(system)
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,

@@ -18,7 +18,7 @@ class CollectPass(BasePass):
     reads = ('specs',)
     writes = ('collected', 'apart')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Collect the laws of every kernel spec.
 
         Args:

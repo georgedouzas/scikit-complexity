@@ -37,30 +37,22 @@ class NumpyBackend(BaseBackend):
 
     name: ClassVar[str] = 'numpy'
 
-    def lower(
+    def _run(
         self,
-        form: Form,
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
-        size: int,
         *,
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of a form evaluated with NumPy.
+        """Return the numeric functions of the fitted form evaluated with NumPy.
 
         Args:
-            form:
-                The form of the problem.
-
             kernels:
                 The kernels of every law kind, in evaluation order.
 
             changes:
                 The changes of every jump output, keyed by the output's identity.
-
-            size:
-                The size of the state vector.
 
             reductions:
                 The reductions the kernels read, evaluated before them at every evaluation, or `None`.
@@ -74,6 +66,7 @@ class NumpyBackend(BaseBackend):
                 The numeric functions.
         """
         del draws
+        form, size = self.form_, self.size_
         lowering = Lowering()
         if kernels.get(BoundaryLaw):
             lowering.boundary = assigning_function(kernels[BoundaryLaw])

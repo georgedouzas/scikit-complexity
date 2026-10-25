@@ -127,7 +127,10 @@ def _problem_of(compilation: Compilation) -> Problem:
 def visual_of(node: Node) -> VisualSpec:
     """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
     if isinstance(node.component, GroupComponent):
-        return node.component.visual if node.component.visual is not None else node.component.default_visual()
+        if node.component.visual is not None:
+            return node.component.visual
+        default: VisualSpec = node.component.fit().default_visual_
+        return default
     declared: VisualSpec = node.component_type.visual
     return declared
 
@@ -149,7 +152,7 @@ class ProblemPass(BasePass):
     )
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Assemble the problem.
 
         Args:

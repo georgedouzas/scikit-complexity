@@ -445,7 +445,7 @@ class ReductionsPass(BasePass):
     reads = ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')
     writes = ('reduced', 'reduced_apart', 'reductions', 'events')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the reductions of the drawn laws, the laws set apart, and the events.
 
         Args:

@@ -470,7 +470,7 @@ class DelaysPass(BasePass):
     reads = ('ordered', 'layout')
     writes = ('delayed', 'delays', 'placeholders', 'events')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the delays of the ordered laws and take their events aside.
 
         Args:

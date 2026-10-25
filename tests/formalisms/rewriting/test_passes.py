@@ -450,6 +450,16 @@ def test_rewriting_pass_claims_rewriting_systems():
     assert claiming_compiler(System(components=[PopulationComponent('rabbits', n=10)])) is None
 
 
+def test_rewriting_compiler_fits_its_claim_and_runs_the_problem():
+    """Test that the rewriting compiler sets `claims_` when fitted and returns the rewriting problem when run."""
+    words = System(components=[WordComponent('algae', axiom='A')])
+    compiler = RewritingCompiler()
+    assert not compiler.fit(System(components=[PopulationComponent('rabbits', n=10)])).claims_
+    assert compiler.fit(words).claims_
+    problem = compiler.run(words, backend='auto', solver='auto', initial_state={})
+    assert problem.form == Form.REWRITING
+
+
 def test_registered_formalisms_list_rewriting():
     """Test that the rewriting formalism is listed with its law kind, its form, and its solver."""
     rewriting = next(item for item in registered_formalisms() if item.name == 'rewriting')

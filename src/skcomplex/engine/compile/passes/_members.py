@@ -46,7 +46,7 @@ class MemberShiftPass(BasePass):
     reads = ('corrected', 'layout')
     writes = ('shifted',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the member offset reads of the corrected laws.
 
         Args:

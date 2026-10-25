@@ -240,7 +240,7 @@ class SplitRequestsPass(BasePass):
     reads = ('collected', 'apart')
     writes = ('collected', 'apart')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Set the update laws that request topology changes apart.
 
         Args:
@@ -263,7 +263,7 @@ class MaskRequestsPass(BasePass):
     reads = ('drawn_apart', 'layout')
     writes = ('drawn_apart',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Mask the requests of the update laws set apart.
 
         Args:
@@ -282,7 +282,7 @@ class TowardsPass(BasePass):
     reads = ('drawn_apart', 'drawn', 'layout')
     writes = ('drawn_apart',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Set the weights of the requests apart.
 
         Args:
@@ -300,7 +300,7 @@ class RequestJumpsPass(BasePass):
     reads = ('reduced',)
     writes = ('reduced', 'request_jumps')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Note the requests of the jumps.
 
         Args:
@@ -318,7 +318,7 @@ class TopologyFunctionsPass(BasePass):
     reads = ('functions', 'kernels', 'reduced_apart', 'layout', 'reductions', 'request_jumps')
     writes = ('functions', 'topology')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Compile the topology changes of the networks.
 
         Args:
@@ -343,7 +343,7 @@ class TopologyProblemPass(BasePass):
     reads = ('problem', 'topology')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the topology changes to the problem.
 
         Args:

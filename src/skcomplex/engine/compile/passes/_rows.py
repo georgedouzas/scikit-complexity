@@ -17,7 +17,7 @@ class RowsPass(BasePass):
     reads = ('lowered', 'apart')
     writes = ('lowered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Check the draws and settle the rows of every kernel spec.
 
         Args:

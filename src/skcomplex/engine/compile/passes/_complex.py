@@ -18,7 +18,7 @@ class LowerComplexPass(BasePass):
     reads = ('collected',)
     writes = ('lowered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Split the collected laws of complex states.
 
         Args:

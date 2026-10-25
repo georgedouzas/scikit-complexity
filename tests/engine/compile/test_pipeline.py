@@ -13,12 +13,12 @@ from skcomplex.models import create
 def _pass(name, reads, writes, log=None):
     """Return a pass that records its name when it runs."""
 
-    def run(self, compilation):
+    def _run(self, compilation):
         """Record the run."""
         if log is not None:
             log.append(name)
 
-    return type(name, (BasePass,), {'reads': reads, 'writes': writes, 'run': run, '__doc__': name})()
+    return type(name, (BasePass,), {'reads': reads, 'writes': writes, '_run': _run, '__doc__': name})()
 
 
 def _names(passes):

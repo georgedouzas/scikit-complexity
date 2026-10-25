@@ -545,20 +545,16 @@ class RewritingProblem(BaseProblem):
 class RewritingCompiler(BaseSystemCompiler):
     """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether a system holds a word, a patch, or a host graph.
+    def _fit(self, system: System) -> None:
+        """Set `claims_`, whether a system holds a word, a patch, or a host graph.
 
         Args:
             system:
                 The system.
-
-        Returns:
-            claims:
-                Whether the system holds a rewritten element.
         """
-        return is_rewriting(system)
+        self.claims_ = is_rewriting(system)
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,

@@ -269,7 +269,7 @@ order for the solvers.
 
 - A companion is a constructor argument with a default of zero, so `PendulumComponent('bob', theta_d1=0.5)` starts the
   pendulum with an angular velocity.
-- A companion is not a class attribute. `PendulumComponent.declarations()` lists it after its state.
+- A companion is not a class attribute. The fitted `declarations_` of a pendulum list it after its state.
 
 ```python
 from skcomplex.core.base import NumericDomain, state
@@ -285,8 +285,8 @@ PendulumComponent = ElementComponent.define(
     parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
     laws=lambda s: [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
 )
-bob = PendulumComponent('bob', theta_d1=0.5)
-print(list(PendulumComponent.declarations()), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1'))
+bob = PendulumComponent('bob', theta_d1=0.5).fit()
+print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1'))
 ```
 
 - On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up, so separate interactions
@@ -1186,7 +1186,8 @@ A new formalism needs no change to the shared core. It declares its contribution
 
 - A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
 - A law class derives from `BaseLaw` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
-- A `BaseSystemCompiler` claims the systems it compiles and turns each into a `Problem` of the new form.
+- A `BaseSystemCompiler` claims the systems it compiles, setting `claims_` when it is fitted to a system, and its `run`
+  turns each into a `Problem` of the new form.
 - A solver is a `Solver` that declares the form it advances and what it supports, and advances the state from one
   time to the next.
 - `depends` names the formalisms it builds on, which must be registered first.
@@ -1255,10 +1256,10 @@ class DecayProblem(Problem):
 
 
 class DecayCompiler(BaseSystemCompiler):
-    def claims(self, system):
-        return bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
+    def _fit(self, system):
+        self.claims_ = bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
 
-    def compile(self, system, *, backend, solver, initial_state):
+    def _run(self, system, *, backend, solver, initial_state):
         nuclei = list(system.elements)
         states = [Entry(f'{item.label}.n', i, (), NumericDomain.NONNEGATIVE) for i, item in enumerate(nuclei)]
         rates = [Entry(f'{item.label}.k', i, (), NumericDomain.POSITIVE) for i, item in enumerate(nuclei)]

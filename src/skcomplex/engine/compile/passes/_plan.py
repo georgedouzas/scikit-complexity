@@ -17,7 +17,7 @@ class PlanPass(BasePass):
     reads = ('census', 'kinds')
     writes = ('plan',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Plan the partitions of the system.
 
         Args:

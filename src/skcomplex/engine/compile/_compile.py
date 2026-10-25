@@ -199,7 +199,7 @@ def compile_system(
     initial = dict(initial_state or {})
     compiler = claiming_compiler(observed)
     if compiler is not None:
-        return compiler.compile(observed, backend=backend, solver=solver, initial_state=initial)
+        return cast('BaseProblem', compiler.run(observed, backend=backend, solver=solver, initial_state=initial))
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
     check_held_reads(problem, list(compilation.held))
