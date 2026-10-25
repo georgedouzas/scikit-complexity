@@ -4,7 +4,7 @@ import pkgutil
 from collections.abc import Iterable
 from importlib import import_module
 
-from skcomplex.core import formalisms
+from skcomplex import formalisms
 from skcomplex.core.base import BaseSpace, LawKind, law_classes
 from skcomplex.core.problems import BACKENDS
 from skcomplex.engine.compile import SOLVERS
