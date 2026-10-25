@@ -36,12 +36,12 @@ from ...core.laws import Symbols
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import Observable, System, reduce_values
 from ...engine.compile import (
+    BaseSystemCompiler,
     CompiledElement,
     CompiledInteraction,
     Getter,
     Node,
     Problem,
-    SystemPass,
     coerce_value,
     flatten_system,
     numpy_function,
@@ -1039,7 +1039,7 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
     return getters
 
 
-class QuantumPass(SystemPass):
+class QuantumCompiler(BaseSystemCompiler):
     """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
 
     def claims(self, system: System) -> bool:

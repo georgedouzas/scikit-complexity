@@ -17,7 +17,7 @@ from ._observables import _with_observables, check_held_reads
 from ._pipeline import _registered_passes, run_passes
 from ._planner import _Plan
 from ._problem import Partition, Problem, with_initial_state
-from ._system_passes import claiming_pass
+from ._system_compilers import claiming_compiler
 from ._tree import Node
 from ._validation import validate
 from .passes._core import CORE_PASSES
@@ -164,7 +164,7 @@ def compile_system(
     report.raise_errors()
     observed = _with_observables(system, observables)
     initial = dict(initial_state or {})
-    system_pass = claiming_pass(observed)
+    system_pass = claiming_compiler(observed)
     if system_pass is not None:
         return system_pass.compile(observed, backend=backend, solver=solver, initial_state=initial)
     compilation = cast('Compilation', report.compilation)

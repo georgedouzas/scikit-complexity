@@ -15,7 +15,7 @@ from ._laws import (
     RewritingLaw,
     SubstitutionLaw,
 )
-from ._passes import CompiledGraph, CompiledPatch, RewritingPass, RewritingProblem, compile_rewriting
+from ._passes import CompiledGraph, CompiledPatch, RewritingCompiler, RewritingProblem, compile_rewriting
 from ._solvers import RewritingSolver
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ._visuals import GeometryVisual
@@ -37,9 +37,9 @@ __all__: list[str] = [
     'Prototile',
     'Rewrite',
     'Rewriting',
+    'RewritingCompiler',
     'RewritingError',
     'RewritingLaw',
-    'RewritingPass',
     'RewritingProblem',
     'RewritingSolver',
     'Structure',
@@ -57,7 +57,7 @@ register(
         'rewriting',
         laws=(ProductionLaw, SubstitutionLaw, GraphProductionLaw),
         components=(WordComponent, PatchComponent, HostGraphComponent, Rewriting, Rewrite),
-        passes=(RewritingPass(),),
+        compilers=(RewritingCompiler(),),
         forms=(Form.REWRITING,),
         solvers={'rewriter': RewritingSolver},
         defaults=(RewritingSolver,),

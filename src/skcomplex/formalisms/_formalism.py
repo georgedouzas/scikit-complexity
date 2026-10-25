@@ -10,10 +10,10 @@ from ..core.base import BaseComponent, BaseInteraction, BaseLaw, BaseSpace, Form
 from ..engine.compile import (
     BaseBackend,
     BasePass,
+    BaseSystemCompiler,
     Binding,
     Check,
     OwnerRule,
-    SystemPass,
     register_backend,
     register_binding,
     register_check,
@@ -21,6 +21,7 @@ from ..engine.compile import (
     register_form,
     register_owner,
     register_pass,
+    register_system_compiler,
 )
 from ..engine.solvers import Solver, register_solver
 from ..engine.viz import BaseVisual, register_visual
@@ -62,9 +63,11 @@ def _is_registered(formalism: 'Formalism') -> bool:
 
 
 def _register_compilation(formalism: 'Formalism') -> None:
-    """Register the passes, checks, stepwise forms, combined law classes, owner rules, and bindings of a formalism."""
-    for system_pass in formalism.passes:
-        register_pass(system_pass)
+    """Register the passes, compilers, checks, stepwise forms, combined law classes, owner rules, and bindings."""
+    for item in formalism.passes:
+        register_pass(item)
+    for compiler in formalism.compilers:
+        register_system_compiler(compiler)
     for check in formalism.checks:
         register_check(check)
     for kinds, form in formalism.stepwise_forms.items():
@@ -151,8 +154,10 @@ class Formalism:
             The space classes it defines.
 
         passes:
-            The passes that every compilation runs, ordered by the fields they read and write, and the passes that
-            compile the whole systems they claim.
+            The passes that every compilation runs, ordered by the fields they read and write.
+
+        compilers:
+            The compilers of the whole systems they claim, which compile them in place of the pipeline of passes.
 
         forms:
             The forms it defines.
@@ -196,7 +201,8 @@ class Formalism:
     laws: tuple[type[BaseLaw], ...] = ()
     components: tuple[type[BaseComponent | BaseInteraction], ...] = ()
     spaces: tuple[type[BaseSpace], ...] = ()
-    passes: tuple[BasePass | SystemPass, ...] = ()
+    passes: tuple[BasePass, ...] = ()
+    compilers: tuple[BaseSystemCompiler, ...] = ()
     forms: tuple[Form, ...] = ()
     solvers: Mapping[str, type[Solver]] = field(default_factory=dict)
     defaults: tuple[type[Solver], ...] = ()

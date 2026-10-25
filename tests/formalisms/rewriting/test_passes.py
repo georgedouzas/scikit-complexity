@@ -10,7 +10,7 @@ import shapely
 from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, RoleError, ValidationError, parameter, symbol
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import box_counting_dimension
-from skcomplex.engine.compile import claiming_pass, compile_system
+from skcomplex.engine.compile import claiming_compiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import StructureState
 from skcomplex.formalisms import registered_formalisms
@@ -25,8 +25,8 @@ from skcomplex.formalisms.rewriting import (
     Prototile,
     Rewrite,
     Rewriting,
+    RewritingCompiler,
     RewritingError,
-    RewritingPass,
     RewritingSolver,
     SubstitutionLaw,
     WordComponent,
@@ -435,8 +435,8 @@ def test_productions_are_written():
 
 def test_rewriting_pass_claims_rewriting_systems():
     """Test that the registered rewriting pass claims a system of words and leaves a classical one."""
-    assert isinstance(claiming_pass(System(components=[WordComponent('algae', axiom='A')])), RewritingPass)
-    assert claiming_pass(System(components=[PopulationComponent('rabbits', n=10)])) is None
+    assert isinstance(claiming_compiler(System(components=[WordComponent('algae', axiom='A')])), RewritingCompiler)
+    assert claiming_compiler(System(components=[PopulationComponent('rabbits', n=10)])) is None
 
 
 def test_registered_formalisms_list_rewriting():

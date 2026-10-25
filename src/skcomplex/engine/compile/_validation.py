@@ -53,7 +53,7 @@ from ._noise import process_covariance
 from ._observables import _with_observables, held_observables, with_held_observables
 from ._pipeline import _registered_passes, registered_checks, run_passes
 from ._planner import _Plan, solver_classes, solver_registry
-from ._system_passes import claiming_pass
+from ._system_compilers import claiming_compiler
 from ._tree import Node, declared_times
 from .passes._core import CORE_PASSES
 
@@ -632,7 +632,7 @@ def _counted(
             ('structure', 'Pass elements, groups, interactions, and systems as children.'),
         )
         return None, [Issue(code, system.label, str(error), fix, error=type(error))]
-    if claiming_pass(observed) is not None:
+    if claiming_compiler(observed) is not None:
         return compilation, []
     held = held_observables(observed, cast('list[Node]', compilation.nodes))
     if held:

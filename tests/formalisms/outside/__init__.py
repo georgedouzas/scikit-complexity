@@ -30,7 +30,7 @@ from skcomplex.core.base import (
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
-from skcomplex.engine.compile import CompiledElement, Problem, SystemPass
+from skcomplex.engine.compile import BaseSystemCompiler, CompiledElement, Problem
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 
@@ -93,7 +93,7 @@ class DecayProblem(Problem):
     rates: tuple[int, ...] = ()
 
 
-class DecayPass(SystemPass):
+class DecayCompiler(BaseSystemCompiler):
     """Pass that compiles a system of nuclei into a problem of the decaying form."""
 
     def claims(self, system: System) -> bool:
@@ -160,7 +160,7 @@ FORMALISM = Formalism(
     'outside',
     laws=(DecayLaw,),
     components=(NucleusComponent,),
-    passes=(DecayPass(),),
+    compilers=(DecayCompiler(),),
     forms=(DECAYING,),
     solvers={'exact-decay': ExactDecaySolver},
     defaults=(ExactDecaySolver,),

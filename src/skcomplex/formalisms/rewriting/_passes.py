@@ -28,7 +28,7 @@ from ...core.base import (
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
 from ...core.system import System
-from ...engine.compile import CompiledElement, CompiledInteraction, Node, Problem, SystemPass, flatten_system
+from ...engine.compile import BaseSystemCompiler, CompiledElement, CompiledInteraction, Node, Problem, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of
 from ._interactions import Rewriting
 from ._laws import GraphProductionLaw, ProductionLaw, RewritingError, RewritingLaw, SubstitutionLaw
@@ -538,7 +538,7 @@ class RewritingProblem(Problem):
     rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
 
 
-class RewritingPass(SystemPass):
+class RewritingCompiler(BaseSystemCompiler):
     """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
 
     def claims(self, system: System) -> bool:

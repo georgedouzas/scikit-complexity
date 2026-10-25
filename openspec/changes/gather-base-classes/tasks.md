@@ -18,7 +18,7 @@
   `Problem` from it.
 - [x] 2.2 Add the generic `BaseSolver`, and turn `Stepper` into `Solver(BaseSolver[Problem])`. Move
   `ExternalBackend` to `engine/solvers`.
-- [ ] 2.3 Rename `SystemPass` to `BaseSystemCompiler`, unrelated to `BasePass`, and its subclasses to
+- [x] 2.3 Rename `SystemPass` to `BaseSystemCompiler`, unrelated to `BasePass`, and its subclasses to
   `QuantumCompiler`, `RewritingCompiler`, and `DecayCompiler`. Verify with the scenario "Quantum compiler".
 - [ ] 2.4 Add `core/problems` with `Problem`, the kernels, reductions, neighbourhoods, printing, lowering, and
   `BaseBackend` with its registry, moved from `engine/compile`, and replace the run-time import of the backends with

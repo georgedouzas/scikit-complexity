@@ -20,14 +20,20 @@ from skcomplex.core.base import (
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import ObservableEvaluator, claiming_pass, compile_system
+from skcomplex.engine.compile import (
+    BasePass,
+    BaseSystemCompiler,
+    ObservableEvaluator,
+    claiming_compiler,
+    compile_system,
+)
 from skcomplex.formalisms import registered_formalisms
 from skcomplex.formalisms.quantum import (
     DissipatorLaw,
     GeneratorLaw,
     HilbertSpaceError,
     LindbladSolver,
-    QuantumPass,
+    QuantumCompiler,
     QuantumProblem,
     expectation,
 )
@@ -204,8 +210,8 @@ def test_local_values_give_probabilities_and_expectations():
 
 def test_quantum_pass_claims_quantum_systems():
     """Test that the registered quantum pass claims a quantum system and leaves a classical one."""
-    assert isinstance(claiming_pass(System(components=[SpinComponent.group('chain', 2)])), QuantumPass)
-    assert claiming_pass(System(components=[PopulationComponent('rabbits', n=10)])) is None
+    assert isinstance(claiming_compiler(System(components=[SpinComponent.group('chain', 2)])), QuantumCompiler)
+    assert claiming_compiler(System(components=[PopulationComponent('rabbits', n=10)])) is None
 
 
 def test_registered_formalisms_list_quantum():
@@ -214,3 +220,9 @@ def test_registered_formalisms_list_quantum():
     assert {law.law_kind for law in quantum.laws} == {LawKind.GENERATOR, LawKind.DISSIPATOR}
     assert quantum.forms == (Form.QUANTUM,)
     assert quantum.defaults == (LindbladSolver,)
+
+
+def test_quantum_compiler_is_a_system_compiler_and_not_a_pass():
+    """Test that the quantum compiler compiles whole systems and is not a step of the pipeline of passes."""
+    assert issubclass(QuantumCompiler, BaseSystemCompiler)
+    assert not issubclass(QuantumCompiler, BasePass)

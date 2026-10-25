@@ -8,7 +8,7 @@ from ._observables import expectation
 from ._passes import (
     DEFAULT_MAX_DIMENSION,
     HilbertSpaceError,
-    QuantumPass,
+    QuantumCompiler,
     QuantumProblem,
     QuantumTerm,
     contains_quantum,
@@ -27,7 +27,7 @@ __all__: list[str] = [
     'LindbladSolver',
     'LocalOperator',
     'Operator',
-    'QuantumPass',
+    'QuantumCompiler',
     'QuantumProblem',
     'QuantumSolver',
     'QuantumTerm',
@@ -46,7 +46,7 @@ register(
     Formalism(
         'quantum',
         laws=(GeneratorLaw, DissipatorLaw),
-        passes=(QuantumPass(),),
+        compilers=(QuantumCompiler(),),
         forms=(Form.QUANTUM,),
         solvers={
             'unitary': UnitarySolver,

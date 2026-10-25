@@ -12,7 +12,6 @@ from typing import ClassVar
 from ...core.base import PipelineError, Registry
 from ._compilation import Compilation
 from ._issues import Issue
-from ._system_passes import SystemPass, register_system_pass
 
 type Check = Callable[[Compilation], list[Issue]]
 
@@ -182,18 +181,13 @@ def run_passes(compilation: Compilation, passes: Sequence['BasePass'], until: st
     return compilation
 
 
-def register_pass(item: 'BasePass | SystemPass') -> None:
-    """Register a pass that every compilation runs, or a pass that compiles the whole systems it claims.
-
-    Registering a pass again keeps it once, in its first place.
+def register_pass(item: 'BasePass') -> None:
+    """Register a pass that every compilation runs, keeping it once, in its first place, when registered again.
 
     Args:
         item:
             The pass.
     """
-    if isinstance(item, SystemPass):
-        register_system_pass(item)
-        return
     if item not in set(PASSES):
         PASSES.register(item, item)
 

@@ -55,7 +55,7 @@ from ._specs import (
     target_references,
 )
 from ._spectral import spectral_multiplier
-from ._system_passes import SystemPass, claiming_pass
+from ._system_compilers import BaseSystemCompiler, claiming_compiler, register_system_compiler
 from ._tree import Node, coerce_value, declared_times, flatten_system
 from ._validation import ValidationReport, missing_declarations, validate
 from .passes._problem import visual_of
@@ -70,6 +70,7 @@ __all__: list[str] = [
     'Accelerated',
     'BaseBackend',
     'BasePass',
+    'BaseSystemCompiler',
     'Binding',
     'Block',
     'BlockLaws',
@@ -111,12 +112,11 @@ __all__: list[str] = [
     'RenewalRecord',
     'Source',
     'StockFlow',
-    'SystemPass',
     'ValidationReport',
     'ValidationWarning',
     'VectorFunction',
     'capacity_rows',
-    'claiming_pass',
+    'claiming_compiler',
     'coerce_value',
     'compile_system',
     'declared_times',
@@ -142,6 +142,7 @@ __all__: list[str] = [
     'register_form',
     'register_owner',
     'register_pass',
+    'register_system_compiler',
     'resolve_backend',
     'run_passes',
     'solver_classes',

@@ -1186,7 +1186,7 @@ A new formalism needs no change to the shared core. It declares its contribution
 
 - A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
 - A law class derives from `BaseLaw` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
-- A `SystemPass` claims the systems it compiles and turns each into a `Problem` of the new form.
+- A `BaseSystemCompiler` claims the systems it compiles and turns each into a `Problem` of the new form.
 - A solver is a `Solver` that declares the form it advances and what it supports, and advances the state from one
   time to the next.
 - `depends` names the formalisms it builds on, which must be registered first.
@@ -1216,7 +1216,7 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.engine.compile import CompiledElement, Problem, SystemPass
+from skcomplex.engine.compile import CompiledElement, Problem, BaseSystemCompiler
 from skcomplex.core.base import Entry, Layout
 from skcomplex.core.components import ElementComponent
 from skcomplex.formalisms import Formalism, register
@@ -1253,7 +1253,7 @@ class DecayProblem(Problem):
     rates: tuple[int, ...] = ()
 
 
-class DecayPass(SystemPass):
+class DecayCompiler(BaseSystemCompiler):
     def claims(self, system):
         return bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
 
@@ -1301,7 +1301,7 @@ register(
         'decay',
         laws=(DecayLaw,),
         components=(NucleusComponent,),
-        passes=(DecayPass(),),
+        compilers=(DecayCompiler(),),
         forms=(EXPONENTIAL_DECAY,),
         solvers={'exact-decay': ExactDecaySolver},
         defaults=(ExactDecaySolver,),
