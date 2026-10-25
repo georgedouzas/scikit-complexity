@@ -49,7 +49,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
     model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
     run = Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system)).run(until=20)
-    times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_['amplitude'])
+    times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('amplitude'))
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]
     if width > 1:
         anchor = np.searchsorted(times, 8.0)

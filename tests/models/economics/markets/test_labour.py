@@ -20,8 +20,10 @@ def test_labour_market_flow_balance():
         .trajectory_
     )
     window = slice(50, None)
-    finding = np.nansum(trajectory['labour.volume'][window]) / np.nansum(trajectory['office.searching'][window])
-    unemployment = trajectory['unemployment'][window].mean()
+    finding = np.nansum(trajectory.values('labour.volume')[window]) / np.nansum(
+        trajectory.values('office.searching')[window]
+    )
+    unemployment = trajectory.values('unemployment')[window].mean()
     assert 0.05 < finding < 0.95
     assert abs(unemployment - separation / (separation + finding)) < 0.03
     workers = trajectory.agents('workers', 150)

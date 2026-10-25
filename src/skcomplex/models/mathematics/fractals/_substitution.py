@@ -45,7 +45,7 @@ def koch_curve(angle: float = 60.0) -> System:
 
     Examples:
         >>> from skcomplex.models import run
-        >>> run('koch_curve', settings={'until': 3}).trajectory_['koch.F'].tolist()
+        >>> run('koch_curve', settings={'until': 3}).trajectory_.values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
     word = WordComponent(
@@ -88,7 +88,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
 
     Examples:
         >>> from skcomplex.models import run
-        >>> run('cantor_set', settings={'until': 3}).trajectory_['cantor.size'].tolist()
+        >>> run('cantor_set', settings={'until': 3}).trajectory_.values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
     if not 0 < ratio < 0.5:  # noqa: PLR2004
@@ -134,7 +134,7 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
 
     Examples:
         >>> from skcomplex.models import run
-        >>> run('sierpinski_substitution', settings={'until': 2}).trajectory_['sierpinski.size'].tolist()
+        >>> run('sierpinski_substitution', settings={'until': 2}).trajectory_.values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
     if shape == 'triangle':

@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=150)
 # on the network from the first city.
 
 trajectory = simulation.trajectory_
-infected = trajectory['cities.I']
+infected = trajectory.values('cities.I')
 peaks = trajectory.times[np.argmax(infected, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in range(graph.number_of_nodes())])

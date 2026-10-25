@@ -40,8 +40,8 @@ trajectory = simulation.trajectory_
 
 carpet = Simulation(create(MODEL, shape='carpet')).run(4).trajectory_
 generations = trajectory.times
-gasket_area = trajectory['sierpinski.area'] / trajectory['sierpinski.area'][0]
-carpet_area = carpet['sierpinski.area']
+gasket_area = trajectory.values('sierpinski.area') / trajectory.values('sierpinski.area')[0]
+carpet_area = carpet.values('sierpinski.area')
 sizes = np.array([4, 8, 16, 32, 64, 128])
 fig, (decay, boxes) = plt.subplots(1, 2, figsize=(10, 4.5))
 decay.semilogy(generations, gasket_area, 'o', label='gasket')

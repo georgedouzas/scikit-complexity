@@ -23,7 +23,7 @@ def test_period_doubling_of_logistic_map():
 
 def side(trajectory):
     """Return the well an unforced double-well oscillator settles in."""
-    return 'right' if trajectory['duffing.x'][-1] > 0 else 'left'
+    return 'right' if trajectory.values('duffing.x')[-1] > 0 else 'left'
 
 
 def test_double_well_basins_are_symmetric():

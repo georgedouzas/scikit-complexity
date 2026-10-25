@@ -40,7 +40,7 @@ for network in ('erdos_renyi', 'watts_strogatz'):
     for coupling in couplings:
         model_system = create(MODEL, n_oscillators=200, network=network, K=coupling, sigma=0.5, seed=1)
         run = Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system)).run(until=40)
-        order.append(np.mean(np.asarray(run.trajectory_['order'])[-20:]))
+        order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=network.replace('_', '-'))
 ax.axvline(2 * 0.5 * np.sqrt(2 / np.pi), linestyle='--', color='black', label='all-to-all K_c')
 ax.axhline(1 / np.sqrt(200), linestyle=':', color='grey', label='1 / sqrt(N)')

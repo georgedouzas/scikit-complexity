@@ -228,7 +228,7 @@ class UnitarySolver(QuantumSolver):
         >>> system = System(components=[RabiComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).run(until=np.pi)
-        >>> float(round(simulation.trajectory_['z'][-1], 6))
+        >>> float(round(simulation.trajectory_.values('z')[-1], 6))
         -1.0
     """
 
@@ -272,7 +272,7 @@ class LindbladSolver(QuantumSolver):
         >>> system = System(components=[DecayingComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).run(until=2.0)
-        >>> bool(abs((1 + simulation.trajectory_['z'][-1]) / 2 - np.exp(-1.0)) < 1e-6)
+        >>> bool(abs((1 + simulation.trajectory_.values('z')[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
 
@@ -319,7 +319,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=QuantumTrajectoriesSolver(), dt=1.0, random_state=0, observables=z)
         >>> simulation = simulation.run(until=20.0)
-        >>> float(simulation.trajectory_['z'][-1])
+        >>> float(simulation.trajectory_.values('z')[-1])
         -1.0
     """
 

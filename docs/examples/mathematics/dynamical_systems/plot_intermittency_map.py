@@ -31,12 +31,12 @@ simulation = Simulation(create(MODEL), dt=1, observers=[observer]).run(until=290
 # over 200000 steps: as `1 / τ` for `z = 2` and as `1 / τ²` for `z = 1.5`.
 
 fig, (series, tails) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['map.x'], linewidth=0.6)
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('map.x'), linewidth=0.6)
 series.set_xlabel('step')
 series.set_ylabel('x')
 series.set_title('Laminar phases and bursts, z = 2')
 for z in (1.5, 2.0):
-    values = Simulation(create(MODEL, z=z), dt=1).run(until=200_000).trajectory_['map.x']
+    values = Simulation(create(MODEL, z=z), dt=1).run(until=200_000).trajectory_.values('map.x')
     durations, share = ccdf(laminar_durations(values, threshold=0.1))
     (line,) = tails.loglog(durations, share, label=f'z = {z}')
     reference = durations[(durations > 20) & (durations < 2000)]

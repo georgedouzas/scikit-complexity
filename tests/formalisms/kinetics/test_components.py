@@ -50,8 +50,8 @@ def test_agents_bin_into_a_distribution():
     system = System(components=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [Observable('density', density, group='wealth'), Observable('mean', mean_class, group='wealth')]
     trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
-    assert trajectory['density'][0] == pytest.approx(1.0)
-    assert trajectory['mean'][0] == pytest.approx(traders.values['wealth'].mean())
+    assert trajectory.values('density')[0] == pytest.approx(1.0)
+    assert trajectory.values('mean')[0] == pytest.approx(traders.values['wealth'].mean())
 
 
 def test_values_bin_to_the_nearest_activity():

@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 
 trajectory = simulation.trajectory_
 steps = trajectory.times[1:]
-positions = trajectory['walkers.x']
+positions = trajectory.values('walkers.x')
 distance = np.median(np.linalg.norm(positions[1:], axis=-1), axis=1)
 slope = np.polyfit(np.log(steps), np.log(distance), 1)[0]
 lengths = np.linalg.norm(np.diff(positions, axis=0), axis=-1).ravel()

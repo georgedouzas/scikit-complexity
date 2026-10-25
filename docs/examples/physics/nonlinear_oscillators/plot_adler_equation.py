@@ -33,7 +33,7 @@ detunings = np.linspace(0.0, 3.0, 25)
 rates = []
 for detuning in detunings:
     run = Simulation(create(MODEL, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).run(until=400)
-    phase = np.unwrap(np.ravel(run.trajectory_['difference.phi']))
+    phase = np.unwrap(np.ravel(run.trajectory_.values('difference.phi')))
     times = np.asarray(run.trajectory_.times)
     half = times > 200
     rates.append(np.polyfit(times[half], phase[half], 1)[0])

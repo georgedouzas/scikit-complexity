@@ -31,7 +31,11 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=5)
 # of the solver.
 
 trajectory = simulation.trajectory_
-ventricle, arteries, veins = trajectory['ventricle.V'], trajectory['arteries.V'], trajectory['veins.V']
+ventricle, arteries, veins = (
+    trajectory.values('ventricle.V'),
+    trajectory.values('arteries.V'),
+    trajectory.values('veins.V'),
+)
 total = ventricle + arteries + veins
 fig, (volumes, conservation) = plt.subplots(1, 2, figsize=(10, 4))
 volumes.plot(trajectory.times, ventricle, label='ventricle')

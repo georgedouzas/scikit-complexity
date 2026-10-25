@@ -45,10 +45,10 @@ final_sizes = [
         observables=describe(MODEL).observables_of(system),
     )
     .run(until=300)
-    .trajectory_['recovered'][-1]
+    .trajectory_.values('recovered')[-1]
     for rate in rates
 ]
-infected = simulation.trajectory_['network.i']
+infected = simulation.trajectory_.values('network.i')
 
 fig, (sizes, timing) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.plot(rates, final_sizes, 'o-', label='simulated')

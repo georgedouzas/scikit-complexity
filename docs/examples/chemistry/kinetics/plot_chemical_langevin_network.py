@@ -34,11 +34,11 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 
 trajectory = simulation.trajectory_
 deterministic = Simulation(create('michaelis_menten'), dt=0.5).run(until=50).trajectory_
-enzyme = trajectory['E.n'] + trajectory['C.n']
-substrate = trajectory['S.n'] + trajectory['C.n'] + trajectory['P.n']
+enzyme = trajectory.values('E.n') + trajectory.values('C.n')
+substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))
-amounts.plot(trajectory.times, trajectory['C.n'], label='complex, Langevin')
-amounts.plot(deterministic.times, deterministic['C.n'], color='black', linestyle='--', label='complex, rate equations')
+amounts.plot(trajectory.times, trajectory.values('C.n'), label='complex, Langevin')
+amounts.plot(deterministic.times, deterministic.values('C.n'), color='black', linestyle='--', label='complex, rate equations')
 amounts.set_xlabel('time')
 amounts.set_ylabel('amount')
 amounts.set_title('Noise around the rate equations')

@@ -47,7 +47,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL, order=0.6), dt=0.1, observers=[observer]).run(until=20)
 runs = {order: Simulation(create(MODEL, order=order), dt=0.1).run(until=20).trajectory_ for order in ORDERS}
-strips = [np.column_stack([10 * run.times, -100 * run['relaxation.x']]) for run in runs.values()]
+strips = [np.column_stack([10 * run.times, -100 * run.values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()
 
@@ -61,7 +61,7 @@ fig, ax = plt.subplots(figsize=(6, 4.5))
 for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
     exact = mittag_leffler(order, 1.0, -(times**order))
-    ax.loglog(times, run['relaxation.x'][1:], 'o', markersize=2, color=np.array(color) / 255, label=f'order {order}')
+    ax.loglog(times, run.values('relaxation.x')[1:], 'o', markersize=2, color=np.array(color) / 255, label=f'order {order}')
     ax.loglog(times, exact, '-', linewidth=0.8, color='black')
     if order < 1:
         ax.loglog(times[50:], times[50:] ** -order / math.gamma(1 - order), ':', color=np.array(color) / 255)

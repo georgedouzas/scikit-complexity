@@ -27,7 +27,7 @@ def test_repressilator_oscillates_as_equations_and_jumps():
     for stochastic in (False, True):
         system = repressilator(stochastic=stochastic)
         trajectory = Simulation(system, dt=0.5, random_state=1).run(until=250).trajectory_
-        protein = trajectory['gene_0.p'][trajectory.times > 50]
+        protein = trajectory.values('gene_0.p')[trajectory.times > 50]
         assert protein.max() > 3 * max(protein.min(), 1.0)
         periods.append(_autocorrelation_period(protein, 0.5))
     deterministic, stochastic_period = periods
@@ -39,7 +39,7 @@ def test_toggle_switch_remembers_its_initial_state():
     finals = []
     for proteins in ((60.0, 0.0), (0.0, 60.0)):
         state = Simulation(toggle_switch(proteins), dt=1.0).run(until=100).trajectory_
-        finals.append((state['gene_0.p'][-1], state['gene_1.p'][-1]))
+        finals.append((state.values('gene_0.p')[-1], state.values('gene_1.p')[-1]))
     (first_high, first_low), (second_low, second_high) = finals
     assert first_high > 10 * first_low
     assert second_high > 10 * second_low
@@ -50,7 +50,7 @@ def test_negative_autoregulation_is_bursty():
     statistics = []
     for K in (10.0, 1e9):
         trajectory = Simulation(negative_autoregulation(K=K), dt=1.0, random_state=0).run(until=400).trajectory_
-        protein = trajectory['gene.p'][trajectory.times > 100]
+        protein = trajectory.values('gene.p')[trajectory.times > 100]
         statistics.append((protein.mean(), protein.var() / protein.mean()))
     (regulated_mean, regulated_fano), (free_mean, free_fano) = statistics
     assert regulated_mean < 0.7 * free_mean

@@ -50,14 +50,14 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 def volatility(memory, **options):
     """Return `sigma^2 / N` of the attendance after the transient."""
     run = Simulation(create(MODEL, n_agents=N, memory=memory, random_state=0, **options), random_state=0)
-    attendance = run.run(until=ROUNDS).trajectory_['game.attendance']
+    attendance = run.run(until=ROUNDS).trajectory_.values('game.attendance')
     return attendance[TRANSIENT:].var() / N
 
 
 memories = np.arange(1, 8)
 alphas = 2.0**memories / N
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['game.attendance'], lw=0.8)
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('game.attendance'), lw=0.8)
 series.set_xlabel('round')
 series.set_ylabel('attendance A')
 series.set_title('Attendance for m = 4')

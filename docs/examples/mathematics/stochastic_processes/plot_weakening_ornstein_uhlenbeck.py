@@ -32,7 +32,7 @@ simulation = Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observ
 # Ornstein-Uhlenbeck process with the same stiffness near the origin, of variance `D / k = 0.25`.
 
 ensemble = Simulation(create(MODEL, n_particles=500), dt=0.05, random_state=1).run(until=200).trajectory_
-positions = np.abs(ensemble['particles.x'][2000:].ravel())
+positions = np.abs(ensemble.values('particles.x')[2000:].ravel())
 edges = np.geomspace(0.05, 30, 40)
 density, _ = np.histogram(positions, bins=edges, density=True)
 centers = np.sqrt(edges[1:] * edges[:-1])

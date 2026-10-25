@@ -69,8 +69,8 @@ def test_reflecting_box_reverses_crossing_particle():
         space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
-    assert trajectory['p.x'][-1, 0] == pytest.approx(0.9)
-    assert trajectory['p.v'][-1, 0] == pytest.approx(-1.0)
+    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.9)
+    assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0)
 
 
 def test_periodic_box_wraps_leaving_particle():
@@ -80,8 +80,8 @@ def test_periodic_box_wraps_leaving_particle():
         space=ContinuousSpace(1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
-    assert trajectory['p.x'][-1, 0] == pytest.approx(0.1)
-    assert trajectory['p.v'][-1, 0] == pytest.approx(1.0)
+    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.1)
+    assert trajectory.values('p.v')[-1, 0] == pytest.approx(1.0)
 
 
 def test_where_with_equal_branches_simplifies():
@@ -108,8 +108,8 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
         space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
-    assert trajectory['p.x'][-1, 0] == pytest.approx(0.5, abs=1e-6)
-    assert trajectory['p.v'][-1, 0] == pytest.approx(-1.0, abs=1e-6)
+    assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
+    assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0, abs=1e-6)
 
 
 def _driven_by(data):
@@ -189,8 +189,8 @@ def test_coupled_equations_conserve_energy():
         .run(until=10)
         .trajectory_
     )
-    a, b = trajectory['dp.a'], trajectory['dp.b']
-    a_d1, b_d1 = trajectory['dp.a_d1'], trajectory['dp.b_d1']
+    a, b = trajectory.values('dp.a'), trajectory.values('dp.b')
+    a_d1, b_d1 = trajectory.values('dp.a_d1'), trajectory.values('dp.b_d1')
     energy = a_d1**2 + 0.5 * b_d1**2 + a_d1 * b_d1 * np.cos(a - b) - 2 * 9.81 * np.cos(a) - 9.81 * np.cos(b)
     assert np.abs(energy - energy[0]).max() < 1e-7 * abs(energy[0])
 
@@ -206,10 +206,10 @@ def test_third_order_jerk_is_bounded_and_chaotic():
     first = Simulation(System(components=[JerkComponent('j')]), solver=PRECISE, dt=0.5).run(until=300)
     assert first.problem_.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
     second = Simulation(System(components=[JerkComponent('j', x=1e-8)]), solver=PRECISE, dt=0.5).run(until=300)
-    x = first.trajectory_['j.x']
+    x = first.trajectory_.values('j.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
-    assert np.abs(x - second.trajectory_['j.x']).max() > 0.1
+    assert np.abs(x - second.trajectory_.values('j.x')).max() > 0.1
 
 
 def test_derivative_at_order_is_rejected_in_rates():

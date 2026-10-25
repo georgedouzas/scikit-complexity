@@ -21,7 +21,7 @@ def _lorenz_samples():
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
     trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).run(until=until).trajectory_
-    values = np.column_stack([trajectory[f'lorenz.{name}'] for name in 'xyz'])
+    values = np.column_stack([trajectory.values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return trajectory.times[first:], values[first:]
 
@@ -49,7 +49,7 @@ def test_reservoir_surrogate_runs_under_discrete_time():
     assert isinstance(model.system_.time, DiscreteTime)
     assert validate(model.system_).ok
     run = Simulation(model.system_).run(until=20).trajectory_
-    assert np.allclose(np.column_stack([run['surrogate.x'], run['surrogate.y']])[1:], model.run(20))
+    assert np.allclose(np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])[1:], model.run(20))
 
 
 def test_reservoir_surrogate_holds_memory_as_states():

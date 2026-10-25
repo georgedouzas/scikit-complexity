@@ -36,7 +36,10 @@ simulation = Simulation(create(MODEL, density=0.5, random_state=0), observers=[o
 grids = simulation.trajectory_.lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    Simulation(create(MODEL, density=density, random_state=0)).run(until=STEPS).trajectory_['voters.opinion'][-1].mean()
+    Simulation(create(MODEL, density=density, random_state=0))
+    .run(until=STEPS)
+    .trajectory_.values('voters.opinion')[-1]
+    .mean()
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))

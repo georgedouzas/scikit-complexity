@@ -51,7 +51,7 @@ for index, d in enumerate((1, 2, 3)):
                 observables=describe(MODEL).observables_of(system),
             )
             .run(until=STEPS)
-            .trajectory_['total_cost']
+            .trajectory_.values('total_cost')
             for seed in range(SEEDS)
         ],
         axis=0,

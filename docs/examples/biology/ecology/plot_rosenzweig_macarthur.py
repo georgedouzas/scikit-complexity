@@ -34,11 +34,11 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).run
 fast = simulation.trajectory_
 slow = Simulation(create(MODEL, rate=0.0002), dt=0.5, solver=solver).run(until=149).trajectory_
 fig, ax = plt.subplots(figsize=(8, 4))
-ax.semilogy(slow.times, slow['prey.n'], label='rate 0.0002: tracks the point')
-ax.semilogy(fast.times, fast['prey.n'], label='rate 0.002: tips')
+ax.semilogy(slow.times, slow.values('prey.n'), label='rate 0.0002: tracks the point')
+ax.semilogy(fast.times, fast.values('prey.n'), label='rate 0.002: tips')
 ax.set_xlim(0, 40)
 ax.set_xlabel('time')
 ax.set_ylabel('prey (log scale)')
-ax.set_title(f'Lowest prey: {slow["prey.n"].min():.2g} when slow, {fast["prey.n"].min():.2g} when fast')
+ax.set_title(f'Lowest prey: {slow.values("prey.n").min():.2g} when slow, {fast.values("prey.n").min():.2g} when fast')
 ax.legend()
 plt.show()

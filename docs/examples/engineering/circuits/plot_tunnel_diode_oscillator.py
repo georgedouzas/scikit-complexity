@@ -31,10 +31,10 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 fig, ax = plt.subplots(figsize=(6, 5))
 for V0, i0 in [(0.1, 0.0), (2.0, 1.0), (-1.5, -1.5), (0.0, 2.5)]:
     run = Simulation(create(MODEL, V=V0, i=i0), dt=0.05).run(until=50).trajectory_
-    ax.plot(run['circuit.V'], run['circuit.i'], linewidth=0.8)
+    ax.plot(run.values('circuit.V'), run.values('circuit.i'), linewidth=0.8)
     ax.plot(V0, i0, 'o', color='gray', markersize=4)
 trajectory = simulation.trajectory_
-amplitude = np.abs(trajectory['circuit.V'][trajectory.times > 30]).max()
+amplitude = np.abs(trajectory.values('circuit.V')[trajectory.times > 30]).max()
 for side in (-1, 1):
     ax.axvline(side * 2 * np.sqrt(1 / 3), color='black', linestyle='--', linewidth=0.8)
 ax.set_xlabel('voltage V')

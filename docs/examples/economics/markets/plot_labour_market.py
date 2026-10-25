@@ -56,8 +56,8 @@ simulation = Simulation(
 # initial reservation wage of 1 as long searches wear it down.
 
 trajectory = simulation.trajectory_
-times, unemployment = trajectory.times, trajectory['unemployment']
-hires, searching = trajectory['labour.volume'], trajectory['office.searching']
+times, unemployment = trajectory.times, trajectory.values('unemployment')
+hires, searching = trajectory.values('labour.volume'), trajectory.values('office.searching')
 window = slice(50, None)
 finding = np.nansum(hires[window]) / np.nansum(searching[window])
 balance = SEPARATION / (SEPARATION + finding)

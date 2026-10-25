@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).run
 # the one-step log returns should follow that normal density.
 
 long_run = Simulation(create(MODEL, price=PRICE, mu=MU, sigma=SIGMA), dt=DT, random_state=1).run(until=200)
-logs = np.log(long_run.trajectory_['asset.price'])
+logs = np.log(long_run.trajectory_.values('asset.price'))
 lags = np.unique(np.logspace(0, 2.5, 20).astype(int))
 returns = logs[1:] - logs[:-1]
 grid = np.linspace(returns.min(), returns.max(), 200)

@@ -26,7 +26,7 @@ def test_pontryagin_matches_riccati_solution(linear_quadratic, riccati_control):
     """Test that the Pontryagin control of the scalar linear-quadratic problem matches the Riccati solution."""
     simulation = Simulation(linear_quadratic, solver=PontryaginSolver(), dt=0.05).run(until=1.0)
     trajectory = simulation.trajectory_
-    np.testing.assert_allclose(trajectory['plant.u'], riccati_control(trajectory.times), atol=1e-3)
+    np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
     solution = simulation.stepper_.solution_
     assert solution.cost == pytest.approx(np.tanh(1.0) / 2, abs=1e-5)
     np.testing.assert_allclose(solution.costates['plant.x'], -riccati_control(solution.times), atol=1e-6)
@@ -35,14 +35,14 @@ def test_pontryagin_matches_riccati_solution(linear_quadratic, riccati_control):
 def test_pontryagin_records_the_running_cost(linear_quadratic):
     """Test that the trajectory records the running cost of the objective under its label."""
     trajectory = Simulation(linear_quadratic, solver=PontryaginSolver(), dt=0.1).run(until=1.0).trajectory_
-    expected = (trajectory['plant.x'] ** 2 + trajectory['plant.u'] ** 2) / 2
-    np.testing.assert_allclose(trajectory['plant.objective'], expected)
+    expected = (trajectory.values('plant.x') ** 2 + trajectory.values('plant.u') ** 2) / 2
+    np.testing.assert_allclose(trajectory.values('plant.objective'), expected)
 
 
 def test_pontryagin_projects_the_control_onto_its_bounds(linear_quadratic):
     """Test that a control whose optimum leaves its bounds is held at the bound."""
     simulation = Simulation(linear_quadratic, solver=PontryaginSolver(), dt=0.1, initial_state={'plant.x': 30.0})
-    controls = simulation.run(until=1.0).trajectory_['plant.u']
+    controls = simulation.run(until=1.0).trajectory_.values('plant.u')
     assert controls.min() == pytest.approx(-10.0)
 
 

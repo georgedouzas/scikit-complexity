@@ -73,7 +73,7 @@ def _damage_share(factory, connectivity, seed):
     perturbed = problem.initial_state.copy()
     perturbed[problem.states.entry(name).start] = 1 - perturbed[problem.states.entry(name).start]
     finals = [
-        np.asarray(_run(dataclasses.replace(problem, initial_state=initial), 50, random_state=seed)[name][-1])
+        np.asarray(_run(dataclasses.replace(problem, initial_state=initial), 50, random_state=seed).values(name)[-1])
         for initial in (problem.initial_state, perturbed)
     ]
     return float(np.mean(finals[0] != finals[1]))

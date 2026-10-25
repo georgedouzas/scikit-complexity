@@ -62,7 +62,7 @@ def test_categorical_values_round_trip_as_labels():
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     trajectory = Simulation(system).run(until=1).trajectory_
-    assert trajectory['ann.health'].tolist() == ['infected', 'recovered']
+    assert trajectory.values('ann.health').tolist() == ['infected', 'recovered']
 
 
 def test_categorical_rejects_unknown_label():
@@ -77,7 +77,7 @@ def test_angle_wraps_into_one_turn():
         components=[RotorComponent('r', theta=6.0, omega=1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
-    values = Simulation(system, dt=0.5).run(until=3).trajectory_['r.theta']
+    values = Simulation(system, dt=0.5).run(until=3).trajectory_.values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
 
@@ -88,7 +88,7 @@ def test_angle_swings_around_zero_without_jumping():
         components=[RotorComponent('r', theta=0.1, omega=-1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
-    values = Simulation(system, dt=0.1).run(until=1).trajectory_['r.theta']
+    values = Simulation(system, dt=0.1).run(until=1).trajectory_.values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
 
@@ -102,6 +102,6 @@ def test_angle_encode_wraps_into_half_open_turn():
 def test_boolean_values_return_as_booleans():
     """Test that boolean states return booleans and reject other numbers."""
     trajectory = Simulation(System(components=[SwitchComponent('s', on=True)]), dt=1).run(until=1).trajectory_
-    assert trajectory['s.on'].tolist() == [True, True]
+    assert trajectory.values('s.on').tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
         Simulation(System(components=[SwitchComponent('s', on=0.5)])).run(until=1)

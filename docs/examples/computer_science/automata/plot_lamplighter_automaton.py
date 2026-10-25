@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 # the group ring element `1 + a + b` is a matrix over GF(2), and its rank decides whether the automaton is invertible
 # there.
 
-alive = simulation.trajectory_['cells.alive']
+alive = simulation.trajectory_.values('cells.alive')
 quotient = CayleySpace(lamplighter(), quotient=3)
 parity = LinearAutomaton(quotient, Memory(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
 fig, ax = plt.subplots(figsize=(6, 4))

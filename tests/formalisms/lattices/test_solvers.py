@@ -305,14 +305,14 @@ def test_temperature_changes_live():
         random_state=0,
         schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
     ).run(until=200)
-    magnetization = np.abs(simulation.trajectory_['spins.spin'].mean(axis=1))
+    magnetization = np.abs(simulation.trajectory_.values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3
 
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY model keep every angle in (-π, π]."""
-    values = Simulation(xy(16)).run(until=50).trajectory_['spins.theta']
+    values = Simulation(xy(16)).run(until=50).trajectory_.values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 
@@ -352,7 +352,7 @@ def test_relaxation_over_active_sites_matches_the_full_update():
     sparse = Simulation(_pile(lambda heights: heights >= 4, sparse_sites), dt=5000, random_state=0)
     sparse = sparse.run(until=5000).trajectory_
     full = Simulation(_pile(None, full_sites), dt=5000, random_state=0).run(until=5000).trajectory_
-    np.testing.assert_array_equal(sparse['pile.height'][-1], full['pile.height'][-1])
+    np.testing.assert_array_equal(sparse.values('pile.height')[-1], full.values('pile.height')[-1])
     assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
     assert [event.time for event in sparse.events] == [event.time for event in full.events]
     assert sum(sparse_sites) < sum(full_sites) / 10

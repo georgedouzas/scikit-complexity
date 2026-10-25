@@ -217,7 +217,7 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
-    weights = simulation.run(until=1.0).trajectory_['synapses.w'][-1]
+    weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
     sources, targets = space.list_edges()
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
@@ -266,7 +266,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         ],
     )
     trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).run(until=20.0).trajectory_
-    infected, wages = trajectory['people.infected'][-1], trajectory['people.wage'][-1]
+    infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
     isolated = System(
@@ -277,7 +277,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
     trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).run(until=20.0).trajectory_
-    assert np.allclose(trajectory['people.infected'][-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
+    assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
@@ -349,7 +349,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).run(until=60.0).trajectory_
-    assert trajectory['nodes.i'][-1].tolist() == [1.0, 1.0, 1.0, 1.0]
+    assert trajectory.values('nodes.i')[-1].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
 def test_edge_interactions_run_on_lattice_bonds():

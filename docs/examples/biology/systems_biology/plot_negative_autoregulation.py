@@ -32,10 +32,10 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).ru
 fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
     trajectory = Simulation(create(MODEL, K=K), dt=1.0, random_state=1).run(until=1000).trajectory_
-    protein = trajectory['gene.p'][trajectory.times > 100]
+    protein = trajectory.values('gene.p')[trajectory.times > 100]
     ax.plot(
         trajectory.times,
-        trajectory['gene.p'],
+        trajectory.values('gene.p'),
         label=f'{label}: mean {protein.mean():.0f}, Fano {fano_factor(protein):.1f}',
     )
 ax.set_xlabel('time')

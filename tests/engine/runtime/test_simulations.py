@@ -135,7 +135,7 @@ def test_simulation_updates_one_per_entry_weight_live():
     """Test that a live update of one component of a per-entry parameter changes that entry only."""
     schedule = {'sum.weights[1]': lambda t: 1.0 if t < 1 else 10.0}
     trajectory = Simulation(_summed(['a', 'b', 'c']), dt=1, schedule=schedule).run(until=2).trajectory_
-    assert trajectory['target.x'].tolist() == [0.0, 7.0, 25.0]
+    assert trajectory.values('target.x').tolist() == [0.0, 7.0, 25.0]
     simulation = Simulation(_summed(['a', 'b', 'c'])).run(until=1)
     simulation.update_parameters({'sum.weights[2]': 5.0})
     assert simulation.parameters_.tolist() == [1.0, 1.0, 5.0]
@@ -148,8 +148,12 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
         .run(100)
         .trajectory_
     )
-    money = trajectory['households.deposits'] + trajectory['firms.deposits'] + trajectory['bank.deposits']
-    created = trajectory['circuit.lending'] - trajectory['circuit.repayments']
+    money = (
+        trajectory.values('households.deposits')
+        + trajectory.values('firms.deposits')
+        + trajectory.values('bank.deposits')
+    )
+    created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
         assert flow_matrix(trajectory, frame).values.sum(axis=1) == pytest.approx(0.0, abs=1e-12)
@@ -158,8 +162,8 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
 def test_trajectory_returns_group_arrays():
     """Test that a group state over 100 frames has the shape `(100, 500, 2)`."""
     trajectory = Simulation(_pushed_gas(), dt=0.01).run(until=0.99).trajectory_
-    assert trajectory['gas.x'].shape == (100, 500, 2)
-    assert trajectory['gas.m'].shape == (100, 500)
+    assert trajectory.values('gas.x').shape == (100, 500, 2)
+    assert trajectory.values('gas.m').shape == (100, 500)
 
 
 def test_group_parameter_changes_while_running():
@@ -169,9 +173,9 @@ def test_group_parameter_changes_while_running():
     simulation.update_parameters({'gas.m': 2.0})
     simulation.wait()
     trajectory = simulation.trajectory_
-    changed = int(np.argmax(np.all(trajectory['gas.m'] == 2.0, axis=1)))
+    changed = int(np.argmax(np.all(trajectory.values('gas.m') == 2.0, axis=1)))
     assert changed > 0
-    accelerations = np.diff(trajectory['gas.v'][:, :, 0], axis=0) / 0.01
+    accelerations = np.diff(trajectory.values('gas.v')[:, :, 0], axis=0) / 0.01
     assert np.allclose(accelerations[changed:], 0.5)
     assert np.allclose(accelerations[: changed - 1], 1.0)
 
@@ -193,7 +197,7 @@ def test_group_parameter_with_wrong_shape_raises_error():
 def test_reflecting_box_keeps_members_inside_ode_run():
     """Test that no member crosses a wall of a reflecting box in an ODE system."""
     trajectory = Simulation(ideal_gas(500, kT=4.0, random_state=1), dt=0.01).run(until=2).trajectory_
-    positions = trajectory['gas.x']
+    positions = trajectory.values('gas.x')
     assert np.all((positions >= 0) & (positions <= 1))
 
 
@@ -249,10 +253,10 @@ def test_simulation_update_parameters_while_running():
     simulation.update_parameters({'g.r': 0.0})
     simulation.wait()
     trajectory = simulation.trajectory_
-    rates = trajectory['g.r']
+    rates = trajectory.values('g.r')
     changed = int(np.argmax(rates == 0.0))
     assert changed > 0
-    assert np.allclose(trajectory['a.n'][changed:], trajectory['a.n'][changed])
+    assert np.allclose(trajectory.values('a.n')[changed:], trajectory.values('a.n')[changed])
 
 
 def test_simulation_update_unknown_parameter_raises_error():
@@ -285,7 +289,7 @@ def test_simulation_stop_background_run():
     simulation.resume()
     simulation.stop()
     assert not simulation._thread.is_alive()
-    assert len(simulation.trajectory_) > 1
+    assert len(simulation.trajectory_.times) > 1
 
 
 def test_simulation_background_error_raised_on_wait():
@@ -322,7 +326,7 @@ def test_trajectory_unknown_name_raises_error():
     """Test that a trajectory names the available variables."""
     trajectory = Simulation(_growth()).run(until=0.1).trajectory_
     with pytest.raises(KeyError, match=r'a\.n, g\.r'):
-        trajectory['b.n']
+        trajectory.values('b.n')
 
 
 def test_simulation_same_random_state_is_reproducible():
@@ -337,8 +341,8 @@ def test_simulation_parameters_carry_over_runs():
     simulation = Simulation(_logistic(), dt=1.0).run(until=5)
     simulation.update_parameters({'growth.r': 0.0})
     trajectory = simulation.run(until=10).trajectory_
-    assert np.all(trajectory['rabbits.n'] == 10.0)
-    assert np.all(trajectory['growth.r'] == 0.0)
+    assert np.all(trajectory.values('rabbits.n') == 10.0)
+    assert np.all(trajectory.values('growth.r') == 0.0)
 
 
 def test_simulation_agent_parameters_carry_over_runs():
@@ -354,10 +358,10 @@ def test_simulation_extend_runs_in_two_parts():
     simulation = Simulation(_logistic(), dt=1.0).run(until=5)
     simulation.update_parameters({'growth.r': 0.0})
     trajectory = simulation.extend(until=10).trajectory_
-    reference = Simulation(_logistic(), dt=1.0).run(until=5).trajectory_['rabbits.n']
+    reference = Simulation(_logistic(), dt=1.0).run(until=5).trajectory_.values('rabbits.n')
     assert trajectory.times.tolist() == [float(time) for time in range(11)]
-    assert trajectory['rabbits.n'][:6] == pytest.approx(reference)
-    assert np.all(trajectory['rabbits.n'][5:] == trajectory['rabbits.n'][5])
+    assert trajectory.values('rabbits.n')[:6] == pytest.approx(reference)
+    assert np.all(trajectory.values('rabbits.n')[5:] == trajectory.values('rabbits.n')[5])
 
 
 def test_simulation_extend_backwards_raises_error():
@@ -394,8 +398,8 @@ def test_trajectory_gives_agent_locations_over_frames():
     """Test that the locations of a group of agents come as one array per frame."""
     trajectory = Simulation(create('boids'), random_state=0).run(until=3).trajectory_
     locations = trajectory.agent_locations('flock')
-    assert len(locations) == len(trajectory)
-    np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory) - 1).locations)
+    assert len(locations) == len(trajectory.times)
+    np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory.times) - 1).locations)
 
 
 def test_initial_state_replaces_the_values_of_components():
@@ -405,7 +409,7 @@ def test_initial_state_replaces_the_values_of_components():
         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.0)],
     )
     trajectory = Simulation(system, dt=1.0, initial_state={'rabbits.n': 20.0}).run(until=1.0).trajectory_
-    assert trajectory['rabbits.n'][0] == pytest.approx(20.0)
+    assert trajectory.values('rabbits.n')[0] == pytest.approx(20.0)
     with pytest.raises(ValidationError, match=r'foxes\.n'):
         Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).run(until=1.0)
 
@@ -416,9 +420,9 @@ def test_simulation_schedules_a_bounded_control():
     trajectory = (
         Simulation(System(components=[HeaterComponent('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
     )
-    np.testing.assert_array_equal(trajectory['heater.power'], [0, 0, 1, 1, 1, 1, 1])
-    assert trajectory['heater.T'][2] == pytest.approx(0.0)
-    assert trajectory['heater.T'][-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
+    np.testing.assert_array_equal(trajectory.values('heater.power'), [0, 0, 1, 1, 1, 1, 1])
+    assert trajectory.values('heater.T')[2] == pytest.approx(0.0)
+    assert trajectory.values('heater.T')[-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)
 
 
 def test_correlated_noise_repeats_with_same_seed():
@@ -433,7 +437,7 @@ def test_correlated_noise_repeats_with_same_seed():
 def test_perfect_correlation_keeps_states_equal():
     """Test that processes of correlation 1 keep two states with unit noise equal at every frame."""
     trajectory = Simulation(_correlated([[1.0, 1.0], [1.0, 1.0]]), random_state=0, dt=0.1).run(until=2).trajectory_
-    np.testing.assert_allclose(trajectory['a.n'], trajectory['b.n'], atol=1e-12)
+    np.testing.assert_allclose(trajectory.values('a.n'), trajectory.values('b.n'), atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -441,4 +445,4 @@ def test_unnamed_noise_reproduces_stored_trajectory(backend):
     """Test that geometric Brownian motion with random state 0 repeats the stored trajectory on both backends."""
     simulation = Simulation(geometric_brownian_motion(), backend=backend, random_state=0, dt=0.05)
     trajectory = simulation.run(until=0.5).trajectory_
-    np.testing.assert_array_equal(trajectory['asset.price'], STORED_GEOMETRIC_BROWNIAN_MOTION)
+    np.testing.assert_array_equal(trajectory.values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)

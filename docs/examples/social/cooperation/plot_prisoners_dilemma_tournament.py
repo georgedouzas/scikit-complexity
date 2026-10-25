@@ -32,7 +32,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 # cooperation (genes `C` and `CC`) is cooperation, and falls when exploiters that defect after `C` spread.
 
 trajectory = simulation.trajectory_
-frames = range(0, len(trajectory), 10)
+frames = range(0, len(trajectory.times), 10)
 genes = np.array([np.asarray(trajectory.agents('agents', frame).values['genome']).mean(axis=0) for frame in frames])
 scores = [np.mean(trajectory.agents('agents', frame).values['fitness']) for frame in frames]
 times = np.asarray(trajectory.times)[list(frames)]

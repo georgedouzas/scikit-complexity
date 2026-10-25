@@ -211,8 +211,8 @@ class PaymentsInteraction(BaseInteraction):
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
     trajectory = Simulation(System(components=[TanksComponent('t')], time=time), dt=1.0).run(until=5).trajectory_
-    np.testing.assert_allclose(trajectory['t.a'] + trajectory['t.b'], 4.0, atol=1e-12)
-    assert trajectory['t.a'][-1] < 3.0
+    np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
+    assert trajectory.values('t.a')[-1] < 3.0
 
 
 def test_transfer_with_the_environment_takes_none():
@@ -223,16 +223,16 @@ def test_transfer_with_the_environment_takes_none():
         laws=lambda s: [TransferLaw(None, s.n, 1.0, label='inflow')],
     )
     trajectory = Simulation(System(components=[FilledComponent('f')]), dt=1.0).run(until=3).trajectory_
-    assert trajectory['f.n'][-1] == pytest.approx(3.0)
+    assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
 
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
     trajectory = Simulation(System(components=[TubComponent('tub')]), dt=1).run(30).trajectory_
-    assert trajectory['tub.water'][-1] == pytest.approx(10.0, rel=1e-3)
-    assert trajectory['tub.faucet'][-1] == pytest.approx(5.0)
-    assert trajectory['tub.drain'][-1] == pytest.approx(5.0, rel=1e-3)
-    assert trajectory['__boundary.water'][-1] == pytest.approx(trajectory['tub.water'][-1], rel=1e-6)
+    assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
+    assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
+    assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
+    assert trajectory.values('__boundary.water')[-1] == pytest.approx(trajectory.values('tub.water')[-1], rel=1e-6)
 
 
 def test_flow_between_quantities_is_rejected():
@@ -270,10 +270,10 @@ def test_flow_holders_and_labels_are_checked():
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
     trajectory = Simulation(System(components=[LedgerComponent('ledger')]), dt=1).run(5).trajectory_
-    assert trajectory['ledger.a'].tolist() == pytest.approx([10.0] * 6)
-    assert trajectory['ledger.b'].tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
-    assert trajectory['__boundary.money'][-1] == pytest.approx(5.0)
-    assert trajectory['ledger.c'][-1] == pytest.approx(5.0)
+    assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
+    assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
+    assert trajectory.values('ledger.c')[-1] == pytest.approx(5.0)
 
 
 def test_jump_flows_move_their_size_at_random_times():
@@ -284,25 +284,25 @@ def test_jump_flows_move_their_size_at_random_times():
         laws=lambda s: [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
     )
     trajectory = Simulation(System(components=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
-    assert np.all(trajectory['j.a'] + trajectory['j.b'] == 50.0)
-    assert trajectory['j.b'][-1] > 0
+    assert np.all(trajectory.values('j.a') + trajectory.values('j.b') == 50.0)
+    assert trajectory.values('j.b')[-1] > 0
 
 
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility auxiliary interpolates the table linearly and holds its ends."""
     trajectory = Simulation(System(components=[FertilityComponent('f')]), dt=0.5).run(4).trajectory_
-    food = trajectory['f.food']
+    food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
-    assert trajectory['f.fertility'] == pytest.approx(expected)
-    assert trajectory['f.fertility'][0] == 0.0
-    assert trajectory['f.fertility'][-1] == 3.0
+    assert trajectory.values('f.fertility') == pytest.approx(expected)
+    assert trajectory.values('f.fertility')[0] == 0.0
+    assert trajectory.values('f.fertility')[-1] == 3.0
 
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
     trajectory = Simulation(System(components=[_delayed('material_delay3')('d')]), dt=0.01).run(14).trajectory_
     times = np.asarray(trajectory.times)
-    output = trajectory['d.material_delay3_0'][:, 2] / 2.0
+    output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
     assert stats.gamma(3, scale=2).median() == pytest.approx(5.35, abs=0.01)
 
@@ -311,7 +311,7 @@ def test_third_order_delay_follows_the_erlang_step_response():
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
     trajectory = Simulation(System(components=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
-    hidden = np.atleast_2d(trajectory[f'd.{kind}_0'].T).T
+    hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'material_delay1' else 1.0
     assert hidden[-1, -1] == pytest.approx(level, rel=1e-3)

@@ -55,7 +55,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for rotation, color in ((1.0, 'tab:blue'), (0.1, 'tab:orange')):
     system_r = create(MODEL, n_particles=500, D_r=rotation, size=1e5, random_state=1)
     run = Simulation(system_r, solver=solver, dt=0.1, random_state=1).run(until=40)
-    positions = run.trajectory_['swimmers.x']
+    positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * 0.1 * times + 2 * 9 / rotation * (times - (1 - np.exp(-rotation * times)) / rotation)

@@ -38,7 +38,7 @@ stocks = np.array(
     [
         Simulation(create(MODEL, farmers=int(farmers), effort=EFFORT, r=R, K=K))
         .run(until=200)
-        .trajectory_['land/stock.n'][-1]
+        .trajectory_.values('land/stock.n')[-1]
         for farmers in villages
     ],
 )

@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 # linearly at the rate `d / 3`, and the volume grows as the cube of time.
 
 times = simulation.trajectory_.times
-volume, capacity = simulation.trajectory_['tumour.n'], simulation.trajectory_['vessels.K']
+volume, capacity = simulation.trajectory_.values('tumour.n'), simulation.trajectory_.values('vessels.K')
 fig, (curves, cube) = plt.subplots(1, 2, figsize=(10, 4))
 curves.plot(times, volume, label='tumour n')
 curves.plot(times, capacity, label='capacity K')

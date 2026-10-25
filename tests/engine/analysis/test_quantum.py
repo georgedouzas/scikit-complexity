@@ -58,9 +58,9 @@ def test_ground_state_is_stationary():
     assert initial == {'quantum_heisenberg.state': 'ground'}
     simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial)
     trajectory = simulation.run(until=3.0).trajectory_
-    assert np.ptp(trajectory['energy']) < 1e-8
-    assert np.ptp(trajectory['sz'], axis=0).max() < 1e-8
-    assert trajectory['energy'][0] == pytest.approx(energy)
+    assert np.ptp(trajectory.values('energy')) < 1e-8
+    assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
+    assert trajectory.values('energy')[0] == pytest.approx(energy)
 
 
 def test_entanglement_entropy_of_a_singlet_is_log_two():

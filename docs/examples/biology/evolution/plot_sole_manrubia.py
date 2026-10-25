@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).ru
 # broad distribution of sizes.
 
 trajectory = simulation.trajectory_
-sizes = np.nansum(trajectory['species.age'][1:] == 0, axis=1)
+sizes = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.bar(trajectory.times[1:], sizes, width=1.0)
 left.set_xlabel('step')

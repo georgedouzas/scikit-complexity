@@ -39,7 +39,7 @@ for density in densities:
         Simulation(create(MODEL, density=density, random_state=seed), random_state=seed).run(until=100)
         for seed in range(3)
     ]
-    finals = [run.trajectory_.agents('contenders', len(run.trajectory_) - 1).values['strength'] for run in runs]
+    finals = [run.trajectory_.agents('contenders', len(run.trajectory_.times) - 1).values['strength'] for run in runs]
     spreads.append([np.std(final) for final in finals])
 spreads = np.asarray(spreads)
 fig, ax = plt.subplots(figsize=(6, 4))

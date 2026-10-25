@@ -58,7 +58,8 @@ runs = {
 }
 trajectory = runs[0.5]
 integrals = [
-    np.trapezoid(trajectory[f'{stage}.{"g" if stage == "g_protein" else "x"}'], trajectory.times) for stage in STAGES
+    np.trapezoid(trajectory.values(f'{stage}.{"g" if stage == "g_protein" else "x"}'), trajectory.times)
+    for stage in STAGES
 ]
 
 fig, (stages, timer) = plt.subplots(1, 2, figsize=(10, 4))
@@ -75,7 +76,7 @@ stages.set_ylabel('integral over the signal')
 stages.set_title(f'Amplification {integrals[-1] / integrals[0]:,.0f}')
 stages.legend()
 for k_gtp, label in [(0.5, 'k_gtp = 0.5'), (0.05, 'k_gtp = 0.05, toxin')]:
-    timer.plot(runs[k_gtp].times, runs[k_gtp]['phosphorylase.x'], label=label)
+    timer.plot(runs[k_gtp].times, runs[k_gtp].values('phosphorylase.x'), label=label)
 timer.set_xlabel('time')
 timer.set_ylabel('active phosphorylase')
 timer.set_title('A slower timer prolongs the signal')

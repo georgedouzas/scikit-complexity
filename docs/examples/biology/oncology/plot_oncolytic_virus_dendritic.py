@@ -53,7 +53,9 @@ arms = {'untreated': create(MODEL, uv=0.0, ud=0.0), 'virus alone': create(MODEL,
 fig, (volume, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = Simulation(arm, dt=0.1, solver=solver).run(until=20).trajectory_
-    volume.semilogy(trajectory.times, (trajectory['site.AU'] + trajectory['site.AV']).clip(1e-6), label=name)
+    volume.semilogy(
+        trajectory.times, (trajectory.values('site.AU') + trajectory.values('site.AV')).clip(1e-6), label=name
+    )
 times = simulation.trajectory_.times
 volume.semilogy(times, 60 * np.exp(0.3198 * times), ':', color='black', label='60 exp(r1 t)')
 volume.set_ylim(1e-6, 1e6)
@@ -61,8 +63,8 @@ volume.set_xlabel('time (days)')
 volume.set_ylabel('tumour volume (mm³)')
 volume.set_title('The virus clears the tumour, the T cells dilute it')
 volume.legend()
-cells.semilogy(times, simulation.trajectory_['site.V'], label='virions')
-cells.semilogy(times, simulation.trajectory_['site.E'], label='activated T cells')
+cells.semilogy(times, simulation.trajectory_.values('site.V'), label='virions')
+cells.semilogy(times, simulation.trajectory_.values('site.E'), label='activated T cells')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('count')
 cells.set_title('Virions and T cells under both therapies')

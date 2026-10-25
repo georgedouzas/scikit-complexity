@@ -43,8 +43,8 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 # than the relaxation should carry the control past the fold before the state tips, by a lag that grows with the rate.
 
 times = simulation.trajectory_.times
-quiet = Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver).run(until=500).trajectory_['system.x']
-residual = simulation.trajectory_['system.x'] - quiet
+quiet = Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver).run(until=500).trajectory_.values('system.x')
+residual = simulation.trajectory_.values('system.x') - quiet
 windows = [(start, start + 40.0) for start in np.arange(0.0, 320.0, 20.0)]
 variances = [residual[(times >= start) & (times < end)].var() for start, end in windows]
 centres = [-1 + 0.004 * (start + end) / 2 for start, end in windows]
@@ -52,7 +52,7 @@ rates = np.array([0.002, 0.004, 0.01, 0.02, 0.05, 0.1])
 tipped = []
 for rate in rates:
     run = Simulation(create(MODEL, rate=rate), dt=0.1, solver=solver, random_state=0).run(until=2.0 / rate)
-    tipped.append(-1 + rate * run.trajectory_.times[np.argmax(run.trajectory_['system.x'] > 0)])
+    tipped.append(-1 + rate * run.trajectory_.times[np.argmax(run.trajectory_.values('system.x') > 0)])
 fig, (slowing, lags) = plt.subplots(1, 2, figsize=(10, 4))
 slowing.semilogy(centres, variances, 'o-')
 slowing.axvline(FOLD, color='black', linestyle=':', label='static fold')

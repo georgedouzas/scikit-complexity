@@ -12,7 +12,7 @@ def test_order_book_chartists_raise_volatility_and_conserve_holdings():
     returns = {}
     for chartists in (0.0, 0.5):
         trajectory = run('order_book', chartists=chartists, imitation=0.0, settings={'until': 150}).trajectory_
-        prices = trajectory['book.price'][1:]
+        prices = trajectory.values('book.price')[1:]
         returns[chartists] = np.diff(np.log(prices))
         traders = trajectory.agents('traders', 150).values
         assert traders['money'].sum() == pytest.approx(400 * 1000.0)
@@ -24,4 +24,4 @@ def test_order_book_chartists_raise_volatility_and_conserve_holdings():
 def test_order_book_imitation_drives_out_chartists():
     """Test that traders copy the more successful fundamentalists, so the share of chartists falls."""
     trajectory = run('order_book', chartists=0.5, settings={'until': 150}).trajectory_
-    assert trajectory['chartists'][-1] < 0.6 * trajectory['chartists'][0]
+    assert trajectory.values('chartists')[-1] < 0.6 * trajectory.values('chartists')[0]

@@ -71,14 +71,14 @@ observer.recording_.flush()
 # to different roots. The boundary of the basins should have a box-counting dimension strictly between 1 and 2, as a
 # fractal curve, unlike the smooth boundary of a straight cut.
 
-finals = [np.angle(run['map.x'][-1] + 1j * run['map.y'][-1], deg=True).round().astype(int) for run in orbits]
+finals = [np.angle(run.values('map.x')[-1] + 1j * run.values('map.y')[-1], deg=True).round().astype(int) for run in orbits]
 fine = basins(1024)
 boundary = (np.diff(fine, axis=0, prepend=fine[:1]) != 0) | (np.diff(fine, axis=1, prepend=fine[:, :1]) != 0)
 dimension = box_counting_dimension(boundary)
 fig, (picture, edges) = plt.subplots(1, 2, figsize=(10, 4.5))
 picture.imshow(palette[labels], extent=(-1.5, 1.5, -1.5, 1.5))
 for run in orbits:
-    picture.plot(run['map.x'], run['map.y'], 'k.-', markersize=3, linewidth=0.8)
+    picture.plot(run.values('map.x'), run.values('map.y'), 'k.-', markersize=3, linewidth=0.8)
 picture.plot(ROOTS.real, ROOTS.imag, 'w*', markersize=10)
 picture.set_xlabel('Re z')
 picture.set_ylabel('Im z')

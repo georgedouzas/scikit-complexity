@@ -49,7 +49,7 @@ for p, color in ((0.5, 'tab:blue'), (0.9, 'tab:orange')):
     for density in densities:
         system_p = create(MODEL, n_sites=400, p=p, ring=True, density=density, random_state=1)
         run = Simulation(system_p, dt=1, random_state=1).run(until=1000)
-        measured.append(current(run.trajectory_['lane.occupied'][200:]))
+        measured.append(current(run.trajectory_.values('lane.occupied')[200:]))
     ax.plot(densities, measured, 'o', color=color, label=f'simulation, p = {p}')
     ax.plot(grid, (1 - np.sqrt(1 - 4 * p * grid * (1 - grid))) / 2, color=color, label=f'exact, p = {p}')
 ax.set_xlabel('density rho')

@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 simulation = Simulation(create(MODEL, x=0.1), dt=0.1, observers=[observer]).run(until=50)
 outside = Simulation(create(MODEL, x=1.0), dt=0.1).run(until=50).trajectory_
-strips = [np.column_stack([100 * run['form.x'], -100 * run['form.y']]) for run in (simulation.trajectory_, outside)]
+strips = [np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')]) for run in (simulation.trajectory_, outside)]
 observer.recording_.log(
     'phase_plane',
     rr.LineStrips2D(strips, radii=0.8, colors=[[255, 170, 40], [90, 170, 255]]),

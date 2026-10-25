@@ -41,7 +41,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=18)
 # below 1, since the neighbours that the first element lifts slightly out of their lower states lift it in return.
 
 trajectory = Simulation(create(MODEL, graph=graph, c=controls, d=0.2), dt=0.1).run(until=40).trajectory_
-states = trajectory['elements.x']
+states = trajectory.values('elements.x')
 tipped_at = trajectory.times[np.argmax(states > 0, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)
 hops = np.array([distance[node] for node in graph.nodes])
@@ -53,7 +53,7 @@ for d in (0.0, 0.2):
     for first in sweep:
         controls[0] = first
         final = Simulation(create(MODEL, graph=graph, c=controls, d=d), dt=1.0).run(until=200).trajectory_
-        counts[d].append(int((final['elements.x'][-1] > 0).sum()))
+        counts[d].append(int((final.values('elements.x')[-1] > 0).sum()))
 
 fig, (order, cascade) = plt.subplots(1, 2, figsize=(10, 4))
 order.plot(hops, tipped_at, 'o')

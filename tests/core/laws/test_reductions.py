@@ -396,7 +396,9 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
     below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
     above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
-    weak, strong = _order(below.trajectory_['oscillators.theta']), _order(above.trajectory_['oscillators.theta'])
+    weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
+        above.trajectory_.values('oscillators.theta')
+    )
     assert weak[-5:].max() < 0.1
     assert strong[-5:].min() > 0.7
     assert strong[-1] > 10 * strong[0]
@@ -408,7 +410,7 @@ def test_kuramoto_agrees_across_backends():
         Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend).run(2.0).trajectory_
         for backend in BACKENDS
     ]
-    assert np.allclose(runs[0]['oscillators.theta'], runs[1]['oscillators.theta'], rtol=0, atol=1e-12)
+    assert np.allclose(runs[0].values('oscillators.theta'), runs[1].values('oscillators.theta'), rtol=0, atol=1e-12)
 
 
 RADIUS = 1.0
@@ -445,7 +447,7 @@ def _vicsek(size=400, side=5.0):
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek model exceeds 0.9 at low noise and high density."""
     trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend='numba').run(100).trajectory_
-    order = _order(trajectory['movers.theta'])
+    order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
 
@@ -453,6 +455,6 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek model gives the same headings and positions on NumPy and Numba for one seed."""
     runs = [Simulation(_vicsek(), dt=1.0, random_state=0, backend=backend).run(50).trajectory_ for backend in BACKENDS]
-    turns = np.angle(np.exp(1j * (runs[0]['movers.theta'] - runs[1]['movers.theta'])))
+    turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
-    assert np.allclose(runs[0]['movers.x'], runs[1]['movers.x'], rtol=0, atol=1e-12)
+    assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)

@@ -47,7 +47,7 @@ def stationary(tax):
     """Return the stationary distribution and Gini coefficient of a run with a policy of a tax rate."""
     model_system = create(MODEL, tax=tax)
     run = Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system)).run(until=200)
-    return run.trajectory_['wealth.f'][-1], run.trajectory_['gini'][-1]
+    return run.trajectory_.values('wealth.f')[-1], run.trajectory_.values('gini')[-1]
 
 
 wealth = wealth_classes(9)

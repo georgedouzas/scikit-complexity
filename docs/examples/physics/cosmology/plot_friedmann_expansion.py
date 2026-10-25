@@ -41,8 +41,8 @@ def exact(age):
 
 start = 2 / (3 * np.sqrt(vacuum)) * np.arcsinh(np.sqrt(vacuum / matter * 0.3**3))
 times = np.asarray(simulation.trajectory_.times)
-scale = np.ravel(simulation.trajectory_['universe.a'])
-rate = np.ravel(simulation.trajectory_['universe.a_d1'])
+scale = np.ravel(simulation.trajectory_.values('universe.a'))
+rate = np.ravel(simulation.trajectory_.values('universe.a_d1'))
 fig, (growth, speed) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(times, scale, label='simulated')
 growth.plot(times, exact(start + times), '--', color='black', label='exact')

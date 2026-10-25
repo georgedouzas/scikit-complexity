@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=400)
 # the exponential target.
 
 trajectory = simulation.trajectory_
-x, gain, threshold = trajectory['neuron.x'], trajectory['neuron.a'], trajectory['neuron.b']
+x, gain, threshold = trajectory.values('neuron.x'), trajectory.values('neuron.a'), trajectory.values('neuron.b')
 rate = 1 / (1 + np.exp(-gain * (x - threshold)))
 window = round(2 * np.pi)
 running = np.convolve(rate, np.ones(window) / window, mode='same')

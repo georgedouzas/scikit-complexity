@@ -37,7 +37,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[obser
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
 trajectory = Simulation(create(MODEL), solver=SSPRKSolver(), dt=0.05).run(until=10).trajectory_
-right, left = trajectory['gas.f_plus'], trajectory['gas.f_minus']
+right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)
 fig, (conserved, relaxing) = plt.subplots(1, 2, figsize=(10, 4))

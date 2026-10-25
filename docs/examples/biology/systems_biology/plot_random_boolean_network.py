@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=50)
 # first repeated state marks the end of the transient, and the gap to its earlier visit is the length of the cycle.
 
 trajectory = simulation.trajectory_
-states = np.column_stack([trajectory[f'node_{i}.x'] for i in range(20)]).astype(int)
+states = np.column_stack([trajectory.values(f'node_{i}.x') for i in range(20)]).astype(int)
 seen = {}
 for step, state in enumerate(map(tuple, states)):
     if state in seen:

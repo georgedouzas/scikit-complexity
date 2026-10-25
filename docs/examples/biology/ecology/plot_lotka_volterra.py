@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
 # should be one closed orbit around the equilibrium `(d / b, r / a)`, and `V` should stay constant up to the error
 # of the solver.
 
-prey, predators = simulation.trajectory_['prey.n'], simulation.trajectory_['predators.n']
+prey, predators = simulation.trajectory_.values('prey.n'), simulation.trajectory_.values('predators.n')
 r, a, b, d = 1.1, 0.4, 0.1, 0.4
 conserved = b * prey - d * np.log(prey) + a * predators - r * np.log(predators)
 fig, (orbit, drift) = plt.subplots(1, 2, figsize=(10, 4))

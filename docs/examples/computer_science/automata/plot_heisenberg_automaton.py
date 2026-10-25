@@ -31,7 +31,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 
 space = system.elements[0].space
 sizes = np.asarray(space.ball_sizes(), dtype=float)
-alive = simulation.trajectory_['cells.alive']
+alive = simulation.trajectory_.values('cells.alive')
 changed = (np.diff(alive, axis=0) != 0).mean(axis=1)
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.loglog(np.arange(1, sizes.size), sizes[1:], 'o-', label='ball size')

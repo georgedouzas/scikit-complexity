@@ -36,7 +36,7 @@ def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
     run = Simulation(create(MODEL, T=temperature), dt=until / 400).run(until=until)
-    phi = run.trajectory_['magnet.phi']
+    phi = run.trajectory_.values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)
     late = slice(120, 240)

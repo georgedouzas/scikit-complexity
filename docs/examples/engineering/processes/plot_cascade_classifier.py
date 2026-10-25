@@ -52,7 +52,7 @@ fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
     run = Simulation(create(MODEL, k=float(k)), dt=1.0).run(until=300).trajectory_
-    shares.append(run['fine.m'][-1] - run['fine.m'][-2])
+    shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2
 ratio = (1 - grid) / grid

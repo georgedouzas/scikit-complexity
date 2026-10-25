@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 fig, ax = plt.subplots(figsize=(6, 4))
 for seed in range(3):
     run = Simulation(create(MODEL, n_oscillators=30, epsilon=0.1, seed=seed), dt=0.1).run(until=60)
-    charges = np.asarray(run.trajectory_['oscillators.x'])
+    charges = np.asarray(run.trajectory_.values('oscillators.x'))
     groups = [len(np.unique(np.round(frame, 6))) for frame in charges]
     ax.step(run.trajectory_.times, groups, where='post', label=f'seed {seed}')
 ax.set_xlabel('time')

@@ -52,8 +52,8 @@ for noise in noises:
     model_system = create(MODEL, n_particles=400, eta=noise, seed=1)
     run = Simulation(model_system, dt=5.0, random_state=1, observables=describe(MODEL).observables_of(model_system))
     trajectory = run.run(until=150).trajectory_
-    nematic.append(np.mean(np.asarray(trajectory['nematic_order'], dtype=float)[-10:]))
-    polar.append(np.mean(np.asarray(trajectory['polarization'], dtype=float)[-10:]))
+    nematic.append(np.mean(np.asarray(trajectory.values('nematic_order'), dtype=float)[-10:]))
+    polar.append(np.mean(np.asarray(trajectory.values('polarization'), dtype=float)[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(noises, nematic, 'o-', label='nematic order')
 ax.plot(noises, polar, 's-', label='polar order')

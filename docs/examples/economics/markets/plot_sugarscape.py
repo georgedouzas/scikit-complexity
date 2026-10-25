@@ -62,11 +62,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 trajectory = simulation.trajectory_
 times = trajectory.times
 initial = gini(trajectory.agents('foragers', 0).values['sugar'])
-inequality = np.r_[initial, trajectory['census.gini'][1:]]
+inequality = np.r_[initial, trajectory.values('census.gini')[1:]]
 wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])
 lorenz = np.r_[0.0, np.cumsum(wealth) / wealth.sum()]
 fig, (population, gini_axis, lorenz_axis) = plt.subplots(1, 3, figsize=(13, 4))
-population.plot(times[1:], trajectory['census.population'][1:])
+population.plot(times[1:], trajectory.values('census.population')[1:])
 population.set_xlabel('step')
 population.set_ylabel('foragers')
 population.set_title('The population falls to a carrying capacity')

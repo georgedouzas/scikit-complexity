@@ -30,7 +30,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 # bands that drift to the left, against the traffic, as cars leave a jam at its front and join it at its back.
 
 trajectory = simulation.trajectory_
-frames = range(len(trajectory))
+frames = range(len(trajectory.times))
 positions = np.array([trajectory.agents('cars', frame).values['x'] for frame in frames])
 speeds = np.array([trajectory.agents('cars', frame).values['v'] for frame in frames])
 times = np.repeat(np.asarray(trajectory.times)[:, None], positions.shape[1], axis=1)

@@ -38,7 +38,7 @@ c1, c2, c3, c4, A, B = 1.5e-6, 2.5e-3, 2e-4, 3.5, 1e5, 2e5
 drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 + c2 / 2, -c2 / 6])
 roots = np.sort(drift.roots().real)
 trajectory = simulation.trajectory_
-x = trajectory['reactor.x']
+x = trajectory.values('reactor.x')
 edges, density = histogram(x[trajectory.times > 5], bins=40)
 fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, x, linewidth=0.5)

@@ -13,20 +13,20 @@ from ..conftest import _run
 
 def test_jerk_is_bounded():
     """Test that Sprott's jerk equation stays on its bounded attractor."""
-    x = run('sprott_jerk').trajectory_['jerk.x']
+    x = run('sprott_jerk').trajectory_.values('jerk.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
 
 
 def test_finite_time_blow_up_follows_the_hyperbola():
     """Test that `x' = x²` follows `x0 / (1 - x0 t)` towards its singularity at `t = 1 / x0`."""
-    assert _run(finite_time_blow_up(1.0), 0.9, dt=0.05)['growth.x'][-1] == pytest.approx(10.0, rel=1e-4)
+    assert _run(finite_time_blow_up(1.0), 0.9, dt=0.05).values('growth.x')[-1] == pytest.approx(10.0, rel=1e-4)
 
 
 def test_lorenz_attractor_is_bounded_and_visits_both_lobes():
     """Test that the Lorenz model stays bounded for 50 time units and visits both lobes of its attractor."""
     trajectory = run('lorenz').trajectory_
-    x, z = trajectory['lorenz.x'], trajectory['lorenz.z']
+    x, z = trajectory.values('lorenz.x'), trajectory.values('lorenz.z')
     assert np.abs(x).max() < 30
     assert z.max() < 60
     late = x[len(x) // 5 :]

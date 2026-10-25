@@ -107,7 +107,7 @@ def _path_signature(trajectory: Trajectory) -> Signature:
     path = path_of(trajectory)
     waiting = np.diff(path.times)
     states = path.states.reshape(path.times.size, -1)
-    frames = np.asarray(trajectory[path.label], dtype=float).reshape(len(trajectory), -1)
+    frames = np.asarray(trajectory.values(path.label), dtype=float).reshape(len(trajectory.times), -1)
     jumps = np.abs(np.diff(frames, axis=0)).sum(axis=1)
     values = {'Fano factor of jumps per frame': fano_factor(jumps)} if jumps.mean() > 0 else {}
     values['jumps'] = float(states.shape[0] - 1)

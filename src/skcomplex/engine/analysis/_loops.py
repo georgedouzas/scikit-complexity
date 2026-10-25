@@ -383,7 +383,7 @@ def flow_matrix(trajectory: Trajectory, frame: int = -1, quantity: str | None = 
     holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
     values = np.zeros((len(flows), len(holders)))
     for row, flow in enumerate(flows):
-        amount = float(np.sum(trajectory[flow.path][frame]))
+        amount = float(np.sum(trajectory.values(flow.path)[frame]))
         values[row, holders.index(flow.source_label)] -= amount
         values[row, holders.index(flow.sink_label)] += amount
     return FlowMatrix(tuple(flow.path for flow in flows), tuple(holders), values)

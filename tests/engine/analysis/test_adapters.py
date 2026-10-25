@@ -57,9 +57,9 @@ def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
     trajectory = run('lotka_volterra', settings={'until': 5.0}).trajectory_
     series = series_of(trajectory, ['prey.n', 'predators.n'])
-    assert series.values.shape == (len(trajectory), 2)
-    np.testing.assert_array_equal(series.values[:, 0], trajectory['prey.n'])
-    np.testing.assert_array_equal(series.values[:, 1], trajectory['predators.n'])
+    assert series.values.shape == (len(trajectory.times), 2)
+    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.n'))
+    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.n'))
     np.testing.assert_array_equal(series.times, trajectory.times)
 
 
@@ -71,7 +71,7 @@ def test_path_of_a_gillespie_run():
     assert path.label == 'cells.n'
     assert np.all(np.diff(path.states) != 0)
     assert np.all(np.abs(np.diff(path.states)) >= 1)
-    assert path.times.size < len(trajectory)
+    assert path.times.size < len(trajectory.times)
 
 
 def test_fields_of_a_lattice():
@@ -98,7 +98,7 @@ def test_snapshots_of_particle_groups():
     trajectory = run('ideal_gas', settings={'until': 0.2}).trajectory_
     snapshots = snapshots_of(trajectory)
     assert snapshots.positions.shape == snapshots.velocities.shape
-    assert snapshots.positions.shape[0] == len(trajectory)
+    assert snapshots.positions.shape[0] == len(trajectory.times)
 
 
 def test_snapshots_of_missing_data_kind():
@@ -112,7 +112,7 @@ def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
     trajectory = run('network_diffusion', settings={'until': 0.5}).trajectory_
     graphs = networks_of(trajectory)
-    assert len(graphs) == len(trajectory)
+    assert len(graphs) == len(trajectory.times)
     assert nx.is_isomorphic(graphs[0], nx.karate_club_graph())
 
 

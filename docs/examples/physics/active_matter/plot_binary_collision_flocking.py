@@ -70,9 +70,9 @@ for sigma in noises:
     run = Simulation(model_system, dt=1, random_state=1, observables=describe(MODEL).observables_of(model_system)).run(
         until=150,
     )
-    polarizations.append(np.mean(run.trajectory_['polarization'][75:]))
+    polarizations.append(np.mean(run.trajectory_.values('polarization')[75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['polarization'])
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('polarization'))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

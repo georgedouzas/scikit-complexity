@@ -99,7 +99,7 @@ def test_shift_member_runs_the_same_on_both_backends():
         )
         simulation = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend).run(until=2.0)
         assert simulation.problem_.backend == backend
-        trajectories.append(simulation.trajectory_['cars.x'])
+        trajectories.append(simulation.trajectory_.values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 
 
@@ -155,7 +155,7 @@ def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
         trajectory = Simulation(problem, dt=1.0, random_state=seed).run(until=20).trajectory_
-        totals = np.asarray(trajectory['sites.n']).sum(axis=1)
+        totals = np.asarray(trajectory.values('sites.n')).sum(axis=1)
         assert (totals == 150).all()
 
 
@@ -165,7 +165,7 @@ def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     problem = compile_system(_hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed'), backend=backend)
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
     trajectory = Simulation(problem, dt=10.0, random_state=0).run(until=100).trajectory_
-    assert np.asarray(trajectory['sites.n'])[-1].tolist() == [0.0] * 5
+    assert np.asarray(trajectory.values('sites.n'))[-1].tolist() == [0.0] * 5
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -186,7 +186,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     for system in systems:
         problem = compile_system(system, backend=backend)
         finals = [
-            np.asarray(Simulation(problem, dt=2.0, random_state=seed).run(until=2).trajectory_['sites.n'])[-1]
+            np.asarray(Simulation(problem, dt=2.0, random_state=seed).run(until=2).trajectory_.values('sites.n'))[-1]
             for seed in range(200)
         ]
         profiles.append((np.mean(finals, axis=0), np.std(finals, axis=0) / np.sqrt(200)))

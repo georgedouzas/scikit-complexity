@@ -35,12 +35,12 @@ for distance in distances:
     width = np.sqrt(distance)
     until = 2 * np.arctan(1 / width) / width + 0.5
     trajectory = Simulation(create(MODEL, x=1.0, mu=-distance), dt=0.01).run(until=until).trajectory_
-    passages.append(trajectory.times[np.argmax(trajectory['form.x'] < -1)])
+    passages.append(trajectory.times[np.argmax(trajectory.values('form.x') < -1)])
 fig, (series, passage) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['form.x'], label='mu = -0.004')
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('form.x'), label='mu = -0.004')
 for mu in (0.01, 0.1):
     settled = Simulation(create(MODEL, x=1.0, mu=mu), dt=0.1).run(until=48).trajectory_
-    series.plot(settled.times, settled['form.x'], label=f'mu = {mu}')
+    series.plot(settled.times, settled.values('form.x'), label=f'mu = {mu}')
 series.set_ylim(-2, 1.05)
 series.set_xlabel('time')
 series.set_ylabel('x')

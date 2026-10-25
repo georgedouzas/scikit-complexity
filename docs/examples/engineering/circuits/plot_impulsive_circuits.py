@@ -45,7 +45,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=150)
 # `x` and `x'` sampled once per period should settle, and the last periods of the response should lie on each other.
 
 trajectory = simulation.trajectory_
-x, rate = trajectory['circuit.x'], trajectory['circuit.x_d1']
+x, rate = trajectory.values('circuit.x'), trajectory.values('circuit.x_d1')
 per_period = round(2.0 / 0.1)
 starts = np.arange(1, len(x) // per_period) * per_period - 1
 fig, (strobe, shape) = plt.subplots(1, 2, figsize=(10, 4))

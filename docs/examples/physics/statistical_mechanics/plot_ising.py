@@ -38,7 +38,7 @@ measured = []
 for temperature in temperatures:
     system_t = create(MODEL, size=48, temperature=temperature, initial='up')
     run = Simulation(system_t, dt=1, random_state=1).run(until=1500)
-    measured.append(np.abs(run.trajectory_['spins.spin'][300:].mean(axis=1)).mean())
+    measured.append(np.abs(run.trajectory_.values('spins.spin')[300:].mean(axis=1)).mean())
 grid = np.linspace(1.5, 2 / np.log(1 + np.sqrt(2)), 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, measured, 'o', label='simulation, 48 x 48')
@@ -64,7 +64,7 @@ information = []
 for temperature in temperatures:
     system_t = create(MODEL, size=48, temperature=temperature, initial='up')
     run = Simulation(system_t, dt=1, random_state=1).run(until=600)
-    frames = np.asarray(run.trajectory_['spins.spin'][300::10]).reshape(-1, 48, 48)
+    frames = np.asarray(run.trajectory_.values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
     information.append(o_information((blocks > 0).astype(int)))
 fig, ax = plt.subplots(figsize=(7, 4))

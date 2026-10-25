@@ -31,9 +31,9 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=40)
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 trajectory = simulation.trajectory_
-ax.plot(trajectory.times, trajectory['process.y'], label='PID, Ki = 1')
+ax.plot(trajectory.times, trajectory.values('process.y'), label='PID, Ki = 1')
 proportional = Simulation(create(MODEL, Ki=0.0, Kd=0.0), dt=0.1).run(until=40).trajectory_
-ax.plot(proportional.times, proportional['process.y'], label='P only, Ki = 0')
+ax.plot(proportional.times, proportional.values('process.y'), label='P only, Ki = 0')
 ax.axhline(1.0, color='black', linestyle='--', linewidth=0.8, label='set point')
 ax.axhline(2 / 3, color='gray', linestyle=':', linewidth=0.8, label='P-only level 2/3')
 ax.axvline(10.0, color='C3', linewidth=0.8, label='disturbance')

@@ -77,8 +77,8 @@ def test_unitary_evolution_follows_rabi_oscillations():
     system = System(components=[RabiComponent('q')])
     simulation = Simulation(system, solver='unitary', dt=0.05, observables=Z).run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
-    assert np.allclose(trajectory['z'], np.cos(OMEGA * trajectory.times), atol=1e-6)
-    assert np.allclose(np.linalg.norm(trajectory['system.state'], axis=1), 1, atol=1e-8)
+    assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
+    assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
 
 
 def test_unitary_evolution_conserves_magnetization_and_energy():
@@ -86,8 +86,8 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
     trajectory = (
         Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(), dt=1.0).run(until=10.0).trajectory_
     )
-    assert np.ptp(trajectory['magnetization']) < 1e-8
-    assert np.ptp(trajectory['energy']) < 1e-8
+    assert np.ptp(trajectory.values('magnetization')) < 1e-8
+    assert np.ptp(trajectory.values('energy')) < 1e-8
 
 
 def test_unitary_evolution_rejects_open_systems():
@@ -102,15 +102,15 @@ def test_lindblad_evolution_follows_spontaneous_decay():
     simulation = Simulation(system, dt=0.5, observables=Z).run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
-    assert np.allclose((1 + trajectory['z']) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
-    traces = np.trace(trajectory['system.state'], axis1=1, axis2=2)
+    assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
+    traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
 
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
     trajectory = Simulation(System(components=[DephasedComponent('q')]), dt=0.2).run(until=4.0).trajectory_
-    purity = trajectory['purity']
+    purity = trajectory.values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
 
@@ -122,8 +122,8 @@ def test_quantum_trajectories_are_reproducible():
         Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
         for _ in range(2)
     ]
-    assert np.array_equal(runs[0].trajectory_['z'], runs[1].trajectory_['z'])
-    assert set(np.round(runs[0].trajectory_['z'], 8)) <= {-1.0, 1.0}
+    assert np.array_equal(runs[0].trajectory_.values('z'), runs[1].trajectory_.values('z'))
+    assert set(np.round(runs[0].trajectory_.values('z'), 8)) <= {-1.0, 1.0}
 
 
 def test_quantum_trajectories_average_to_the_master_equation():
@@ -133,7 +133,9 @@ def test_quantum_trajectories_average_to_the_master_equation():
     rng = np.random.default_rng(0)
     values = np.array(
         [
-            Simulation(problem, solver='quantum_trajectories', dt=0.5, random_state=rng).run(until=4.0).trajectory_['z']
+            Simulation(problem, solver='quantum_trajectories', dt=0.5, random_state=rng)
+            .run(until=4.0)
+            .trajectory_.values('z')
             for _ in range(500)
         ],
     )
@@ -148,7 +150,7 @@ def test_quantum_solvers_follow_parameter_updates():
     simulation = Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5).run(until=1.0)
     simulation.update_parameters({'xxz.delta': 0.0})
     trajectory = simulation.extend(until=2.0).trajectory_
-    energy = trajectory['energy']
+    energy = trajectory.values('energy')
     assert np.ptp(energy[:3]) < 1e-8
     assert abs(energy[3] - energy[2]) > 0.1
     assert np.ptp(energy[3:]) < 1e-8

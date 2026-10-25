@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=200)
 
 section = stroboscopic(create(MODEL), 2 * math.pi / 1.2, n_points=3000, transient=50)
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(section['duffing.x'], section['duffing.x_d1'], ',', color='black', alpha=0.6)
+ax.plot(section.values('duffing.x'), section.values('duffing.x_d1'), ',', color='black', alpha=0.6)
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Stroboscopic section: a strange attractor')

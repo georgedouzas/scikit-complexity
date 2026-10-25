@@ -54,7 +54,7 @@ simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], ra
 fig, ax = plt.subplots(figsize=(7, 4))
 for strength in (0.0, 30.0, 100.0):
     run = Simulation(create(MODEL, n_particles=300, strength=strength), solver=solver, dt=0.25, random_state=1)
-    positions = run.run(until=70).trajectory_['beads.x'][40:]
+    positions = run.run(until=70).trajectory_.values('beads.x')[40:]
     times = run.trajectory_.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     ax.loglog(times, squared, label=f'strength {strength:.0f}')

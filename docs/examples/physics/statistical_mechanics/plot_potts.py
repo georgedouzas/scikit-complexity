@@ -49,7 +49,7 @@ for q, color in ((3, 'tab:blue'), (8, 'tab:orange')):
     for ratio in ratios:
         system_q = create(MODEL, size=40, q=q, temperature=ratio * critical, random_state=1)
         run = Simulation(system_q, dt=1, random_state=1).run(until=1000)
-        measured.append(energy(run.trajectory_['spins.color'][300:], 40).mean())
+        measured.append(energy(run.trajectory_.values('spins.color')[300:], 40).mean())
     ax.plot(ratios, measured, 'o-', color=color, label=f'q = {q}')
     ax.plot(1.0, -(1 + 1 / np.sqrt(q)), '*', color=color, markersize=14, markeredgecolor='black')
 ax.axvline(1.0, color='gray', linestyle='--', label='T_c, stars at the exact e_c')

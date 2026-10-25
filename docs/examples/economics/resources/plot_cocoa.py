@@ -50,8 +50,8 @@ runs.update(
 )
 for subsidy, run in runs.items():
     times = np.asarray(run.times)
-    area.plot(times, run['cocoa.area'], label=f'subsidy {subsidy:.0%}')
-    crop.plot(times, run['cocoa.cocoa_yield'], label=f'subsidy {subsidy:.0%}')
+    area.plot(times, run.values('cocoa.area'), label=f'subsidy {subsidy:.0%}')
+    crop.plot(times, run.values('cocoa.cocoa_yield'), label=f'subsidy {subsidy:.0%}')
 area.set_xlabel('years')
 area.set_ylabel('planted area (thousand ha)')
 area.set_title('Planted area')

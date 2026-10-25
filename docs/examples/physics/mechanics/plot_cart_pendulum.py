@@ -31,13 +31,13 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=10)
 # on a fixed pivot, so the measured frequency of runs with a lighter and lighter cart should follow that curve.
 
 times = np.asarray(simulation.trajectory_.times)
-cart = np.ravel(simulation.trajectory_['cart.y'])
-bob = cart + np.sin(np.ravel(simulation.trajectory_['cart.theta']))
+cart = np.ravel(simulation.trajectory_.values('cart.y'))
+bob = cart + np.sin(np.ravel(simulation.trajectory_.values('cart.theta')))
 ratios = np.linspace(0.25, 4.0, 10)
 frequencies = []
 for ratio in ratios:
     run = Simulation(create(MODEL, theta=0.05, m1=ratio, m2=1.0, l=1.0), dt=0.01).run(until=20)
-    velocity, steps = np.ravel(run.trajectory_['cart.theta_d1']), np.asarray(run.trajectory_.times)
+    velocity, steps = np.ravel(run.trajectory_.values('cart.theta_d1')), np.asarray(run.trajectory_.times)
     crossings = steps[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     frequencies.append(2 * np.pi / np.diff(crossings).mean())
 grid = np.linspace(0.2, 4.0, 200)

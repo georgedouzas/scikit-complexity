@@ -30,7 +30,7 @@ def test_delayed_lif_network_rates():
 def test_legion_segments_objects():
     """Test that LEGION synchronizes each object, alternates between objects, and keeps the background silent."""
     trajectory = Simulation(legion(epsilon=0.1), dt=0.5).run(until=120).trajectory_
-    active = trajectory['oscillators.x'].reshape(len(trajectory.times), -1) > 0
+    active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     first, second = active[:, [0, 1, 4]], active[:, [11, 15]]
     assert first.mean() > 0.1
     assert second.mean() > 0.1
@@ -46,7 +46,7 @@ def test_legion_segments_objects():
 def test_legion_defaults_fire_both_objects_in_a_short_run():
     """Test that both objects of the default LEGION network start an active phase within 100 time units."""
     trajectory = Simulation(legion(), dt=0.5).run(until=100).trajectory_
-    active = trajectory['oscillators.x'].reshape(len(trajectory.times), -1) > 0
+    active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     for sites in ([0, 1, 4], [11, 15]):
         on = active[:, sites].any(axis=1)
         assert (on[1:] & ~on[:-1]).any()

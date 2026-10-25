@@ -42,9 +42,9 @@ for luminosity in luminosities:
         .run(until=200)
         .trajectory_
     )
-    temperatures.append(run['temperature'][-1] - 273.15)
-    whites.append(run['planet.white'][-1])
-    blacks.append(run['planet.black'][-1])
+    temperatures.append(run.values('temperature')[-1] - 273.15)
+    whites.append(run.values('planet.white')[-1])
+    blacks.append(run.values('planet.black')[-1])
 bare = (S * luminosities * 0.5 / sigma) ** 0.25 - 273.15
 fig, (climate, areas) = plt.subplots(1, 2, figsize=(10, 4))
 climate.plot(luminosities, bare, color='gray', linestyle='--', label='bare planet')

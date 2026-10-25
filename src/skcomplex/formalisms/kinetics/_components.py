@@ -60,7 +60,7 @@ def distribution_from(
 
     Every member counts at the activity value nearest to its value, and the densities are the fractions of members at
     every activity, so the density of the distribution is 1. The values may come from the initial values of a group, or
-    from a frame of a trajectory, such as `trajectory['traders.wealth'][-1]`.
+    from a frame of a trajectory, such as `trajectory.values('traders.wealth')[-1]`.
 
     Args:
         group:

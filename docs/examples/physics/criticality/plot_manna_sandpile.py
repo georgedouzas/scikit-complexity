@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=30, observers=[observer], random_state=0).run
 # In the critical state the density of sizes should follow a power law `P(s) ~ s^-tau` with `tau` near `1.27`, the
 # Manna exponent, over two decades, up to a cutoff set by the size of the lattice where it falls off steeply.
 
-heights = simulation.trajectory_['pile.height'].mean(axis=1)
+heights = simulation.trajectory_.values('pile.height').mean(axis=1)
 found = avalanches([record for record in simulation.trajectory_.events if record.time > 3000 and record.size > 0])
 edges, density = histogram(found.sizes, 20, log=True)
 centers = np.sqrt(edges[1:] * edges[:-1])

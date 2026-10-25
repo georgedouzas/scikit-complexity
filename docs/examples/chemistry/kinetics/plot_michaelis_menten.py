@@ -36,13 +36,13 @@ for seed in range(5):
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
         curves.step(jumps.times, jumps[f'{species}.n'], where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
-    curves.plot(trajectory.times, trajectory[f'{species}.n'], color=color, linewidth=2, label=species)
+    curves.plot(trajectory.times, trajectory.values(f'{species}.n'), color=color, linewidth=2, label=species)
 curves.set_xlabel('time')
 curves.set_ylabel('molecules')
 curves.set_title('Rate equations (thick) and Gillespie runs (thin)')
 curves.legend()
-enzyme = trajectory['E.n'] + trajectory['C.n']
-substrate = trajectory['S.n'] + trajectory['C.n'] + trajectory['P.n']
+enzyme = trajectory.values('E.n') + trajectory.values('C.n')
+substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
 totals.plot(trajectory.times, enzyme, label='E + C')
 totals.plot(trajectory.times, substrate, label='S + C + P')
 totals.set_ylim(0, 350)

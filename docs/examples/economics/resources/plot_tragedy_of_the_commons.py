@@ -60,8 +60,8 @@ regulated = Simulation(
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))
 for label, run in (('open access', simulation), ('regulated quota', regulated)):
     trajectory = run.trajectory_
-    grass.plot(trajectory.times, trajectory['grass'] / trajectory['grass'][0], label=label)
-    herd.plot(trajectory.times, trajectory['herd'], label=label)
+    grass.plot(trajectory.times, trajectory.values('grass') / trajectory.values('grass')[0], label=label)
+    herd.plot(trajectory.times, trajectory.values('herd'), label=label)
 grass.axhline(0.1, color='grey', linestyle=':', label='a tenth of the capacity')
 grass.set_xlabel('step')
 grass.set_ylabel('grass as a share of the capacity')

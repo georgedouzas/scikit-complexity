@@ -47,7 +47,7 @@ def final_density(activation):
     """Return the tumour density after 20 time units for an initial immune activation."""
     model_system = create(MODEL, activation=activation)
     run = Simulation(model_system, dt=20.0, observables=describe(MODEL).observables_of(model_system)).run(until=20)
-    return run.trajectory_['tumour_density'][-1]
+    return run.trajectory_.values('tumour_density')[-1]
 
 
 activations = np.linspace(0.0, 1.0, 5)

@@ -23,7 +23,7 @@ def test_barabasi_albert_grows_a_scale_free_network():
     degrees = np.array([degree for _, degree in graph.degree])
     fit = fit_power_law(degrees, xmin=8, discrete=True, bootstrap=0)
     assert abs(fit.alpha - 3) < 0.4
-    assert np.nanmax(trajectory['nodes.degree'][-1]) == pytest.approx(degrees.max(), abs=2)
+    assert np.nanmax(trajectory.values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
 
 
 def test_holme_kim_keeps_clustering_that_barabasi_albert_loses():

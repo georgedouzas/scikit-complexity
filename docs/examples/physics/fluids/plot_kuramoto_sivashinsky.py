@@ -37,7 +37,7 @@ simulation = Simulation(system, solver=ETDRK4Solver(dt=0.25), dt=0.5, observers=
 # decay.
 
 run = Simulation(create(MODEL), solver=ETDRK4Solver(dt=0.25), dt=1.0).run(until=1000)
-field = run.trajectory_['line.u'][200:]
+field = run.trajectory_.values('line.u')[200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])
 power = np.mean(np.abs(np.fft.rfft(field, axis=1)) ** 2, axis=0)

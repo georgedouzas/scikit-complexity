@@ -23,7 +23,7 @@ def test_discrete_master_equation_relaxes_to_boltzmann():
 def test_two_phase_zone_exchange_is_binomial():
     """Test that the number of particles in a zone settles on the binomial mean and variance."""
     trajectory = Simulation(two_phase_zone_exchange(300), dt=0.5, random_state=0).run(until=12).trajectory_
-    numbers = trajectory['zones.N'][trajectory.times >= 8]
+    numbers = trajectory.values('zones.N')[trajectory.times >= 8]
     assert numbers.mean() == pytest.approx(10.0, rel=0.05)
     assert numbers.var() == pytest.approx(9.0, rel=0.15)
 
@@ -32,4 +32,4 @@ def test_two_phase_zone_exchange_is_binomial():
 def test_landau_relaxation_reaches_the_mean_field_order(temperature, order):
     """Test that the order parameter relaxes to `sqrt(a (Tc - T) / b)` below `Tc` and to 0 above it."""
     trajectory = Simulation(landau_relaxation(T=temperature), dt=0.1).run(until=50).trajectory_
-    assert trajectory['magnet.phi'][-1] == pytest.approx(order, abs=1e-6)
+    assert trajectory.values('magnet.phi')[-1] == pytest.approx(order, abs=1e-6)

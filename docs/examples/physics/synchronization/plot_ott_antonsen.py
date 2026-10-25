@@ -30,14 +30,16 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 # order parameters of a sweep of `K` should follow `sqrt(1 - 2 Δ / K)` above `K_c = 1` and vanish below.
 
 times = np.asarray(simulation.trajectory_.times)
-r = np.hypot(np.ravel(simulation.trajectory_['field.x']), np.ravel(simulation.trajectory_['field.y']))
+r = np.hypot(np.ravel(simulation.trajectory_.values('field.x')), np.ravel(simulation.trajectory_.values('field.y')))
 final = 1 - 2 * 0.5 / 2.0
 exact = np.sqrt(final / (1 + (final / 0.1**2 - 1) * np.exp(-(2.0 - 1.0) * times)))
 couplings = np.linspace(0.2, 5.0, 25)
 settled = []
 for coupling in couplings:
     run = Simulation(create(MODEL, r=0.1, K=coupling, Delta=0.5), dt=0.5).run(until=200)
-    settled.append(np.hypot(np.ravel(run.trajectory_['field.x'])[-1], np.ravel(run.trajectory_['field.y'])[-1]))
+    settled.append(
+        np.hypot(np.ravel(run.trajectory_.values('field.x'))[-1], np.ravel(run.trajectory_.values('field.y'))[-1])
+    )
 grid = np.linspace(1.0, 5.0, 200)
 fig, (growth, diagram) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(times, r, label='simulated')

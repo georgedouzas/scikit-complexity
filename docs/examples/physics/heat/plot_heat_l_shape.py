@@ -40,7 +40,7 @@ simulation = Simulation(system, dt=0.1, solver=IMEXEulerSolver(dt=0.05), observe
 
 nodes = system.elements[0].space.nodes
 exact = describe(MODEL).parameters['temperature'](nodes[:, 0], nodes[:, 1])
-temperature = simulation.trajectory_['plate.u']
+temperature = simulation.trajectory_.values('plate.u')
 fig, (agreement, decay) = plt.subplots(1, 2, figsize=(10, 4))
 agreement.plot(exact, temperature[-1], '.', markersize=4)
 agreement.plot([exact.min(), exact.max()], [exact.min(), exact.max()], color='black', linewidth=1)

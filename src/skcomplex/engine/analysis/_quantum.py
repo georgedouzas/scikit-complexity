@@ -89,7 +89,7 @@ def _states_of(trajectory: Trajectory) -> tuple['_QuantumProblem', npt.NDArray[n
         error_msg = 'The trajectory is not the trajectory of a quantum system.'
         raise AnalysisError(error_msg)
     quantum = cast('_QuantumProblem', problem)
-    return quantum, np.asarray(trajectory[quantum.state_name])
+    return quantum, np.asarray(trajectory.values(quantum.state_name))
 
 
 def spectrum(

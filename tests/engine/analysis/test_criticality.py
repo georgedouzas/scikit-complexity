@@ -171,7 +171,7 @@ def test_fit_order_exponent_of_two_mean_field_transitions():
         for coupling in couplings
     ]
     names = orders[0].problem.states.names
-    final = [float(np.abs(trajectory[names[0]][-1])) for trajectory in orders]
+    final = [float(np.abs(trajectory.values(names[0])[-1])) for trajectory in orders]
     assert fit_order_exponent(couplings, final, 1.0, above=True) == pytest.approx(0.5, abs=0.05)
     with pytest.raises(AnalysisError, match='ordered side'):
         fit_order_exponent([1.5, 2.0], [0.1, 0.2], 1.0)

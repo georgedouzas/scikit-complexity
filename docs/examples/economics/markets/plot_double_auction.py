@@ -50,7 +50,7 @@ for protocol in ('order_book', 'call_auction'):
     for constrained in (True, False):
         system = create(MODEL, protocol=protocol, constrained=constrained, random_state=0)
         trajectory = Simulation(system, random_state=0).run(until=20).trajectory_
-        efficiencies[protocol, constrained] = trajectory['ledger.efficiency'][1:]
+        efficiencies[protocol, constrained] = trajectory.values('ledger.efficiency')[1:]
 labels = [
     f'{protocol.replace("_", " ")}\n{"ZI-C" if constrained else "ZI-U"}' for protocol, constrained in efficiencies
 ]

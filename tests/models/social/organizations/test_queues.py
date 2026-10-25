@@ -31,4 +31,4 @@ def test_priority_queue_waits():
 def test_priority_queue_reports_every_wait():
     """Test that the execution reports the wait of every executed task as a series of the trajectory."""
     trajectory = _run(priority_queues(random_state=0), 500)
-    np.testing.assert_array_equal(trajectory['execution.wait'][1:], _waits(trajectory, 500))
+    np.testing.assert_array_equal(trajectory.values('execution.wait')[1:], _waits(trajectory, 500))

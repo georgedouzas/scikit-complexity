@@ -143,9 +143,11 @@ def test_model_conforms(entry, tmp_path):
     trajectory = simulation.trajectory_
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
-        assert len(trajectory[name]) == len(trajectory.times)
+        assert len(trajectory.values(name)) == len(trajectory.times)
     for scope, observable in observables_of(system):
-        assert len(trajectory[f'{scope}/{observable.label}' if scope else observable.label]) == len(trajectory.times)
+        assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
+            trajectory.times
+        )
     copy = clone(system)
     assert copy is not system
     assert compile_system(copy).states.names == problem.states.names
@@ -168,10 +170,10 @@ def test_jacobian_pattern_holds_finite_differences(entry):
 @pytest.mark.slow
 def test_default_runs_of_a_stochastic_model_repeat():
     """Test that default catalog runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = run('ideal_gas').trajectory_['gas.v']
-    np.testing.assert_array_equal(gas, run('ideal_gas').trajectory_['gas.v'])
-    assert not np.array_equal(gas, run('ideal_gas', random_state=None).trajectory_['gas.v'])
-    counts = run('poisson_process').trajectory_['counters.count']
-    np.testing.assert_array_equal(counts, run('poisson_process').trajectory_['counters.count'])
-    fresh = run('poisson_process', settings={'random_state': None}).trajectory_['counters.count']
+    gas = run('ideal_gas').trajectory_.values('gas.v')
+    np.testing.assert_array_equal(gas, run('ideal_gas').trajectory_.values('gas.v'))
+    assert not np.array_equal(gas, run('ideal_gas', random_state=None).trajectory_.values('gas.v'))
+    counts = run('poisson_process').trajectory_.values('counters.count')
+    np.testing.assert_array_equal(counts, run('poisson_process').trajectory_.values('counters.count'))
+    fresh = run('poisson_process', settings={'random_state': None}).trajectory_.values('counters.count')
     assert not np.array_equal(counts, fresh)

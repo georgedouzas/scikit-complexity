@@ -35,14 +35,14 @@ kills = np.linspace(0.0, 0.8, 9)
 rates, eigenvalues = [], []
 for u1 in kills:
     trajectory = Simulation(create(MODEL, u1=u1, u2=u2), dt=2.0).run(until=300).trajectory_
-    total = np.log(trajectory['tumour.A1'] + trajectory['tumour.A2'] + trajectory['tumour.A3'])
+    total = np.log(trajectory.values('tumour.A1') + trajectory.values('tumour.A2') + trajectory.values('tumour.A3'))
     late = trajectory.times >= 200
     rates.append(np.polyfit(trajectory.times[late], total[late], 1)[0])
     matrix = [[-l1, 0, 2 * (1 - u1) * l3], [l1, -(1 - u2) * l2, 0], [0, (1 - u2) * l2, -l3]]
     eigenvalues.append(np.linalg.eigvals(matrix).real.max())
 fig, (compartments, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A1', 'A2', 'A3'):
-    compartments.plot(simulation.trajectory_.times, simulation.trajectory_[f'tumour.{name}'], label=name)
+    compartments.plot(simulation.trajectory_.times, simulation.trajectory_.values(f'tumour.{name}'), label=name)
 compartments.set_xlabel('time')
 compartments.set_ylabel('cells')
 compartments.set_title('Under u1 = 0.6 every compartment decays')

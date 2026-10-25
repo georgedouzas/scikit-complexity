@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=120)
 trajectory = simulation.trajectory_
 period = 10.0
 samples = round(period / 0.1)
-eta, c = trajectory['electrode.eta'][:-1], trajectory['electrode.c'][:-1]
+eta, c = trajectory.values('electrode.eta')[:-1], trajectory.values('electrode.c')[:-1]
 phase = np.arange(samples) * 0.1
 fig, (cycles, strobe) = plt.subplots(1, 2, figsize=(10, 4))
 colors = plt.cm.viridis(np.linspace(0, 1, len(eta) // samples))

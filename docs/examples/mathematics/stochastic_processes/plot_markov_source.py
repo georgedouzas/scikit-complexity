@@ -40,11 +40,11 @@ simulation = Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[o
 # symbol of the past holds all the memory of the source.
 
 symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).run(100000).trajectory_
-entropies = block_entropies(symbols['source.symbol'].astype(int), 8)
+entropies = block_entropies(symbols.values('source.symbol').astype(int), 8)
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
 fig, (sequence, rates) = plt.subplots(1, 2, figsize=(10, 4))
-sequence.step(simulation.trajectory_.times, simulation.trajectory_['source.symbol'], where='post')
+sequence.step(simulation.trajectory_.times, simulation.trajectory_.values('source.symbol'), where='post')
 sequence.set_xlabel('step')
 sequence.set_ylabel('symbol')
 sequence.set_title('Long stretches of symbol 0')
@@ -64,7 +64,7 @@ plt.show()
 # so the ε-machine should have two causal states, one per symbol, visited 80 and 20 percent of the time. Its
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
-machine = epsilon_machine(symbols['source.symbol'].astype(int), 3)
+machine = epsilon_machine(symbols.values('source.symbol').astype(int), 3)
 labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
 fig, occupancy = plt.subplots(figsize=(5, 4))
 occupancy.bar(labels, machine.stationary)

@@ -42,7 +42,7 @@ simulation = Simulation(create(MODEL), dt=10, observers=[observer], random_state
 # towards `x = 0`, as in Jensen's Figure 13.2.
 
 trajectory = simulation.trajectory_
-times, x, y = np.asarray(trajectory.times), trajectory['populations.x'], trajectory['populations.y']
+times, x, y = np.asarray(trajectory.times), trajectory.values('populations.x'), trajectory.values('populations.y')
 seeded = int(np.argmax(y > 0))
 growth = y[seeded] * (1 + 0.01) ** (times[seeded:] - times[seeded])
 fig, (plane, invader) = plt.subplots(1, 2, figsize=(10, 4))

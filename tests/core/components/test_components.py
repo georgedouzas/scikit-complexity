@@ -163,8 +163,8 @@ def test_defined_types_form_groups():
         interactions=[GrowthInteraction('g', target='herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory['herd.n'].shape == (2, 100)
-    assert np.allclose(trajectory['herd.n'][-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
+    assert trajectory.values('herd.n').shape == (2, 100)
+    assert np.allclose(trajectory.values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
     assert GrowthInteraction('g', target='herd', r=0.7).get_params() == {
         'label': 'g',
         'layer': None,
@@ -186,7 +186,7 @@ def test_defined_types_clone_and_pickle():
 def test_laws_function_receives_component():
     """Test that a laws function with two arguments receives the component and the namespace."""
     trajectory = Simulation(System(components=[DecayingComponent('a', n=1.0)]), dt=1).run(until=1).trajectory_
-    assert np.isclose(trajectory['a.n'][-1], np.exp(-0.2), rtol=1e-3)
+    assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
 def test_group_stores_arguments():
@@ -402,7 +402,7 @@ def test_numpy_scalar_values_match_floats():
             dt=0.5,
         )
         .run(until=2)
-        .trajectory_['d.x']
+        .trajectory_.values('d.x')
         for laws in (_numpy_decay, _float_decay)
     ]
     assert np.array_equal(*trajectories)

@@ -43,7 +43,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 simulation = Simulation(create(MODEL, x=3.0), dt=0.1, observers=[observer]).run(until=40)
 inside = Simulation(create(MODEL, x=0.1), dt=0.1).run(until=40).trajectory_
 strips = [
-    np.column_stack([25 * run['oscillator.x'], -25 * run['oscillator.y']]) for run in (simulation.trajectory_, inside)
+    np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')]) for run in (simulation.trajectory_, inside)
 ]
 observer.recording_.log(
     'phase_plane',
@@ -62,7 +62,7 @@ observer.recording_.flush()
 def cycle_amplitude(start, order):
     """Return the largest displacement over the last 10 time units of a run of 40."""
     run = Simulation(create(MODEL, x=start, order=order), dt=0.1).run(until=40).trajectory_
-    return np.max(np.abs(run['oscillator.x'][-100:]))
+    return np.max(np.abs(run.values('oscillator.x')[-100:]))
 
 
 orders = np.linspace(0.7, 1.0, 7)

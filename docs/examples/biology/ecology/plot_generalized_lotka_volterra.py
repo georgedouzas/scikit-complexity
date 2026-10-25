@@ -33,7 +33,7 @@ b = np.array([1.0, 0.8, 0.6])
 a = np.array([[-1.0, -0.3, 0.2], [-0.2, -1.0, -0.3], [0.1, -0.2, -1.0]])
 fixed = -np.linalg.solve(a, b)
 trajectory = simulation.trajectory_
-abundances = trajectory['species.x']
+abundances = trajectory.values('species.x')
 fig, (series, distance) = plt.subplots(1, 2, figsize=(10, 4))
 for index in range(3):
     line = series.plot(trajectory.times, abundances[:, index], label=f'species {index + 1}')[0]

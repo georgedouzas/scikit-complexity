@@ -52,7 +52,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=200)
 saddle = (1 + np.sqrt(1 + 0.4)) / 2
 outside = Simulation(create(MODEL, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).run(until=60).trajectory_
-strips = [np.column_stack([100 * run['form.x'], -100 * run['form.y']]) for run in (simulation.trajectory_, outside)]
+strips = [np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')]) for run in (simulation.trajectory_, outside)]
 observer.recording_.log(
     'phase_plane',
     rr.LineStrips2D(strips, radii=0.6, colors=[[255, 170, 40], [90, 170, 255]]),
@@ -77,7 +77,7 @@ values = -np.linspace(0.005, 0.21, 21)
 amplitudes, periods = [], []
 for beta1 in values:
     run = Simulation(create(MODEL, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05).run(until=600).trajectory_
-    x = run['form.x'][len(run.times) // 2 :]
+    x = run.values('form.x')[len(run.times) // 2 :]
     peaks = find_peaks(x)[0]
     amplitudes.append((x.max() - x.min()) / 2)
     periods.append(np.mean(np.diff(run.times[peaks])))

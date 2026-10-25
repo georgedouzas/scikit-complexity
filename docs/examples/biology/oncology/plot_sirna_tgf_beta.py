@@ -40,8 +40,8 @@ arms = {
 fig, (tumour, cytokine) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = Simulation(arm, dt=1.0, solver=solver).run(until=200).trajectory_
-    tumour.semilogy(trajectory.times, trajectory['site.A'].clip(1.0), label=name)
-    cytokine.semilogy(trajectory.times, trajectory['site.C2'].clip(1e-3), label=name)
+    tumour.semilogy(trajectory.times, trajectory.values('site.A').clip(1.0), label=name)
+    cytokine.semilogy(trajectory.times, trajectory.values('site.C2').clip(1e-3), label=name)
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells')
 tumour.set_title('TGF-beta lets the tumour escape')

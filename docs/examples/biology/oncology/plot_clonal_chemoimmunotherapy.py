@@ -36,8 +36,8 @@ for axes, trajectory, title in (
     (chemo, alone, 'Chemotherapy alone selects the resistant clone'),
     (both, combined, 'The vaccine clears both clones'),
 ):
-    axes.semilogy(trajectory.times, trajectory['tumour.A1'].clip(1e-2), label='sensitive clone')
-    axes.semilogy(trajectory.times, trajectory['tumour.A2'].clip(1e-2), label='resistant clone')
+    axes.semilogy(trajectory.times, trajectory.values('tumour.A1').clip(1e-2), label='sensitive clone')
+    axes.semilogy(trajectory.times, trajectory.values('tumour.A2').clip(1e-2), label='resistant clone')
     axes.set_xlabel('time (days)')
     axes.set_title(title)
     axes.legend()

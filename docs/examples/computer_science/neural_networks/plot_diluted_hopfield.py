@@ -57,7 +57,7 @@ def annealed(m):
     return integrate.quad(integrand, -10, 10)[0]
 
 
-overlaps = simulation.trajectory_['overlap']
+overlaps = simulation.trajectory_.values('overlap')
 predicted = [overlaps[0]]
 for _ in overlaps[1:]:
     predicted.append(annealed(predicted[-1]))

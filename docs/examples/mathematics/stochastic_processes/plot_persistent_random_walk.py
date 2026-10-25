@@ -47,7 +47,7 @@ times = np.asarray(trajectory.times)
 rho = 2 * 0.8 - 1
 exact = times * (1 + rho) / (1 - rho) - 2 * rho * (1 - rho**times) / (1 - rho) ** 2
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(times, np.mean(trajectory['walkers.x'] ** 2, axis=1), label='simulation')
+ax.plot(times, np.mean(trajectory.values('walkers.x') ** 2, axis=1), label='simulation')
 ax.plot(times, exact, '--', color='black', label='persistent walk')
 ax.plot(times, times, ':', color='grey', label='simple random walk')
 ax.set_xlabel('step t')

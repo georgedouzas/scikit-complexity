@@ -254,7 +254,7 @@ PhaseComponent = ElementComponent.define(
     parameters={'omega': parameter(2.0)},
     laws=lambda s: [RateLaw(s.z, I * s.omega * s.z)],
 )
-z = Simulation(System(components=[PhaseComponent('osc')]), dt=0.5).run(until=10).trajectory_['osc.z']
+z = Simulation(System(components=[PhaseComponent('osc')]), dt=0.5).run(until=10).trajectory_.values('osc.z')
 assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
 ```
 
@@ -332,11 +332,11 @@ is stiff, so stiff systems also run with the default solver.
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 
 trajectory = Simulation(landscape, dt=0.1).run(until=10).trajectory_
-print(trajectory['meadow/rabbits.n'][-1])
+print(trajectory.values('meadow/rabbits.n')[-1])
 
 simulation = Simulation(landscape, dt=0.1).run(until=10)
 simulation.update_parameters({'hunt.a': 0.0})
-print(len(simulation.extend(until=20).trajectory_))
+print(len(simulation.extend(until=20).trajectory_.times))
 ```
 
 - `dt` defaults to 1 for discrete maps and agents. For other forms it defaults to 0.01, raised to the smallest of 0.02,
@@ -380,7 +380,7 @@ MackeyGlassComponent = ElementComponent.define(
     laws=lambda s: [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
 )
 cells = System(components=[MackeyGlassComponent('cells')])
-print(Simulation(cells, dt=0.5).run(until=300).trajectory_['cells.x'][-1])
+print(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1])
 ```
 
 **Events.** `EventLaw(guard, reset, direction, terminal, label)` fires when the guard crosses zero, upward for
@@ -427,7 +427,7 @@ FilterComponent = ElementComponent.define(
     parameters={'k': 1.0},
     laws=lambda s: [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))],
 )
-print(Simulation(System(components=[FilterComponent('filter')]), dt=0.5).run(until=10).trajectory_['filter.y'][-1])
+print(Simulation(System(components=[FilterComponent('filter')]), dt=0.5).run(until=10).trajectory_.values('filter.y')[-1])
 ```
 
 **Noise conventions.** `NoiseLaw(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read. The
@@ -490,7 +490,7 @@ market = System(
     interactions=[MarketInteraction('drive', first='a', second='b', noise='market')],
 )
 trajectory = Simulation(market, solver=EulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
-print(np.corrcoef(np.diff(trajectory['a.n']), np.diff(trajectory['b.n']))[0, 1])
+print(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1])
 ```
 
 The Stratonovich and anti-Itô corrections of each law use the full diffusion matrix and the covariance, so a state
@@ -527,7 +527,7 @@ DensityComponent = ElementComponent.define(
     laws=lambda s: [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)],
 )
 gas = System(components=[FieldComponent('gas', DensityComponent, LatticeSpace((16, 16)))])
-density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_['gas.rho']
+density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_.values('gas.rho')
 print(density[-1].sum(), density[-1].std() > 0)
 ```
 
@@ -581,7 +581,7 @@ PersistentComponent = ElementComponent.define(
     ],
 )
 walkers = System(components=[PersistentComponent.group('walkers', 500)])
-final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_['walkers.x'][-1]
+final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
 
@@ -622,7 +622,7 @@ SourceComponent = ElementComponent.define(
     ],
 )
 simulation = Simulation(System(components=[SourceComponent('source')]), dt=1.0, random_state=0).run(until=10000)
-print(round(float((simulation.trajectory_['source.hidden'] == 'calm').mean()), 1))
+print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
 
@@ -658,7 +658,7 @@ FlierComponent = ElementComponent.define(
     laws=lambda s: [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))],
 )
 flight = Simulation(System(components=[FlierComponent.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
-print(flight.trajectory_['fliers.x'].shape)
+print(flight.trajectory_.values('fliers.x').shape)
 ```
 
 ### Jumps on clocks of waiting times
@@ -690,7 +690,7 @@ WalkerComponent = ElementComponent.define(
     laws=lambda s: [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
 )
 walk = Simulation(System(components=[WalkerComponent.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
-print(walk.problem_.form.value, walk.trajectory_['jumps.renewals'][-1] > 1000)
+print(walk.problem_.form.value, walk.trajectory_.values('jumps.renewals')[-1] > 1000)
 ```
 
 The trajectory records every renewal pass as a `RenewalRecord` among its events, with the time and the member of every
@@ -723,7 +723,7 @@ rough = Simulation(
     dt=0.1,
     random_state=0,
 ).run(until=1)
-print(round(float(rough.trajectory_['walkers.x'][-1].var()), 1))
+print(round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1))
 ```
 
 The library has these models ready: `continuous_time_random_walk`, `levy_walk`, `annealed_transient_time_motion`,
@@ -765,7 +765,7 @@ from skcomplex.formalisms.fractional import L1Solver
 RelaxingComponent = ElementComponent.define('RelaxingComponent', states={'x': state(1.0, order=0.6)}, laws=lambda s: [RateLaw(s.x, -s.x)])
 relaxing = Simulation(System(components=[RelaxingComponent('a')]), solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
 exact = mittag_leffler(0.6, 1.0, -(20.0**0.6))
-print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_['a.x'][-1]) - float(exact)) < 1e-3)
+print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
 ```
 
 Validation reports the misuses of fractional orders before compiling, each with the path of the state and a fix: an
@@ -824,7 +824,7 @@ oscillators = System(
     components=[OscillatorComponent.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
 )
 observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
-order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_['order']
+order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
@@ -865,7 +865,7 @@ coupled = System(
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
-print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_['X'][-1].round(2))
+print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1].round(2))
 ```
 
 ## Stocks and flows
@@ -900,7 +900,7 @@ PeopleComponent = ElementComponent.define(
 )
 crowd = System(components=[PeopleComponent('crowd')])
 trajectory = Simulation(crowd, dt=1.0).run(until=10).trajectory_
-print(round(float(trajectory['crowd.births'][-1]), 3), round(float(trajectory['crowd.deaths'][-1]), 3))
+print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
 ```
 
 A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
@@ -1008,7 +1008,7 @@ room = System(components=[HeaterComponent('heater')])
 print([issue.path for issue in validate(System(components=[HeaterComponent('heater', power=2.0)])).errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
-print(heated['heater.power'])
+print(heated.values('heater.power'))
 ```
 
 ### Objectives and optimal control
@@ -1046,9 +1046,9 @@ PlantComponent = ElementComponent.define(
 )
 plant = System(components=[PlantComponent('plant')])
 optimal = Simulation(plant, solver=PontryaginSolver(), dt=0.1).run(until=1.0)
-print(round(optimal.trajectory_['plant.u'][0], 3), round(optimal.stepper_.solution_.cost, 4))
+print(round(optimal.trajectory_.values('plant.u')[0], 3), round(optimal.stepper_.solution_.cost, 4))
 transcribed = Simulation(plant, solver=CollocationSolver(nodes=21), dt=0.1).run(until=1.0)
-print(round(transcribed.trajectory_['plant.u'][0], 3))
+print(round(transcribed.trajectory_.values('plant.u')[0], 3))
 ```
 
 Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate,
@@ -1309,7 +1309,7 @@ register(
     ),
 )
 decayed = Simulation(System(components=[NucleusComponent('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
-print(type(decayed.stepper_).__name__, decayed.trajectory_['atom.n'][-1].round(4))
+print(type(decayed.stepper_).__name__, decayed.trajectory_.values('atom.n')[-1].round(4))
 ```
 
 The formalism packages of `skcomplex.formalisms` follow one internal layout, with the modules `_laws`,
@@ -1366,7 +1366,7 @@ print([entry.name for entry in catalog(field='biology/ecology')])
 print(sorted({entry.field for entry in catalog(field='chemistry')}))
 print(describe('lotka_volterra').formalism)
 predation = create('lotka_volterra', a=0.2)
-print(run('sir').trajectory_['I.n'].max().round())
+print(run('sir').trajectory_.values('I.n').max().round())
 ```
 
 ### Models as patterns
@@ -1440,7 +1440,7 @@ gas = System(
     space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).run(until=0.5).trajectory_
-print(trajectory['gas.x'].shape)
+print(trajectory.values('gas.x').shape)
 ```
 
 - The label and the size of a group are given by position, `ParticleComponent.group('gas', 1_000, ...)`, so a state named
@@ -1488,7 +1488,7 @@ from skcomplex.core.laws import total
 
 UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
 units = System(components=[UnitComponent.group('units', 50, x=np.linspace(-1, 1, 50))])
-print(Simulation(units, dt=0.5).run(until=2).trajectory_['units.x'][-1, :3].round(3))
+print(Simulation(units, dt=0.5).run(until=2).trajectory_.values('units.x')[-1, :3].round(3))
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
 StrategyComponent = ElementComponent.define('StrategyComponent', states={'x': 0.5})
@@ -1507,7 +1507,7 @@ game = System(
     components=[StrategyComponent.group('population', 2, x=[0.1, 0.9])],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-print(Simulation(game, dt=1.0).run(until=40).trajectory_['population.x'][-1].round(3))
+print(Simulation(game, dt=1.0).run(until=40).trajectory_.values('population.x')[-1].round(3))
 ```
 
 A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
@@ -1568,7 +1568,7 @@ summed = System(
 )
 simulation = Simulation(summed, dt=1).run(until=1)
 simulation.update_parameters({'sum.weights[2]': 0.0})
-print(simulation.trajectory_['out.x'], simulation.parameters_)
+print(simulation.trajectory_.values('out.x'), simulation.parameters_)
 ```
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
@@ -1612,7 +1612,7 @@ ring = System(
     components=[CarComponent.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
     interactions=[FollowingComponentInteraction('following', cars='cars', length=40.0)],
 )
-print(Simulation(ring, dt=1.0).run(until=50).trajectory_['cars.v'][-1].std() > 0.1)
+print(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1)
 ```
 
 ### Jacobians of reductions
@@ -1959,7 +1959,7 @@ system = System(
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
 )
 trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).run(until=1.0).trajectory_
-print(np.round(trajectory['synapses.w'][-1], 3).tolist())
+print(np.round(trajectory.values('synapses.w')[-1], 3).tolist())
 ```
 
 ### Reductions over neighbourhoods
@@ -2141,7 +2141,7 @@ economy = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = Simulation(economy, dt=10.0).run(until=100).trajectory_['wealth.f']
+densities = Simulation(economy, dt=10.0).run(until=100).trajectory_.values('wealth.f')
 print(densities.sum(axis=1)[[0, -1]].round(12), densities[-1].round(3))
 print(validate(economy).ok)
 ```
@@ -2184,7 +2184,7 @@ welfare = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-print(Simulation(welfare, dt=10.0).run(until=100).trajectory_['wealth.f'][-1].round(3))
+print(Simulation(welfare, dt=10.0).run(until=100).trajectory_.values('wealth.f')[-1].round(3))
 ```
 
 ### Moments
@@ -2216,7 +2216,7 @@ observables = [
     Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = Simulation(economy, dt=10.0, observables=observables).run(until=100).trajectory_
-print(trajectory['mean_wealth'][-1].round(3), trajectory['wealth_variance'][[0, -1]].round(3))
+print(trajectory.values('mean_wealth')[-1].round(3), trajectory.values('wealth_variance')[[0, -1]].round(3))
 ```
 
 ### The particle solver
@@ -2238,7 +2238,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.kinetics import KineticSolver
 
 sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).run(until=100)
-print(np.abs(sampled.trajectory_['wealth.f'][-1] - densities[-1]).sum().round(2))
+print(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum().round(2))
 print(validate(welfare, solver=KineticSolver()).ok)
 ```
 
@@ -2319,7 +2319,7 @@ MajorityComponent = ElementComponent.define(
 )
 cells = (np.random.default_rng(0).random(tree.size) < 0.5).astype(float)
 majority = System(components=[MajorityComponent.lattice('cells', tree, alive=cells)])
-print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
+print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_.values('cells.alive').shape)
 print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).words)
 ```
 
@@ -2415,7 +2415,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 rod = FieldComponent('rod', DiffusionInteractionComponent, LatticeSpace(400, spacing=0.05), boundary={'u': 'zero-flux'}, values={'u': initial})
 trajectory = Simulation(System(components=[rod]), dt=0.1).run(until=0.5).trajectory_
-print(trajectory['rod.u'][-1].max(), trajectory['rod.u'].sum(axis=1)[[0, -1]])
+print(trajectory.values('rod.u')[-1].max(), trajectory.values('rod.u').sum(axis=1)[[0, -1]])
 ```
 
 - `laplacian(u)` lowers to the `2d + 1`-point stencil divided by the squared spacing, and to the graph Laplacian on a
@@ -2569,7 +2569,7 @@ herds = System(
     components=[PopulationComponent.group('herds', 2000, n=1.0)],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-print(Simulation(herds, dt=0.1).run(until=1).trajectory_['herds.n'][-1, 0])
+print(Simulation(herds, dt=0.1).run(until=1).trajectory_.values('herds.n')[-1, 0])
 ```
 
 A plain Python callable of the values, as in `RateLaw(s.target.n, lambda t, values: ...)`, also works with the Numba
@@ -2601,7 +2601,7 @@ atoms = System(
     space=ContinuousSpace(n_dim=2),
 )
 trajectory = Simulation(atoms, solver=LammpsSolver(dt=0.005), dt=0.05, random_state=0).run(until=1).trajectory_
-print(trajectory['atoms.x'].shape)
+print(trajectory.values('atoms.x').shape)
 ```
 
 Before the first frame the backend checks the system and raises one error that lists every element, interaction, and
@@ -2667,7 +2667,7 @@ foragers = System(
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
-print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
+print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers', 20)))
 ```
 
 - An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
@@ -2820,7 +2820,7 @@ auction = System(
     time=DiscreteTime(schedule=PhasesSchedule([Phase('quote'), Phase('trade', repeat=3)])),
 )
 trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
-print(trajectory['auction.price'][1:], trajectory['clerk.traded'][-1], trajectory['clerk.fee'][-1])
+print(trajectory.values('auction.price')[1:], trajectory.values('clerk.traded')[-1], trajectory.values('clerk.fee')[-1])
 ```
 
 ### Porting Mesa models
@@ -2879,7 +2879,7 @@ algae = System(
     interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
 )
 trajectory = Simulation(algae).run(until=5).trajectory_
-print(trajectory['algae.size'].tolist(), str(trajectory.structure('algae', 5)))
+print(trajectory.values('algae.size').tolist(), str(trajectory.structure('algae', 5)))
 ```
 
 A production can be stochastic, with probabilities that sum to one per predecessor and context and draws from the
@@ -2948,7 +2948,7 @@ cantor = System(
     interactions=[Rewrite('rules', target='cantor', rules=[SubstitutionLaw('interval', thirds)])],
 )
 trajectory = Simulation(cantor).run(until=5).trajectory_
-print(trajectory['cantor.size'][-1], round(trajectory['cantor.length'][-1], 6))
+print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
 print(round(box_counting_dimension(grid, [3, 9, 27]), 2))
 ```
@@ -2978,7 +2978,7 @@ ring = System(
     components=[HostGraphComponent('ring', graph=nx.cycle_graph(4))],
     interactions=[Rewrite('rules', target='ring', rules=[subdivide])],
 )
-print(Simulation(ring, random_state=0).run(until=3).trajectory_['ring.size'].tolist())
+print(Simulation(ring, random_state=0).run(until=3).trajectory_.values('ring.size').tolist())
 ```
 
 ## Quantum systems
@@ -3030,7 +3030,7 @@ chain = System(
 )
 observables = [expectation('sz', attrgetter('z'), group='chain')]
 trajectory = Simulation(chain, dt=0.5, observables=observables).run(until=2.0).trajectory_
-print(trajectory['sz'].shape, round(float(np.ptp(trajectory['energy'])), 8))
+print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 
 ### Solvers, observables, and spectra
@@ -3067,7 +3067,7 @@ from skcomplex.models.economics.resources import harvesting
 farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
 trajectory = Simulation(farming, random_state=0).run(until=50).trajectory_
-print(round(trajectory['land/stock.n'][-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
+print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
 ```
 
 - Every partition holds the states of the other partitions as inputs, which keep their values from the last
@@ -3509,7 +3509,7 @@ sparse = SINDySurrogate(degree=1, threshold=0.05).fit(spiral)
 print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.run(50).shape)
 reservoir = ReservoirSurrogate().fit(spiral)
 forecast = Simulation(reservoir.system_).run(until=50).trajectory_
-print(type(reservoir.system_.time).__name__, np.allclose(forecast['surrogate.x'][1:], reservoir.run(50)[:, 0]))
+print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrogate.x')[1:], reservoir.run(50)[:, 0]))
 ```
 
 ### Stochastic processes

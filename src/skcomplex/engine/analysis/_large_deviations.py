@@ -28,7 +28,7 @@ def _increment(observable: str | Callable[[Trajectory], float], trajectory: Traj
     """Return the increment of a time-additive observable over one segment of a clone."""
     if callable(observable):
         return float(observable(trajectory))
-    values = np.asarray(trajectory[observable], dtype=float)
+    values = np.asarray(trajectory.values(observable), dtype=float)
     return float(np.sum(values[-1] - values[0]))
 
 

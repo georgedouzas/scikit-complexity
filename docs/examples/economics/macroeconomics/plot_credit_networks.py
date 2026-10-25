@@ -60,8 +60,8 @@ for intensity in intensities:
         .run(100)
         .trajectory_
     )
-    herfindahl.append(trajectory['herfindahl'][50:].mean())
-    spread.append(np.nanmean(trajectory['credit.spread'][50:]))
+    herfindahl.append(trajectory.values('herfindahl')[50:].mean())
+    spread.append(np.nanmean(trajectory.values('credit.spread')[50:]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(intensities, herfindahl, 'o-')
 left.axhline(0.1, ls='--', color='grey', label='equal shares')

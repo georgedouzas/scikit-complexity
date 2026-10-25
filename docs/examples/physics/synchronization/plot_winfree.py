@@ -38,7 +38,7 @@ means, spreads = [], []
 for coupling in couplings:
     model_system = create(MODEL, n_oscillators=50, K=coupling, spread=0.1, seed=0)
     run = Simulation(model_system, dt=0.25, observables=describe(MODEL).observables_of(model_system)).run(until=200)
-    times, phases = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_['oscillators.theta'])
+    times, phases = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_.values('oscillators.theta'))
     late = times >= 100
     frequencies = (phases[late][-1] - phases[late][0]) / (times[late][-1] - times[late][0])
     means.append(frequencies.mean())

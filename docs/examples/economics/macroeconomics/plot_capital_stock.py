@@ -41,14 +41,14 @@ for index, fraction in enumerate(fractions):
     rate = fraction * OUTPUT - 1 / LIFETIME
     paths.semilogy(
         trajectory.times[::3],
-        trajectory['economy.K'][::3],
+        trajectory.values('economy.K')[::3],
         'o',
         ms=3,
         color=f'C{index}',
         label=f'f = {fraction}',
     )
     paths.semilogy(trajectory.times, 100 * np.exp(rate * trajectory.times), color=f'C{index}', lw=0.8)
-    measured.append(np.log(trajectory['economy.K'][-1] / 100) / UNTIL)
+    measured.append(np.log(trajectory.values('economy.K')[-1] / 100) / UNTIL)
 paths.set_xlabel('year')
 paths.set_ylabel('capital stock K')
 paths.set_title('Exponential growth or decay')

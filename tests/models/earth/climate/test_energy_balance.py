@@ -14,16 +14,16 @@ from ..conftest import _run
 
 def test_ice_albedo_bistability():
     """Test that the energy balance settles in a warm and in a frozen climate at the same solar constant."""
-    warm = _run(energy_balance(T=300.0), until=1000.0, dt=10.0)['earth.T'][-1]
-    cold = _run(energy_balance(T=220.0), until=1000.0, dt=10.0)['earth.T'][-1]
+    warm = _run(energy_balance(T=300.0), until=1000.0, dt=10.0).values('earth.T')[-1]
+    cold = _run(energy_balance(T=220.0), until=1000.0, dt=10.0).values('earth.T')[-1]
     assert abs(warm - 286.4) < 0.5
     assert abs(cold - 231.7) < 0.5
 
 
 def test_budyko_sellers_has_ice_caps_and_a_snowball():
     """Test that present insolation keeps both a climate with polar ice caps and a snowball Earth."""
-    capped = _run(budyko_sellers(18), until=40.0, dt=4.0)['bands.T'][-1]
-    snowball = _run(budyko_sellers(18, T=-50.0), until=40.0, dt=4.0)['bands.T'][-1]
+    capped = _run(budyko_sellers(18), until=40.0, dt=4.0).values('bands.T')[-1]
+    snowball = _run(budyko_sellers(18, T=-50.0), until=40.0, dt=4.0).values('bands.T')[-1]
     assert capped[0] > 20.0 > -10.0 > capped[-1]
     assert np.all(np.diff(capped) < 0)
     assert np.all(snowball < -10.0)
@@ -38,6 +38,6 @@ def test_daisyworld_regulates_temperature():
         dt=1.0,
         observables=describe('daisyworld').observables_of(built),
     )
-    assert planet['planet.white'][-1] > 0.1
-    assert planet['planet.black'][-1] > 0.1
-    assert abs(planet['temperature'][-1] - 295.5) < abs(bare['temperature'][-1] - 295.5) - 3.0
+    assert planet.values('planet.white')[-1] > 0.1
+    assert planet.values('planet.black')[-1] > 0.1
+    assert abs(planet.values('temperature')[-1] - 295.5) < abs(bare.values('temperature')[-1] - 295.5) - 3.0

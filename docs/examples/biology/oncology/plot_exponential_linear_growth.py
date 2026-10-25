@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=40)
 # The growth rate `dn/dt` should rise in proportion to the volume, as `r0 n`, until it reaches `r` at
 # `tau = log(r / (r0 n0)) / r0`, and stay constant after.
 
-times, volume = simulation.trajectory_.times, simulation.trajectory_['tumour.n']
+times, volume = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')
 r0, r = 0.31, 67.8
 tau = np.log(r / (r0 * 2.0)) / r0
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

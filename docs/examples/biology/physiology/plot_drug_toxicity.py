@@ -32,12 +32,12 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=84)
 times = simulation.trajectory_.times
 cumulative = Simulation(create(MODEL, eta=0.0), dt=0.2).run(until=84).trajectory_
 exposure = np.concatenate(
-    ([0.0], np.cumsum(np.diff(times) * (cumulative['patient.c'][1:] + cumulative['patient.c'][:-1]) / 2)),
+    ([0.0], np.cumsum(np.diff(times) * (cumulative.values('patient.c')[1:] + cumulative.values('patient.c')[:-1]) / 2)),
 )
-toxicity = simulation.trajectory_['patient.T']
+toxicity = simulation.trajectory_.values('patient.T')
 late = times >= 50.0
 fig, (accumulation, decay) = plt.subplots(1, 2, figsize=(10, 4))
-accumulation.plot(times, cumulative['patient.T'], label='toxicity, eta = 0')
+accumulation.plot(times, cumulative.values('patient.T'), label='toxicity, eta = 0')
 accumulation.plot(times, exposure, '--', color='black', label='integral of c')
 accumulation.plot(times, toxicity, label='toxicity, eta = 0.05')
 accumulation.set_xlabel('time (days)')

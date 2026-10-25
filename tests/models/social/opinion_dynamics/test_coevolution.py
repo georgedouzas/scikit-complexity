@@ -13,7 +13,7 @@ from skcomplex.models.social.opinion_dynamics import coevolving_voter, join_a_cl
 def _discordant(trajectory, frame):
     """Return the share of the edges of a frame whose ends hold different opinions."""
     snapshot = trajectory.network(frame)
-    opinions = trajectory['voters.opinion'][frame]
+    opinions = trajectory.values('voters.opinion')[frame]
     return float(np.mean(opinions[snapshot.sources] != opinions[snapshot.targets]))
 
 
@@ -27,7 +27,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
     assert _discordant(slow, 2) > 0.15
     assert _discordant(fast, 2) < 0.02
     graph = as_graph(fast.network(-1))
-    opinions = fast['voters.opinion'][-1]
+    opinions = fast.values('voters.opinion')[-1]
     assert nx.number_connected_components(graph) >= 2
     assert 0 < opinions.mean() < 1
     for component in nx.connected_components(graph):
@@ -37,7 +37,7 @@ def test_coevolving_voter_fragments_fast_when_rewiring_dominates():
 def test_coevolving_voter_keeps_the_number_of_edges():
     """Test that rewiring moves edges without creating or destroying them."""
     trajectory = Simulation(coevolving_voter(100, rewiring=0.5), dt=10, random_state=1).run(until=50).trajectory_
-    sizes = {trajectory.network(frame).sources.size for frame in range(len(trajectory))}
+    sizes = {trajectory.network(frame).sources.size for frame in range(len(trajectory.times))}
     assert len(sizes) == 1
 
 
@@ -47,7 +47,7 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
     free = Simulation(join_a_club(200, beta=0.0), dt=10, random_state=0).run(until=150).trajectory_
     assert _discordant(strong, -1) < 0.02
     assert _discordant(free, -1) > 0.25
-    members = strong['voters.opinion'][-1]
+    members = strong.values('voters.opinion')[-1]
     graph = as_graph(strong.network(-1))
     assert nx.number_connected_components(graph) >= 2
     assert 0 < members.mean() < 1

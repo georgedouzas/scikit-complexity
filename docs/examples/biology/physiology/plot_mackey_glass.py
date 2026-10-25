@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=500)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
     trajectory = Simulation(create(MODEL, tau=tau), dt=0.5).run(until=1000).trajectory_
-    values = trajectory['cells.x'][trajectory.times > 200]
+    values = trajectory.values('cells.x')[trajectory.times > 200]
     vectors = delay_embedding(values, dimension=2, delay=int(tau / 0.5))
     ax.plot(vectors[:, 1], vectors[:, 0], linewidth=0.6)
     ax.set_xlabel('x(t)')

@@ -36,7 +36,7 @@ starts = np.linspace(-2.0, 2.0, 80)
 winners = []
 for start in starts:
     run = Simulation(create(MODEL, x=start, y=1.5, n_magnets=3), dt=0.1).run(until=40)
-    final = np.asarray(run.trajectory_['bob.x'])[-1]
+    final = np.asarray(run.trajectory_.values('bob.x'))[-1]
     winners.append(np.argmin(np.linalg.norm(magnets - final, axis=1)))
 fig, ax = plt.subplots(figsize=(8, 3))
 ax.scatter(starts, winners, c=winners, cmap='viridis', s=18)

@@ -16,7 +16,7 @@ CELL_CYCLE = ('CycD', 'Rb', 'E2F', 'CycE', 'CycA', 'p27', 'Cdc20', 'Cdh1', 'Ubc'
 
 def _states(trajectory, names):
     """Return the Boolean states of a network as strings of bits, one per step."""
-    values = np.array([trajectory[f'{name}.x'] for name in names]).T.astype(int)
+    values = np.array([trajectory.values(f'{name}.x') for name in names]).T.astype(int)
     return [''.join(str(bit) for bit in row) for row in values]
 
 
@@ -55,13 +55,13 @@ def test_mammalian_cell_cycle_rests_or_cycles_with_the_growth_signal():
     assert set(_states(quiescent, CELL_CYCLE)) == {'0100010100'}
     cycling = _run_with_solver(mammalian_cell_cycle(), until=30, dt=1)
     assert _period(_states(cycling, CELL_CYCLE)) == 7
-    assert cycling['CycB.x'][10:].max() == 1
+    assert cycling.values('CycB.x')[10:].max() == 1
 
 
 def test_mammalian_cell_cycle_knockout_stays_off():
     """Test that a knocked-out cyclin stays off and that the cycle stops without CycE and CycA."""
     trajectory = _run_with_solver(mammalian_cell_cycle(knockouts=('CycE', 'CycA')), until=30, dt=1)
-    assert trajectory['CycA.x'].max() == 0
+    assert trajectory.values('CycA.x').max() == 0
     assert _period(_states(trajectory, CELL_CYCLE)) == 1
 
 

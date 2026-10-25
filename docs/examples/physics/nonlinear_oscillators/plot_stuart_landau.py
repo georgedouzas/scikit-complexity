@@ -31,7 +31,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=20)
 # the phase should advance at the predicted rate once the amplitude has saturated.
 
 times = np.asarray(simulation.trajectory_.times)
-z = np.ravel(simulation.trajectory_['oscillator.x']) + 1j * np.ravel(simulation.trajectory_['oscillator.y'])
+z = np.ravel(simulation.trajectory_.values('oscillator.x')) + 1j * np.ravel(
+    simulation.trajectory_.values('oscillator.y')
+)
 exact = np.sqrt(mu / (1 + (mu / 0.01**2 - 1) * np.exp(-2 * mu * times)))
 phase = np.unwrap(np.angle(z))
 fig, (amplitude, rotation) = plt.subplots(1, 2, figsize=(10, 4))

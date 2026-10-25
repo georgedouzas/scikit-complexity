@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=15)
 
 proteins = ['Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1']
 trajectory = simulation.trajectory_
-states = np.column_stack([trajectory[f'{protein}.x'] for protein in proteins])
+states = np.column_stack([trajectory.values(f'{protein}.x') for protein in proteins])
 changes = np.nonzero(np.any(states[1:] != states[:-1], axis=1))[0]
 settled = changes[-1] + 1
 fig, ax = plt.subplots(figsize=(8, 4.5))

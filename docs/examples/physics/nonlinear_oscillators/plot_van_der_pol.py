@@ -30,7 +30,12 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 fig, ax = plt.subplots(figsize=(6, 4))
 for x, v in [(0.1, 0.0), (4.0, 6.0), (-3.0, -8.0)]:
     run = Simulation(create(MODEL, x=x, v=v, mu=3.0), dt=0.02).run(until=30)
-    ax.plot(run.trajectory_['oscillator.x'], run.trajectory_['oscillator.x_d1'], linewidth=1, label=f'x0 = {x}')
+    ax.plot(
+        run.trajectory_.values('oscillator.x'),
+        run.trajectory_.values('oscillator.x_d1'),
+        linewidth=1,
+        label=f'x0 = {x}',
+    )
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Three starts, one limit cycle (μ = 3)')

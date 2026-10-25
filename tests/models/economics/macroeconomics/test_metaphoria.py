@@ -17,8 +17,8 @@ def _metaphoria(until, **arguments):
 
 def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
     """Hunter-gatherers keep a stable population on land where the monetary population dies out, as in Gooding."""
-    gatherers = _metaphoria(150)['population']
-    monetary = _metaphoria(150, mode='monetary')['population']
+    gatherers = _metaphoria(150).values('population')
+    monetary = _metaphoria(150, mode='monetary').values('population')
     assert gatherers[100:].min() > 50
     assert monetary[-1] < gatherers[-1] / 4
 
@@ -26,9 +26,9 @@ def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
 def test_metaphoria_monetary_money_is_stock_flow_consistent():
     """With abundant food the monetary economy lives with starvation, and all money held is matched by loans."""
     trajectory = _metaphoria(100, mode='monetary', max_food=50.0, max_resistance=0.0)
-    assert trajectory['population'][-1] > 100
-    assert np.nansum(trajectory['census.starvations']) > 0
-    assert trajectory['money_gini'][-1] > 0.3
+    assert trajectory.values('population')[-1] > 100
+    assert np.nansum(trajectory.values('census.starvations')) > 0
+    assert trajectory.values('money_gini')[-1] > 0.3
     holders = [trajectory.agents(group, 100).values for group in ('people', 'businesses', 'bank')]
     money = sum(np.sum(values['money']) for values in holders)
     loans = sum(np.sum(values['loans']) for values in holders)

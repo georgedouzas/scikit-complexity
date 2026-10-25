@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 
 trajectory = simulation.trajectory_
 times = trajectory.times[1:]
-positions = trajectory['walkers.x']
+positions = trajectory.values('walkers.x')
 squared = np.mean(np.sum(positions[1:] ** 2, axis=-1), axis=1)
 exponents = [hurst_exponent(np.diff(positions[:, member, 0])) for member in range(100)]
 fig, (displacement, memory) = plt.subplots(1, 2, figsize=(10, 4))
