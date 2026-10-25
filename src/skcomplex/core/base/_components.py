@@ -6,9 +6,8 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, Self, cast
 
-from sklearn.base import BaseEstimator
-
 from ._errors import ValidationError
+from ._estimator import BaseEstimator
 from ._laws import BaseLaw
 from ._variables import (
     Variable,

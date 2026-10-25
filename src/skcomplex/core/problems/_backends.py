@@ -10,11 +10,11 @@ from dataclasses import dataclass, field
 from typing import ClassVar, cast
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ..base import (
     BackendError,
     BackendWarning,
+    BaseEstimator,
     BaseLaw,
     Expression,
     Form,

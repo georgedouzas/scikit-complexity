@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping
 
-from ...core.base import BaseProblem, Registry
+from ...core.base import BaseEstimator, BaseProblem, Registry
 from ...core.system import System
 
 SYSTEM_COMPILERS = Registry['BaseSystemCompiler']('system compiler')
@@ -45,7 +45,7 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
     return None
 
 
-class BaseSystemCompiler:
+class BaseSystemCompiler(BaseEstimator):
     """Compiler of a formalism that compiles a whole system it claims into a problem of the formalism's form.
 
     Validation of a claimed system checks its structure and leaves the rest to the compiler, which raises an error for a

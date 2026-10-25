@@ -5,12 +5,12 @@
 
 import numpy as np
 
-from ...core.base import BaseProblem, SimulationError, Vector
+from ...core.base import BaseEstimator, BaseProblem, SimulationError, Vector
 from ._frames import Frame
 from ._trajectories import Trajectory
 
 
-class BaseObserver:
+class BaseObserver(BaseEstimator):
     """Base class of objects that receive the frames of a simulation.
 
     Subclasses override any of `on_start`, `on_frame`, and `on_stop`.

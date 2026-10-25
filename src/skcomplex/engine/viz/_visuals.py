@@ -8,12 +8,12 @@ from typing import Any
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, Registry, VisualSpec
+from ...core.base import BaseEstimator, BaseProblem, Registry, VisualSpec
 from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 
 
-class BaseVisual:
+class BaseVisual(BaseEstimator):
     """Base class of visuals, which log the state of one element to a Rerun recording.
 
     Subclasses implement `log`, declare the Rerun views that show what they log with `views`, and are registered under a

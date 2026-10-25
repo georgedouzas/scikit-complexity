@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import ClassVar
 
-from ...core.base import PipelineError, Registry
+from ...core.base import BaseEstimator, PipelineError, Registry
 from ._compilation import Compilation
 from ._issues import Issue
 
@@ -212,7 +212,7 @@ def registered_checks() -> list[Check]:
     return [CHECKS.resolve(key) for key in CHECKS]
 
 
-class BasePass(ABC):
+class BasePass(BaseEstimator, ABC):
     """Step of a compilation that reads fields of the compilation state and writes others.
 
     A pass declares the fields it reads and writes as the class variables `reads` and `writes`, which order the passes

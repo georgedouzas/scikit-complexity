@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnalysisError, BaseLaw, BaseTime, Expression
+from ...core.base import AnalysisError, BaseEstimator, BaseLaw, BaseTime, Expression
 from ...core.components import ElementComponent
 from ...core.laws import Symbols
 from ...core.system import System
@@ -221,7 +221,7 @@ def symbols_of(s: Symbols, names: Sequence[str]) -> list[Expression]:
 
 
 @dataclass(frozen=True)
-class BaseSurrogate:
+class BaseSurrogate(BaseEstimator):
     """Surrogate system fitted to series, with its errors.
 
     Args:

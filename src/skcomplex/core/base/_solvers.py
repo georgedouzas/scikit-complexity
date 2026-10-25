@@ -6,9 +6,9 @@
 from typing import Any, ClassVar
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ._errors import SolverError
+from ._estimator import BaseEstimator
 from ._kinds import Form, Supports
 from ._problems import BaseProblem
 from ._utils import Vector

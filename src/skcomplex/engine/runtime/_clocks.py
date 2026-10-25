@@ -5,7 +5,7 @@
 
 import time
 
-from sklearn.base import BaseEstimator
+from ...core.base import BaseEstimator
 
 
 class BaseClock(BaseEstimator):

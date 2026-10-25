@@ -25,6 +25,7 @@ from ._errors import (
     UnregisteredLawError,
     ValidationError,
 )
+from ._estimator import BaseEstimator
 from ._kinds import (
     NUMERIC_DOMAINS,
     Binding,
@@ -59,6 +60,7 @@ __all__: list[str] = [
     'BackendWarning',
     'BaseComponent',
     'BaseDomain',
+    'BaseEstimator',
     'BaseInteraction',
     'BaseLaw',
     'BaseNeighborhood',

@@ -5,8 +5,7 @@
 
 from typing import ClassVar, Self
 
-from sklearn.base import BaseEstimator
-
+from ._estimator import BaseEstimator
 from ._kinds import SpaceKind, TimeKind
 
 

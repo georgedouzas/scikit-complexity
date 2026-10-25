@@ -9,9 +9,8 @@ from typing import Any
 
 import numpy as np
 from scipy.stats import qmc
-from sklearn.base import BaseEstimator
 
-from ...core.base import ValidationError
+from ...core.base import BaseEstimator, ValidationError
 
 type Row = dict[str, Any]
 
