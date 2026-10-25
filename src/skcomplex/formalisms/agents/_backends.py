@@ -6,7 +6,7 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import mesa
 import networkx as nx
@@ -305,7 +305,7 @@ class ModelView:
                 No role or group has that name.
         """
         stepper = self._stepper
-        return [AgentView(agent, stepper) for path in self._paths(name) for agent in stepper._group_agents(path)]
+        return [_view_of(agent) for path in self._paths(name) for agent in stepper._group_agents(path)]
 
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner, or of a group by path.
@@ -419,7 +419,7 @@ class ModelView:
             SimulationError:
                 The group is not variable, so its size cannot change.
         """
-        return AgentView(self._stepper._create_agent(group, location, values), self._stepper)
+        return _view_of(self._stepper._create_agent(group, location, values))
 
     @property
     def round(self) -> int:
@@ -523,6 +523,11 @@ class ModelView:
 class AgentView:
     """Agent as rules see it: its states as attributes, its group's parameters, its neighbours, and its location.
 
+    The stepper gives every agent one view of the class of its group, whose states and parameters are properties, so
+    two views of an agent are the same object. Reading a state reads the agent, and setting it sets the agent, at
+    the end of the phase in a simultaneous phase. Parameters are read only, and an unknown name raises Python's own
+    `AttributeError`.
+
     Args:
         agent:
             The Mesa agent.
@@ -534,38 +539,15 @@ class AgentView:
     __slots__ = ('_agent', '_stepper')
 
     def __init__(self, agent: mesa.Agent, stepper: 'MesaSolver') -> None:
-        object.__setattr__(self, '_agent', agent)
-        object.__setattr__(self, '_stepper', stepper)
+        self._agent = agent
+        self._stepper = stepper
 
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a state of the agent or a parameter of its group."""
-        spec = self._stepper._spec_of(self._agent)
-        if name in spec.states:
-            return getattr(self._agent, name)
-        if name in spec.parameters:
-            stepper = self._stepper
-            return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, spec.parameters[name]))[0])
-        error_msg = f'Agents of {spec.path} have no state or parameter {name!r}.'
-        raise AttributeError(error_msg)
+    if TYPE_CHECKING:
+        # Declared for type checkers only, which cannot see the properties of the class of a group. At runtime the
+        # view defines neither method, so an unknown name raises Python's own `AttributeError`.
+        def __getattr__(self, name: str) -> Any: ...  # noqa: ANN401
 
-    def __setattr__(self, name: str, value: Any) -> None:  # noqa: ANN401
-        """Set a state of the agent, at the end of the phase in a simultaneous phase."""
-        if name not in self._stepper._spec_of(self._agent).states:
-            error_msg = f'{name!r} is not a state of the agent, so it cannot be set.'
-            raise AttributeError(error_msg)
-        buffer = self._stepper.buffer_
-        if buffer is not None:
-            buffer[self._agent, name] = value
-            return
-        setattr(self._agent, name, value)
-
-    def __eq__(self, other: object) -> bool:
-        """Check whether two views show the same agent."""
-        return isinstance(other, AgentView) and other._agent is self._agent
-
-    def __hash__(self) -> int:
-        """Return the hash of the agent's id."""
-        return hash(self._agent.unique_id)
+        def __setattr__(self, name: str, value: Any) -> None: ...  # noqa: ANN401
 
     @property
     def id(self) -> int:
@@ -663,11 +645,10 @@ class AgentView:
             agents:
                 The neighbouring agents.
         """
-        stepper = self._stepper
         if radius is not None:
             agents, _ = self._agent.get_neighbors_in_radius(radius)
-            return [AgentView(agent, stepper) for agent in agents if agent is not self._agent]
-        return [AgentView(agent, stepper) for agent in self._agent.cell.neighborhood.agents]
+            return [_view_of(agent) for agent in agents if agent is not self._agent]
+        return [_view_of(agent) for agent in self._agent.cell.neighborhood.agents]
 
     def agents_here(self, group: str | None = None) -> list['AgentView']:
         """Return the other agents in the agent's cell or node, of one group or of every group.
@@ -683,7 +664,7 @@ class AgentView:
         stepper = self._stepper
         path = stepper._resolve_group(group, self.group) if group is not None else None
         return [
-            AgentView(agent, stepper)
+            _view_of(agent)
             for agent in self._agent.cell.agents
             if agent is not self._agent and (path is None or stepper._spec_of(agent).path == path)
         ]
@@ -753,7 +734,48 @@ class AgentView:
         stepper = self._stepper
         target = stepper._resolve_group(group, self.group) if group is not None else self.group
         place = location if location is not None else self.location
-        return AgentView(stepper._create_agent(target, place, values), stepper)
+        return _view_of(stepper._create_agent(target, place, values))
+
+
+def _view_of(agent: mesa.Agent) -> AgentView:
+    """Return the view of an agent, which the stepper creates with the agent."""
+    return cast('AgentView', agent.__dict__['view_'])
+
+
+def _state_property(name: str) -> property:
+    """Return the property of a state of agents, which sets the agent at the end of a simultaneous phase."""
+
+    def read(view: AgentView) -> Any:  # noqa: ANN401
+        return getattr(view._agent, name)
+
+    def write(view: AgentView, value: Any) -> None:  # noqa: ANN401
+        buffer = view._stepper.buffer_
+        if buffer is not None:
+            buffer[view._agent, name] = value
+            return
+        setattr(view._agent, name, value)
+
+    return property(read, write, doc=f'State {name} of the agent.')
+
+
+def _parameter_property(name: str, entry: str) -> property:
+    """Return the read-only property of a parameter of the group of agents."""
+
+    def read(view: AgentView) -> float:
+        stepper = view._stepper
+        return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, entry))[0])
+
+    return property(read, doc=f'Parameter {name} of the group of the agent.')
+
+
+def _view_class(spec: CompiledAgents) -> type[AgentView]:
+    """Return the class of the views of a group's agents, with a property per state and parameter."""
+    names: dict[str, Any] = {
+        name: _parameter_property(name, entry) for name, entry in spec.parameters.items() if name not in spec.states
+    }
+    names.update({name: _state_property(name) for name in spec.states})
+    names['__slots__'] = ()
+    return type(f'{spec.path.replace("/", "_")}_view', (AgentView,), names)
 
 
 class MesaSolver(Solver):
@@ -839,6 +861,7 @@ class MesaSolver(Solver):
         self._populating = True
         self._specs = {spec.path: spec for spec in problem.agents}
         self._classes: dict[type, CompiledAgents] = {}
+        self._view_classes: dict[type, type[AgentView]] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
         self.space_: Any = _build_space(problem.agent_space, self.model_, sum(spec.size for spec in problem.agents))
         roles = {item.path: item.roles for item in problem.interactions}
@@ -879,12 +902,11 @@ class MesaSolver(Solver):
             if isinstance(space, LatticeSpace | NetworkSpace)
             else ContinuousSpaceAgent if space else mesa.Agent
         )
-        stepper = self
         model = self._views[spec.path]
 
         def step(agent: mesa.Agent) -> None:
             """Run the rules of the agent's type unless the agent was removed earlier in the step."""
-            view = AgentView(agent, stepper)
+            view = _view_of(agent)
             for rule in _rules_of(spec.rules):
                 if getattr(agent, 'removed_', False):
                     return
@@ -892,6 +914,7 @@ class MesaSolver(Solver):
 
         agent_class = type(f'{spec.path.replace("/", "_")}_agent', (base,), {'step': step})
         self._classes[agent_class] = spec
+        self._view_classes[agent_class] = _view_class(spec)
         return agent_class
 
     def _place(self, agent: mesa.Agent, location: object) -> None:
@@ -963,6 +986,7 @@ class MesaSolver(Solver):
             if agent_class.__mro__[1] is ContinuousSpaceAgent
             else agent_class(self.model_)
         )
+        agent.__dict__['view_'] = self._view_classes[agent_class](agent, self)
         defaults = _agent_type(spec)
         for name in spec.states:
             value = values[name] if name in values else _shared_default(defaults, name)
@@ -1040,7 +1064,7 @@ class MesaSolver(Solver):
         """Check the invariants of every agent and interaction against their values when they were first checked."""
         for spec in self._specs.values():
             for agent in self._group_agents(spec.path) if spec.invariants else ():
-                view = AgentView(agent, self)
+                view = _view_of(agent)
                 for invariant in spec.invariants:
                     key = (agent.unique_id, spec.path, invariant.label)
                     first = self._invariant_values.setdefault(key, invariant.value_of(view))
@@ -1072,7 +1096,7 @@ class MesaSolver(Solver):
         try:
             for agent in self._ordered_agents(phase):
                 spec = self._spec_of(agent)
-                view, model = AgentView(agent, self), self._views[spec.path]
+                view, model = _view_of(agent), self._views[spec.path]
                 for rule in _rules_of(spec.rules):
                     if getattr(agent, 'removed_', False):
                         break

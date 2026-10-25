@@ -244,7 +244,7 @@ def test_many_equations_are_solved_numerically():
 def test_equation_takes_two_sides():
     """Test that an equation takes either a relation or two sides."""
     assert EquationLaw(1, 2).rhs == 2
-    with pytest.raises(ValueError, match='left and a right side'):
+    with pytest.raises(ValidationError, match='left and a right side'):
         EquationLaw(1).check()
 
 

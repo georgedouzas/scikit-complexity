@@ -431,11 +431,31 @@ class GroupComponent(BaseComponent):
         self.default_visual_ = self.element.visual
 
 
-def probe_laws(component: object) -> list[BaseLaw] | None:
-    """Return the laws of a component for a namespace of free symbols, before its states are declared.
+def _probe_namespace(component_type: type) -> Symbols:
+    """Return the namespace of a component type's declared names as free symbols, with `t` and `other`.
 
-    A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
-    role. Laws that cannot be written with free symbols, such as laws that index a vector state, are not listed.
+    Every state and parameter is a free symbol of its name, `other` holds the same symbols for the neighbour of a
+    member, and every role is an empty namespace, or an empty tuple for a variadic role, since the elements it binds
+    are not known before the system is flattened.
+    """
+    names: dict[str, Any] = {
+        name: symbol(name)
+        for kind in (VariableKind.STATE, VariableKind.PARAMETER)
+        for name in declarations_of(component_type, kind)
+    }
+    roles = {
+        name: () if declaration.variadic else Symbols()
+        for name, declaration in declarations_of(component_type, VariableKind.ROLE).items()
+    }
+    return Symbols(**{'t': symbol('t'), 'other': Symbols(**names), **names, **roles})
+
+
+def probe_laws(component: object) -> list[BaseLaw] | None:
+    """Return the laws of a component for a namespace of its declared names, before its states are declared.
+
+    A group returns the laws of a representative member. The namespace holds a free symbol for every declared state
+    and parameter, the time `t`, `other` for the neighbour of a member, and an empty namespace per role. Laws that
+    read other names, such as the states of the elements a role binds, or that index a vector state, are not listed.
 
     Args:
         component:
@@ -448,7 +468,9 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
     Examples:
         >>> from skcomplex.core.components import ElementComponent, probe_laws
         >>> from skcomplex.core.laws import RateLaw
-        >>> DecayComponent = ElementComponent.define('DecayComponent', laws=lambda s: [RateLaw(s.x, -s.x)])
+        >>> DecayComponent = ElementComponent.define(
+        ...     'DecayComponent', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        ... )
         >>> [type(law).__name__ for law in probe_laws(DecayComponent('decay'))]
         ['RateLaw']
     """
@@ -460,25 +482,12 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
         return None
     if component_type.laws in (BaseComponent.laws, BaseInteraction.laws):
         return []
-    roles = declarations_of(component_type, VariableKind.ROLE)
     try:
         member = (
             component.element(component.label, **(component.values or {}))
             if isinstance(component, GroupComponent)
             else component
         )
-        return list(member.run(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
+        return list(member.run(_probe_namespace(component_type)))
     except Exception:  # noqa: BLE001
         return None
-
-
-class _FreeSymbols(Symbols):
-    """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a free symbol of the name, or a namespace of free symbols for `other`, the neighbour of a member."""
-        if name.startswith('__'):
-            raise AttributeError(name)
-        if name == 'other':
-            return _FreeSymbols()
-        return symbol(name)

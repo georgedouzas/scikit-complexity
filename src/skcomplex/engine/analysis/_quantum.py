@@ -273,8 +273,8 @@ def hamiltonian_of(system: System | Problem) -> Any:  # noqa: ANN401
         >>> DrivenComponent = QubitComponent.define(
         ...     'DrivenComponent', parameters={'omega': 1.0}, laws=lambda s: [GeneratorLaw(s.omega / 2 * s.z)]
         ... )
-        >>> hamiltonian_of(System(components=[DrivenComponent('q')]))
-        1/2*omega_q*q.z
+        >>> hamiltonian_of(System(components=[DrivenComponent('q')])).text
+        '1/2*omega_q*q.z'
     """
     return _quantum_problem(system).hamiltonian_operator
 

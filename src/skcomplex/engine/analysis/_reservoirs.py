@@ -169,7 +169,7 @@ def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Sym
     def laws(s: Symbols) -> list[BaseLaw]:
         """Return the update law."""
         symbols = symbols_of(s, names)
-        return [UpdateLaw(vector(symbols), Call(step.evaluate, *symbols))]
+        return [UpdateLaw(vector(symbols), Call(step.evaluate, tuple(symbols)))]
 
     return laws
 

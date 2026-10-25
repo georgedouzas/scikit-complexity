@@ -58,8 +58,9 @@ class Issue:
     severity: str = ERROR
     error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
 
-    def __str__(self) -> str:
-        """Return the issue as one line with its path, code, message, and fix."""
+    @property
+    def text(self) -> str:
+        """Issue as one line with its path, code, message, and fix."""
         return f'{self.path}: {self.message} {self.fix} [{self.code}]'
 
 

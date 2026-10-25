@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
-from typing import Any, ClassVar, TypeGuard
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Self, TypeGuard
 
 import numpy as np
 import numpy.typing as npt
@@ -79,7 +79,7 @@ def outcome_sums(outcomes: Table) -> Table:
     return outcomes.sum(axis=2)
 
 
-@dataclass(frozen=True, init=False, eq=False)
+@dataclass(frozen=True, eq=False)
 class EncounterLaw(BaseLaw):
     """Conservative encounter of active particles, which moves a candidate particle to a new activity.
 
@@ -119,7 +119,7 @@ class EncounterLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.formalisms.kinetics import EncounterLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5)).transition.shape
+        >>> EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5)).check().transition.shape
         (2, 2, 2)
     """
 
@@ -131,25 +131,17 @@ class EncounterLaw(BaseLaw):
 
     candidate: Expression
     field: Expression
-    rate: Table
-    transition: Table
-    test: Expression | None
+    rate: Any
+    transition: Any
+    test: Expression | None = None
 
-    def __init__(
-        self,
-        candidate: Expression,
-        field: Expression,
-        rate: object,
-        transition: object,
-        test: Expression | None = None,
-    ) -> None:
-        description = f'encounter of {candidate} with {field}'
-        object.__setattr__(self, 'candidate', candidate)
-        object.__setattr__(self, 'field', field)
-        object.__setattr__(self, 'rate', _table(rate, (0, 2), f'rate of the {description}'))
-        object.__setattr__(self, 'transition', _table(transition, (3,), f'transition table of the {description}'))
-        object.__setattr__(self, 'test', test)
-        _check_sizes(self.rate, self.transition, description)
+    def _check(self) -> Self:
+        """Return the law with its rate and transition table as arrays, raising an error for invalid tables."""
+        description = f'encounter of {self.candidate} with {self.field}'
+        rate = _table(self.rate, (0, 2), f'rate of the {description}')
+        transition = _table(self.transition, (3,), f'transition table of the {description}')
+        _check_sizes(rate, transition, description)
+        return replace(self, rate=rate, transition=transition)
 
     @property
     def target(self) -> Expression:
@@ -162,7 +154,7 @@ class EncounterLaw(BaseLaw):
         return self.transition
 
 
-@dataclass(frozen=True, init=False, eq=False)
+@dataclass(frozen=True, eq=False)
 class ProliferationLaw(BaseLaw):
     """Proliferative encounter, which creates a particle in the test group without removing the candidate.
 
@@ -195,7 +187,7 @@ class ProliferationLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.formalisms.kinetics import ProliferationLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> ProliferationLaw(f, g, 0.5).outcomes is None
+        >>> ProliferationLaw(f, g, 0.5).check().outcomes is None
         True
     """
 
@@ -207,26 +199,17 @@ class ProliferationLaw(BaseLaw):
 
     candidate: Expression
     field: Expression
-    rate: Table
-    outcomes: Table | None
-    test: Expression | None
+    rate: Any
+    outcomes: Any = None
+    test: Expression | None = None
 
-    def __init__(
-        self,
-        candidate: Expression,
-        field: Expression,
-        rate: object,
-        outcomes: object = None,
-        test: Expression | None = None,
-    ) -> None:
-        description = f'proliferation of {candidate} with {field}'
-        table = None if outcomes is None else _table(outcomes, (3,), f'outcome table of the {description}')
-        object.__setattr__(self, 'candidate', candidate)
-        object.__setattr__(self, 'field', field)
-        object.__setattr__(self, 'rate', _table(rate, (0, 2), f'rate of the {description}'))
-        object.__setattr__(self, 'outcomes', table)
-        object.__setattr__(self, 'test', test)
-        _check_sizes(self.rate, self.outcomes, description)
+    def _check(self) -> Self:
+        """Return the law with its rate and outcome table as arrays, raising an error for invalid tables."""
+        description = f'proliferation of {self.candidate} with {self.field}'
+        rate = _table(self.rate, (0, 2), f'rate of the {description}')
+        outcomes = None if self.outcomes is None else _table(self.outcomes, (3,), f'outcome table of the {description}')
+        _check_sizes(rate, outcomes, description)
+        return replace(self, rate=rate, outcomes=outcomes)
 
     @property
     def target(self) -> Expression:
@@ -234,7 +217,7 @@ class ProliferationLaw(BaseLaw):
         return self.candidate
 
 
-@dataclass(frozen=True, init=False, eq=False)
+@dataclass(frozen=True, eq=False)
 class DestructionLaw(BaseLaw):
     """Destructive encounter, which removes the candidate particle.
 
@@ -259,7 +242,7 @@ class DestructionLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.formalisms.kinetics import DestructionLaw
         >>> f, g = symbol('f'), symbol('g')
-        >>> float(DestructionLaw(f, g, 0.2).rate)
+        >>> float(DestructionLaw(f, g, 0.2).check().rate)
         0.2
     """
 
@@ -271,12 +254,12 @@ class DestructionLaw(BaseLaw):
 
     candidate: Expression
     field: Expression
-    rate: Table
+    rate: Any
 
-    def __init__(self, candidate: Expression, field: Expression, rate: object) -> None:
-        object.__setattr__(self, 'candidate', candidate)
-        object.__setattr__(self, 'field', field)
-        object.__setattr__(self, 'rate', _table(rate, (0, 2), f'rate of the destruction of {candidate} by {field}'))
+    def _check(self) -> Self:
+        """Return the law with its rate as an array, raising an error for an invalid rate."""
+        rate = _table(self.rate, (0, 2), f'rate of the destruction of {self.candidate} by {self.field}')
+        return replace(self, rate=rate)
 
     @property
     def target(self) -> Expression:

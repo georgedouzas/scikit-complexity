@@ -293,7 +293,7 @@ class Trajectory:
         Examples:
             >>> from skcomplex.models import run
             >>> trajectory = run('cantor_set', settings={'until': 4}).trajectory_
-            >>> len(trajectory.structure('cantor', 2))
+            >>> trajectory.structure('cantor', 2).parts
             4
         """
         structures = self.structures[frame] if self.structures else {}

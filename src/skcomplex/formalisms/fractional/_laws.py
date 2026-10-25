@@ -5,10 +5,10 @@
 
 from dataclasses import dataclass, field
 
-from ...core.laws import NoiseLaw, Process, Target
+from ...core.laws import NoiseLaw, Process
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class FractionalNoiseLaw(NoiseLaw):
     """Amplitude of a fractional Brownian motion of a Hurst index that drives the highest time derivative of a state.
 
@@ -41,22 +41,6 @@ class FractionalNoiseLaw(NoiseLaw):
         0.7
     """
 
-    hurst: object = 0.5
     process: Process = field(default=None, init=False)
     conserved: bool = field(default=False, init=False)
-
-    def __init__(
-        self,
-        target: Target,
-        value: object,
-        hurst: object,
-        order: int | None = None,
-        convention: str = 'ito',
-    ) -> None:
-        object.__setattr__(self, 'target', target)
-        object.__setattr__(self, 'value', value)
-        object.__setattr__(self, 'hurst', hurst)
-        object.__setattr__(self, 'order', order)
-        object.__setattr__(self, 'convention', convention)
-        object.__setattr__(self, 'process', None)
-        object.__setattr__(self, 'conserved', False)
+    hurst: object = field(kw_only=True)

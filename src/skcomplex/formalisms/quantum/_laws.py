@@ -108,8 +108,8 @@ class Operator:
         >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
         >>> x = LocalOperator('x', qutip.sigmax(), hermitian=True)
         >>> a, b = Operator({(('a', x),): 1}), Operator({(('b', x),): 1})
-        >>> symbol('J') * a * b
-        J*a.x*b.x
+        >>> (symbol('J') * a * b).text
+        'J*a.x*b.x'
     """
 
     __array_ufunc__ = None
@@ -181,8 +181,9 @@ class Operator:
         coefficient = _coefficient(other)
         return NotImplemented if coefficient is None else self * (1 / coefficient)
 
-    def __repr__(self) -> str:
-        """Return the operator in operator notation, a sum of coefficients times products of local operators."""
+    @property
+    def text(self) -> str:
+        """Operator in operator notation, a sum of coefficients times products of local operators."""
         if not self.terms:
             return '0'
         parts = []
@@ -208,8 +209,8 @@ class Operator:
             >>> import qutip
             >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
             >>> plus = LocalOperator('plus', qutip.sigmap())
-            >>> (2j * Operator({(('q', plus),): 1})).adjoint()
-            (-2j)*q.minus
+            >>> (2j * Operator({(('q', plus),): 1})).adjoint().text
+            '(-2j)*q.minus'
         """
         return Operator(
             {
@@ -240,8 +241,8 @@ class GeneratorLaw(BaseLaw):
         >>> import qutip
         >>> from skcomplex.formalisms.quantum import GeneratorLaw, LocalOperator, Operator
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-        >>> GeneratorLaw(Operator({(('q', z),): 0.5}))
-        GeneratorLaw(operator=0.5*q.z)
+        >>> GeneratorLaw(Operator({(('q', z),): 0.5})).operator.text
+        '0.5*q.z'
     """
 
     law_kind: ClassVar[LawKind] = LawKind.GENERATOR
