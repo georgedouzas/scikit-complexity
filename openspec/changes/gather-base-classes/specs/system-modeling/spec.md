@@ -1,3 +1,19 @@
+## MODIFIED Requirements
+
+### Requirement: A system is components, interactions, space, and time
+A system SHALL be defined by its label, its components, its interactions, its space, and its time, and by nothing
+else. A system SHALL accept no argument about how it runs: no solver, backend, form, noise convention, delay history,
+activation schedule outside its time, or observables.
+
+#### Scenario: Four-part system
+- **WHEN** a user builds `System('ecology', components=[rabbits, foxes], interactions=[predation],
+  space=None, time=ContinuousTime())`
+- **THEN** the system compiles and runs, and its parameters list only the parameters of its components and interactions
+
+#### Scenario: Execution arguments are rejected
+- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `System`
+- **THEN** a `TypeError` is raised as for any unknown argument
+
 ## ADDED Requirements
 
 ### Requirement: Systems hold nested systems

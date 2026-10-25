@@ -32,9 +32,9 @@ from ...core.base import (
 from ...core.components import Aggregate
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.problems import Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
+from ...core.problems._problem import real_components_of
 from ...core.problems._quantities import _Recorded
 from ...core.problems._reads import Read
-from ...core.problems._real_parts import real_components_of
 from ...core.problems._reductions import CompiledReduction
 from ...core.system import Observable, System, reduce_values
 from ._complex import joined_complex

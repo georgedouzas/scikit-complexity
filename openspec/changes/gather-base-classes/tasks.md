@@ -30,20 +30,20 @@
 
 ## 3. Names
 
-- [ ] 3.1 Build the rename map from the class graph of `src`, `tests`, and `docs`, including names given to
+- [x] 3.1 Build the rename map from the class graph of `src`, `tests`, and `docs`, including names given to
   `define`, and apply it by whole words with a codemod kept in the scratchpad. The codemod refuses colliding names.
   Move the tests of every moved or merged module to the mirror of its new path. Verify with the scenarios "Base
   classes", "Old base names are gone", "Framework names", and "Model names".
 
 ## 4. Rules
 
-- [ ] 4.1 Amend the constitution to 1.9.0, with:
+- [x] 4.1 Amend the constitution to 1.9.0, with:
   - the naming rule;
   - the bases, their parents, and what `core.base` holds;
   - the layout without `core/interactions`;
   - the base classes users subclass;
   - a base-package rule that says a base package imports no other package of `skcomplex`.
-- [ ] 4.2 Update the inventory, the user guide, the README, and the import contracts for the new names and the
+- [x] 4.2 Update the inventory, the user guide, the README, and the import contracts for the new names and the
   removed package.
 
 ## 5. Gate

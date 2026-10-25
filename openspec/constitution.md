@@ -80,8 +80,12 @@ conventions are the taste it cannot check.
   carry a leading underscore, whatever its reach.
 - A base class MUST NOT carry a leading underscore, and MUST be kept out of the surface by not being re-exported,
   never by its name. A base a client is expected to subclass MUST be re-exported.
+- Inheritance MUST mean *is* and membership *has*: a class MUST derive only from a class it is, and MUST hold what it
+  merely has. A class MUST be named after what it is, so its name ends with the concept of the base it derives from,
+  such as `RateLaw` of `BaseLaw`, and no base MUST derive from another base.
 - One module MUST be one concern, a file that grows two MUST be split, and small general helpers MUST share a
-  `_utils` module. A base module MUST be self-contained and MUST import no sibling.
+  `_utils` module. A base package MUST import no other package of the project, and its modules MUST import one
+  another downward.
 - The top level of a package MUST hold subpackages and its `__init__` only. The shared leaves, the type vocabulary,
   the shared constants, and the shared building primitives, MUST live in a `core` subpackage, and every import MUST
   run downward, from `core` to domain packages to surfaces, so no cycle can form.
@@ -212,14 +216,17 @@ conventions are the taste it cannot check.
 This section instantiates the body above for this repository. It is the repo-specific part, and it is a starting point
 to fill in as the project takes shape.
 
-- Ecosystem contract: the scikit-learn estimator contract. Components, systems, spaces, steppers, clocks, and
-  simulations inherit `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state
-  with a trailing underscore. Every component, an element, a group, an interaction, or a system, derives from
-  `Component`, which takes the label and the values of the declared states, parameters, and roles in one explicit
-  constructor and lists them in `get_params`. A component type declares its fields with `state`, `parameter`, and
-  `role`, and a constructor setting that is not a declaration is taken by an explicit keyword-only `__init__` of the
-  type. No component class is turned into a dataclass or given generated attributes. Every law derives from `Law` and
-  declares its kind, its time class, and its traits as class variables.
+- Ecosystem contract: the scikit-learn estimator contract. The bases `BaseComponent`, `BaseInteraction`,
+  `BaseSpace`, `BaseTime`, `BaseSolver`, and `BaseBackend`, and `System`, clocks, and simulations inherit
+  `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state with a trailing
+  underscore. `BaseLaw`, `BaseDomain`, and `BaseProblem` derive from no class. Elements and groups derive from
+  `BaseComponent`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
+  states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
+  helpers they share. A system holds its components, interactions, and nested systems, and is none of them. A
+  component or interaction type declares its fields with `state`, `parameter`, and `role`, and a constructor setting
+  that is not a declaration is taken by an explicit keyword-only `__init__` of the type. No component class is turned
+  into a dataclass or given generated attributes. Every law derives from `BaseLaw` and declares its kind, its time
+  class, and its traits as class variables.
 - Language: Python >=3.12, <3.14.
 - Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
   Windows users run the package in WSL.
@@ -257,8 +264,9 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly four
-  packages. `skcomplex.core` holds what a system is, in the order `base`, `space`, `laws`, `components`,
-  `interactions`, and `system`. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
+  packages. `skcomplex.core` holds what a system is and what it compiles to, in the order `base`, `space`,
+  `laws`, `components`, `system`, and `problems`. `core.base` holds the bases of the framework and the helpers they
+  are declared with. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
   `backends`, `runtime`, `viz`, `experiments`, and `analysis`. `skcomplex.formalisms` holds one package per
   domain-agnostic formalism, `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`,
   `fractional`, `topology`, `particles`, and `control`, each with its laws, components, compilation passes, solvers,
@@ -281,8 +289,9 @@ to fill in as the project takes shape.
   imported from the subpackage that owns it. `skcomplex.formalisms` re-exports only `Formalism`, `register`, and
   `registered_formalisms`.
 - Extension points: a formalism declares everything it contributes in one `Formalism` and registers it with
-  `register`, which adds its laws, compilation passes, checks, stepwise forms, combined laws, owner rules, bindings,
-  solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law kinds, forms,
-  space kinds, and traits are open vocabularies. Base classes users subclass are `Element`, `Interaction`, `Law`,
-  `Potential`, `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.8.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-24
+  `register`, which adds its laws, compilation passes, system compilers, checks, stepwise forms, combined laws, owner
+  rules, bindings, solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law
+  kinds, forms, space kinds, and traits are open vocabularies. Classes users subclass are `ElementComponent`,
+  `BaseInteraction`, `BaseLaw`, `PotentialInteraction`, `PairPotentialInteraction`, `BaseBackend`, `BaseSolver`,
+  `Solver`, `ExternalSolver`, `BaseSystemCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`.
+**Version**: 1.9.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25

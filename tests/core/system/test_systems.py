@@ -71,23 +71,6 @@ def test_four_part_system_runs():
     assert Simulation(system).run(until=0).problem_.parameters.names == ['growth.r']
 
 
-@pytest.mark.parametrize(
-    ('argument', 'home'),
-    [
-        ('noise', 'NoiseLaw(..., convention=...)'),
-        ('history', 'state(history=...)'),
-        ('phases', 'DiscreteTime(schedule=PhasesSchedule([...]))'),
-        ('observables', 'Simulation(observables=...)'),
-        ('elements', '`components`'),
-    ],
-)
-def test_execution_arguments_are_rejected(argument, home):
-    """Test that an argument of the former signature raises a type error that names its new home."""
-    with pytest.raises(TypeError, match=argument) as error:
-        System(**{argument: []})
-    assert home in str(error.value)
-
-
 def test_systems_nest_as_components():
     """Test that nested systems are components and an interaction couples their elements by path."""
     system = System(

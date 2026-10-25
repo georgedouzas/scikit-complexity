@@ -1,7 +1,15 @@
-"""Test the traversal of the values a law holds."""
+"""Test the `_utils` module of `skcomplex.core.laws`."""
+
+import pytest
 
 from skcomplex.core.base import symbol, vector
-from skcomplex.core.laws import Call, EquationLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, values_of
+from skcomplex.core.laws import Call, EquationLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, values_of
+
+
+def test_symbols_unknown_name_lists_available_names():
+    """Test that a missing symbol names the available ones."""
+    with pytest.raises(AttributeError, match='Available names are: a'):
+        _ = Symbols(a=1).b
 
 
 def _double(t, value):

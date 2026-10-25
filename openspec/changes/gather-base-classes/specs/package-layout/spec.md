@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: The core holds every domain-agnostic package
+### Requirement: The package holds four subpackages
 The package SHALL expose exactly four subpackages, which together hold every domain-agnostic package and the models:
 - `skcomplex.core` holds what a system is and what it compiles to: `base`, `space`, `laws`, `components`, `system`,
   and `problems`.
@@ -15,13 +15,6 @@ The package SHALL expose exactly four subpackages, which together hold every dom
   and `NumericDomain` from `skcomplex.core.base`
 - **THEN** every import succeeds
 
-#### Scenario: Old framework paths are gone
-- **WHEN** a user imports `skcomplex.model`, `skcomplex.core.model`, `skcomplex.core.compile`, `skcomplex.core.solvers`,
-  `skcomplex.core.formalisms`, `skcomplex.core.interactions`, `skcomplex.solvers`, or `skcomplex.runtime`
-- **THEN** the import fails
-
-## ADDED Requirements
-
 ### Requirement: The core base holds the base classes of the framework
 `skcomplex.core.base` SHALL define `BaseComponent`, `BaseInteraction`, `BaseSpace`, `BaseTime`, `BaseLaw`,
 `BaseDomain`, `BaseProblem`, and `BaseSolver`, and the helpers they are declared with, in modules grouped by concept.
@@ -30,12 +23,6 @@ It SHALL hold no name that only one formalism uses, and SHALL import no other pa
 #### Scenario: Base classes
 - **WHEN** a user imports the eight base classes from `skcomplex.core.base`
 - **THEN** every import succeeds
-
-#### Scenario: Old base names are gone
-- **WHEN** a user imports `Component` from `skcomplex.core.components`, `Law` from `skcomplex.core.laws`, `Space`
-  from `skcomplex.core.space`, `Stepper` from `skcomplex.engine.solvers`, or anything from
-  `skcomplex.core.interactions`
-- **THEN** the import fails
 
 #### Scenario: Formalism types
 - **WHEN** a user imports `HilbertDomain` and `StructureDomain` from `skcomplex.core.base`
@@ -64,7 +51,7 @@ in the library, its models, its tests, and its documents, and for names given to
 - **WHEN** a user imports `RateLaw` from `skcomplex.core.laws`, `RK4Solver` from `skcomplex.engine.solvers`,
   `MeshSpace` from `skcomplex.formalisms.fields`, `ElementComponent` from `skcomplex.core.components`, and
   `ExternalSolver` from `skcomplex.engine.solvers`
-- **THEN** every import succeeds, and `Rate`, `RK4`, `Mesh`, `Element`, and `ExternalBackend` are gone
+- **THEN** every import succeeds
 
 #### Scenario: Model names
 - **WHEN** every class that the model library defines or creates with `define` is listed after importing it
@@ -121,3 +108,10 @@ domain's kind from the domain.
 #### Scenario: Solver over a base problem
 - **WHEN** a solver is written against `BaseSolver` alone and initialized with a `BaseProblem` of its form
 - **THEN** it advances the problem without importing `skcomplex.engine`
+
+## REMOVED Requirements
+
+### Requirement: The core holds every domain-agnostic package
+**Reason**: It checked that old framework paths fail to import, and the package keeps no reference to its former
+layout.
+**Migration**: The requirement "The package holds four subpackages" states the layout.

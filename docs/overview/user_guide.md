@@ -1420,30 +1420,6 @@ no earlier implemented entry exercises, or needs a missing one, and `example` wh
 coverage page shows, for every primitive, the implemented models that exercise it, and flags the uncovered primitives
 with the changes that add them, so new models go first where the core is least exercised.
 
-### Moved paths
-
-Earlier versions placed the framework at the top level and grouped the models by technique. The framework packages
-`skcomplex.model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and `backends` moved under
-`skcomplex.core`, and the shared leaves moved from `skcomplex.core` to `skcomplex.core.base`. The redesign then split
-`skcomplex.core.model` into `core.system`, `core.components`, `core.interactions`, `core.space`, and `core.laws`, and
-moved named realizations, such as `LennardJonesInteraction` and `LangevinThermostatInteraction`, to `skcomplex.models.physics.realizations`.
-The names specific to one formalism later moved from the shared packages to `skcomplex.formalisms.<formalism>`.
-For example, `LocalRuleLaw` moved from `skcomplex.core.laws` to `skcomplex.formalisms.lattices`, and `ParticleComponent` moved
-from `skcomplex.core.components` to `skcomplex.formalisms.particles`. The models moved to their subfields:
-
-| Old package | New subfields |
-| --- | --- |
-| `ecology`, `epidemiology`, `neuroscience` | `biology.ecology`, `biology.epidemiology`, `biology.neuroscience` |
-| `economics`, `finance` | `economics.macroeconomics`, `economics.markets`, `economics.finance` |
-| `social` | `social.segregation`, `social.opinion_dynamics`, `economics.econophysics`, `economics.resources` |
-| `fluids` | `physics.fluids` |
-| `fields` | `physics.heat`, `physics.pattern_formation`, `physics.fluids`, `chemistry.pattern_formation`, `biology.ecology`, `biology.physiology`, `biology.collective_behaviour` |
-| `lattices` | `physics.statistical_mechanics`, `physics.criticality`, `earth.seismology`, `computer_science.automata`, `social.opinion_dynamics`, `chemistry.kinetics`, `engineering.traffic` |
-| `nonlinear` | `mathematics.dynamical_systems`, `physics.nonlinear_oscillators`, `physics.synchronization`, `physics.soft_matter`, `biology.physiology` |
-| `physics` | `physics.mechanics`, `physics.celestial_mechanics`, `physics.statistical_mechanics`, `physics.soft_matter`, `engineering.circuits` |
-
-Every model keeps its name, so `create` and `run` find it wherever it moved.
-
 ## Groups of many elements
 
 A group holds N identical elements of one type as arrays with one row per member. It compiles once, whatever its size,

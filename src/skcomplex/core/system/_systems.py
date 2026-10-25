@@ -4,21 +4,12 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from sklearn.base import BaseEstimator
 
 from ..base import BaseInteraction, BaseSpace, BaseTime, ComponentKind
 from ..components import ElementComponent, GroupComponent
-
-LEGACY_ARGUMENTS = {
-    'elements': 'Pass elements and groups in `components`.',
-    'systems': 'Pass nested systems in `components`.',
-    'observables': 'Pass observables to `Simulation(observables=...)`, or declare them on the catalog entry.',
-    'history': 'Declare the history on the delayed state with `state(history=...)`.',
-    'noise': 'Give the convention to each noise law with `NoiseLaw(..., convention=...)`.',
-    'phases': 'Declare the phases as the schedule of the time, `DiscreteTime(schedule=PhasesSchedule([...]))`.',
-}
 
 
 class System(BaseEstimator):
@@ -47,13 +38,6 @@ class System(BaseEstimator):
             The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
             `None` to infer it from the laws.
 
-        **legacy:
-            Arguments that systems no longer take, which raise an error naming where each moved.
-
-    Raises:
-        TypeError:
-            An argument of the former signature is given, such as `elements` or `observables`. The message names the
-            argument's new home.
 
     Examples:
         >>> from skcomplex.core.system import System
@@ -76,12 +60,7 @@ class System(BaseEstimator):
         interactions: Sequence[BaseInteraction] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
-        **legacy: Any,  # noqa: ANN401
     ) -> None:
-        if legacy:
-            homes = ' '.join(LEGACY_ARGUMENTS.get(name, f'`{name}` is not an argument of System.') for name in legacy)
-            error_msg = f'System got the arguments {", ".join(map(repr, legacy))}, which it no longer takes. {homes}'
-            raise TypeError(error_msg)
         self.label = label
         self.components = components
         self.interactions = interactions

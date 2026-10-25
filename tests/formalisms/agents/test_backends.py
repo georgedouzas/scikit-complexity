@@ -1,7 +1,5 @@
 """Test agent-based models on the Mesa backend: recognition, spaces, populations, reproducibility, and support."""
 
-import importlib
-import importlib.util
 from typing import Any
 
 import networkx as nx
@@ -128,13 +126,6 @@ class MoneyAgentComponent(ElementComponent):
 def _money_system():
     """Return the Boltzmann wealth model as an ordinary system of 50 agents."""
     return System('economy', components=[MoneyAgentComponent.group('agents', 50)], time=DiscreteTime())
-
-
-def test_agent_specific_classes_do_not_exist():
-    """Test that agents are ordinary elements, with no agent type or wrapped Mesa system in the core."""
-    packages = [importlib.import_module(f'skcomplex.core.{name}') for name in ('components', 'system')]
-    assert not any(hasattr(package, name) for package in packages for name in ('AgentType', 'MesaSystem'))
-    assert importlib.util.find_spec('skcomplex.core.model') is None
 
 
 def test_rule_laws_make_elements_agents():

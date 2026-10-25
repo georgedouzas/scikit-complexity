@@ -26,7 +26,7 @@ from ....core.problems import (
     VectorFunction,
     resolve_backend,
 )
-from ....core.problems._real_parts import real_components_of
+from ....core.problems._problem import real_components_of
 from .._compilation import Compilation
 from .._declarations import Declarations, member_count
 from .._forms import is_stepwise

@@ -41,7 +41,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent, Wiener
 from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
-from ...core.laws._neighbourhoods import NeighborReduction
+from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend
 from ...core.problems._neighbourhoods import cone_heading, position_state
 from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace

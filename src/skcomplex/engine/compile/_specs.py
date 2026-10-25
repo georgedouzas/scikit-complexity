@@ -32,7 +32,7 @@ from ...core.components import GroupComponent
 from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
 from ...core.problems import EdgeSearch, Reference, Source
 from ...core.problems._kernels import Search
-from ...core.problems._real_parts import real_components_of
+from ...core.problems._problem import real_components_of
 from ...core.space import NetworkSpace, SiteSpace, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._tree import Node

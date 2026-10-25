@@ -33,11 +33,23 @@ from ._laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ._neighbourhoods import NEIGHBOR_REDUCTIONS, NeighborReduction, neighborhoods_in, neighbors
-from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
-from ._symbols import Symbols
+from ._reductions import (
+    NEIGHBOR_REDUCTIONS,
+    NeighborReduction,
+    Reduction,
+    count,
+    has_reductions,
+    maximum,
+    mean,
+    minimum,
+    neighborhoods_in,
+    neighbors,
+    reductions_in,
+    total,
+    variance,
+)
 from ._tables import OuterTotalistic, Table, Totalistic
-from ._values import values_of
+from ._utils import Symbols, values_of
 
 __all__: list[str] = [
     'NEIGHBOR_REDUCTIONS',

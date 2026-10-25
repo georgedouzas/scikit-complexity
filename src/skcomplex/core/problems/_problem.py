@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import I
 
 from ..base import (
     BaseInteraction,
@@ -24,6 +25,7 @@ from ..base import (
     VariableKind,
     Vector,
     VisualSpec,
+    components_of,
     declarations_of,
 )
 from ..components import ElementComponent, GroupComponent
@@ -31,7 +33,6 @@ from ..laws import Invariant
 from ..system import Observable, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._quantities import StockFlow, _CompiledObjective
-from ._real_parts import real_components_of
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
@@ -952,3 +953,31 @@ class Partition:
     problem: Problem
     owned: npt.NDArray[np.intp]
     owners: frozenset[str]
+
+
+def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
+    """Return the components of a value with every complex component split into its real and imaginary parts.
+
+    Args:
+        value:
+            A vector, an expression, or a number.
+
+    Returns:
+        components:
+            The components, two in a row for a complex component.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import I
+        >>> from skcomplex.core.base import symbol, vector
+        >>> from skcomplex.core.problems._problem import real_components_of
+        >>> x, y = symbol('x'), symbol('y')
+        >>> real_components_of(vector([x + I * y, 2 * x]))
+        [x, y, 2*x]
+    """
+    components = []
+    for item in components_of(value):
+        if isinstance(item, Expression) and item.has(I):
+            components += [item.real_part(), item.imag_part()]
+        else:
+            components.append(item)
+    return components
