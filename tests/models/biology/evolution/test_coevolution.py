@@ -16,7 +16,7 @@ def test_bak_sneppen_self_organises():
     system = bak_sneppen(200, updates=10_000)
     simulation = Simulation(system, dt=100, record=False, backend='numba', random_state=0, observers=[observer])
     simulation.run(until=200)
-    minima = np.asarray([event.value for event in observer.events if event.time > 100])
+    minima = np.asarray([event.value for event in observer.events_ if event.time > 100])
     assert minima.size == 1_000_000
     assert np.median(simulation.state_) > 0.75
     assert 0.6 < minima.max() < 0.72

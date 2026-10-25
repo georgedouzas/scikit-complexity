@@ -51,7 +51,7 @@ class PhaseRingVisual(BaseVisual):
         self.phase = phase
         self.position = position
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the wrapped phases of the members against their positions, and the other states as time series.
 
         Args:
@@ -78,7 +78,7 @@ class PhaseRingVisual(BaseVisual):
             if state not in {self.phase, self.position}:
                 log_scalars(recording, f'{element.path}/{state}', frame.value(name))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a 2D view of the phases against the positions, bounded by one turn of phase.
 
         Args:

@@ -231,7 +231,7 @@ class Simulation(BaseEstimator):
         self._error: BaseException | None = None
         self._compile_functions()
         for observer in self.observers_:
-            observer.on_start(self.problem_)
+            observer.fit(self.problem_)
 
     def _compile_functions(self) -> None:
         """Call every numeric function of the problem and its partitions once, before the clock starts."""
@@ -284,7 +284,7 @@ class Simulation(BaseEstimator):
             structures,
         )
         for observer in self.observers_:
-            observer.on_frame(frame)
+            observer.run(frame)
 
     def _apply_pending(self) -> None:
         """Apply the parameter changes queued since the last frame."""
@@ -321,7 +321,7 @@ class Simulation(BaseEstimator):
                 self.clock_.wait(self.time_ - origin)
         finally:
             for observer in self.observers_:
-                observer.on_stop()
+                observer.run(final=True)
 
     def _apply_schedule(self) -> None:
         """Set every scheduled parameter and adaptive parameter to the value of its function at the current time."""
@@ -556,4 +556,4 @@ class Simulation(BaseEstimator):
         if self.recorder_ is None:
             error_msg = 'The simulation does not record frames. Create it with `record=True`.'
             raise SimulationError(error_msg)
-        return self.recorder_.trajectory
+        return self.recorder_.trajectory_

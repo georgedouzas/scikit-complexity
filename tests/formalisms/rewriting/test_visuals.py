@@ -21,7 +21,7 @@ from skcomplex.formalisms.rewriting import (
 def _views(system):
     """Return the view classes of the geometry visual of the first element of a system."""
     problem = compile_system(system)
-    return [type(view) for view in GeometryVisual().views(problem.elements[0], problem)]
+    return [type(view) for view in GeometryVisual().fit(problem.elements[0], problem).views_]
 
 
 def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):

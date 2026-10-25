@@ -47,9 +47,9 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
     """Test that the nodes sit on rings by word length, colored by state, and the edges are logged once as static."""
     simulation = _simulation()
     problem = simulation.problem_
-    visual, logs = CayleyVisual(), Logs()
+    visual, logs = CayleyVisual().fit(problem.elements[0], problem), Logs()
     for _ in range(2):
-        visual.log(logs, problem.elements[0], Frame(0, 0.0, simulation.state_, simulation.parameters_, problem))
+        visual.run(Frame(0, 0.0, simulation.state_, simulation.parameters_, problem), logs)
     nodes = [archetype for path, archetype, static in logs.logs if not static]
     edges = [archetype for path, archetype, static in logs.logs if static]
     assert len(nodes) == 2
@@ -64,7 +64,7 @@ def test_cayley_visual_views_are_graph_views():
     """Test that a group on a group space defaults to the Cayley visual, whose view is a graph view of its state."""
     simulation = _simulation()
     problem = simulation.problem_
-    views = CayleyVisual().views(problem.elements[0], problem)
+    views = CayleyVisual().fit(problem.elements[0], problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
     assert simulation.system.elements[0].visual.kind == 'cayley'
     assert default_blueprint(simulation.system) is not None

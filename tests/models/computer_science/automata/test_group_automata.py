@@ -60,11 +60,11 @@ def test_grigorchuk_automaton_in_the_viewer():
             """Keep a logged entity."""
             logged.append((static, archetype))
 
-    visual = CayleyVisual(low=0, high=1)
+    visual = CayleyVisual(low=0, high=1).fit(problem.elements[0], problem)
     trajectory = simulation.trajectory_
     for index in (0, len(trajectory.times) - 1):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)
-        visual.log(Recording(), problem.elements[0], frame)
+        visual.run(frame, Recording())
     nodes = [archetype for static, archetype in logged if not static]
     positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())
     assert positions.shape == (271, 2)

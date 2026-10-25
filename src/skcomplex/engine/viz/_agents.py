@@ -13,10 +13,9 @@ import rerun.blueprint as rrb
 from ...core.base import BaseProblem, BaseSpace
 from ...core.problems import CompiledAgents, CompiledElement
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
-from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
-from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _network_layout, _radius_of
+from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _radius_of
 from ._visuals import BaseVisual, register_visual
 
 PATH_COLOR = (86, 180, 233)
@@ -52,6 +51,13 @@ class AgentsVisual(BaseVisual):
         position:
             The name of a state that holds the position of every agent, or `None` for the location in the space.
 
+    Attributes:
+        styled_:
+            The entity paths whose series style is logged.
+
+        span_:
+            The range of the colored values logged so far, or `None`.
+
     Examples:
         >>> from skcomplex.engine.viz import AgentsVisual
         >>> AgentsVisual(color_by='opinion').color_by
@@ -70,25 +76,22 @@ class AgentsVisual(BaseVisual):
         self.color_range = color_range
         self.radius = radius
         self.position = position
-        self._styled: set[str] = set()
-        self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
-        self._span: tuple[float, float] | None = None
 
-    def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
-        """Return the positions of the nodes of a network, computed once per network."""
-        if id(space.graph) not in self._layouts:
-            self._layouts[id(space.graph)] = _network_layout(space.graph)
-        return self._layouts[id(space.graph)]
+    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
+        self.styled_: set[str] = set()
+        self.span_: tuple[float, float] | None = None
+        super()._fit(element, problem)
 
-    def _colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
+    def _agent_colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
         """Return one color per agent over the given range, or over a range widened to every value so far."""
         if self.color_by is None or not len(snapshot):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
         if self.color_range is not None:
             return colors_of(values, *self.color_range)
-        self._span = _widened(self._span, values)
-        return colors_of(values, *self._span)
+        self.span_ = _widened(self.span_, values)
+        return colors_of(values, *self.span_)
 
     def _radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
@@ -101,26 +104,7 @@ class AgentsVisual(BaseVisual):
         extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
         return _radius_of(extent, len(positions))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
-        """Raise an error, because agents are logged with `log_agents`.
-
-        Args:
-            recording:
-                The Rerun recording.
-
-            element:
-                The compiled element.
-
-            frame:
-                The frame.
-
-        Raises:
-            NotImplementedError:
-                Agents are not compiled elements.
-        """
-        raise NotImplementedError
-
-    def log_agents(
+    def _log_agents(
         self,
         recording: rr.RecordingStream,
         path: str,
@@ -142,15 +126,15 @@ class AgentsVisual(BaseVisual):
             space:
                 The space the agents live in, or `None`.
         """
-        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
+        colors, labels = self._agent_colors(snapshot), [str(agent) for agent in snapshot.ids]
         if self.position is not None:
             positions = np.asarray(snapshot.values[self.position], dtype=float).reshape(len(snapshot), -1)
             if positions.shape[1] == 1:
                 entity = f'{path}/{self.position}'
-                if entity not in self._styled:
+                if entity not in self.styled_:
                     style = rr.SeriesLines(colors=[PATH_COLOR] * len(positions), widths=PATH_WIDTH)
                     recording.log(entity, style, static=True)
-                    self._styled.add(entity)
+                    self.styled_.add(entity)
                 recording.log(entity, rr.Scalars(positions[:, 0]))
                 return
             positions = positions[:, :2] * UPWARD
@@ -183,7 +167,7 @@ class AgentsVisual(BaseVisual):
         radius = self._radius(space, positions)
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a graph view of the whole network, a 2D spatial view for agents in a space, and none without one.
 
         Args:
@@ -203,7 +187,7 @@ class AgentsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import AgentsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('voter_model'))
-            >>> type(AgentsVisual().views(problem.agents[0], problem)[0]).__name__
+            >>> type(AgentsVisual().fit(problem.agents[0], problem).views_[0]).__name__
             'GraphView'
         """
         if self.position is not None and isinstance(element, CompiledAgents):

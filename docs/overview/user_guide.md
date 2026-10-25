@@ -3121,12 +3121,14 @@ with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A c
 appears as two images, its modulus under `<path>/<state>/modulus` colored over the range and its phase under
 `<path>/<state>/phase` colored by a cyclic palette over `(-π, π]`, and a complex scalar as the series
 `<path>/<state>/real` and `<path>/<state>/imag`. A group can set its own visual with
-`ParticleComponent.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual` and is registered with
-`register_visual`, and an element type selects it with its `visual` class variable.
+`ParticleComponent.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual`, implements the hook `_log`
+for elements or `_log_agents` for agents, and is registered with `register_visual`, and an element type selects it with
+its `visual` class variable. `visual.fit(element, problem)` prepares a visual for one element and sets its views
+`views_`, and `visual.run(frame, recording)` logs the element at a frame.
 
 ### Layouts and blueprints
 
-Every visual declares the Rerun views that show what it logs, through its `views` method. Scalars go in time series
+Every visual declares the Rerun views that show what it logs, as its fitted attribute `views_`. Scalars go in time series
 views, points in 2D or 3D spatial views by their dimension, lattices and fields in one 2D view per state, after the
 2D views of their space-time images in one dimension, meshes in 3D views, and agents in a 2D view or, on a network, a
 graph view. Agents without a space get no spatial view. `default_blueprint` arranges these views into a Rerun

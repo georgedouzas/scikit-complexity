@@ -136,6 +136,13 @@ class BodiesVisual(BaseVisual):
         radius:
             The radius of the bodies, or `None` for a share of the extent of the view.
 
+    Attributes:
+        history_:
+            The recent positions of the traced bodies, the oldest first.
+
+        drawn_:
+            The entity paths whose outline and marks are logged.
+
     Examples:
         >>> from skcomplex.engine.viz import BodiesVisual
         >>> BodiesVisual(('x', 'y'), trail=None).trail is None
@@ -162,8 +169,12 @@ class BodiesVisual(BaseVisual):
         self.outline = outline
         self.marks = marks
         self.radius = radius
-        self._paths: deque[npt.NDArray[np.float64]] = deque(maxlen=trail if trail else None)
-        self._drawn: set[str] = set()
+
+    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the element, forget the trail and the static drawings of earlier runs, and set the views."""
+        self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=self.trail if self.trail else None)
+        self.drawn_: set[str] = set()
+        super()._fit(element, problem)
 
     def _bodies(self, values: dict[str, Any]) -> npt.NDArray[np.float64]:
         """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""
@@ -214,9 +225,9 @@ class BodiesVisual(BaseVisual):
         sizes: tuple[int, float],
     ) -> None:
         """Log the outline and the marks once, for bodies of a dimension and a radius."""
-        if path in self._drawn:
+        if path in self.drawn_:
             return
-        self._drawn.add(path)
+        self.drawn_.add(path)
         dimension, radius = sizes
         strips, marks = self._static(values, dimension)
         if strips:
@@ -235,14 +246,14 @@ class BodiesVisual(BaseVisual):
         if self.trail == 0:
             return
         traced = list(range(len(bodies))) if self.traced is None else list(self.traced)
-        self._paths.append(bodies[traced])
-        if len(self._paths) < PAIR:
+        self.history_.append(bodies[traced])
+        if len(self.history_) < PAIR:
             return
-        history = np.stack(self._paths)
+        history = np.stack(self.history_)
         segments, colors = _fading_segments([history[:, column] for column in range(len(traced))])
         recording.log(f'{path}/trail', _strips(segments, width, colors))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the bodies, the rods, the trails, the outline, and the states of an element at one frame.
 
         Args:
@@ -275,7 +286,7 @@ class BodiesVisual(BaseVisual):
         for state, name in element.states.items():
             log_scalars(recording, f'{path}/{state}', frame.value(name))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.
 
         Args:

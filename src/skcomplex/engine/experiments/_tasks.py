@@ -110,7 +110,7 @@ def run_task(task: Task) -> RunResult:
         random_state=np.random.default_rng(task.seed),
         **task.settings,
     )
-    schedule.simulation = simulation
+    schedule.set_params(simulation=simulation)
     trajectory = simulation.run(until=task.until).trajectory_
     keep = trajectory.times >= task.warmup - 1e-12
     names = list(task.outputs) if task.outputs is not None else _default_outputs(problem)
@@ -136,21 +136,33 @@ def run_task(task: Task) -> RunResult:
 
 
 class _Schedule(BaseObserver):
-    """Observer that applies scheduled parameter changes from the first frame at or after their time."""
+    """Observer that applies scheduled parameter changes from the first frame at or after their time.
 
-    def __init__(self, schedule: Sequence[tuple[float, str, Any]]) -> None:
-        super().__init__()
-        self.pending = sorted(schedule, key=lambda change: change[0])
-        self.simulation: Simulation | None = None
+    Args:
+        schedule:
+            The changes, each a time, a parameter path, and a value.
 
-    def on_frame(self, frame: Frame) -> None:
-        """Queue every change whose time has come.
+        simulation:
+            The simulation whose parameters change, or `None` to apply no change.
 
-        Args:
-            frame:
-                The frame.
-        """
-        due = [change for change in self.pending if change[0] <= frame.time + 1e-12]
+    Attributes:
+        pending_:
+            The changes not applied yet, in time order.
+    """
+
+    def __init__(self, schedule: Sequence[tuple[float, str, Any]], simulation: Simulation | None = None) -> None:
+        self.schedule = schedule
+        self.simulation = simulation
+
+    def _fit(self, problem: BaseProblem) -> None:
+        """Sort the changes by time."""
+        self.pending_ = sorted(self.schedule, key=lambda change: change[0])
+
+    def _run(self, frame: Frame | None = None) -> None:
+        """Queue every change whose time has come."""
+        if frame is None:
+            return
+        due = [change for change in self.pending_ if change[0] <= frame.time + 1e-12]
         if due and self.simulation is not None:
             self.simulation.update_parameters({path: value for _, path, value in due})
-            self.pending = self.pending[len(due) :]
+            self.pending_ = self.pending_[len(due) :]

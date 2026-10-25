@@ -207,7 +207,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
     element = simulation.problem_.elements[0]
     recording = Meshes()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    resolve_visual(element.visual).log(recording, element, frame)
+    resolve_visual(element.visual).fit(element, frame.problem).run(frame, recording)
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
     Simulation(heat_l_shape(1), dt=0.1, observers=[observer]).run(until=0.2)

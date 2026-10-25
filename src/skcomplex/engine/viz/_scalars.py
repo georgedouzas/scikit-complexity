@@ -43,6 +43,10 @@ class ScalarsVisual(BaseVisual):
         components:
             The indices of the components of vector states to log, or `None` for every component.
 
+    Attributes:
+        styled_:
+            The entity paths whose series colors are logged.
+
     Examples:
         >>> from skcomplex.engine.viz import ScalarsVisual
         >>> ScalarsVisual()
@@ -51,11 +55,11 @@ class ScalarsVisual(BaseVisual):
 
     def __init__(self, components: Sequence[int] | None = None) -> None:
         self.components = components
-        self._styled: set[str] = set()
 
-    def __repr__(self) -> str:
-        """Return the class name and the chosen components."""
-        return 'ScalarsVisual()' if self.components is None else f'ScalarsVisual(components={list(self.components)!r})'
+    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the element, forget the styled series of earlier runs, and set the views."""
+        self.styled_: set[str] = set()
+        super()._fit(element, problem)
 
     def _value(self, value: object) -> object:
         """Return the chosen components of a vector value, or the value itself."""
@@ -64,7 +68,7 @@ class ScalarsVisual(BaseVisual):
             return value
         return array[[index for index in self.components if index < array.size]]
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every state of the element under `<path>/<state>`, a complex one under `real` and `imag` below it.
 
         Args:
@@ -81,12 +85,12 @@ class ScalarsVisual(BaseVisual):
             if getattr(frame.problem, 'companions', {}).get(name, ('',))[0] == 'lag':
                 continue
             path, value = f'{element.path}/{state}', self._value(frame.value(name))
-            if path not in self._styled:
+            if path not in self.styled_:
                 _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
-                self._styled.add(path)
+                self.styled_.add(path)
             log_scalars(recording, path, value)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:
@@ -105,7 +109,7 @@ class ScalarsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ScalarsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('lotka_volterra'))
-            >>> view = ScalarsVisual().views(problem.elements[0], problem)[0]
+            >>> view = ScalarsVisual().fit(problem.elements[0], problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')
         """

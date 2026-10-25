@@ -27,15 +27,15 @@ MODEL = 'rotating_swing'
 class SwingObserver(RerunObserver):
     """Observer that also logs the chain angle and the angular velocity of the stand."""
 
-    def on_start(self, problem):
-        super().on_start(problem)
+    def _fit(self, problem):
+        super()._fit(problem)
         for name, color in (('chain angle', [250, 150, 60]), ('stand speed', [90, 170, 230])):
             path = 'chairs/' + name.replace(' ', '_')
             self.recording_.log(path, rr.SeriesLines(colors=color, names=name, widths=2), static=True)
 
-    def on_frame(self, frame):
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
+    def _run(self, frame=None):
+        super()._run(frame)
+        if frame is not None and frame.step % self.interval == 0:
             self.recording_.log('chairs/chain_angle', rr.Scalars(frame.value('swing.theta')))
             self.recording_.log('chairs/stand_speed', rr.Scalars(frame.value('swing.phi_d1')))
 

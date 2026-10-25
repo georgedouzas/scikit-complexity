@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ...core.base import BaseEstimator, BaseProblem, SimulationError, Vector
+from ...core.base import BaseEstimator, BaseProblem, SimulationError
 from ._frames import Frame
 from ._trajectories import Trajectory
 
@@ -13,31 +13,27 @@ from ._trajectories import Trajectory
 class BaseObserver(BaseEstimator):
     """Base class of objects that receive the frames of a simulation.
 
-    Subclasses override any of `on_start`, `on_frame`, and `on_stop`.
+    A simulation calls `fit(problem)` with the compiled problem before the first frame, `run(frame)` with every frame,
+    and `run(final=True)` without a frame once the run stops, which releases what fitting acquired. Subclasses
+    override any of the hooks `_fit`, `_run`, and `_release`.
     """
 
-    def on_start(self, problem: BaseProblem) -> None:
-        """Receive the compiled problem before the first frame.
+    def _fit(self, problem: BaseProblem) -> None:
+        """Prepare for a run of the compiled problem; prepare nothing by default."""
 
-        Args:
-            problem:
-                The compiled problem.
-        """
-
-    def on_frame(self, frame: Frame) -> None:
-        """Receive one frame.
-
-        Args:
-            frame:
-                The frame.
-        """
-
-    def on_stop(self) -> None:
-        """Receive the end of the run."""
+    def _run(self, frame: Frame | None = None) -> None:
+        """React to a frame, or to the end of the run without one; do nothing by default."""
 
 
 class RecorderObserver(BaseObserver):
     """Observer that keeps every frame it receives.
+
+    Attributes:
+        problem_:
+            The compiled problem of the run.
+
+        frames_:
+            The frames received so far.
 
     Examples:
         >>> from skcomplex.core.system import System
@@ -45,54 +41,37 @@ class RecorderObserver(BaseObserver):
         >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
         >>> recorder = RecorderObserver()
         >>> _ = Simulation(System(components=[PopulationComponent('a')]), dt=1, observers=[recorder]).run(until=2)
-        >>> len(recorder.trajectory)
+        >>> len(recorder.trajectory_)
         3
     """
 
-    def __init__(self) -> None:
-        self._problem: BaseProblem | None = None
-        self._times: list[float] = []
-        self._states: list[Vector] = []
-        self._parameters: list[Vector] = []
-        self._frames: list[Frame] = []
+    def _fit(self, problem: BaseProblem) -> None:
+        """Keep the problem and forget earlier frames."""
+        self.problem_ = problem
+        self.frames_: list[Frame] = []
 
-    def on_start(self, problem: BaseProblem) -> None:
-        """Forget earlier frames and keep the problem.
-
-        Args:
-            problem:
-                The compiled problem.
-        """
-        self._problem = problem
-        self._times, self._states, self._parameters, self._frames = [], [], [], []
-
-    def on_frame(self, frame: Frame) -> None:
-        """Keep the time, state, and parameters of a frame.
-
-        Args:
-            frame:
-                The frame.
-        """
-        self._times.append(frame.time)
-        self._states.append(frame.state)
-        self._parameters.append(frame.parameters)
-        self._frames.append(frame)
+    def _run(self, frame: Frame | None = None) -> None:
+        """Keep a frame."""
+        if frame is not None:
+            self.frames_.append(frame)
 
     @property
-    def trajectory(self) -> Trajectory:
+    def trajectory_(self) -> Trajectory:
         """Trajectory of the frames received so far."""
-        if self._problem is None:
+        problem: BaseProblem | None = getattr(self, 'problem_', None)
+        if problem is None:
             error_msg = 'The recorder has not received a problem. Run a simulation that observes it first.'
             raise SimulationError(error_msg)
-        n_frames = min(len(self._times), len(self._states), len(self._parameters), len(self._frames))
+        frames = list(self.frames_)
+        n_frames = len(frames)
         return Trajectory(
-            self._problem,
-            np.asarray(self._times[:n_frames], dtype=float),
-            np.asarray(self._states[:n_frames], dtype=float).reshape(n_frames, self._problem.states.size),
-            np.asarray(self._parameters[:n_frames], dtype=float).reshape(n_frames, self._problem.parameters.size),
-            agents=[frame.agents for frame in self._frames[:n_frames]],
-            reporters=[frame.reporters for frame in self._frames[:n_frames]],
-            observables=[frame.observables for frame in self._frames[:n_frames]],
-            events=[event for frame in self._frames[:n_frames] for event in frame.events],
-            structures=[frame.structures for frame in self._frames[:n_frames]],
+            problem,
+            np.asarray([frame.time for frame in frames], dtype=float),
+            np.asarray([frame.state for frame in frames], dtype=float).reshape(n_frames, problem.states.size),
+            np.asarray([frame.parameters for frame in frames], dtype=float).reshape(n_frames, problem.parameters.size),
+            agents=[frame.agents for frame in frames],
+            reporters=[frame.reporters for frame in frames],
+            observables=[frame.observables for frame in frames],
+            events=[event for frame in frames for event in frame.events],
+            structures=[frame.structures for frame in frames],
         )

@@ -28,8 +28,20 @@ class ConservationObserver(BaseObserver):
             The absolute tolerance.
 
     Attributes:
+        problem_:
+            The compiled problem of the run.
+
+        stock_flow_:
+            The quantities of the problem, with the states that hold them and their flows with the environment.
+
         totals_:
             The total of every quantity at the latest frame.
+
+        initial_:
+            The total of every quantity minus its inflow from the environment at the first frame, or `None`.
+
+        scale_:
+            The largest absolute total of every quantity seen so far.
 
     Examples:
         >>> from skcomplex.engine.runtime import ConservationObserver, Simulation
@@ -55,12 +67,8 @@ class ConservationObserver(BaseObserver):
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
-    def on_start(self, problem: BaseProblem) -> None:
+    def _fit(self, problem: BaseProblem) -> None:
         """Keep the quantities of the problem.
-
-        Args:
-            problem:
-                The compiled problem.
 
         Raises:
             SimulationError:
@@ -76,17 +84,15 @@ class ConservationObserver(BaseObserver):
         self.initial_: dict[str, float] | None = None
         self.scale_: dict[str, float] = {}
 
-    def on_frame(self, frame: Frame) -> None:
+    def _run(self, frame: Frame | None = None) -> None:
         """Check the totals of a frame against the first frame.
-
-        Args:
-            frame:
-                The frame.
 
         Raises:
             ConservationError:
                 A total changed by more than its inflow from the environment.
         """
+        if frame is None:
+            return
         balances = self._totals(frame.state)
         if self.initial_ is None:
             self.initial_ = balances
@@ -108,32 +114,28 @@ class InvariantObserver(BaseObserver):
     Every run attaches one when its problem declares invariants.
 
     Attributes:
+        invariants_:
+            The tolerance of every invariant, by the path of its observable.
+
         initial_:
             The value of every invariant at the first frame.
     """
 
-    def on_start(self, problem: BaseProblem) -> None:
-        """Keep the invariants of the problem.
-
-        Args:
-            problem:
-                The compiled problem.
-        """
+    def _fit(self, problem: BaseProblem) -> None:
+        """Keep the invariants of the problem."""
         stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
         self.invariants_ = dict(stock_flow.invariants) if stock_flow is not None else {}
         self.initial_: dict[str, float] = {}
 
-    def on_frame(self, frame: Frame) -> None:
+    def _run(self, frame: Frame | None = None) -> None:
         """Check the invariants of a frame against the first frame.
-
-        Args:
-            frame:
-                The frame.
 
         Raises:
             ConservationError:
                 An invariant changed by more than its tolerance.
         """
+        if frame is None:
+            return
         for path, tolerance in self.invariants_.items():
             value = float(np.sum(frame.observables[path]))
             initial = self.initial_.setdefault(path, value)

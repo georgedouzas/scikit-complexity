@@ -51,18 +51,19 @@ def _pushed_gas(n=500):
 class FrameCounterObserver(BaseObserver):
     """Observer that keeps the times of the frames it receives."""
 
-    def __init__(self):
+    def _fit(self, problem):
         """Start with no frames."""
-        self.times = []
-        self.stopped = False
+        self.times_ = []
+        self.stopped_ = False
 
-    def on_frame(self, frame):
+    def _run(self, frame=None):
         """Keep the time of the frame."""
-        self.times.append(frame.time)
+        if frame is not None:
+            self.times_.append(frame.time)
 
-    def on_stop(self):
+    def _release(self):
         """Mark the end of the run."""
-        self.stopped = True
+        self.stopped_ = True
 
 
 def _growth(r=1.0):
@@ -209,8 +210,8 @@ def test_simulation_hands_frames_to_observers():
     """Test that observers receive one frame per dt and the end of the run."""
     counter = FrameCounterObserver()
     Simulation(_growth(), dt=0.1, observers=[counter]).run(until=1)
-    assert np.allclose(counter.times, np.linspace(0, 1, 11))
-    assert counter.stopped
+    assert np.allclose(counter.times_, np.linspace(0, 1, 11))
+    assert counter.stopped_
 
 
 def test_simulation_discrete_frames_are_integer_times():
@@ -294,9 +295,9 @@ def test_simulation_background_error_raised_on_wait():
     class FailingObserver(BaseObserver):
         """Observer that fails on the second frame."""
 
-        def on_frame(self, frame):
+        def _run(self, frame=None):
             """Fail after the first frame."""
-            if frame.step == 1:
+            if frame is not None and frame.step == 1:
                 error_msg = 'failure'
                 raise RuntimeError(error_msg)
 
@@ -378,7 +379,7 @@ def test_simulation_default_frames(until, frames, dt):
     """Test that default frames are 0.01 apart for short runs and grow in 1, 2, 5 steps to at most 1000 frames."""
     counter = FrameCounterObserver()
     simulation = Simulation(_growth(r=0.0), observers=[counter]).run(until=until)
-    assert len(counter.times) == frames
+    assert len(counter.times_) == frames
     assert simulation.dt_ == dt
 
 
