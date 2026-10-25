@@ -49,8 +49,9 @@ class DwellerComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.segregation import DwellerComponent
-        >>> DwellerComponent.group('dwellers', 10, beta=3.0)
-        GroupComponent('dwellers', element=DwellerComponent, size=10)
+        >>> group = DwellerComponent.group('dwellers', 10, beta=3.0)
+        >>> group.label, group.element.__name__, group.size
+        ('dwellers', 'DwellerComponent', 10)
     """
 
     block: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)

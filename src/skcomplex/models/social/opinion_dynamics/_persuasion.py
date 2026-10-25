@@ -40,8 +40,9 @@ class PersuaderComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import PersuaderComponent
-        >>> PersuaderComponent.group('people', 10, opinion=1.0)
-        GroupComponent('people', element=PersuaderComponent, size=10)
+        >>> group = PersuaderComponent.group('people', 10, opinion=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'PersuaderComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -95,8 +96,9 @@ class CitizenComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import CitizenComponent
-        >>> CitizenComponent.group('citizens', 10, group_size=3)
-        GroupComponent('citizens', element=CitizenComponent, size=10)
+        >>> group = CitizenComponent.group('citizens', 10, group_size=3)
+        >>> group.label, group.element.__name__, group.size
+        ('citizens', 'CitizenComponent', 10)
     """
 
     opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -179,8 +181,9 @@ class InfluenceeComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import InfluenceeComponent
-        >>> InfluenceeComponent.group('people', 4, opinion=-1.0)
-        GroupComponent('people', element=InfluenceeComponent, size=4)
+        >>> group = InfluenceeComponent.group('people', 4, opinion=-1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'InfluenceeComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})

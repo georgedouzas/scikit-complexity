@@ -5,16 +5,10 @@ import pytest
 
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import (
-    entanglement_entropy,
-    equations_of,
-    ground_state,
-    hamiltonian_of,
-    purity,
-    spectrum,
-)
+from skcomplex.engine.analysis import equations_of
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.quantum import entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationComponent
 from skcomplex.models.physics.realizations.quantum import SpinComponent

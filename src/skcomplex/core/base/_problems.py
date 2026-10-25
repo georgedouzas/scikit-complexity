@@ -1,4 +1,4 @@
-"""Define the base of the problems a system compiles to, and the layouts of their state and parameter vectors."""
+"""Define the layouts of the state and parameter vectors of the problems a system compiles to."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,9 +13,6 @@ import numpy as np
 import numpy.typing as npt
 
 from ._domains import BaseDomain, NumericDomain
-from ._kinds import Form
-from ._symbolic import Expression
-from ._utils import Vector
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -304,35 +301,3 @@ class Layout:
                 A mapping from dotted name to value.
         """
         return {name: self.read(vector, name) for name in self._by_name}
-
-
-@dataclass(frozen=True)
-class BaseProblem:
-    """Base of the problems a system compiles to: what every solver reads to advance one.
-
-    Args:
-        form:
-            The mathematical form.
-
-        states:
-            The layout of the state vector.
-
-        parameters:
-            The layout of the parameter vector.
-
-        initial_state:
-            The initial state vector.
-
-        initial_parameters:
-            The initial parameter vector.
-
-        time:
-            The time symbol.
-    """
-
-    form: Form
-    states: 'Layout'
-    parameters: 'Layout'
-    initial_state: Vector
-    initial_parameters: Vector
-    time: Expression

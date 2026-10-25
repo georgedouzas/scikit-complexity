@@ -10,8 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, BaseSpace
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import BaseSpace
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
@@ -196,7 +196,7 @@ class AgentsVisual(BaseVisual):
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
             return [rrb.Spatial2DView(origin=element.path, name=element.path)]
-        space = getattr(problem, 'agent_space', None)
+        space = problem.agent_space
         if space is None:
             return []
         if isinstance(space, NetworkSpace):
@@ -204,7 +204,7 @@ class AgentsVisual(BaseVisual):
             low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
             bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
-        space = getattr(problem, 'agent_space', None)
+        space = problem.agent_space
         if isinstance(space, ContinuousSpace):
             width, height = space.extent_[:2]
             margin = VIEW_MARGIN * max(width, height)

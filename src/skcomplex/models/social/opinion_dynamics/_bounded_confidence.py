@@ -35,8 +35,9 @@ class DiscussantComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussantComponent
-        >>> DiscussantComponent.group('people', 10, opinion=0.5)
-        GroupComponent('people', element=DiscussantComponent, size=10)
+        >>> group = DiscussantComponent.group('people', 10, opinion=0.5)
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'DiscussantComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})

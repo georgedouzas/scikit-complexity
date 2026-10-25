@@ -245,7 +245,7 @@ def budyko_sellers(
 
     Examples:
         >>> from skcomplex.models.earth.climate import budyko_sellers
-        >>> budyko_sellers(10).elements[0].size
+        >>> budyko_sellers(10).elements[0].prepare().size_
         10
     """
     x = (np.arange(n_bands) + 0.5) / n_bands

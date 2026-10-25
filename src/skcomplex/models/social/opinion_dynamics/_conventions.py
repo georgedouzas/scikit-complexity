@@ -48,8 +48,9 @@ class NamerComponent(ElementComponent):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.models.social.opinion_dynamics import NamerComponent
-        >>> NamerComponent.group('namers', 5, words=np.zeros((5, 5)))
-        GroupComponent('namers', element=NamerComponent, size=5)
+        >>> group = NamerComponent.group('namers', 5, words=np.zeros((5, 5)))
+        >>> group.label, group.element.__name__, group.size
+        ('namers', 'NamerComponent', 5)
     """
 
     words: npt.ArrayLike = state(default=0.0, vector=True)

@@ -82,8 +82,9 @@ class AgeingWalkerComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import AgeingWalkerComponent
-        >>> AgeingWalkerComponent.group('walkers', 10, nu=0.5)
-        GroupComponent('walkers', element=AgeingWalkerComponent, size=10)
+        >>> group = AgeingWalkerComponent.group('walkers', 10, nu=0.5)
+        >>> group.label, group.element.__name__, group.size
+        ('walkers', 'AgeingWalkerComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'x'})

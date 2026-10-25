@@ -14,15 +14,12 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ...core.base import (
-    BaseProblem,
     Entry,
-    Expression,
     Form,
     IncompatibleLawsError,
     Layout,
     NumericDomain,
     RoleError,
-    SymbolicVector,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -30,7 +27,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import CompiledElement, CompiledInteraction
+from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction
 from ...core.system import System
 from ...engine.compile import BaseSystemCompiler, Node, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of
@@ -535,10 +532,6 @@ class RewritingProblem(BaseProblem):
             The compiled rewriting systems of the words, patches, and host graphs.
     """
 
-    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
-    elements: tuple[CompiledElement, ...] = ()
-    interactions: tuple[CompiledInteraction, ...] = ()
-    system: System | None = field(default=None, repr=False)
     rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
 
 

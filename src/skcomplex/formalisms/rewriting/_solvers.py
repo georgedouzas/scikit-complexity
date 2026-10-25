@@ -8,18 +8,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.base import (
-    BaseSolver,
-    ComponentKind,
-    DomainKind,
-    Form,
-    LawKind,
-    OrderKind,
-    SpaceKind,
-    Supports,
-    TimeKind,
-    Vector,
-)
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ...core.problems import BaseSolver
 from ...engine.solvers import StructureState
 from ._passes import RewritingProblem
 

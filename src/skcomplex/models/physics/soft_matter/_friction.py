@@ -112,7 +112,7 @@ def shaken_spring_block(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import shaken_spring_block
-        >>> shaken_spring_block(5).elements[0].size
+        >>> shaken_spring_block(5).elements[0].prepare().size_
         5
     """
     chain = FieldComponent(

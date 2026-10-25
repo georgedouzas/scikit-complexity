@@ -262,7 +262,10 @@ def equations_of(system: System) -> dict[str, Expression]:
     """
     problem = compile_system(system)
     if problem.form == Form.QUANTUM:
-        error_msg = 'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` instead.'
+        error_msg = (
+            'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` of '
+            '`skcomplex.formalisms.quantum`.'
+        )
         raise AnalysisError(error_msg)
     return _equations_of_problem(compiled_problem(problem, 'The equations of a system'))
 

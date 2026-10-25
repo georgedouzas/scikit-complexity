@@ -52,8 +52,9 @@ class PremisesComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import PremisesComponent
-        >>> PremisesComponent.group('premises', 3, brothel=1.0)
-        GroupComponent('premises', element=PremisesComponent, size=3)
+        >>> group = PremisesComponent.group('premises', 3, brothel=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('premises', 'PremisesComponent', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
@@ -79,8 +80,9 @@ class TravellerComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import TravellerComponent
-        >>> TravellerComponent.group('women', 4, victim=1.0)
-        GroupComponent('women', element=TravellerComponent, size=4)
+        >>> group = TravellerComponent.group('women', 4, victim=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('women', 'TravellerComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})

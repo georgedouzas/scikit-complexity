@@ -44,8 +44,9 @@ class BitStringComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import BitStringComponent
-        >>> BitStringComponent.group('genomes', 4, genome=[0, 1, 2, 3])
-        GroupComponent('genomes', element=BitStringComponent, size=4)
+        >>> group = BitStringComponent.group('genomes', 4, genome=[0, 1, 2, 3])
+        >>> group.label, group.element.__name__, group.size
+        ('genomes', 'BitStringComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness'})

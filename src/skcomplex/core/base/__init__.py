@@ -45,8 +45,7 @@ from ._kinds import (
     vocabulary,
 )
 from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
-from ._problems import BaseProblem, Entry, Layout
-from ._solvers import BaseSolver
+from ._problems import Entry, Layout
 from ._spaces import BaseNeighborhood, BaseSpace, BaseTime
 from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
 from ._utils import Indices, Registry, Vector, VisualSpec, wrap_angle
@@ -64,8 +63,6 @@ __all__: list[str] = [
     'BaseInteraction',
     'BaseLaw',
     'BaseNeighborhood',
-    'BaseProblem',
-    'BaseSolver',
     'BaseSpace',
     'BaseTime',
     'Binding',

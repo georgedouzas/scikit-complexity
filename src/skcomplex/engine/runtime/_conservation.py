@@ -3,12 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 import numpy as np
 
-from ...core.base import BaseProblem, ConservationError, SimulationError, Vector
-from ...core.problems import Problem, StockFlow
+from ...core.base import ConservationError, SimulationError, Vector
+from ...core.problems import BaseProblem, StockFlow
 from ._frames import Frame
 from ._observers import BaseObserver
 
@@ -74,11 +73,11 @@ class ConservationObserver(BaseObserver):
             SimulationError:
                 The problem has no stock-flow description, such as a partitioned problem.
         """
-        stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
+        stock_flow = problem.stock_flow
         if stock_flow is None:
             error_msg = 'The conservation monitor needs a problem compiled as one partition with its stock flows.'
             raise SimulationError(error_msg)
-        self.problem_: Problem = cast('Problem', problem)
+        self.problem_ = problem
         self.stock_flow_: StockFlow = stock_flow
         self.totals_: dict[str, float] = {}
         self.initial_: dict[str, float] | None = None
@@ -123,7 +122,7 @@ class InvariantObserver(BaseObserver):
 
     def _prepare(self, problem: BaseProblem) -> None:
         """Keep the invariants of the problem."""
-        stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
+        stock_flow = problem.stock_flow
         self.invariants_ = dict(stock_flow.invariants) if stock_flow is not None else {}
         self.initial_: dict[str, float] = {}
 
