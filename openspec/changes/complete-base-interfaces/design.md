@@ -139,6 +139,24 @@
   - **`__eq__` and `__hash__`:** the class becomes a value record, or its dictionaries are keyed by an explicit `key`.
   - **Design arithmetic:** designs combine with `product` and `concat` instead of `*` and `+`.
 
+- **Decided during implementation.**
+  - **Prepare, not fit.** The preparing verb is `prepare`, with the hook `_prepare`, on every base, surrogates
+    included. `fit` suggested estimating from data, which most families do not do.
+  - **Problems and solvers in `core/problems`.** `BaseProblem` and `BaseSolver` live in `core/problems`, since their
+    fields name `System`, `CompiledElement`, and `StockFlow`, which `core/base` may not import.
+  - **Agent views.** The stepper generates one view class per agent group, with a property per state and parameter, so
+    rules keep `agent.food += 1`. The view classes and the symbol namespace declare `__getattr__` only under
+    `TYPE_CHECKING`, so type checkers accept `agent.food` and `s.x`. No such method exists at runtime.
+  - **Collections.**
+    - A layout gives `entries`, `size`, and `has(name)`.
+    - A registry gives `keys`.
+    - A trajectory and a section give `values(name)`, and their frames are counted by `times`.
+    - An agent snapshot is counted by its `ids`.
+  - **Callables.** Jacobians, compiled observables, member functions, composed rules, and market protocols expose
+    `evaluate`. Pairings without settings are functions, such as `neighbor_pairing`.
+  - **Printing.** Components and systems print through scikit-learn, e.g. `PopulationComponent(label='rabbits',
+    n=1.0)`. Records that appear in error messages give a `text` property.
+
 ## Risks / Trade-offs
 
 - [Every family's verbs change at once.] → A codemod in the scratchpad renames the calls by their resolved class.

@@ -43,20 +43,25 @@ without hand-written methods and compared by value, whose base defines the field
 
 ### Requirement: Behaviour is named, not magic
 No class of `core`, `engine`, or `formalisms` SHALL define a magic method except `__init__` and the arithmetic of
-the quantum operators. Collections SHALL be read with named methods and properties, and the symbol namespace of laws
-SHALL store its symbols as plain attributes.
+the quantum operators. Collections SHALL be read with named methods and properties, the symbol namespace of laws
+SHALL store its symbols as plain attributes, and an agent rule SHALL read and set states through the properties of a
+view class generated per group.
 
 #### Scenario: Magic methods
 - **WHEN** every class of `core`, `engine`, and `formalisms` is listed with the magic methods it defines itself
 - **THEN** none defines one besides `__init__` and the quantum operator arithmetic
 
 #### Scenario: Reading a trajectory
-- **WHEN** a user runs a Lotka-Volterra model and reads `trajectory.values('rabbits.n')`
-- **THEN** the values of every frame return, and `trajectory['rabbits.n']` raises `TypeError`
+- **WHEN** a user runs a Lotka-Volterra model and reads `trajectory.values('prey.n')`
+- **THEN** the values of every frame return, and `trajectory['prey.n']` raises `TypeError`
 
 #### Scenario: Unknown symbol
 - **WHEN** a law reads `s.rabit` in a component that declares `rabbit`
 - **THEN** Python raises `AttributeError`, which suggests `rabbit`
+
+#### Scenario: Agent views
+- **WHEN** a rule sets `agent.food += 1` and reads `agent.wealth` of an agent whose group declares no `wealth`
+- **THEN** the state changes, and reading `wealth` raises Python's own `AttributeError`
 
 #### Scenario: Designs combine by name
 - **WHEN** a user combines a grid design and a rows design with `product`

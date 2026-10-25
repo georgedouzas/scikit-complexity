@@ -493,3 +493,34 @@ def test_mesa_solver_run_sets_agents_and_snapshot():
     assert solver.snapshot_.reporters['breeders.count'] == 8.0
     for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):
         assert not hasattr(solver, name)
+
+
+class ForagerComponent(ElementComponent):
+    """Agent that gathers one unit of food every step and records whether it can read an undeclared state."""
+
+    food: float = state(0.0)
+
+    def laws(self, s):
+        """Return the foraging rule."""
+        return [RuleLaw(self.forage)]
+
+    def forage(self, agent, model):
+        """Gather one unit of food and try to read an undeclared state."""
+        agent.food += 1
+        try:
+            _ = agent.wealth
+        except AttributeError:
+            UNDECLARED.append(True)
+
+
+UNDECLARED: list[bool] = []
+
+
+def test_agent_views_read_and_set_states_as_properties():
+    """Test that a rule sets a state through its view and that an undeclared state raises Python's own error."""
+    UNDECLARED.clear()
+    system = System(components=[ForagerComponent.group('foragers', 2)], time=DiscreteTime())
+    trajectory = Simulation(system, dt=1.0, random_state=0).run(until=3).trajectory_
+    assert trajectory.agents('foragers', 3).values['food'].tolist() == [3.0, 3.0]
+    assert UNDECLARED
+    assert all(UNDECLARED)
