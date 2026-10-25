@@ -5,6 +5,7 @@ import os
 import subprocess  # nosec B404: the tests run the interpreter on code they write
 import sys
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path
 from typing import ClassVar
 
@@ -28,12 +29,13 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
 from skcomplex.formalisms import Formalism, register
 
-ROOT = Path(__file__).parents[2]
+SOURCE = Path(str(files('skcomplex'))).parent
+ROOT = Path(str(files('tests'))).parent
 
 
 def _run(code: str) -> object:
     """Return the JSON a fresh interpreter prints after running code that imports the outside formalism."""
-    environment = {**os.environ, 'PYTHONPATH': os.pathsep.join([str(ROOT / 'src'), str(ROOT)])}
+    environment = {**os.environ, 'PYTHONPATH': os.pathsep.join([str(SOURCE), str(ROOT)])}
     result = subprocess.run(  # noqa: S603  # nosec B603: runs the test interpreter on code the test writes
         [sys.executable, '-c', code],
         capture_output=True,

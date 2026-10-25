@@ -9,6 +9,7 @@ import importlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from ..engine.runtime import create as create_registered
 from ..engine.runtime import describe as describe_registered
 from ..engine.runtime import run as run_registered
 
-PACKAGE = Path(__file__).parent
+PACKAGE = Path(str(files('skcomplex.models')))
 LISTED = ('name', 'field', 'description', 'tags', 'references')
 
 
@@ -162,10 +163,10 @@ def scan_listings(root: Path) -> dict[str, 'ModelListing']:
             A model registers its name, field, description, tags, or references with a value computed at run time.
 
     Examples:
+        >>> from importlib.resources import files
         >>> from pathlib import Path
-        >>> import skcomplex.models
         >>> from skcomplex.models import scan_listings
-        >>> listings = scan_listings(Path(skcomplex.models.__file__).parent)
+        >>> listings = scan_listings(Path(str(files('skcomplex.models'))))
         >>> listings['lotka_volterra'].module
         'skcomplex.models.biology.ecology._factories'
     """

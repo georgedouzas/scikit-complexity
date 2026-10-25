@@ -5,11 +5,9 @@ thumbnail by default, and the analysis figures follow it. The scraper also reset
 whole script and writes its recording to a temporary folder of the run.
 """
 
-import sys
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).parent))
 
 from gallery_tools import RerunScraper, build_from_environment
 
@@ -31,7 +29,7 @@ def quiet_show(gallery_conf: dict[str, Any], file: Path) -> None:
     plt.show = lambda *_, **__: None
 
 
-BUILD = build_from_environment(Path(__file__).parent)
+BUILD = build_from_environment(Path(str(files('gallery_tools'))).parent)
 BUILD.mark_stale()
 SCRAPER = RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings)
 

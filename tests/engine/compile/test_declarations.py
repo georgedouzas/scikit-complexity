@@ -1,11 +1,13 @@
 """Test the system vocabulary and the requirement and support declarations of primitives, solvers, and backends."""
 
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
 import skcomplex.engine.compile._validation as validation
+import skcomplex.formalisms.fractional  # noqa: F401  # registers the fractional solvers whose orders the tests read
 from skcomplex.core.base import (
     DomainKind,
     Form,
@@ -30,7 +32,7 @@ from skcomplex.formalisms.fields import FieldComponent, MeshSpace
 from skcomplex.formalisms.lattices import SamplerLaw
 from skcomplex.formalisms.quantum import GeneratorLaw
 
-INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
+INVENTORY = Path(str(files('tests'))).parent / 'docs' / 'overview' / 'inventory.toml'
 
 
 def test_vocabulary_matches_inventory():
