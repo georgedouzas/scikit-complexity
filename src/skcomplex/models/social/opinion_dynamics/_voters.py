@@ -68,7 +68,7 @@ class VoterComponent(ElementComponent):
         """
         neighbors = agent.neighbors()
         if neighbors:
-            agent.set_state('opinion', neighbors[int(model.rng.integers(len(neighbors)))].state('opinion'))
+            agent.opinion = neighbors[int(model.rng.integers(len(neighbors)))].opinion
 
 
 class MajorityVoterComponent(ElementComponent):
@@ -152,16 +152,10 @@ class VariantVoterComponent(ElementComponent):
 
     def _choice(self, agent: AgentView, neighbors: list[AgentView], model: ModelView) -> float:
         """Return the opinion an agent that conforms would take."""
-        if agent.parameter('threshold') <= 0:
-            return float(neighbors[int(model.rng.integers(len(neighbors)))].state('opinion'))
-        disagreeing = sum(neighbor.state('opinion') != agent.state('opinion') for neighbor in neighbors) / len(
-            neighbors,
-        )
-        return (
-            float(1 - agent.state('opinion'))
-            if disagreeing > agent.parameter('threshold')
-            else float(agent.state('opinion'))
-        )
+        if agent.threshold <= 0:
+            return float(neighbors[int(model.rng.integers(len(neighbors)))].opinion)
+        disagreeing = sum(neighbor.opinion != agent.opinion for neighbor in neighbors) / len(neighbors)
+        return float(1 - agent.opinion) if disagreeing > agent.threshold else float(agent.opinion)
 
     def vote(self, agent: AgentView, model: ModelView) -> None:
         """Take the opinion of the agent's variant, inverted for a contrarian.
@@ -177,7 +171,7 @@ class VariantVoterComponent(ElementComponent):
         if not neighbors:
             return
         choice = self._choice(agent, neighbors, model)
-        agent.set_state('opinion', 1 - choice if agent.state('contrarian') else choice)
+        agent.opinion = 1 - choice if agent.contrarian else choice
 
 
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:

@@ -33,7 +33,7 @@ def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
 
 def _busy(agent: Any) -> float:  # noqa: ANN401
     """Return one for a cab on a trip and zero for an idle cab."""
-    return float(agent.state('task') != IDLE)
+    return float(agent.task != IDLE)
 
 
 def _ridesharing_observables(system: System) -> list[Observable]:
@@ -77,11 +77,11 @@ def nearest_cab(
         >>> nearest_cab([], [], np.random.default_rng(0), 1)
         []
     """
-    riders = [rider for rider in left if not rider.state('assigned')]
+    riders = [rider for rider in left if not rider.assigned]
     order: npt.NDArray[np.intp] | list[int] = (
-        np.lexsort((rng.random(len(riders)), [-rider.state('waited') for rider in riders])) if riders else []
+        np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
     )
-    free = [cab for cab in right if cab.state('task') == IDLE]
+    free = [cab for cab in right if cab.task == IDLE]
     pairs: list[tuple[Any, Any]] = []
     for index in order:
         if not free:
@@ -151,7 +151,7 @@ class RiderComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('waited', agent.state('waited') + 1)
+        agent.waited += 1
 
 
 class CabComponent(ElementComponent):
@@ -222,16 +222,16 @@ class CabComponent(ElementComponent):
 
     def _pick_up(self, agent: AgentView, model: ModelView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in model.agents('riders') if item.id == int(agent.state('rider')))
-        destination = (int(agent.state('destination_x')), int(agent.state('destination_y')))
+        rider = next(item for item in model.agents('riders') if item.id == int(agent.rider))
+        destination = (int(agent.destination_x), int(agent.destination_y))
         blocks = _blocks(_cell(agent.location), destination)
         fare = model.parameter('base_fare') + model.parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
         new_target_x_value, new_target_y_value = destination
-        agent.set_state('target_x', new_target_x_value)
-        agent.set_state('target_y', new_target_y_value)
-        agent.set_state('task', DELIVERING)
+        agent.target_x = new_target_x_value
+        agent.target_y = new_target_y_value
+        agent.task = DELIVERING
 
     def drive(self, agent: AgentView, model: ModelView) -> None:
         """Drive one block toward the target, and pick up or drop off the rider there.
@@ -243,19 +243,19 @@ class CabComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.state('task') == IDLE:
+        if agent.task == IDLE:
             return
         x, y = _cell(agent.location)
-        target = (int(agent.state('target_x')), int(agent.state('target_y')))
+        target = (int(agent.target_x), int(agent.target_y))
         if (x, y) != target:
             step = (int(np.sign(target[0] - x)), 0) if x != target[0] else (0, int(np.sign(target[1] - y)))
             agent.move_to((x + step[0], y + step[1]))
         if _cell(agent.location) != target:
             return
-        if agent.state('task') == PICKING_UP:
+        if agent.task == PICKING_UP:
             self._pick_up(agent, model)
         else:
-            agent.set_state('task', IDLE)
+            agent.task = IDLE
 
 
 class DispatchInteraction(BaseInteraction):
@@ -349,14 +349,14 @@ class DispatchInteraction(BaseInteraction):
         """
         for rider, cab in matches(model, 'rides'):
             new_target_x_value, new_target_y_value = _cell(rider.location)
-            cab.set_state('target_x', new_target_x_value)
-            cab.set_state('target_y', new_target_y_value)
-            new_destination_x, new_destination_y = rider.state('destination_x'), rider.state('destination_y')
-            cab.set_state('destination_x', new_destination_x)
-            cab.set_state('destination_y', new_destination_y)
-            cab.set_state('rider', float(rider.id))
-            cab.set_state('task', PICKING_UP)
-            rider.set_state('assigned', 1.0)
+            cab.target_x = new_target_x_value
+            cab.target_y = new_target_y_value
+            new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
+            cab.destination_x = new_destination_x
+            cab.destination_y = new_destination_y
+            cab.rider = float(rider.id)
+            cab.task = PICKING_UP
+            rider.assigned = 1.0
 
 
 @register_model(

@@ -108,11 +108,11 @@ class HouseholdComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('income', agent.state('income') * (1 + agent.parameter('growth')))
-        if agent.state('phone') or agent.state('income') < agent.parameter('threshold'):
+        agent.income = agent.income * (1 + agent.growth)
+        if agent.phone or agent.income < agent.threshold:
             return
-        if any(neighbor.state('phone') for neighbor in agent.neighbors()):
-            agent.set_state('phone', 1)
+        if any(neighbor.phone for neighbor in agent.neighbors()):
+            agent.phone = 1
 
 
 @register_model(

@@ -63,18 +63,11 @@ class ContenderComponent(ElementComponent):
 
     def _fight(self, agent: AgentView, occupant: AgentView, model: ModelView) -> None:
         """Fight the occupant of a cell and take its place on a win."""
-        wins = model.rng.random() < 1 / (
-            1
-            + np.exp(np.clip(agent.parameter('eta') * (occupant.state('strength') - agent.state('strength')), -50, 50))
-        )
+        wins = model.rng.random() < 1 / (1 + np.exp(np.clip(agent.eta * (occupant.strength - agent.strength), -50, 50)))
         if wins:
-            mine, theirs = occupant.state('strength') - 1, agent.state('strength') + 1
-            agent.set_state('strength', mine)
-            occupant.set_state('strength', theirs)
+            agent.strength, occupant.strength = occupant.strength - 1, agent.strength + 1
         else:
-            mine, theirs = agent.state('strength') - 1, occupant.state('strength') + 1
-            agent.set_state('strength', mine)
-            occupant.set_state('strength', theirs)
+            agent.strength, occupant.strength = agent.strength - 1, occupant.strength + 1
 
     def wander(self, agent: AgentView, model: ModelView) -> None:
         """Relax the strength, then step into a random neighbouring cell or fight its occupant.
@@ -86,7 +79,7 @@ class ContenderComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('strength', agent.state('strength') * (1 - agent.parameter('relaxation')))
+        agent.strength *= 1 - agent.relaxation
         cells = agent.neighbor_cells()
         cell = cells[int(model.rng.integers(len(cells)))]
         occupants = [

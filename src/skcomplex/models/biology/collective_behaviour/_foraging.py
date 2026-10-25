@@ -108,24 +108,24 @@ class AntComponent(ElementComponent):
                 The model.
         """
         x, y = cast('tuple[int, int]', agent.location)
-        nest = (round(agent.parameter('nest_x')), round(agent.parameter('nest_y')))
-        if agent.state('carrying'):
+        nest = (round(agent.nest_x), round(agent.nest_y))
+        if agent.carrying:
             if (x, y) == nest:
-                agent.set_state('carrying', 0.0)
+                agent.carrying = 0.0
                 return
             home = (x + int(np.sign(nest[0] - x)), y + int(np.sign(nest[1] - y)))
             agent.move_to(home)
-            model.deposit(PHEROMONE, home, agent.parameter('deposit'))
+            model.deposit(PHEROMONE, home, agent.deposit)
             return
-        if np.hypot(x - agent.parameter('food_x'), y - agent.parameter('food_y')) <= agent.parameter('food_radius'):
-            agent.set_state('carrying', 1.0)
+        if np.hypot(x - agent.food_x, y - agent.food_y) <= agent.food_radius:
+            agent.carrying = 1.0
             return
         cells = cast('list[tuple[int, int]]', list(agent.neighbor_cells()))
         distance = np.hypot(x - nest[0], y - nest[1])
         weights = np.asarray(
             [
-                (1.0 + agent.parameter('attraction') * model.field(PHEROMONE, cell))
-                * np.exp(agent.parameter('outward') * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
+                (1.0 + agent.attraction * model.field(PHEROMONE, cell))
+                * np.exp(agent.outward * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
                 for cell in cells
             ],
         )

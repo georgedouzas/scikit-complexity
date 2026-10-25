@@ -626,7 +626,7 @@ def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
     if name is None:
         return
     with contextlib.suppress(SimulationError):
-        agent.set_state(name, value)
+        setattr(agent, name, value)
 
 
 class MarketInteraction(BaseInteraction):

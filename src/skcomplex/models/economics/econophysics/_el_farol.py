@@ -153,11 +153,11 @@ class PatronComponent(ElementComponent):
                 The model.
         """
         pool = self._pool(model)
-        mask = int(agent.state('predictors'))
+        mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
         best = held[int(np.argmin(pool['errors'][held]))]
-        agent.set_state('forecast', float(pool['forecasts'][best]))
-        agent.set_state('attends', float(agent.state('forecast') < model.parameters[f'{self.bar}.capacity']))
+        agent.forecast = float(pool['forecasts'][best])
+        agent.attends = float(agent.forecast < model.parameters[f'{self.bar}.capacity'])
 
 
 class BarInteraction(InstitutionInteraction):
@@ -207,7 +207,7 @@ class BarInteraction(InstitutionInteraction):
             model:
                 The model view of the bar.
         """
-        model.report('attendance', sum(agent.state('attends') for agent in model.agents(self.patrons)))
+        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons)))
 
 
 @register_model(

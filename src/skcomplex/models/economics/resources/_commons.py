@@ -71,7 +71,7 @@ def richest_pasture(
         free = [pasture for pasture in options if pasture is not None and taken.get(pasture.id, 0) < capacity]
         if not free:
             continue
-        best = max(free, key=lambda pasture: pasture.state('grass'))
+        best = max(free, key=lambda pasture: pasture.grass)
         taken[best.id] = taken.get(best.id, 0) + 1
         pairs.append((cow, best))
     return pairs
@@ -131,9 +131,9 @@ class PastureComponent(ElementComponent):
             model:
                 The model.
         """
-        stand = max(agent.state('grass'), model.parameter('seed') * agent.state('capacity'))
-        growth = model.parameter('regrowth') * stand * (1 - stand / agent.state('capacity'))
-        agent.set_state('grass', min(agent.state('capacity'), agent.state('grass') + growth))
+        stand = max(agent.grass, model.parameter('seed') * agent.capacity)
+        growth = model.parameter('regrowth') * stand * (1 - stand / agent.capacity)
+        agent.grass = min(agent.capacity, agent.grass + growth)
 
 
 class CowComponent(ElementComponent):
@@ -234,13 +234,13 @@ class HerderComponent(ElementComponent):
             model:
                 The model.
         """
-        earning = agent.state('income') / agent.state('herd') if agent.state('herd') else model.parameter('upkeep') + 1
-        if earning > model.parameter('upkeep') and agent.state('herd') < agent.state('quota'):
-            model.create('cows', owner=agent.state('number'), energy=model.parameter('newborn'))
-        elif agent.state('herd') > agent.state('quota'):
-            next(cow for cow in model.agents('cows') if cow.state('owner') == agent.state('number')).remove()
-        agent.set_state('income', 0.0)
-        agent.set_state('herd', 0.0)
+        earning = agent.income / agent.herd if agent.herd else model.parameter('upkeep') + 1
+        if earning > model.parameter('upkeep') and agent.herd < agent.quota:
+            model.create('cows', owner=agent.number, energy=model.parameter('newborn'))
+        elif agent.herd > agent.quota:
+            next(cow for cow in model.agents('cows') if cow.owner == agent.number).remove()
+        agent.income = 0.0
+        agent.herd = 0.0
 
 
 class GrazingInteraction(BaseInteraction):
@@ -308,18 +308,18 @@ class GrazingInteraction(BaseInteraction):
             model:
                 The model view of the grazing.
         """
-        herders = {int(herder.state('number')): herder for herder in model.agents('herders')}
+        herders = {int(herder.number): herder for herder in model.agents('herders')}
         for cow, pasture in matches(model, 'grazing'):
             cow.move_to(pasture.location)
-            eaten = min(pasture.state('grass'), model.parameter('appetite'))
+            eaten = min(pasture.grass, model.parameter('appetite'))
             transfer(pasture, cow, eaten, 'grass', 'energy')
-            herder = herders[int(cow.state('owner'))]
-            herder.set_state('income', herder.state('income') + model.parameter('milk') * eaten)
+            herder = herders[int(cow.owner)]
+            herder.income += model.parameter('milk') * eaten
         for cow in model.agents('cows'):
-            cow.set_state('energy', cow.state('energy') - model.parameter('metabolism'))
-            herder = herders[int(cow.state('owner'))]
-            herder.set_state('herd', herder.state('herd') + 1)
-            if cow.state('energy') < 0:
+            cow.energy -= model.parameter('metabolism')
+            herder = herders[int(cow.owner)]
+            herder.herd += 1
+            if cow.energy < 0:
                 cow.remove()
 
 
@@ -369,14 +369,12 @@ class RegulatorInteraction(InstitutionInteraction):
         if not model.parameter('regulated'):
             return
         pastures = model.agents('meadow')
-        share = sum(pasture.state('grass') for pasture in pastures) / sum(
-            pasture.state('capacity') for pasture in pastures
-        )
+        share = sum(pasture.grass for pasture in pastures) / sum(pasture.capacity for pasture in pastures)
         for herder in model.agents('herders'):
             if share < model.parameter('low'):
-                herder.set_state('quota', max(1.0, float(np.floor(herder.state('quota') / 2))))
+                herder.quota = max(1.0, float(np.floor(herder.quota / 2)))
             elif share > model.parameter('high'):
-                herder.set_state('quota', herder.state('quota') + 1)
+                herder.quota += 1
 
 
 @register_model(

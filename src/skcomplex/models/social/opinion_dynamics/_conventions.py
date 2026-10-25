@@ -18,8 +18,8 @@ type Array = npt.NDArray[np.float64]
 
 def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Generator) -> None:
     """Play one naming game between a speaker and a hearer, the speaker inventing its own word when it knows none."""
-    spoken = np.array(speaker.state('words'), dtype=float)
-    heard = np.array(hearer.state('words'), dtype=float)
+    spoken = np.array(speaker.words, dtype=float)
+    heard = np.array(hearer.words, dtype=float)
     if not spoken.any():
         spoken[own] = 1.0
     known = np.flatnonzero(spoken)
@@ -29,8 +29,7 @@ def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Genera
         spoken[name] = heard[name] = 1.0
     else:
         heard[name] = 1.0
-    speaker.set_state('words', spoken)
-    hearer.set_state('words', heard)
+    speaker.words, hearer.words = spoken, heard
 
 
 class NamerComponent(ElementComponent):

@@ -85,10 +85,7 @@ class FarmerComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state(
-            'wealth',
-            agent.state('wealth') + (model.parameters[self.effort] * float(model.inputs.get(self.resource, 0.0))),
-        )
+        agent.wealth += model.parameters[self.effort] * float(model.inputs.get(self.resource, 0.0))
 
 
 class HarvestInteraction(BaseInteraction):

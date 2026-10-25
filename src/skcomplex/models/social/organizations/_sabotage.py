@@ -29,55 +29,33 @@ def _wander(agent: AgentView, model: ModelView) -> None:
 
 def _feel(agent: AgentView, model: ModelView) -> None:
     """Draw how a predisposed employee feels about the organization today and update its disgruntlement."""
-    feeling = model.rng.normal(agent.parameter('culture'), np.sqrt(agent.parameter('change')))
-    if agent.state('days') == 0:
-        agent.set_state('first', feeling)
+    feeling = model.rng.normal(agent.culture, np.sqrt(agent.change))
+    if agent.days == 0:
+        agent.first = feeling
     else:
-        agent.set_state('disgruntlement', (agent.state('expectation') - feeling) * agent.parameter('affect_weight'))
-    agent.set_state('days', agent.state('days') + 1)
-    agent.set_state(
-        'mean_feeling',
-        agent.state('mean_feeling') + ((feeling - agent.state('mean_feeling')) / agent.state('days')),
-    )
-    weights = agent.parameter('primacy') + agent.parameter('consistency') + agent.parameter('recency')
-    agent.set_state(
-        'expectation',
-        (
-            agent.parameter('primacy') * agent.state('first')
-            + agent.parameter('consistency') * agent.state('mean_feeling')
-            + agent.parameter('recency') * feeling
-        )
-        / weights,
-    )
+        agent.disgruntlement = (agent.expectation - feeling) * agent.affect_weight
+    agent.days += 1
+    agent.mean_feeling += (feeling - agent.mean_feeling) / agent.days
+    weights = agent.primacy + agent.consistency + agent.recency
+    agent.expectation = (
+        agent.primacy * agent.first + agent.consistency * agent.mean_feeling + agent.recency * feeling
+    ) / weights
 
 
 def _stress(agent: AgentView) -> None:
     """Raise the stress of an employee who sees an agent of another group, a supervisor, and let it decay otherwise."""
     supervised = any(other.group != agent.group for other in [*agent.neighbors(), *agent.agents_here()])
     if supervised:
-        agent.set_state(
-            'stress',
-            agent.state('stress')
-            + (agent.parameter('alpha_seen') * (agent.parameter('lambda_seen') - agent.state('stress'))),
-        )
+        agent.stress += agent.alpha_seen * (agent.lambda_seen - agent.stress)
     else:
-        agent.set_state(
-            'stress',
-            agent.state('stress')
-            + (agent.parameter('alpha_unseen') * (agent.parameter('lambda_unseen') - agent.state('stress'))),
-        )
+        agent.stress += agent.alpha_unseen * (agent.lambda_unseen - agent.stress)
 
 
 def _rehire(agent: AgentView, model: ModelView) -> None:
     """Replace a leaving employee by a new hire with the same affect."""
-    agent.set_state('predisposed', float(model.rng.random() < PREDISPOSED))
-    agent.set_state('disgruntlement', 0.0)
-    agent.set_state('stress', 0.0)
-    agent.set_state('skill', 0.0)
-    agent.set_state('days', 0.0)
-    agent.set_state('mean_feeling', 0.0)
-    agent.set_state('first', 0.0)
-    agent.set_state('expectation', 0.0)
+    agent.predisposed = float(model.rng.random() < PREDISPOSED)
+    agent.disgruntlement = agent.stress = agent.skill = 0.0
+    agent.days = agent.mean_feeling = agent.first = agent.expectation = 0.0
 
 
 class SupervisorComponent(ElementComponent):
@@ -244,24 +222,13 @@ class EmployeeComponent(ElementComponent):
                 The model.
         """
         _wander(agent, model)
-        if agent.state('predisposed'):
+        if agent.predisposed:
             _feel(agent, model)
         _stress(agent)
-        agent.set_state(
-            'skill',
-            agent.state('skill')
-            + model.rng.normal(agent.parameter('skill_growth'), np.sqrt(agent.parameter('skill_variance'))),
-        )
-        if model.rng.random() < agent.parameter('turnover') / DAYS_PER_YEAR:
+        agent.skill += model.rng.normal(agent.skill_growth, np.sqrt(agent.skill_variance))
+        if model.rng.random() < agent.turnover / DAYS_PER_YEAR:
             _rehire(agent, model)
-        agent.set_state(
-            'risk',
-            agent.state('predisposed')
-            + agent.state('disgruntlement')
-            + agent.state('stress')
-            + agent.state('skill')
-            + agent.state('affect'),
-        )
+        agent.risk = agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect
 
 
 @register_model(

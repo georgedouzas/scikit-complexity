@@ -101,8 +101,8 @@ class WritingInteraction(BaseInteraction):
         words = model.agents(self.target)
         if not words:
             return
-        innovation = words[0].parameter('innovation')
-        counts = [int(word.state('count')) for word in words]
+        innovation = words[0].innovation
+        counts = [int(word.count) for word in words]
         tokens = np.repeat(np.arange(len(counts)), counts).tolist()
         for _ in range(self.words_per_step):
             index = len(counts) if model.rng.random() < innovation else tokens[int(model.rng.integers(len(tokens)))]
@@ -111,7 +111,7 @@ class WritingInteraction(BaseInteraction):
             counts[index] += 1
             tokens.append(index)
         for word, count in zip(words, counts, strict=False):
-            word.set_state('count', float(count))
+            word.count = float(count)
         for count in counts[len(words) :]:
             model.create(self.target, count=float(count))
 

@@ -84,7 +84,7 @@ class NetworkWalkerComponent(ElementComponent):
         if not cells:
             return
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
-        agent.set_state('steps', agent.state('steps') + 1)
+        agent.steps += 1
 
 
 def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:

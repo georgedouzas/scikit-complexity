@@ -21,7 +21,7 @@ TOLERANCE = 1e-9
 
 def _bank_of(banks: list[AgentView], index: float) -> AgentView:
     """Return the bank with an index."""
-    return next(bank for bank in banks if int(bank.state('index')) == int(index))
+    return next(bank for bank in banks if int(bank.index) == int(index))
 
 
 class DepositorComponent(ElementComponent):
@@ -102,15 +102,15 @@ class DepositorComponent(ElementComponent):
         """
         customers = model.agents(agent.group)
         payee = customers[int(model.rng.integers(len(customers)))]
-        amount = model.parameter('spending') * agent.state('deposit')
+        amount = model.parameter('spending') * agent.deposit
         banks = model.agents(self.lenders)
-        source, target = _bank_of(banks, agent.state('bank')), _bank_of(banks, payee.state('bank'))
-        agent.set_state('deposit', agent.state('deposit') - amount)
-        payee.set_state('deposit', payee.state('deposit') + amount)
-        source.set_state('deposits', source.state('deposits') - amount)
-        source.set_state('reserves', source.state('reserves') - amount)
-        target.set_state('deposits', target.state('deposits') + amount)
-        target.set_state('reserves', target.state('reserves') + amount)
+        source, target = _bank_of(banks, agent.bank), _bank_of(banks, payee.bank)
+        agent.deposit -= amount
+        payee.deposit += amount
+        source.deposits -= amount
+        source.reserves -= amount
+        target.deposits += amount
+        target.reserves += amount
 
     def repay(self, agent: AgentView, model: ModelView) -> None:
         """Repay a share of the loan from the deposit, which destroys as much broad money.
@@ -122,14 +122,14 @@ class DepositorComponent(ElementComponent):
             model:
                 The model.
         """
-        amount = min(model.parameter('repayment') * agent.state('loan'), agent.state('deposit'))
+        amount = min(model.parameter('repayment') * agent.loan, agent.deposit)
         if amount <= 0:
             return
-        bank = _bank_of(model.agents(self.lenders), agent.state('bank'))
-        agent.set_state('deposit', agent.state('deposit') - amount)
-        agent.set_state('loan', agent.state('loan') - amount)
-        bank.set_state('deposits', bank.state('deposits') - amount)
-        bank.set_state('loans', bank.state('loans') - amount)
+        bank = _bank_of(model.agents(self.lenders), agent.bank)
+        agent.deposit -= amount
+        agent.loan -= amount
+        bank.deposits -= amount
+        bank.loans -= amount
 
 
 class ReserveBankComponent(ElementComponent):
@@ -208,20 +208,20 @@ class ReserveBankComponent(ElementComponent):
             model:
                 The model.
         """
-        excess = agent.state('reserves') - model.parameter('reserve_ratio') * agent.state('deposits')
+        excess = agent.reserves - model.parameter('reserve_ratio') * agent.deposits
         customers = model.agents(self.customers)
-        own = [customer for customer in customers if int(customer.state('bank')) == int(agent.state('index'))]
+        own = [customer for customer in customers if int(customer.bank) == int(agent.index)]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(model.rng.integers(len(own)))]
         payee = customers[int(model.rng.integers(len(customers)))]
-        bank = _bank_of(model.agents(agent.group), payee.state('bank'))
-        borrower.set_state('loan', borrower.state('loan') + excess)
-        agent.set_state('loans', agent.state('loans') + excess)
-        agent.set_state('reserves', agent.state('reserves') - excess)
-        payee.set_state('deposit', payee.state('deposit') + excess)
-        bank.set_state('deposits', bank.state('deposits') + excess)
-        bank.set_state('reserves', bank.state('reserves') + excess)
+        bank = _bank_of(model.agents(agent.group), payee.bank)
+        borrower.loan += excess
+        agent.loans += excess
+        agent.reserves -= excess
+        payee.deposit += excess
+        bank.deposits += excess
+        bank.reserves += excess
 
 
 class RegulatorInteraction(InstitutionInteraction):

@@ -650,7 +650,7 @@ class ObservableEvaluator:
             del t, x, p
             agents = done['__agents__'](group) or []
             if observable.variable is not None:
-                values: Any = [agent.state(observable.variable) for agent in agents]
+                values: Any = [getattr(agent, observable.variable) for agent in agents]
             elif callable(observable.expression):
                 values = [observable.expression(agent) for agent in agents]
             else:

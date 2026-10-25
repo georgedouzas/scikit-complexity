@@ -35,7 +35,8 @@ def memory(agent: Any, state: str, window: int | None = None) -> Array:  # noqa:
         KeyError:
             The element type does not remember the state.
     """
-    mesa_agent, stepper = agent._agent, agent._stepper
+    mesa_agent = object.__getattribute__(agent, '_agent')
+    stepper = object.__getattribute__(agent, '_stepper')
     element = stepper._spec_of(mesa_agent).element
     element_type = getattr(element, 'element', type(element))
     if state not in (getattr(element_type, 'remembers', None) or {}):

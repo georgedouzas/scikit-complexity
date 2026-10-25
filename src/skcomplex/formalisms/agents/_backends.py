@@ -6,7 +6,6 @@
 import math
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
 from typing import Any, ClassVar, cast
 
 import mesa
@@ -240,7 +239,7 @@ class ModelView:
             entry, indices = layout.locate(f'{self._owner}.{name}')
         except KeyError as error:
             prefix = f'{self._owner}.'
-            names = [item.name[len(prefix) :] for item in layout.entries if item.name.startswith(prefix)]
+            names = [item.name[len(prefix) :] for item in layout if item.name.startswith(prefix)]
             error_msg = (
                 f'{self._owner or "The model"} has no parameter {name!r}. Its parameters are: '
                 f'{", ".join(names) or "none"}.'
@@ -328,8 +327,8 @@ class ModelView:
     def _site(self, name: str, cell: object) -> int:
         """Return the member index of a field state's site at a cell or network node."""
         problem = self._stepper.problem_
-        if not problem.states.has(name):
-            names = [entry.name for entry in problem.states.entries if entry.members is not None]
+        if name not in problem.states:
+            names = [entry.name for entry in problem.states if entry.members is not None]
             error_msg = f'No field state named {name!r}. Available group states are: {", ".join(names)}.'
             raise KeyError(error_msg)
         shape = problem.lattice_shape(name)
@@ -386,7 +385,7 @@ class ModelView:
             KeyError:
                 The name is not a state of a field.
         """
-        entry = self._stepper.problem_.states.entry(name) if self._stepper.problem_.states.has(name) else None
+        entry = self._stepper.problem_.states.entry(name) if name in self._stepper.problem_.states else None
         site = self._site(name, cell)
         self._stepper.deposits_[entry.start + site * entry.columns] += amount  # type: ignore[union-attr]
 
@@ -514,99 +513,59 @@ class ModelView:
                 No parameter has that name.
         """
         layout = self._stepper.problem_.parameters
-        full = name if layout.has(name) else f'{self._owner}.{name}'
-        if not layout.has(full):
+        full = name if name in layout else f'{self._owner}.{name}'
+        if full not in layout:
             error_msg = f'No parameter named {name!r} to set. Available names are: {", ".join(layout.names)}.'
             raise SimulationError(error_msg)
         self._stepper._set_parameter(full, value)
 
 
-@dataclass(frozen=True, slots=True)
 class AgentView:
-    """Agent as rules see it: its states and its group's parameters by name, its neighbours, and its location.
-
-    Two views are equal when they show the same agent.
+    """Agent as rules see it: its states as attributes, its group's parameters, its neighbours, and its location.
 
     Args:
-        _agent:
+        agent:
             The Mesa agent.
 
-        _stepper:
+        stepper:
             The stepper that runs the model.
     """
 
-    _agent: mesa.Agent
-    _stepper: 'MesaSolver'
+    __slots__ = ('_agent', '_stepper')
 
-    def state(self, name: str) -> Any:  # noqa: ANN401
-        """Return a state of the agent.
+    def __init__(self, agent: mesa.Agent, stepper: 'MesaSolver') -> None:
+        object.__setattr__(self, '_agent', agent)
+        object.__setattr__(self, '_stepper', stepper)
 
-        Args:
-            name:
-                The name of a state of the agent's group.
-
-        Returns:
-            value:
-                The current value of the state.
-
-        Raises:
-            SimulationError:
-                The agent's group has no such state.
-        """
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Return a state of the agent or a parameter of its group."""
         spec = self._stepper._spec_of(self._agent)
-        if name not in spec.states:
-            error_msg = f'Agents of {spec.path} have no state {name!r}. Their states are: {", ".join(spec.states)}.'
-            raise SimulationError(error_msg)
-        return getattr(self._agent, name)
+        if name in spec.states:
+            return getattr(self._agent, name)
+        if name in spec.parameters:
+            stepper = self._stepper
+            return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, spec.parameters[name]))[0])
+        error_msg = f'Agents of {spec.path} have no state or parameter {name!r}.'
+        raise AttributeError(error_msg)
 
-    def set_state(self, name: str, value: Any) -> None:  # noqa: ANN401
-        """Set a state of the agent, at the end of the phase in a simultaneous phase.
-
-        Args:
-            name:
-                The name of a state of the agent's group.
-
-            value:
-                The new value.
-
-        Raises:
-            SimulationError:
-                The agent's group has no such state.
-        """
-        spec = self._stepper._spec_of(self._agent)
-        if name not in spec.states:
-            error_msg = f'{name!r} is not a state of agents of {spec.path}, so it cannot be set.'
-            raise SimulationError(error_msg)
+    def __setattr__(self, name: str, value: Any) -> None:  # noqa: ANN401
+        """Set a state of the agent, at the end of the phase in a simultaneous phase."""
+        if name not in self._stepper._spec_of(self._agent).states:
+            error_msg = f'{name!r} is not a state of the agent, so it cannot be set.'
+            raise AttributeError(error_msg)
         buffer = self._stepper.buffer_
         if buffer is not None:
             buffer[self._agent, name] = value
             return
         setattr(self._agent, name, value)
 
-    def parameter(self, name: str) -> float:
-        """Return a parameter of the agent's group.
+    def __eq__(self, other: object) -> bool:
+        """Check whether two views show the same agent."""
+        return isinstance(other, AgentView) and other._agent is self._agent
 
-        Args:
-            name:
-                The name of a parameter of the agent's group.
-
-        Returns:
-            value:
-                The current value of the parameter.
-
-        Raises:
-            SimulationError:
-                The agent's group has no such parameter.
-        """
-        spec = self._stepper._spec_of(self._agent)
-        if name not in spec.parameters:
-            error_msg = (
-                f'Agents of {spec.path} have no parameter {name!r}. Their parameters are: '
-                f'{", ".join(spec.parameters) or "none"}.'
-            )
-            raise SimulationError(error_msg)
-        stepper = self._stepper
-        return float(np.ravel(stepper.problem_.parameters.read(stepper.parameters_, spec.parameters[name]))[0])
+    def __hash__(self) -> int:
+        """Return the hash of the agent's id."""
+        return hash(self._agent.unique_id)
 
     @property
     def id(self) -> int:
@@ -825,7 +784,7 @@ class MesaSolver(Solver):
         ...         return [RuleLaw(self.tick)]
         ...
         ...     def tick(self, agent, model):
-        ...         agent.set_state('count', agent.state('count') + 1)
+        ...         agent.count += 1
         >>> trajectory = Simulation(System(components=[CounterComponent.group('counters', 3)])).run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
@@ -1037,10 +996,10 @@ class MesaSolver(Solver):
         return self._classes[type(agent)]
 
     def _agents_of(self, group: str) -> list[Any] | None:
-        """Return the views of the alive agents of a group, or `None` when the model has no such group."""
+        """Return the alive Mesa agents of a group, or `None` when the model has no such group."""
         if group not in self._specs:
             return None
-        return [AgentView(agent, self) for agent in self._group_agents(group)]
+        return self._group_agents(group)
 
     def _group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.
@@ -1213,10 +1172,9 @@ class MesaSolver(Solver):
         """Set the agents of every group and the reporters at the current step."""
         groups, agents = {}, {}
         for spec in self.problem_.agents:
-            alive = self._group_agents(spec.path)
-            agents[spec.path] = [AgentView(agent, self) for agent in alive]
-            groups[spec.path] = _snapshot_of(alive, {name: _attribute(name) for name in spec.states})
-        reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
+            agents[spec.path] = self._group_agents(spec.path)
+            groups[spec.path] = _snapshot_of(agents[spec.path], {name: _attribute(name) for name in spec.states})
+        reporters = {f'{path}.count': float(len(snapshot)) for path, snapshot in groups.items()}
         super()._collect()
         self.snapshot_ = AgentState(groups, {**reporters, **self.reports_})
         self.agents_ = agents

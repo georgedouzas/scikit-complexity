@@ -92,7 +92,7 @@ class AntComponent(ElementComponent):
 
     def walk(self, agent, model):
         """Count one step."""
-        agent.set_state('steps', agent.state('steps') + 1)
+        agent.steps += 1
 
 
 def _codes(report):

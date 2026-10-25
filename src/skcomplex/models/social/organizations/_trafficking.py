@@ -151,12 +151,12 @@ class DailyMovementsInteraction(BaseInteraction):
     def _travel(self, woman: AgentView, cell: tuple[int, int], width: int) -> None:
         """Move a woman to a cell and count a trip when the city changes."""
         if self._city(cell, width) != self._city(woman.location, width):
-            woman.set_state('trips', woman.state('trips') + 1)
+            woman.trips += 1
         woman.move_to(cell)
 
     def _move_free(self, women: list[AgentView], model: ModelView) -> None:
         """Move a random free woman to a random cell of a random city."""
-        free = [woman for woman in women if not woman.state('victim')]
+        free = [woman for woman in women if not woman.victim]
         if not free:
             return
         width, height = cast('tuple[int, int]', model.dimensions)
@@ -169,7 +169,7 @@ class DailyMovementsInteraction(BaseInteraction):
         """Move a random number of the victims of every brothel to random brothels."""
         width = cast('tuple[int, int]', model.dimensions)[0]
         for brothel in brothels:
-            victims = [woman for woman in women if woman.state('victim') and _cell(woman.location) == brothel]
+            victims = [woman for woman in women if woman.victim and _cell(woman.location) == brothel]
             moved = model.rng.permutation(len(victims))[: int(model.rng.integers(len(victims) + 1))]
             for index in moved:
                 self._travel(victims[index], brothels[int(model.rng.integers(len(brothels)))], width)
@@ -184,24 +184,18 @@ class DailyMovementsInteraction(BaseInteraction):
         women, premises = model.agents('women'), model.agents('premises')
         if not premises:
             return
-        day = premises[0].state('day') + 1
+        day = premises[0].day + 1
         self._move_free(women, model)
         if day % MONTH == 0:
-            self._move_victims(women, [_cell(place.location) for place in premises if place.state('brothel')], model)
+            self._move_victims(women, [_cell(place.location) for place in premises if place.brothel], model)
         counts: dict[tuple[int, int], int] = {}
         for woman in women:
             counts[_cell(woman.location)] = counts.get(_cell(woman.location), 0) + 1
         for place in premises:
-            place.set_state('day', day)
-            place.set_state(
-                'bills',
-                place.state('bills')
-                + (1 / (1 + np.exp(place.state('efficiency') - counts.get(_cell(place.location), 0)))),
-            )
+            place.day = day
+            place.bills += 1 / (1 + np.exp(place.efficiency - counts.get(_cell(place.location), 0)))
             if day % QUARTER == 0:
-                new_last_bills, new_bills = place.state('bills'), 0.0
-                place.set_state('last_bills', new_last_bills)
-                place.set_state('bills', new_bills)
+                place.last_bills, place.bills = place.bills, 0.0
 
 
 @register_model(

@@ -59,8 +59,8 @@ class IndividualComponent(ElementComponent):
             model:
                 The model.
         """
-        for _ in range(int(model.rng.poisson(agent.parameter('m')))):
-            agent.create(generation=agent.state('generation') + 1)
+        for _ in range(int(model.rng.poisson(agent.m))):
+            agent.create(generation=agent.generation + 1)
         agent.remove()
 
 

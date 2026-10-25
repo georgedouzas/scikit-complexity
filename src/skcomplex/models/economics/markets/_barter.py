@@ -25,7 +25,7 @@ EDGEWORTH_BARTERERS = 2
 
 def _utility(agent: Any) -> float:  # noqa: ANN401
     """Return the logarithm of the Cobb-Douglas utility of a barterer."""
-    return cobb_douglas([agent.state(good) for good in GOODS], [agent.state(weight) for weight in WEIGHTS])
+    return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
 def _barter_observables(system: System) -> list[Observable]:

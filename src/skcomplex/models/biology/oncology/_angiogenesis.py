@@ -156,13 +156,13 @@ class TumourCellComponent(ElementComponent):
         """
         cell = agent.location
         oxygen = model.field(OXYGEN, cell)
-        model.deposit(OXYGEN, cell, -min(agent.parameter('consumption'), oxygen))
-        agent.set_state('hypoxic', float(oxygen < agent.parameter('hypoxia')))
-        if oxygen < agent.parameter('necrosis'):
+        model.deposit(OXYGEN, cell, -min(agent.consumption, oxygen))
+        agent.hypoxic = float(oxygen < agent.hypoxia)
+        if oxygen < agent.necrosis:
             agent.remove()
-        elif agent.state('hypoxic'):
-            model.deposit(VEGF, cell, agent.parameter('secretion'))
-        elif oxygen > agent.parameter('proliferation') and model.rng.random() < agent.parameter('division'):
+        elif agent.hypoxic:
+            model.deposit(VEGF, cell, agent.secretion)
+        elif oxygen > agent.proliferation and model.rng.random() < agent.division:
             self._divide(agent, model)
 
 
@@ -207,7 +207,7 @@ class VesselComponent(ElementComponent):
             model:
                 The model.
         """
-        model.deposit(OXYGEN, agent.location, agent.parameter('supply'))
+        model.deposit(OXYGEN, agent.location, agent.supply)
 
 
 class SproutComponent(ElementComponent):
@@ -265,15 +265,15 @@ class SproutComponent(ElementComponent):
         """
         here = agent.location
         level = model.field(VEGF, here)
-        if level < agent.parameter('activation'):
+        if level < agent.activation:
             return
         cells = cast('list[tuple[int, int]]', list(agent.neighbor_cells()))
         levels = np.array([model.field(VEGF, cell) for cell in cells])
-        weights = np.exp(agent.parameter('chemotaxis') * (levels - levels.max()) / level)
+        weights = np.exp(agent.chemotaxis * (levels - levels.max()) / level)
         if not agent.agents_here(VESSELS):
             model.create(VESSELS, location=here)
         agent.move_to(cells[model.rng.choice(len(cells), p=weights / weights.sum())])
-        if model.rng.random() < agent.parameter('branching'):
+        if model.rng.random() < agent.branching:
             agent.create(location=here)
 
 

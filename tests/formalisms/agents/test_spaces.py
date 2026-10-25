@@ -37,7 +37,7 @@ class EmployerComponent(ElementComponent):
 
     def post(self, agent, model):
         """Test helper post."""
-        agent.set_state('offer', model.time + 1.0)
+        agent.offer = model.time + 1.0
 
 
 class WorkerComponent(ElementComponent):
@@ -52,9 +52,9 @@ class WorkerComponent(ElementComponent):
 
     def accept(self, agent, model):
         """Test helper accept."""
-        best = max(employer.state('offer') for employer in model.agents('employers'))
-        agent.set_state('stale', agent.state('stale') + float(best != model.time + 1.0))
-        agent.set_state('accepted', best)
+        best = max(employer.offer for employer in model.agents('employers'))
+        agent.stale += float(best != model.time + 1.0)
+        agent.accepted = best
 
 
 def test_offer_before_acceptance():
@@ -86,7 +86,7 @@ def test_phases_keep_unphased_models():
             return [RuleLaw(self.tick)]
 
         def tick(self, agent, model):
-            agent.set_state('count', agent.state('count') + 1)
+            agent.count += 1
 
     system = System(
         components=[CounterComponent.group('counters', 3)],

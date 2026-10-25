@@ -36,7 +36,7 @@ def _random_masks(sizes: npt.NDArray[np.int64], rng: np.random.Generator) -> Arr
 
 def _items_left(agent: AgentView) -> float:
     """Return the number of items left on a shopper's list."""
-    return float(len(_items_of(int(agent.state('wanted')))))
+    return float(len(_items_of(int(agent.wanted))))
 
 
 class StallComponent(ElementComponent):
@@ -135,23 +135,18 @@ class ShopperComponent(ElementComponent):
             model:
                 The model.
         """
-        wanted, visited = int(agent.state('wanted')), int(agent.state('visited'))
+        wanted, visited = int(agent.wanted), int(agent.visited)
         if not wanted:
             return
-        unvisited = [stall for stall in model.agents(self.stalls) if not visited >> int(stall.state('stall')) & 1]
+        unvisited = [stall for stall in model.agents(self.stalls) if not visited >> int(stall.stall) & 1]
         if not unvisited:
-            agent.set_state('missed', wanted)
-            agent.set_state('wanted', 0)
+            agent.missed, agent.wanted = wanted, 0
             return
         stall = unvisited[int(model.rng.integers(len(unvisited)))]
-        bought = wanted & int(stall.state('stock'))
-        agent.set_state('visited', visited | 1 << int(stall.state('stall')))
-        agent.set_state(
-            'spent',
-            agent.state('spent')
-            + ((1 + stall.state('markup')) * sum(WHOLESALE_PRICES[item] for item in _items_of(bought))),
-        )
-        agent.set_state('wanted', wanted & ~bought)
+        bought = wanted & int(stall.stock)
+        agent.visited = visited | 1 << int(stall.stall)
+        agent.spent += (1 + stall.markup) * sum(WHOLESALE_PRICES[item] for item in _items_of(bought))
+        agent.wanted = wanted & ~bought
 
 
 @register_model(

@@ -208,27 +208,24 @@ class SwarmRobotComponent(ElementComponent):
     def _is_shadowed(self, agent: AgentView, neighbors: list[AgentView]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
         x, y = _position(agent)
-        bearing = _bearing(agent.parameter('beacon_x') - x, agent.parameter('beacon_y') - y)
+        bearing = _bearing(agent.beacon_x - x, agent.beacon_y - y)
         return any(
-            _angle_between(_bearing(_position(other)[0] - x, _position(other)[1] - y), bearing)
-            < agent.parameter('shadow_angle')
+            _angle_between(_bearing(_position(other)[0] - x, _position(other)[1] - y), bearing) < agent.shadow_angle
             for other in neighbors
         )
 
     def _turn(self, agent: AgentView, model: ModelView, count: int) -> float:
         """Return the new heading: back to the swarm after a lost connection, or at random after a new one."""
-        if count < agent.state('connections') and count < agent.parameter('alpha'):
-            return agent.state('heading') + math.pi
-        if count > agent.state('connections'):
+        if count < agent.connections and count < agent.alpha:
+            return agent.heading + math.pi
+        if count > agent.connections:
             return float(model.rng.uniform(0.0, 2 * math.pi))
-        return agent.state('heading')
+        return agent.heading
 
     def _avoid(self, agent: AgentView, neighbors: list[AgentView], heading: float) -> float:
         """Return the heading away from the nearest neighbour inside the avoidance radius, or the heading unchanged."""
         x, y = _position(agent)
-        radius = (
-            agent.parameter('avoid_illuminated') if agent.state('illuminated') else agent.parameter('avoid_shadowed')
-        )
+        radius = agent.avoid_illuminated if agent.illuminated else agent.avoid_shadowed
         distances = [math.hypot(_position(other)[0] - x, _position(other)[1] - y) for other in neighbors]
         close = [(distance, other) for distance, other in zip(distances, neighbors, strict=True) if distance < radius]
         if not close:
@@ -259,16 +256,16 @@ class SwarmRobotComponent(ElementComponent):
             model:
                 The model.
         """
-        neighbors = agent.neighbors(agent.parameter('radio_range'))
+        neighbors = agent.neighbors(agent.radio_range)
         count = len(neighbors)
-        agent.set_state('illuminated', 0.0 if self._is_shadowed(agent, neighbors) else 1.0)
+        agent.illuminated = 0.0 if self._is_shadowed(agent, neighbors) else 1.0
         heading = self._avoid(agent, neighbors, self._turn(agent, model, count))
-        agent.set_state('connections', count)
-        agent.set_state('heading', heading % (2 * math.pi))
+        agent.connections = count
+        agent.heading = heading % (2 * math.pi)
         x, y = _position(agent)
-        edge = agent.parameter('arena') * (1 - EDGE_FRACTION)
-        x = min(max(x + agent.parameter('speed') * math.cos(heading), 0.0), edge)
-        y = min(max(y + agent.parameter('speed') * math.sin(heading), 0.0), edge)
+        edge = agent.arena * (1 - EDGE_FRACTION)
+        x = min(max(x + agent.speed * math.cos(heading), 0.0), edge)
+        y = min(max(y + agent.speed * math.sin(heading), 0.0), edge)
         agent.move_to((x, y))
 
 

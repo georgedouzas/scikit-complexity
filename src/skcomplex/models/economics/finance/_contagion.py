@@ -45,7 +45,7 @@ def _economic_values(liabilities: Array) -> Array:
 
 def _value_at_risk(agent: AgentView) -> float:
     """Return the distress of a bank weighted by its economic value."""
-    return float(agent.state('h') * agent.state('value'))
+    return float(agent.h * agent.value)
 
 
 class BankComponent(ElementComponent):
@@ -146,15 +146,14 @@ class DebtRankCascadeInteraction(BaseInteraction):
                 The model.
         """
         banks = sorted(model.agents('banks'), key=lambda bank: bank.id)
-        h = np.array([bank.state('h') for bank in banks])
-        status = np.array([bank.state('status') for bank in banks])
+        h = np.array([bank.h for bank in banks])
+        status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED
         new_h = np.minimum(1.0, h + np.asarray(self.impact, dtype=float).T @ (h * distressed))
         hit = (status == UNDISTRESSED) & (new_h > 0)
         new_status = np.where(distressed, INACTIVE, np.where(hit, DISTRESSED, status))
         for bank, level, code in zip(banks, new_h, new_status, strict=True):
-            bank.set_state('h', float(level))
-            bank.set_state('status', float(code))
+            bank.h, bank.status = float(level), float(code)
 
 
 @register_model(

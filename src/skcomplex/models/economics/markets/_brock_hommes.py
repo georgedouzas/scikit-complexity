@@ -72,7 +72,7 @@ class SpeculatorComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('predictor', float(logit_choice(self._fitness(model), agent.parameter('intensity'), model.rng)))
+        agent.predictor = float(logit_choice(self._fitness(model), agent.intensity, model.rng))
 
     def _fitness(self, model: ModelView) -> list[float]:
         """Return the last fitness of every heuristic, read once per step into the storage of the traders."""
@@ -152,7 +152,7 @@ class HeuristicPricingInteraction(InstitutionInteraction):
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
         traders = model.agents('traders')
-        share = float(np.mean([trader.state('predictor') for trader in traders])) if traders else 0.0
+        share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = (forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
         previous = model.storage.get('forecasts')
         excess = price - rate * history[-1]

@@ -105,7 +105,7 @@ class PatchComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('sugar', min(agent.state('capacity'), agent.state('sugar') + agent.parameter('growback')))
+        agent.sugar = min(agent.capacity, agent.sugar + agent.growback)
 
 
 class ForagerComponent(ElementComponent):
@@ -177,24 +177,22 @@ class ForagerComponent(ElementComponent):
         """
         patches = self._patch_map(model)
         x, y = (int(item) for item in agent.location)  # type: ignore[attr-defined]
-        best, best_sugar, best_distance = (x, y), patches[x, y].state('sugar'), 0
+        best, best_sugar, best_distance = (x, y), patches[x, y].sugar, 0
         for dx, dy in DIRECTIONS:
-            for distance in range(1, int(agent.state('vision')) + 1):
+            for distance in range(1, int(agent.vision) + 1):
                 cell = (x + distance * dx, y + distance * dy)
                 patch = patches.get(cell)
                 if patch is None:
                     break
-                better = patch.state('sugar') > best_sugar or (
-                    patch.state('sugar') == best_sugar and distance < best_distance
-                )
+                better = patch.sugar > best_sugar or (patch.sugar == best_sugar and distance < best_distance)
                 if better and not patch.agents_here(agent.group):
-                    best, best_sugar, best_distance = cell, patch.state('sugar'), distance
+                    best, best_sugar, best_distance = cell, patch.sugar, distance
         if best != (x, y):
             agent.move_to(best)
         patch = patches[best]
-        agent.set_state('sugar', agent.state('sugar') + (patch.state('sugar') - agent.state('metabolism')))
-        patch.set_state('sugar', 0.0)
-        if agent.state('sugar') < 0:
+        agent.sugar += patch.sugar - agent.metabolism
+        patch.sugar = 0.0
+        if agent.sugar < 0:
             agent.remove()
 
 
@@ -253,7 +251,7 @@ class CensusInteraction(InstitutionInteraction):
             model:
                 The model view of the census.
         """
-        wealth = [forager.state('sugar') for forager in model.agents('foragers')]
+        wealth = [forager.sugar for forager in model.agents('foragers')]
         model.report('population', len(wealth))
         model.report('gini', gini(wealth))
 

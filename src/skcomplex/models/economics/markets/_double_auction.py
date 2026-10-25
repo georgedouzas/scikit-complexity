@@ -49,8 +49,8 @@ def _book_profit(trade: Trade, model: ModelView) -> None:
     """Add the surplus of a trade to the profits of the buyer and the seller."""
     del model
     buyer, seller = trade.buyer, trade.seller
-    buyer.set_state('profit', buyer.state('profit') + trade.quantity * (buyer.state('value') - trade.price))
-    seller.set_state('profit', seller.state('profit') + trade.quantity * (trade.price - seller.state('value')))
+    buyer.profit += trade.quantity * (buyer.value - trade.price)
+    seller.profit += trade.quantity * (trade.price - seller.value)
 
 
 class ZeroIntelligenceBuyerComponent(ElementComponent):
@@ -117,8 +117,8 @@ class ZeroIntelligenceBuyerComponent(ElementComponent):
             model:
                 The model.
         """
-        top = agent.state('value') if model.parameter('constrained') else model.parameter('ceiling')
-        agent.set_state('bid', float(model.rng.uniform(0.0, top)))
+        top = agent.value if model.parameter('constrained') else model.parameter('ceiling')
+        agent.bid = float(model.rng.uniform(0.0, top))
 
 
 class ZeroIntelligenceSellerComponent(ElementComponent):
@@ -185,8 +185,8 @@ class ZeroIntelligenceSellerComponent(ElementComponent):
             model:
                 The model.
         """
-        bottom = agent.state('value') if model.parameter('constrained') else 0.0
-        agent.set_state('ask', float(model.rng.uniform(bottom, max(bottom, model.parameter('ceiling')))))
+        bottom = agent.value if model.parameter('constrained') else 0.0
+        agent.ask = float(model.rng.uniform(bottom, max(bottom, model.parameter('ceiling'))))
 
 
 class AuctionLedgerInteraction(InstitutionInteraction):
@@ -218,17 +218,17 @@ class AuctionLedgerInteraction(InstitutionInteraction):
                 The model view scoped to the ledger.
         """
         buyers, sellers = model.agents('buyers'), model.agents('sellers')
-        values = np.array([buyer.state('value') for buyer in buyers])
-        costs = np.array([seller.state('value') for seller in sellers])
-        bought = np.array([buyer.state('demand') <= 0 for buyer in buyers])
-        sold = np.array([seller.state('supply') <= 0 for seller in sellers])
+        values = np.array([buyer.value for buyer in buyers])
+        costs = np.array([seller.value for seller in sellers])
+        bought = np.array([buyer.demand <= 0 for buyer in buyers])
+        sold = np.array([seller.supply <= 0 for seller in sellers])
         surplus = float(values[bought].sum() - costs[sold].sum())
         model.report('surplus', surplus)
         model.report('efficiency', surplus / maximum_surplus(values, costs))
         for buyer in buyers:
-            buyer.set_state('demand', 1.0)
+            buyer.demand = 1.0
         for seller in sellers:
-            seller.set_state('supply', 1.0)
+            seller.supply = 1.0
 
 
 @register_model(

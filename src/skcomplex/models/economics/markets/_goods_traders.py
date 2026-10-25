@@ -27,12 +27,12 @@ WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 
 def _total(good: str, model: Any) -> float:  # noqa: ANN401
     """Return the total holding of a good over the traders bound to an exchange."""
-    return float(sum(agent.state(good) for agent in model.agents('traders')))
+    return float(sum(getattr(agent, good) for agent in model.agents('traders')))
 
 
 def _utility(agent: Any) -> float:  # noqa: ANN401
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
-    return cobb_douglas([agent.state(good) for good in GOODS], [agent.state(weight) for weight in WEIGHTS])
+    return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
 def _goods_observables(system: System) -> list[Observable]:

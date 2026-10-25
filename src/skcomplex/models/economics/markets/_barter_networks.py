@@ -29,7 +29,7 @@ def _log_spread(rates: npt.ArrayLike) -> float:
 
 def _utility(agent: Any) -> float:  # noqa: ANN401
     """Return the Cobb-Douglas utility of the bundle of a trader."""
-    return float(agent.state('good1') * agent.state('good2'))
+    return float(agent.good1 * agent.good2)
 
 
 def _best_neighbors(
@@ -42,10 +42,8 @@ def _best_neighbors(
     pairs = []
     for index in rng.permutation(len(left)):
         trader = left[int(index)]
-        rate = math.log(trader.state('good2') / trader.state('good1'))
-        gaps = [
-            (abs(math.log(other.state('good2') / other.state('good1')) - rate), other) for other in trader.neighbors()
-        ]
+        rate = math.log(trader.good2 / trader.good1)
+        gaps = [(abs(math.log(other.good2 / other.good1) - rate), other) for other in trader.neighbors()]
         if gaps:
             pairs.append((trader, max(gaps, key=lambda item: item[0])[1]))
     return pairs
@@ -53,20 +51,12 @@ def _best_neighbors(
 
 def _barter(first: AgentView, second: AgentView, units: int) -> int:
     """Trade single units of the first good at the bundle price while both traders gain, and return the units."""
-    buyer, seller = (
-        (first, second)
-        if first.state('good2') * second.state('good1') > second.state('good2') * first.state('good1')
-        else (second, first)
-    )
-    price = (buyer.state('good2') + seller.state('good2')) / (buyer.state('good1') + seller.state('good1'))
+    buyer, seller = (first, second) if first.good2 * second.good1 > second.good2 * first.good1 else (second, first)
+    price = (buyer.good2 + seller.good2) / (buyer.good1 + seller.good1)
     traded = 0
     while traded < units:
-        buyer_gains = (buyer.state('good1') + 1) * (buyer.state('good2') - price) > buyer.state('good1') * buyer.state(
-            'good2',
-        )
-        seller_gains = (seller.state('good1') - 1) * (seller.state('good2') + price) > seller.state(
-            'good1',
-        ) * seller.state('good2')
+        buyer_gains = (buyer.good1 + 1) * (buyer.good2 - price) > buyer.good1 * buyer.good2
+        seller_gains = (seller.good1 - 1) * (seller.good2 + price) > seller.good1 * seller.good2
         if not (buyer_gains and seller_gains):
             break
         transfer(seller, buyer, 1.0, 'good1')
@@ -156,7 +146,7 @@ class BarterTraderComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('mrs', agent.state('good2') / agent.state('good1'))
+        agent.mrs = agent.good2 / agent.good1
 
 
 class BilateralBarterInteraction(BaseInteraction):
@@ -210,7 +200,7 @@ class BilateralBarterInteraction(BaseInteraction):
         units = int(model.parameter('units'))
         traded = sum(_barter(first, second, units) for first, second in matches(model, 'partners'))
         model.report('trades', float(traded))
-        model.report('searches', float(sum(trader.state('links') for trader in model.agents(self.traders))))
+        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders))))
 
 
 @register_model(

@@ -213,12 +213,12 @@ class EvolutionInteraction(BaseInteraction):
                 The model.
         """
         agents = model.agents('population')
-        strategies = np.array([agent.state('actions') for agent in agents], dtype=np.int64)
-        scores = np.array([agent.state('score') for agent in agents], dtype=float)
+        strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
+        scores = np.array([agent.score for agent in agents], dtype=float)
         children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))
         for agent, actions, score in zip(agents, children, self.score(children, model.rng), strict=True):
-            agent.set_state('actions', actions)
-            agent.set_state('score', float(score))
+            agent.actions = actions
+            agent.score = float(score)
 
 
 @register_model(

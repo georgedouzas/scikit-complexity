@@ -23,7 +23,7 @@ LOWEST_PRICE = 0.01
 
 def _total(holding: str, model: Any) -> float:  # noqa: ANN401
     """Return the total of a holding over the traders bound to a book."""
-    return float(sum(agent.state(holding) for agent in model.agents('traders')))
+    return float(sum(getattr(agent, holding) for agent in model.agents('traders')))
 
 
 def _order_book_observables(system: System) -> list[Observable]:
@@ -146,17 +146,17 @@ class StockTraderComponent(ElementComponent):
                 The model.
         """
         price, previous = self._prices(model)
-        if agent.state('strategy'):
+        if agent.strategy:
             expected = price + model.parameter('extrapolation') * (price - previous)
         else:
             expected = price + model.parameter('reversion') * (model.parameter('fundamental') - price)
         expected = max(LOWEST_PRICE, expected * (1 + model.parameter('noise') * model.rng.normal()))
         buying = expected > price
         new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)
-        agent.set_state('bid', new_bid)
-        agent.set_state('ask', new_ask)
-        agent.set_state('demand', float(buying and agent.state('money') >= expected))
-        agent.set_state('supply', float(not buying and agent.state('shares') >= 1))
+        agent.bid = new_bid
+        agent.ask = new_ask
+        agent.demand = float(buying and agent.money >= expected)
+        agent.supply = float(not buying and agent.shares >= 1)
 
     def account(self, agent: AgentView, model: ModelView) -> None:
         """Value the wealth at the last price and record its change.
@@ -169,9 +169,9 @@ class StockTraderComponent(ElementComponent):
                 The model.
         """
         price, _ = self._prices(model)
-        wealth = agent.state('money') + agent.state('shares') * price
-        agent.set_state('gain', wealth - agent.state('wealth') if agent.state('wealth') else 0.0)
-        agent.set_state('wealth', wealth)
+        wealth = agent.money + agent.shares * price
+        agent.gain = wealth - agent.wealth if agent.wealth else 0.0
+        agent.wealth = wealth
 
     def imitate(self, agent: AgentView, model: ModelView) -> None:
         """Copy the strategy of a random neighbour whose wealth grew more, with the probability of imitation.
@@ -187,8 +187,8 @@ class StockTraderComponent(ElementComponent):
         if not neighbours or model.rng.random() >= model.parameter('imitation'):
             return
         other = neighbours[int(model.rng.integers(len(neighbours)))]
-        if other.state('gain') > agent.state('gain'):
-            agent.set_state('strategy', other.state('strategy'))
+        if other.gain > agent.gain:
+            agent.strategy = other.strategy
 
 
 class BookInteraction(BaseInteraction):

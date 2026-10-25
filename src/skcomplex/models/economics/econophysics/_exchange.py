@@ -52,12 +52,12 @@ class TraderComponent(ElementComponent):
             model:
                 The model.
         """
-        if agent.state('wealth') <= 0:
+        if agent.wealth <= 0:
             return
         others = model.agents(agent.group)
         receiver = others[int(model.rng.integers(len(others)))]
-        receiver.set_state('wealth', receiver.state('wealth') + 1)
-        agent.set_state('wealth', agent.state('wealth') - 1)
+        receiver.wealth += 1
+        agent.wealth -= 1
 
 
 @register_model(

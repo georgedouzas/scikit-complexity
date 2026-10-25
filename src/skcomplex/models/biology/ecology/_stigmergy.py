@@ -63,7 +63,7 @@ def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
     cells = _empty_cells(agent)
     if cells:
         agent.create(None, cells[int(model.rng.integers(len(cells)))], **values)
-        agent.set_state('age', 0.0)
+        agent.age = 0.0
 
 
 class PlantComponent(ElementComponent):
@@ -112,8 +112,8 @@ class PlantComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('age', agent.state('age') + 1)
-        if agent.state('age') >= agent.parameter('maturity'):
+        agent.age += 1
+        if agent.age >= agent.maturity:
             _spawn(agent, model)
 
 
@@ -187,10 +187,10 @@ class ForagerComponent(ElementComponent):
     def _preference(self, agent: AgentView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
         """Return the preference of an animal for a neighbouring cell."""
         food = 1.0 if occupant is not None and _kind(occupant) == self.food else 0.0
-        if not agent.parameter('emotions'):
+        if not agent.emotions:
             return food
-        happiness = model.field(f'{MARKS}.{self.happiness_mark}', cell) - agent.state('happiness')
-        distress = model.field(f'{MARKS}.{self.distress_mark}', cell) - agent.state('distress')
+        happiness = model.field(f'{MARKS}.{self.happiness_mark}', cell) - agent.happiness
+        distress = model.field(f'{MARKS}.{self.distress_mark}', cell) - agent.distress
         return food + happiness - distress
 
     def _move(self, agent: AgentView, model: ModelView, occupants: dict[object, AgentView]) -> float:
@@ -209,7 +209,7 @@ class ForagerComponent(ElementComponent):
             agent.move_to(cell)
             return 0.0
         occupant.remove()
-        agent.set_state('hunger', 0.0)
+        agent.hunger = 0.0
         agent.move_to(cell)
         return 1.0
 
@@ -218,14 +218,11 @@ class ForagerComponent(ElementComponent):
         cells = agent.neighbor_cells()
         marked_happiness = np.mean([model.field(f'{MARKS}.{self.happiness_mark}', cell) for cell in cells])
         marked_distress = np.mean([model.field(f'{MARKS}.{self.distress_mark}', cell) for cell in cells])
-        keep, share = agent.parameter('memory'), agent.parameter('communication')
-        agent.set_state(
-            'happiness',
-            (1 - keep) * (happiness + share * marked_happiness) + keep * agent.state('happiness'),
-        )
-        agent.set_state('distress', (1 - keep) * (distress + share * marked_distress) + keep * agent.state('distress'))
-        model.deposit(f'{MARKS}.{self.happiness_mark}', agent.location, agent.state('happiness'))
-        model.deposit(f'{MARKS}.{self.distress_mark}', agent.location, agent.state('distress'))
+        keep, share = agent.memory, agent.communication
+        agent.happiness = (1 - keep) * (happiness + share * marked_happiness) + keep * agent.happiness
+        agent.distress = (1 - keep) * (distress + share * marked_distress) + keep * agent.distress
+        model.deposit(f'{MARKS}.{self.happiness_mark}', agent.location, agent.happiness)
+        model.deposit(f'{MARKS}.{self.distress_mark}', agent.location, agent.distress)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the life rule.
@@ -255,7 +252,7 @@ class ForagerComponent(ElementComponent):
                 The experience of distress.
         """
         del occupants
-        return float(agent.state('hunger') / agent.parameter('starvation'))
+        return float(agent.hunger / agent.starvation)
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Age, starve, sense, move and eat, feel, and breed.
@@ -267,22 +264,20 @@ class ForagerComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('age', agent.state('age') + 1)
-        agent.set_state('hunger', agent.state('hunger') + 1)
-        if agent.state('hunger') > agent.parameter('starvation'):
+        agent.age += 1
+        agent.hunger += 1
+        if agent.hunger > agent.starvation:
             agent.remove()
             return
         distress = self.sense(agent, _occupants(agent))
         ate = self._move(agent, model, _occupants(agent))
-        if agent.parameter('emotions'):
+        if agent.emotions:
             self._feel(agent, model, ate, distress)
-        if agent.state('age') < agent.parameter('maturity'):
+        if agent.age < agent.maturity:
             return
-        chance = agent.parameter('reproduction') * (
-            1 + agent.parameter('emotions') * (agent.state('happiness') - agent.state('distress'))
-        )
+        chance = agent.reproduction * (1 + agent.emotions * (agent.happiness - agent.distress))
         if model.rng.random() < chance:
-            _spawn(agent, model, hunger=agent.state('hunger'))
+            _spawn(agent, model, hunger=agent.hunger)
 
 
 class StigmergicPreyComponent(ForagerComponent):

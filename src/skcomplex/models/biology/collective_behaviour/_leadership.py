@@ -95,23 +95,23 @@ class ShoalMemberComponent(ElementComponent):
 
     def _desired(self, agent: AgentView) -> np.ndarray:
         """Return the desired direction from repulsion, or from attraction and alignment."""
-        heading = np.array([agent.state('vx'), agent.state('vy')])
-        neighbours = agent.neighbors(radius=agent.parameter('rho'))
+        heading = np.array([agent.vx, agent.vy])
+        neighbours = agent.neighbors(radius=agent.rho)
         if not neighbours:
             return heading
-        size = agent.parameter('size')
+        size = agent.size
         here = np.asarray(agent.location, dtype=float)
         offsets = np.array([other.location for other in neighbours], dtype=float) - here
         offsets = (offsets + size / 2) % size - size / 2
         distances = np.hypot(offsets[:, 0], offsets[:, 1])
         directions = offsets / distances[:, None]
-        close = distances < agent.parameter('alpha')
+        close = distances < agent.alpha
         if close.any():
             return _unit(-directions[close].sum(axis=0))
-        headings = np.array([(other.state('vx'), other.state('vy')) for other in neighbours])
+        headings = np.array([(other.vx, other.vy) for other in neighbours])
         social = heading + directions.sum(axis=0) + headings.sum(axis=0)
-        goal = np.array([math.cos(agent.parameter('preferred')), math.sin(agent.parameter('preferred'))])
-        return _unit(_unit(social) + agent.state('omega') * goal)
+        goal = np.array([math.cos(agent.preferred), math.sin(agent.preferred)])
+        return _unit(_unit(social) + agent.omega * goal)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the simultaneous turning and the swimming of the fish.
@@ -136,13 +136,12 @@ class ShoalMemberComponent(ElementComponent):
             model:
                 The model.
         """
-        heading = np.array([agent.state('vx'), agent.state('vy')])
+        heading = np.array([agent.vx, agent.vy])
         desired = self._desired(agent)
         if float(np.hypot(*desired)) > 0:
-            heading = _turned(heading, desired, agent.parameter('max_turn'))
-        angle = math.atan2(heading[1], heading[0]) + float(model.rng.normal(0.0, agent.parameter('noise')))
-        agent.set_state('vx', math.cos(angle))
-        agent.set_state('vy', math.sin(angle))
+            heading = _turned(heading, desired, agent.max_turn)
+        angle = math.atan2(heading[1], heading[0]) + float(model.rng.normal(0.0, agent.noise))
+        agent.vx, agent.vy = math.cos(angle), math.sin(angle)
 
     def swim(self, agent: AgentView, model: ModelView) -> None:
         """Swim one step along the heading.
@@ -154,10 +153,10 @@ class ShoalMemberComponent(ElementComponent):
             model:
                 The model.
         """
-        position = np.asarray(cast('tuple[float, float]', agent.location)) + agent.parameter('speed') * np.array(
-            [agent.state('vx'), agent.state('vy')],
+        position = np.asarray(cast('tuple[float, float]', agent.location)) + agent.speed * np.array(
+            [agent.vx, agent.vy],
         )
-        agent.move_to(tuple(np.mod(position, agent.parameter('size'))))
+        agent.move_to(tuple(np.mod(position, agent.size)))
 
 
 @register_model(

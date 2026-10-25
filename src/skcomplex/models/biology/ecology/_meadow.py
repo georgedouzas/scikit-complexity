@@ -68,10 +68,7 @@ class PastureComponent(ElementComponent):
                 The model.
         """
         del model
-        agent.set_state(
-            'grass',
-            agent.state('grass') + (agent.parameter('growth') * agent.state('grass') * (1 - agent.state('grass'))),
-        )
+        agent.grass += agent.growth * agent.grass * (1 - agent.grass)
 
 
 class CowComponent(ElementComponent):
@@ -140,7 +137,7 @@ class GrazingInteraction(BaseInteraction):
         for cow in model.agents('cows'):
             patch = patches.get(_cell(cow))
             if patch is not None:
-                patch.set_state('grass', max(patch.state('grass') - cow.parameter('bite'), 0.0))
+                patch.grass = max(patch.grass - cow.bite, 0.0)
 
 
 class HerdingInteraction(BaseInteraction):
@@ -193,7 +190,7 @@ class HerdingInteraction(BaseInteraction):
         cells = [_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         positions = np.asarray(cells, dtype=float)
-        grown = np.asarray([patch.state('grass') for patch in patches]) >= model.parameter('threshold')
+        grown = np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')
         cows = model.agents('cows')
         occupied = np.zeros(len(cells), dtype=bool)
         occupied[[index[_cell(cow)] for cow in cows]] = True

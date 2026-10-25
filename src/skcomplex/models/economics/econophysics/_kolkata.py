@@ -70,7 +70,7 @@ class DinerComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('restaurant', float(model.rng.integers(int(agent.parameter('restaurants')))))
+        agent.restaurant = float(model.rng.integers(int(agent.restaurants)))
 
 
 class CrowdAvoidingDinerComponent(DinerComponent):
@@ -111,11 +111,11 @@ class CrowdAvoidingDinerComponent(DinerComponent):
             model:
                 The model.
         """
-        if agent.state('crowd') < 1:
+        if agent.crowd < 1:
             super().choose(agent, model)
-        elif model.rng.random() >= 1 / agent.state('crowd'):
-            other = int(model.rng.integers(int(agent.parameter('restaurants')) - 1))
-            agent.set_state('restaurant', float(other + (other >= agent.state('restaurant'))))
+        elif model.rng.random() >= 1 / agent.crowd:
+            other = int(model.rng.integers(int(agent.restaurants) - 1))
+            agent.restaurant = float(other + (other >= agent.restaurant))
 
 
 class RestaurantsInteraction(BaseInteraction):
@@ -174,15 +174,14 @@ class RestaurantsInteraction(BaseInteraction):
                 The model.
         """
         agents = model.agents('diners')
-        choices = np.array([agent.state('restaurant') for agent in agents], dtype=np.int64)
+        choices = np.array([agent.restaurant for agent in agents], dtype=np.int64)
         crowds = np.bincount(choices, minlength=self.n_restaurants)
         order = model.rng.permutation(len(agents))
         _, first = np.unique(choices[order], return_index=True)
         served = np.zeros(len(agents), dtype=bool)
         served[order[first]] = True
         for agent, choice, meal in zip(agents, choices, served, strict=True):
-            agent.set_state('crowd', float(crowds[choice]))
-            agent.set_state('served', float(meal))
+            agent.crowd, agent.served = float(crowds[choice]), float(meal)
         model.report('utilization', np.count_nonzero(crowds) / self.n_restaurants)
 
 

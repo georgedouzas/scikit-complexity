@@ -69,21 +69,21 @@ def delivered_price_choice(
         >>> delivered_price_choice([], [], np.random.default_rng(0), 1)
         []
     """
-    shoppers = [agent for agent in left if agent.state('demand') > 0]
-    stores = [agent for agent in right if agent.state('supply') > 0]
+    shoppers = [agent for agent in left if agent.demand > 0]
+    stores = [agent for agent in right if agent.supply > 0]
     if not shoppers or not stores:
         return []
     here = np.array([agent.location for agent in shoppers], dtype=float)
     there = np.array([agent.location for agent in stores], dtype=float)
     distances = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=-1)
-    asks = np.array([agent.state('ask') for agent in stores], dtype=float)
-    travel = np.array([agent.state('travel') for agent in shoppers], dtype=float)
+    asks = np.array([agent.ask for agent in stores], dtype=float)
+    travel = np.array([agent.travel for agent in shoppers], dtype=float)
     delivered = asks[None, :] + travel[:, None] * distances
-    supply = np.array([agent.state('supply') for agent in stores], dtype=float)
+    supply = np.array([agent.supply for agent in stores], dtype=float)
     trades = []
     for index in rng.permutation(len(shoppers)):
         shopper = shoppers[int(index)]
-        costs = np.where((supply >= 1) & (asks <= shopper.state('bid')), delivered[index], np.inf)
+        costs = np.where((supply >= 1) & (asks <= shopper.bid), delivered[index], np.inf)
         best = int(np.argmin(costs))
         if not np.isfinite(costs[best]):
             continue
@@ -154,9 +154,9 @@ class ResidentComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('demand', 1.0)
+        agent.demand = 1.0
         online = model.rng.random() < model.parameter('online')
-        agent.set_state('travel', 0.0 if online else model.parameter('distance_cost'))
+        agent.travel = 0.0 if online else model.parameter('distance_cost')
 
 
 class StoreComponent(ElementComponent):
@@ -245,9 +245,9 @@ class StoreComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('supply', model.parameter('capacity'))
-        agent.set_state('ask', agent.state('price'))
-        agent.set_state('sales', 0.0)
+        agent.supply = model.parameter('capacity')
+        agent.ask = agent.price
+        agent.sales = 0.0
 
     def settle(self, agent: AgentView, model: ModelView) -> None:
         """Pay the costs, close when the money runs out, and move the price toward a larger profit.
@@ -260,21 +260,15 @@ class StoreComponent(ElementComponent):
                 The model.
         """
         unit_cost = model.parameter('unit_cost')
-        profit = agent.state('sales') * (agent.state('ask') - unit_cost) - model.parameter('fixed_cost')
-        agent.set_state(
-            'money',
-            agent.state('money') - (agent.state('sales') * unit_cost + model.parameter('fixed_cost')),
-        )
-        if agent.state('money') < 0:
+        profit = agent.sales * (agent.ask - unit_cost) - model.parameter('fixed_cost')
+        agent.money -= agent.sales * unit_cost + model.parameter('fixed_cost')
+        if agent.money < 0:
             agent.remove()
             return
-        if profit < agent.state('profit'):
-            agent.set_state('direction', -agent.state('direction'))
-        agent.set_state('profit', profit)
-        agent.set_state(
-            'price',
-            max(unit_cost, agent.state('price') * (1 + agent.state('direction') * model.parameter('adjustment'))),
-        )
+        if profit < agent.profit:
+            agent.direction = -agent.direction
+        agent.profit = profit
+        agent.price = max(unit_cost, agent.price * (1 + agent.direction * model.parameter('adjustment')))
 
 
 class ShoppingInteraction(BaseInteraction):
@@ -329,9 +323,9 @@ class ShoppingInteraction(BaseInteraction):
         volume = 0.0
         for trade in cast('list[Trade]', matches(model, 'purchases')):
             transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
-            trade.buyer.set_state('demand', trade.buyer.state('demand') - trade.quantity)
-            trade.seller.set_state('supply', trade.seller.state('supply') - trade.quantity)
-            trade.seller.set_state('sales', trade.seller.state('sales') + trade.quantity)
+            trade.buyer.demand -= trade.quantity
+            trade.seller.supply -= trade.quantity
+            trade.seller.sales += trade.quantity
             volume += trade.quantity
         model.report('volume', volume)
 

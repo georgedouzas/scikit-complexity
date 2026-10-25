@@ -102,7 +102,7 @@ class NeutralReplacementInteraction(BaseInteraction):
                 The model.
         """
         individuals = model.agents(self.community)
-        species = np.array([individual.state('species') for individual in individuals], dtype=float)
+        species = np.array([individual.species for individual in individuals], dtype=float)
         size = len(species)
         rng = model.rng
         dead = rng.integers(size, size=size)
@@ -113,7 +113,7 @@ class NeutralReplacementInteraction(BaseInteraction):
             newest += new
             species[victim] = newest if new else species[parent]
         for individual, label in zip(individuals, species, strict=True):
-            individual.set_state('species', float(label))
+            individual.species = float(label)
 
 
 @register_model(

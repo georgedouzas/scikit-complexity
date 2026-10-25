@@ -172,12 +172,12 @@ class RedesignInteraction(BaseInteraction):
                 The model.
         """
         components = sorted(model.agents('components'), key=lambda component: component.id)
-        cost = np.array([component.state('cost') for component in components])
+        cost = np.array([component.cost for component in components])
         proposal, changed = _components(cost, np.asarray(self.dependencies, dtype=float), model.rng)
         if proposal.sum() >= cost.sum():
             return
         for index in changed:
-            components[index].set_state('cost', float(proposal[index]))
+            components[index].cost = float(proposal[index])
 
 
 class TechnologyComponent(ElementComponent):
@@ -261,9 +261,9 @@ class InventionInteraction(BaseInteraction):
         signals, cost = _input_signals(n_inputs), 0
         for _ in range(n_parts):
             part = pool[int(rng.integers(len(pool)))]
-            pins = [signals[int(rng.integers(len(signals)))] for _ in range(int(part.state('arity')))]
-            signals.append(_apply(int(part.state('table')), int(part.state('arity')), pins, n_inputs))
-            cost += int(part.state('cost'))
+            pins = [signals[int(rng.integers(len(signals)))] for _ in range(int(part.arity))]
+            signals.append(_apply(int(part.table), int(part.arity), pins, n_inputs))
+            cost += int(part.cost)
         return n_inputs, signals[-1], cost
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
@@ -290,15 +290,11 @@ class InventionInteraction(BaseInteraction):
         arity, table, cost = self._wire(pool, model)
         if (arity, table) not in GOALS:
             return
-        known = [
-            technology
-            for technology in pool
-            if (technology.state('arity'), technology.state('table')) == (arity, table)
-        ]
+        known = [technology for technology in pool if (technology.arity, technology.table) == (arity, table)]
         if not known:
             model.create('technologies', arity=arity, table=table, cost=cost)
-        elif cost < known[0].state('cost'):
-            known[0].set_state('cost', cost)
+        elif cost < known[0].cost:
+            known[0].cost = cost
 
 
 @register_model(

@@ -23,9 +23,9 @@ type Array = npt.NDArray[np.float64]
 def _lend(trade: Trade, model: Any) -> None:  # noqa: ANN401
     """Record a loan on the books of the firm and of the bank."""
     del model
-    trade.buyer.set_state('loan', trade.buyer.state('loan') + trade.quantity)
-    trade.buyer.set_state('rate', trade.price)
-    trade.seller.set_state('lent', trade.seller.state('lent') + trade.quantity)
+    trade.buyer.loan += trade.quantity
+    trade.buyer.rate = trade.price
+    trade.seller.lent += trade.quantity
 
 
 def _herfindahl(lent: Array) -> float:
@@ -149,11 +149,8 @@ class FirmComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('demand', model.parameter('leverage') * agent.state('net_worth'))
-        agent.set_state('loan', 0.0)
-        agent.set_state('rate', 0.0)
-        agent.set_state('defaulted', 0)
-        agent.set_state('injected', 0.0)
+        agent.demand = model.parameter('leverage') * agent.net_worth
+        agent.loan, agent.rate, agent.defaulted, agent.injected = 0.0, 0.0, 0, 0.0
 
     def invest(self, agent: AgentView, model: ModelView) -> None:
         """Invest the capital, pay the interest to the bank, and default when the net worth turns negative.
@@ -166,22 +163,19 @@ class FirmComponent(ElementComponent):
                 The model.
         """
         draw = model.parameter('mean_return') + model.parameter('volatility') * model.rng.standard_normal()
-        capital = agent.state('net_worth') + agent.state('loan')
-        agent.set_state('gross_return', capital * max(draw, -1.0))
-        interest = agent.state('loan') * agent.state('rate')
-        worth = agent.state('net_worth') + agent.state('gross_return') - interest
-        if agent.state('loan') > 0:
-            bank = next(bank for bank in model.agents(self.lenders) if bank.id == int(agent.state('partner')))
-            bank.set_state('equity', bank.state('equity') + (interest + min(worth, 0.0)))
-            bank.set_state('losses', bank.state('losses') + max(-worth, 0.0))
+        capital = agent.net_worth + agent.loan
+        agent.gross_return = capital * max(draw, -1.0)
+        interest = agent.loan * agent.rate
+        worth = agent.net_worth + agent.gross_return - interest
+        if agent.loan > 0:
+            bank = next(bank for bank in model.agents(self.lenders) if bank.id == int(agent.partner))
+            bank.equity += interest + min(worth, 0.0)
+            bank.losses += max(-worth, 0.0)
         if worth >= 0:
-            agent.set_state('net_worth', worth)
+            agent.net_worth = worth
             return
-        entry = model.parameter('entry')
-        agent.set_state('net_worth', entry)
-        agent.set_state('injected', entry)
-        agent.set_state('defaulted', 1)
-        agent.set_state('partner', -1)
+        agent.net_worth = agent.injected = model.parameter('entry')
+        agent.defaulted, agent.partner = 1, -1
 
 
 class BankComponent(ElementComponent):
@@ -253,10 +247,9 @@ class BankComponent(ElementComponent):
                 The model.
         """
         alpha = model.parameter('alpha')
-        agent.set_state('ask', alpha * max(agent.state('equity'), 1e-6) ** -alpha)
-        agent.set_state('supply', max(agent.state('equity'), 0.0) / model.parameter('capital_ratio'))
-        agent.set_state('lent', 0.0)
-        agent.set_state('losses', 0.0)
+        agent.ask = alpha * max(agent.equity, 1e-6) ** -alpha
+        agent.supply = max(agent.equity, 0.0) / model.parameter('capital_ratio')
+        agent.lent, agent.losses = 0.0, 0.0
 
 
 class CreditMarketInteraction(MarketInteraction):
@@ -318,8 +311,8 @@ class CreditMarketInteraction(MarketInteraction):
                 The model view of the market.
         """
         super().clear(model)
-        cheapest = min((bank.state('ask') for bank in model.agents('sellers') if bank.state('ask') > 0), default=0.0)
-        paid = [firm.state('rate') for firm in model.agents('buyers') if firm.state('loan') > 0]
+        cheapest = min((bank.ask for bank in model.agents('sellers') if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in model.agents('buyers') if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         model.report('spread', spread)
 

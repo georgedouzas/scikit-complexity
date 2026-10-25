@@ -74,10 +74,10 @@ class PersuaderComponent(ElementComponent):
         if not neighbors:
             return
         partner = neighbors[int(model.rng.integers(len(neighbors)))]
-        if partner.state('opinion') != agent.state('opinion'):
+        if partner.opinion != agent.opinion:
             return
         for other in [*neighbors, *partner.neighbors()]:
-            other.set_state('opinion', agent.state('opinion'))
+            other.opinion = agent.opinion
 
 
 class CitizenComponent(ElementComponent):
@@ -146,13 +146,13 @@ class DiscussionsInteraction(BaseInteraction):
         agents = model.agents(self.target)
         if not agents:
             return
-        size = max(int(agents[0].parameter('group_size')), 1)
+        size = max(int(agents[0].group_size), 1)
         order = model.rng.permutation(len(agents))
         for start in range(0, len(agents), size):
             members = [agents[index] for index in order[start : start + size]]
-            majority = float(2 * sum(member.state('opinion') for member in members) > len(members))
+            majority = float(2 * sum(member.opinion for member in members) > len(members))
             for member in members:
-                member.set_state('opinion', majority)
+                member.opinion = majority
 
 
 class InfluenceeComponent(ElementComponent):
@@ -238,20 +238,20 @@ class SocialImpactInteraction(BaseInteraction):
         if len(agents) < 2:  # noqa: PLR2004
             return
         locations = np.array([agent.location for agent in agents], dtype=float)
-        opinions = np.array([agent.state('opinion') for agent in agents], dtype=float)
-        persuasion = np.array([agent.state('persuasiveness') for agent in agents], dtype=float)
-        support = np.array([agent.state('supportiveness') for agent in agents], dtype=float)
+        opinions = np.array([agent.opinion for agent in agents], dtype=float)
+        persuasion = np.array([agent.persuasiveness for agent in agents], dtype=float)
+        support = np.array([agent.supportiveness for agent in agents], dtype=float)
         distances = np.linalg.norm(locations[:, None, :] - locations[None, :, :], axis=-1)
         np.fill_diagonal(distances, 1.0)
-        weights = distances ** -agents[0].parameter('exponent')
+        weights = distances ** -agents[0].exponent
         agreement = opinions[:, None] * opinions[None, :]
         impact = (weights * persuasion * (1 - agreement)).sum(axis=1) - (weights * support * (1 + agreement)).sum(
             axis=1,
         )
-        field = model.rng.uniform(-agents[0].parameter('noise'), agents[0].parameter('noise'), len(agents))
+        field = model.rng.uniform(-agents[0].noise, agents[0].noise, len(agents))
         following = np.where(impact + field > 0, -opinions, opinions)
         for agent, opinion in zip(agents, following, strict=True):
-            agent.set_state('opinion', float(opinion))
+            agent.opinion = float(opinion)
 
 
 @register_model(

@@ -2,22 +2,13 @@
 
 import functools
 import pickle  # nosec B403: round-trips the pickles the tests themselves make
-from operator import methodcaller
+from operator import attrgetter
 
 import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    ConservationError,
-    LabelError,
-    SimulationError,
-    ValidationError,
-    parameter,
-    role,
-    state,
-)
+from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import (
     Auxiliary,
@@ -137,7 +128,7 @@ def _delayed(kind):
 
 def _balance(agent):
     """Return assets minus liabilities minus equity."""
-    return agent.state('assets') - agent.state('liabilities') - agent.state('equity')
+    return agent.assets - agent.liabilities - agent.equity
 
 
 class BankComponent(ElementComponent):
@@ -153,7 +144,7 @@ class BankComponent(ElementComponent):
 
     def lose(self, agent, model):
         """Lower the assets by 1."""
-        agent.set_state('assets', agent.state('assets') - 1.0)
+        agent.assets -= 1.0
 
 
 class LenderComponent(ElementComponent):
@@ -176,11 +167,11 @@ class BorrowerComponent(ElementComponent):
 
     def default(self, agent, model):
         """Remove the firm when its money runs out, after writing off its debt when it settles."""
-        if agent.state('money') > 0:
+        if agent.money > 0:
             return
-        if agent.state('settles'):
+        if agent.settles:
             lender = model.agents('lenders')[0]
-            transfer(agent, lender, agent.state('loans'), 'loans')
+            transfer(agent, lender, agent.loans, 'loans')
         agent.remove()
 
 
@@ -196,7 +187,7 @@ def _credit_system(settles):
 
 def _total_money(model):
     """Return the money of every holder bound to the payments."""
-    return sum(agent.state('money') for agent in model.agents('holders'))
+    return sum(agent.money for agent in model.agents('holders'))
 
 
 class PaymentsInteraction(BaseInteraction):
@@ -213,7 +204,7 @@ class PaymentsInteraction(BaseInteraction):
         """Move one unit from the first holder to the second, and create money when the payments create it."""
         first, second = model.agents('holders')[:2]
         transfer(first, second, 1.0, 'money')
-        first.set_state('money', first.state('money') + model.parameter('creates'))
+        first.money += model.parameter('creates')
 
 
 @pytest.mark.parametrize('time', [None, DiscreteTime()])
@@ -368,31 +359,13 @@ def test_removing_an_unsettled_agent_destroys_its_holdings():
         Simulation(_credit_system(settles=False)).run(1)
 
 
-class _HolderAgent:
-    """Agent with states in a dictionary, read and set by name as rules read and set agent views."""
-
-    def __init__(self, states):
-        self.states = states
-
-    def state(self, name):
-        """Return a state, raising a simulation error for an unknown one."""
-        if name not in self.states:
-            error_msg = f'No state {name!r}.'
-            raise SimulationError(error_msg)
-        return self.states[name]
-
-    def set_state(self, name, value):
-        """Set a state."""
-        self.states[name] = value
-
-
 def test_transfer_moves_between_states_and_checks_names():
     """Test that a transfer can move between differently named states and rejects missing ones."""
-    lender, borrower = _HolderAgent({'money': 0.0, 'loans': 0.0}), _HolderAgent({'money': 0.0})
+    lender, borrower = LenderComponent('l'), BorrowerComponent('b')
     transfer(lender, borrower, 3.0, 'money')
-    assert (lender.state('money'), borrower.state('money')) == (-3.0, 3.0)
+    assert (lender.money, borrower.money) == (-3.0, 3.0)
     transfer(borrower, lender, 1.0, 'money', 'loans')
-    assert (borrower.state('money'), lender.state('loans')) == (2.0, 1.0)
+    assert (borrower.money, lender.loans) == (2.0, 1.0)
     with pytest.raises(ValidationError, match='cash'):
         transfer(lender, borrower, 1.0, 'cash')
 
@@ -401,7 +374,7 @@ def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
     """Test that invariants of members take module-level functions, which pickle."""
     with pytest.raises(ValidationError, match='cannot be pickled'):
         Invariant('lambda', lambda agent: 0.0).check()
-    data = pickle.dumps(Invariant('equity', methodcaller('state', 'equity')))
+    data = pickle.dumps(Invariant('equity', attrgetter('equity')))
     invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
     assert invariant.label == 'equity'
 

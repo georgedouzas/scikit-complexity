@@ -80,7 +80,7 @@ class SavingExchangeInteraction(BaseInteraction):
                 The model.
         """
         agents = model.agents('traders')
-        wealth = np.array([agent.state('wealth') for agent in agents], dtype=float)
+        wealth = np.array([agent.wealth for agent in agents], dtype=float)
         saving = model.parameter('saving')
         pairs = model.rng.integers(len(agents), size=(len(agents), 2))
         shares = model.rng.random(len(agents))
@@ -91,7 +91,7 @@ class SavingExchangeInteraction(BaseInteraction):
             wealth[first] = saving * wealth[first] + share * pool
             wealth[second] = saving * wealth[second] + (1 - share) * pool
         for agent, value in zip(agents, wealth, strict=True):
-            agent.set_state('wealth', float(value))
+            agent.wealth = float(value)
 
 
 class DebtExchangeInteraction(BaseInteraction):
@@ -145,14 +145,14 @@ class DebtExchangeInteraction(BaseInteraction):
                 The model.
         """
         agents = model.agents('traders')
-        wealth = np.array([agent.state('wealth') for agent in agents], dtype=float)
+        wealth = np.array([agent.wealth for agent in agents], dtype=float)
         floor, amount = -model.parameter('debt'), model.parameter('amount')
         for payer, payee in model.rng.integers(len(agents), size=(len(agents), 2)):
             if payer != payee and wealth[payer] - amount >= floor:
                 wealth[payer] -= amount
                 wealth[payee] += amount
         for agent, value in zip(agents, wealth, strict=True):
-            agent.set_state('wealth', float(value))
+            agent.wealth = float(value)
 
 
 @register_model(

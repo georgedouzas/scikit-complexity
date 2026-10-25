@@ -75,11 +75,8 @@ class GibratFirmComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('previous', agent.state('x'))
-        agent.set_state(
-            'x',
-            agent.state('x') * float(model.rng.normal(agent.parameter('mu'), agent.parameter('sigma'))),
-        )
+        agent.previous = agent.x
+        agent.x = agent.x * float(model.rng.normal(agent.mu, agent.sigma))
 
 
 class KestenFirmComponent(ElementComponent):
@@ -139,11 +136,8 @@ class KestenFirmComponent(ElementComponent):
             model:
                 The model.
         """
-        factor = float(model.rng.uniform(agent.parameter('lambda_low'), agent.parameter('lambda_high')))
-        agent.set_state(
-            'x',
-            factor * agent.state('x') + float(model.rng.uniform(agent.parameter('b_low'), agent.parameter('b_high'))),
-        )
+        factor = float(model.rng.uniform(agent.lambda_low, agent.lambda_high))
+        agent.x = factor * agent.x + float(model.rng.uniform(agent.b_low, agent.b_high))
 
 
 class ReflectingFloorInteraction(BaseInteraction):
@@ -189,9 +183,9 @@ class ReflectingFloorInteraction(BaseInteraction):
                 The model.
         """
         firms = model.agents('firms')
-        floor = model.parameter('c') * float(np.mean([firm.state('previous') for firm in firms]))
+        floor = model.parameter('c') * float(np.mean([firm.previous for firm in firms]))
         for firm in firms:
-            firm.set_state('x', max(firm.state('x'), floor))
+            firm.x = max(firm.x, floor)
 
 
 @register_model(

@@ -25,8 +25,8 @@ class ExchangeInteraction(BaseInteraction):
     def count(self, model):
         """Count every pair of the step on both members."""
         for buyer, seller in matches(model, 'trades'):
-            buyer.set_state('paired', buyer.state('paired') + 1)
-            seller.set_state('paired', seller.state('paired') + 1)
+            buyer.paired += 1
+            seller.paired += 1
 
 
 def test_random_matching_pairs_every_member_at_most_once():

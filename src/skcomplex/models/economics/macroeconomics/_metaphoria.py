@@ -28,7 +28,7 @@ OLD_AGE_DEATH = 1 / 7
 
 def _bank_balance(bank: Any) -> float:  # noqa: ANN401
     """Return the money the bank has issued plus the loans it holds, zero when every unit of money is a loan."""
-    return float(bank.state('money') + bank.state('loans'))
+    return float(bank.money + bank.loans)
 
 
 def _living(fates: npt.ArrayLike) -> float:
@@ -52,7 +52,7 @@ def _patch_here(agent: AgentView) -> AgentView:
 
 def _wander(agent: AgentView, model: ModelView, sight: float) -> None:
     """Move to a random cell within sight with the propensity to explore, and otherwise to a neighbouring cell."""
-    if model.rng.random() < agent.state('exploration'):
+    if model.rng.random() < agent.exploration:
         width, height = model.dimensions or (1, 1)
         reach = int(sight)
         dx, dy = model.rng.integers(-reach, reach + 1, size=2)
@@ -70,15 +70,15 @@ def _offers(
     capacity: int,
 ) -> list[tuple[Any, Any]]:
     """Return unemployed adults, in random order, paired with the best-paying firm with a vacancy within their sight."""
-    open_firms = {firm: int(firm.state('vacancies')) for firm in left if firm.state('vacancies') > 0}
+    open_firms = {firm: int(firm.vacancies) for firm in left if firm.vacancies > 0}
     pairs = []
     for index in rng.permutation(len(right)):
         person = right[int(index)]
-        if person.state('employer') >= 0 or person.state('age') < person.parameter('maturity') or not open_firms:
+        if person.employer >= 0 or person.age < person.maturity or not open_firms:
             continue
-        near = [firm for firm in open_firms if person.distance_to(firm) <= person.parameter('sight')]
+        near = [firm for firm in open_firms if person.distance_to(firm) <= person.sight]
         if near:
-            firm = max(near, key=lambda item: item.state('wage'))
+            firm = max(near, key=lambda item: item.wage)
             pairs.append((firm, person))
             open_firms[firm] -= 1
             if open_firms[firm] == 0:
@@ -88,15 +88,15 @@ def _offers(
 
 def _shops(left: Sequence[Any], right: Sequence[Any], rng: np.random.Generator, capacity: int) -> list[tuple[Any, Any]]:
     """Return people short of food, in random order, paired with the cheapest stocked firm within their sight."""
-    stocked = [firm for firm in right if firm.state('stock') > 0]
+    stocked = [firm for firm in right if firm.stock > 0]
     pairs = []
     for index in rng.permutation(len(left)):
         person = left[int(index)]
-        if person.state('money') <= 0 or person.state('food') >= person.parameter('reserve') * person.parameter('need'):
+        if person.money <= 0 or person.food >= person.reserve * person.need:
             continue
-        near = [firm for firm in stocked if person.distance_to(firm) <= person.parameter('sight')]
+        near = [firm for firm in stocked if person.distance_to(firm) <= person.sight]
         if near:
-            pairs.append((person, min(near, key=lambda item: item.state('price'))))
+            pairs.append((person, min(near, key=lambda item: item.price)))
     return pairs
 
 
@@ -153,10 +153,7 @@ class PlotComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state(
-            'food',
-            min(agent.state('capacity'), agent.state('food') + agent.parameter('regrowth') * agent.state('capacity')),
-        )
+        agent.food = min(agent.capacity, agent.food + agent.regrowth * agent.capacity)
 
 
 class SettlerComponent(ElementComponent):
@@ -288,48 +285,40 @@ class SettlerComponent(ElementComponent):
 
     def _feed_child(self, agent: AgentView, model: ModelView) -> None:
         """Take food from the living parent and follow it."""
-        parent = _people_by_id(model).get(int(agent.state('parent')))
+        parent = _people_by_id(model).get(int(agent.parent))
         if parent is None:
             return
-        given = min(agent.parameter('need'), max(parent.state('food') - parent.parameter('need'), 0.0))
-        parent.set_state('food', parent.state('food') - given)
-        agent.set_state('food', agent.state('food') + given)
+        given = min(agent.need, max(parent.food - parent.need, 0.0))
+        parent.food -= given
+        agent.food += given
         agent.move_to(parent.location)
 
     def _breed(self, agent: AgentView, model: ModelView) -> None:
         """Have a child with mutated propensities at the probability of fertility."""
-        fed = agent.state('food') >= agent.parameter('endowment') + agent.parameter('need')
-        spaced = model.time - agent.state('born') >= agent.parameter('spacing')
-        if not (fed and spaced and model.rng.random() < agent.state('fertility')):
+        fed = agent.food >= agent.endowment + agent.need
+        spaced = model.time - agent.born >= agent.spacing
+        if not (fed and spaced and model.rng.random() < agent.fertility):
             return
         traits = {
-            name: float(np.clip(agent.state(name) + model.rng.normal(0.0, agent.parameter('mutation')), 0.0, 1.0))
+            name: float(np.clip(getattr(agent, name) + model.rng.normal(0.0, agent.mutation), 0.0, 1.0))
             for name in PROPENSITIES
         }
-        agent.set_state('food', agent.state('food') - agent.parameter('endowment'))
-        agent.set_state('born', model.time)
-        agent.create(
-            None,
-            None,
-            food=agent.parameter('endowment'),
-            age=0.0,
-            parent=float(agent.id),
-            born=model.time,
-            **traits,
-        )
+        agent.food -= agent.endowment
+        agent.born = model.time
+        agent.create(None, None, food=agent.endowment, age=0.0, parent=float(agent.id), born=model.time, **traits)
 
     def _work_or_found(self, agent: AgentView, model: ModelView) -> bool:
         """Quit a job at the restlessness, or found a firm on a free patch with food, and return whether employed."""
-        if agent.state('employer') >= 0:
-            if model.rng.random() < agent.state('restlessness'):
-                agent.set_state('employer', -1.0)
-            return agent.state('employer') >= 0
-        if agent.agents_here('businesses') or _patch_here(agent).state('food') <= 0:
+        if agent.employer >= 0:
+            if model.rng.random() < agent.restlessness:
+                agent.employer = -1.0
+            return agent.employer >= 0
+        if agent.agents_here('businesses') or _patch_here(agent).food <= 0:
             return False
-        if model.rng.random() >= agent.state('enterprise'):
+        if model.rng.random() >= agent.enterprise:
             return False
         firm = agent.create('businesses', owner=float(agent.id))
-        agent.set_state('employer', float(firm.id))
+        agent.employer = float(firm.id)
         return True
 
     def live(self, agent: AgentView, model: ModelView) -> None:
@@ -342,28 +331,24 @@ class SettlerComponent(ElementComponent):
             model:
                 The model.
         """
-        agent.set_state('age', agent.state('age') + 1)
-        adult = agent.state('age') >= agent.parameter('maturity')
+        agent.age += 1
+        adult = agent.age >= agent.maturity
         if not adult:
             self._feed_child(agent, model)
-        agent.set_state('food', agent.state('food') - agent.parameter('need'))
-        if agent.state('food') < 0:
-            agent.set_state('fate', STARVED)
+        agent.food -= agent.need
+        if agent.food < 0:
+            agent.fate = STARVED
             return
-        if agent.state('age') > agent.parameter('lifespan') and model.rng.random() < OLD_AGE_DEATH:
-            agent.set_state('fate', AGED)
+        if agent.age > agent.lifespan and model.rng.random() < OLD_AGE_DEATH:
+            agent.fate = AGED
             return
         if not adult:
             return
         self._breed(agent, model)
-        employed = agent.parameter('monetary') > 0 and self._work_or_found(agent, model)
-        if (
-            not employed
-            and agent.state('harvested') < agent.parameter('need')
-            and agent.state('food') < agent.parameter('reserve') * agent.parameter('need')
-        ):
-            _wander(agent, model, agent.parameter('sight'))
-        agent.set_state('harvested', 0.0)
+        employed = agent.monetary > 0 and self._work_or_found(agent, model)
+        if not employed and agent.harvested < agent.need and agent.food < agent.reserve * agent.need:
+            _wander(agent, model, agent.sight)
+        agent.harvested = 0.0
 
 
 class BusinessComponent(ElementComponent):
@@ -460,33 +445,29 @@ class BusinessComponent(ElementComponent):
 
     def _service(self, agent: AgentView, bank: AgentView) -> None:
         """Pay the interest and the repayment of the debt, borrowing anew what the firm lacks."""
-        debt = -agent.state('loans')
-        interest, principal = agent.parameter('interest') * debt, agent.parameter('repayment') * debt
-        self._borrow(agent, bank, interest + principal - agent.state('money'))
+        debt = -agent.loans
+        interest, principal = agent.interest * debt, agent.repayment * debt
+        self._borrow(agent, bank, interest + principal - agent.money)
         transfer(agent, bank, interest + principal, 'money')
         transfer(bank, agent, principal, 'loans')
 
     def _adjust(self, agent: AgentView, workers: list[AgentView], patch: AgentView, sold_out: bool) -> None:
         """Adjust the price, the wage, and the workforce to the stock, the labour, and the sales."""
-        step = agent.parameter('adjustment')
+        step = agent.adjustment
         if sold_out:
-            agent.set_state('price', agent.state('price') * (1 + step))
-        if agent.state('stock') > agent.parameter('stock_limit'):
-            agent.set_state('price', agent.state('price') * (1 - step))
-            agent.set_state('vacancies', 0.0)
+            agent.price *= 1 + step
+        if agent.stock > agent.stock_limit:
+            agent.price *= 1 - step
+            agent.vacancies = 0.0
             if len(workers) > 1:
-                workers[-1].set_state('employer', -1.0)
+                workers[-1].employer = -1.0
             return
-        if agent.state('vacancies') > 0:
-            agent.set_state('wage', agent.state('wage') * (1 + step))
-        if agent.state('revenue') < agent.state('wage') * len(workers):
-            agent.set_state('wage', agent.state('wage') * (1 - step))
-        wanted = (
-            math.ceil((patch.state('capacity') + patch.state('resistance')) / workers[0].parameter('labour'))
-            if workers
-            else 1
-        )
-        agent.set_state('vacancies', float(max(wanted - len(workers), 0)))
+        if agent.vacancies > 0:
+            agent.wage *= 1 + step
+        if agent.revenue < agent.wage * len(workers):
+            agent.wage *= 1 - step
+        wanted = math.ceil((patch.capacity + patch.resistance) / workers[0].labour) if workers else 1
+        agent.vacancies = float(max(wanted - len(workers), 0))
 
     def produce(self, agent: AgentView, model: ModelView) -> None:
         """Harvest with the workers, pay wages and the bank, adjust, and pay a dividend to the owner.
@@ -499,31 +480,30 @@ class BusinessComponent(ElementComponent):
                 The model.
         """
         people = _people_by_id(model)
-        workers = [person for person in people.values() if person.state('employer') == agent.id]
+        workers = [person for person in people.values() if person.employer == agent.id]
         bank = model.agents('bank')[0]
         patch = _patch_here(agent)
-        sold_out = agent.state('stock') <= 0
+        sold_out = agent.stock <= 0
         for worker in workers:
             worker.move_to(agent.location)
-        labour = sum(worker.parameter('labour') for worker in workers)
-        harvest = min(patch.state('food'), max(labour - patch.state('resistance'), 0.0))
-        patch.set_state('food', patch.state('food') - harvest)
-        agent.set_state('stock', agent.state('stock') + harvest)
-        bill = agent.state('wage') * len(workers)
-        self._borrow(agent, bank, bill - agent.state('money'))
+        labour = sum(worker.labour for worker in workers)
+        harvest = min(patch.food, max(labour - patch.resistance, 0.0))
+        patch.food -= harvest
+        agent.stock += harvest
+        bill = agent.wage * len(workers)
+        self._borrow(agent, bank, bill - agent.money)
         for worker in workers:
-            transfer(agent, worker, agent.state('wage'), 'money')
-            worker.set_state('harvested', worker.parameter('need'))
+            transfer(agent, worker, agent.wage, 'money')
+            worker.harvested = worker.need
         self._service(agent, bank)
         self._adjust(agent, workers, patch, sold_out)
-        agent.set_state('workers', float(len(workers)))
-        agent.set_state('revenue', 0.0)
-        owner = people.get(int(agent.state('owner')))
+        agent.workers, agent.revenue = float(len(workers)), 0.0
+        owner = people.get(int(agent.owner))
         if owner is None and workers:
             owner = workers[0]
-            agent.set_state('owner', float(owner.id))
-        if owner is not None and agent.state('money') > 2 * bill:
-            transfer(agent, owner, agent.state('money') - 2 * bill, 'money')
+            agent.owner = float(owner.id)
+        if owner is not None and agent.money > 2 * bill:
+            transfer(agent, owner, agent.money - 2 * bill, 'money')
 
 
 class CentralBankComponent(ElementComponent):
@@ -578,7 +558,7 @@ class CentralBankComponent(ElementComponent):
             model:
                 The model.
         """
-        income = agent.state('money') + agent.state('loans')
+        income = agent.money + agent.loans
         holders = list(_people_by_id(model).values()) or model.agents('businesses')
         if income > 0 and holders:
             transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
@@ -630,14 +610,12 @@ class CommonsInteraction(BaseInteraction):
             cells.setdefault(tuple(int(item) for item in person.location), []).append(person)
         for group in cells.values():
             patch = _patch_here(group[0])
-            labour = sum(
-                person.parameter('labour') for person in group if person.state('age') >= person.parameter('maturity')
-            )
-            harvest = min(patch.state('food'), max(labour - patch.state('resistance'), 0.0))
-            patch.set_state('food', patch.state('food') - harvest)
+            labour = sum(person.labour for person in group if person.age >= person.maturity)
+            harvest = min(patch.food, max(labour - patch.resistance, 0.0))
+            patch.food -= harvest
             for person in group:
-                person.set_state('food', person.state('food') + (harvest / len(group)))
-                person.set_state('harvested', harvest / len(group))
+                person.food += harvest / len(group)
+                person.harvested = harvest / len(group)
 
 
 class LabourMarketInteraction(BaseInteraction):
@@ -678,9 +656,9 @@ class LabourMarketInteraction(BaseInteraction):
                 The model view of the interaction.
         """
         for firm, person in matches(model, 'hires'):
-            person.set_state('employer', float(firm.id))
+            person.employer = float(firm.id)
             person.move_to(firm.location)
-            firm.set_state('vacancies', max(firm.state('vacancies') - 1, 0.0))
+            firm.vacancies = max(firm.vacancies - 1, 0.0)
 
 
 class FoodMarketInteraction(BaseInteraction):
@@ -727,13 +705,13 @@ class FoodMarketInteraction(BaseInteraction):
         """
         value = 0.0
         for person, firm in matches(model, 'purchases'):
-            wanted = person.parameter('reserve') * person.parameter('need') - person.state('food')
-            quantity = max(min(wanted, firm.state('stock'), person.state('money') / firm.state('price')), 0.0)
-            transfer(person, firm, quantity * firm.state('price'), 'money')
-            firm.set_state('stock', firm.state('stock') - quantity)
-            firm.set_state('revenue', firm.state('revenue') + (quantity * firm.state('price')))
-            person.set_state('food', person.state('food') + quantity)
-            value += quantity * firm.state('price')
+            wanted = person.reserve * person.need - person.food
+            quantity = max(min(wanted, firm.stock, person.money / firm.price), 0.0)
+            transfer(person, firm, quantity * firm.price, 'money')
+            firm.stock -= quantity
+            firm.revenue += quantity * firm.price
+            person.food += quantity
+            value += quantity * firm.price
         model.report('gdp', value)
 
 
@@ -765,9 +743,9 @@ class CensusInteraction(BaseInteraction):
         near = [person for person in living if person.location == dead.location] or living
         if near:
             heir = near[int(model.rng.integers(len(near)))]
-            transfer(dead, heir, dead.state('money'), 'money')
-            transfer(dead, heir, dead.state('loans'), 'loans')
-        if dead.state('money') == 0 and dead.state('loans') == 0:
+            transfer(dead, heir, dead.money, 'money')
+            transfer(dead, heir, dead.loans, 'loans')
+        if dead.money == 0 and dead.loans == 0:
             dead.remove()
 
     def count(self, model: Any) -> None:  # noqa: ANN401
@@ -778,11 +756,11 @@ class CensusInteraction(BaseInteraction):
                 The model view of the interaction.
         """
         people = model.agents('people')
-        living = [person for person in people if person.state('fate') == ALIVE]
-        dead = [person for person in people if person.state('fate') != ALIVE]
-        model.report('births', float(sum(person.state('age') == 0 for person in living)))
-        model.report('starvations', float(sum(person.state('fate') == STARVED for person in dead)))
-        model.report('old_age', float(sum(person.state('fate') == AGED for person in dead)))
+        living = [person for person in people if person.fate == ALIVE]
+        dead = [person for person in people if person.fate != ALIVE]
+        model.report('births', float(sum(person.age == 0 for person in living)))
+        model.report('starvations', float(sum(person.fate == STARVED for person in dead)))
+        model.report('old_age', float(sum(person.fate == AGED for person in dead)))
         for person in dead:
             self._settle(person, living, model)
 

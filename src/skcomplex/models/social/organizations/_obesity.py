@@ -174,32 +174,25 @@ class EaterComponent(ElementComponent):
 
     def _eat(self, agent: AgentView, model: ModelView) -> None:
         """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
-        restaurants = [
-            other for other in agent.neighbors(radius=agent.parameter('reach')) if other.group != agent.group
-        ]
+        restaurants = [other for other in agent.neighbors(radius=agent.reach) if other.group != agent.group]
         if not restaurants:
             nearest = min(model.agents('restaurants'), key=agent.distance_to, default=None)
             restaurants = [] if nearest is None else [nearest]
         if not restaurants:
             return
         restaurant = restaurants[int(model.rng.integers(len(restaurants)))]
-        calories, high = _meal(int(restaurant.state('kind')), int(agent.state('habit')), model.rng)
-        agent.set_state('calories', agent.state('calories') + calories)
-        restaurant.set_state('sold', restaurant.state('sold') + 1)
-        restaurant.set_state('sold_high', restaurant.state('sold_high') + float(high))
+        calories, high = _meal(int(restaurant.kind), int(agent.habit), model.rng)
+        agent.calories += calories
+        restaurant.sold += 1
+        restaurant.sold_high += float(high)
 
     def _gain(self, agent: AgentView) -> None:
         """Change the weight by the calories of the week beyond the basal needs, and start a new week."""
-        rate = basal_metabolic_rate(
-            agent.state('weight'),
-            agent.state('height'),
-            agent.state('age'),
-            agent.state('male'),
-        )
-        needs = DAYS_PER_WEEK * agent.parameter('activity') * rate
-        agent.set_state('weight', agent.state('weight') + ((agent.state('calories') - needs) / KCAL_PER_KG))
-        agent.set_state('calories', 0.0)
-        agent.set_state('bmi', agent.state('weight') / (agent.state('height') / 100) ** 2)
+        rate = basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
+        needs = DAYS_PER_WEEK * agent.activity * rate
+        agent.weight += (agent.calories - needs) / KCAL_PER_KG
+        agent.calories = 0.0
+        agent.bmi = agent.weight / (agent.height / 100) ** 2
 
     def live(self, agent: AgentView, model: ModelView) -> None:
         """Eat at home, at work, and at home again, and update the weight at the end of a week.
@@ -211,11 +204,11 @@ class EaterComponent(ElementComponent):
             model:
                 The model.
         """
-        for place in (agent.state('home'), agent.state('work'), agent.state('home')):
+        for place in (agent.home, agent.work, agent.home):
             agent.move_to(np.asarray(place, dtype=float))
             self._eat(agent, model)
-        agent.set_state('day', agent.state('day') + 1)
-        if agent.state('day') % DAYS_PER_WEEK == 0:
+        agent.day += 1
+        if agent.day % DAYS_PER_WEEK == 0:
             self._gain(agent)
 
 
