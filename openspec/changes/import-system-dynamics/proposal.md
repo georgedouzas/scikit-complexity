@@ -29,7 +29,6 @@ abstract model, so reading that abstract model turns any of those files into a `
   vector functions, and data read from spreadsheets, macros, and variables subscripted over more than one range raise
   one error that lists every unsupported construct with its variable.
 - **Dependency:** PySD becomes a runtime dependency, imported lazily on the first read.
-
 - **Roadmap of integrations, in order.** This change is the first of a series that connects the library to the
   ecosystem around it, each a change of its own:
   1. **PySD**, this change, finished first since it is specified.
