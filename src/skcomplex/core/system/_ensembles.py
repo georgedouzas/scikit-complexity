@@ -83,8 +83,9 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
         >>> from skcomplex.core.system import replicate
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> ensemble = replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
-        >>> ensemble.elements[0]
-        GroupComponent('map', element=LogisticMapComponent, size=4)
+        >>> group = ensemble.elements[0]
+        >>> group.label, group.element.__name__, group.size
+        ('map', 'LogisticMapComponent', 4)
     """
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)

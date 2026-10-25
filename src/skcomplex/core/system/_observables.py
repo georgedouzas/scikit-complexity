@@ -124,8 +124,3 @@ class Observable(BaseEstimator):
         _check_pickles(label, 'expression', expression)
         if callable(reduce):
             _check_pickles(label, 'reduction', reduce)
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label and whether the observable reduces a group."""
-        target = f', group={self.group!r}' if self.group is not None else ''
-        return f'Observable({self.label!r}{target})'

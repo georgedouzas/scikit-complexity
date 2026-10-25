@@ -10,8 +10,8 @@ from pathlib import Path
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, ValidationError
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import ValidationError
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...core.system import Observable, System
 from ..compile import compile_system, observables_of
 from ._points import PointsVisual
@@ -86,9 +86,7 @@ def _type_name(element: CompiledElement) -> str:
 
 def _series_count(element: CompiledElement, problem: BaseProblem) -> int:
     """Return the number of series a scalars visual logs for an element, leaving out lag states."""
-    shown = [
-        name for name in element.states.values() if getattr(problem, 'companions', {}).get(name, ('',))[0] != 'lag'
-    ]
+    shown = [name for name in element.states.values() if problem.companions.get(name, ('',))[0] != 'lag']
     return len(shown) * (element.members or 1)
 
 
@@ -113,7 +111,7 @@ def _chunks(
 def _scalar_views(problem: BaseProblem) -> list[rrb.View]:
     """Return the time series views of the scalar elements, one per element type and at most six series each."""
     groups: dict[str, list[tuple[CompiledElement, rrb.View]]] = {}
-    for element in getattr(problem, 'elements', ()):
+    for element in problem.elements:
         visual = resolve_visual(element.visual)
         if not isinstance(visual, ScalarsVisual):
             continue
@@ -136,7 +134,7 @@ def _element_views(problem: BaseProblem) -> tuple[list[rrb.View], list[rrb.View]
     spatial: list[rrb.View] = []
     series: list[rrb.View] = []
     points: dict[type, list[rrb.View]] = {}
-    for element in getattr(problem, 'elements', ()):
+    for element in problem.elements:
         visual = resolve_visual(element.visual)
         if isinstance(visual, ScalarsVisual):
             continue
@@ -154,9 +152,9 @@ def _agent_views(problem: BaseProblem) -> list[rrb.View]:
     """Return the views of the agents, merged into one per view class when the groups share a space."""
     views: list[rrb.View] = []
     agents: CompiledAgents
-    for agents in getattr(problem, 'agents', ()):
+    for agents in problem.agents:
         views += agents_visual_of(agents, problem).prepare(agents, problem).views_
-    if getattr(problem, 'agent_space', None) is None:
+    if problem.agent_space is None:
         return views
     by_class: dict[type, list[rrb.View]] = {}
     for view in views:
@@ -167,15 +165,15 @@ def _agent_views(problem: BaseProblem) -> list[rrb.View]:
 def _summary_views(problem: BaseProblem, *, parameters: bool) -> list[rrb.View]:
     """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
     views: list[rrb.View] = []
-    system = getattr(problem, 'system', None)
+    system = problem.system
     paths = (
         [f'{scope}/{item.label}' if scope else item.label for scope, item in observables_of(system)] if system else []
     )
-    problems = (problem, *(partition.problem for partition in getattr(problem, 'partitions', ())))
+    problems = (problem, *(partition.problem for partition in problem.partitions))
     paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
     if paths:
         views.append(_series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))
-    if getattr(problem, 'agents', ()):
+    if problem.agents:
         views.append(_series_view([rrb.TimeSeriesView(origin='/reporters')], 'reporters'))
     if parameters and problem.parameters.names:
         views.append(_series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
@@ -215,7 +213,7 @@ def _row(views: list[rrb.View]) -> rrb.View | rrb.Container:
     return rrb.Grid(*views, grid_columns=math.ceil(math.sqrt(len(views))))
 
 
-def primary_view(system: System | Problem) -> rrb.View:
+def primary_view(system: System | BaseProblem) -> rrb.View:
     """Return the view that shows the signature behaviour of a system, the first view of its default blueprint.
 
     Spatial views come first, in the order of the elements and then of the agents, and time series views after them.

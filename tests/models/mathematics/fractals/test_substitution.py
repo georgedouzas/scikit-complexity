@@ -37,7 +37,7 @@ def test_sierpinski_carpet():
     """Test the number and the area of the squares of the carpet at generation 4."""
     trajectory = run('sierpinski_substitution', settings={'until': 4}, shape='carpet').trajectory_
     carpet = trajectory.structure('sierpinski', 4)
-    assert len(carpet) == 4096
+    assert carpet.parts == 4096
     assert carpet.area() == pytest.approx((8 / 9) ** 4, abs=1e-12)
     with pytest.raises(ValidationError, match='Unknown shape'):
         create('sierpinski_substitution', shape='hexagon')

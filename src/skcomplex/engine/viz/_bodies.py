@@ -12,8 +12,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, ValidationError
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import ValidationError
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
 from ._utils import UPWARD, _radius_of, log_scalars

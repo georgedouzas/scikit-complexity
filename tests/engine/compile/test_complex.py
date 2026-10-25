@@ -423,7 +423,7 @@ def test_complex_equation_and_event_split_into_parts():
     ('law', 'message'),
     [
         (lambda s: [JumpLaw(1.0, {s.z: 1})], 'changes a complex state'),
-        (lambda s: [RateLaw(s.z, Call(_constant, s.z))], 'calls a function with complex values'),
+        (lambda s: [RateLaw(s.z, Call(_constant, (s.z,)))], 'calls a function with complex values'),
         (lambda s: [RateLaw(s.z, mod(s.z, 2))], 'only real values'),
         (lambda s: [RateLaw(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
         (

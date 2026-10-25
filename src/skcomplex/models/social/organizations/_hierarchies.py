@@ -39,8 +39,9 @@ class ContenderComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import ContenderComponent
-        >>> ContenderComponent.group('contenders', 10)
-        GroupComponent('contenders', element=ContenderComponent, size=10)
+        >>> group = ContenderComponent.group('contenders', 10)
+        >>> group.label, group.element.__name__, group.size
+        ('contenders', 'ContenderComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'strength'})

@@ -32,8 +32,9 @@ class ThresholdNodeComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.spreading import ThresholdNodeComponent
-        >>> ThresholdNodeComponent.group('nodes', 10, threshold=0.18)
-        GroupComponent('nodes', element=ThresholdNodeComponent, size=10)
+        >>> group = ThresholdNodeComponent.group('nodes', 10, threshold=0.18)
+        >>> group.label, group.element.__name__, group.size
+        ('nodes', 'ThresholdNodeComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})

@@ -23,8 +23,9 @@ class TraderComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import TraderComponent
-        >>> TraderComponent.group('traders', 100)
-        GroupComponent('traders', element=TraderComponent, size=100)
+        >>> group = TraderComponent.group('traders', 100)
+        >>> group.label, group.element.__name__, group.size
+        ('traders', 'TraderComponent', 100)
     """
 
     wealth: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)

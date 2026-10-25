@@ -10,8 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseEstimator, BaseProblem, BaseSpace, Registry, VisualSpec
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import BaseEstimator, BaseSpace, Registry, VisualSpec
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...core.space import NetworkSpace
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -44,7 +44,7 @@ class BaseVisual(BaseEstimator):
     def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
         """Keep the element and the space of the agents, forget earlier layouts, and set the views."""
         self.element_ = element
-        self.space_: BaseSpace | None = getattr(problem, 'agent_space', None)
+        self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self.views_ = self._views(element, problem)
 

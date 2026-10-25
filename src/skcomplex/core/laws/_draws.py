@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copyreg
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -23,10 +24,6 @@ class _Draw(BuiltinFunction):
         suffix = ''.join(f'_{keyword}' for keyword in keywords)
         super().__init__(f'{distribution or kind}_{name}{suffix}', nargs=0)
 
-    def __reduce__(self) -> tuple[type['_Draw'], tuple[str, str, str | None, tuple[str, ...]]]:
-        """Return the kind, the name, the distribution, and the keywords that rebuild the function."""
-        return _Draw, (self.kind, self.draw, self.distribution, self.keywords)
-
     def _eval_(self, *arguments: Expression) -> None:
         """Return `None`, so the draw stays unevaluated."""
         del arguments
@@ -35,6 +32,14 @@ class _Draw(BuiltinFunction):
         """Return zero, since a draw does not depend on the symbols of its arguments smoothly."""
         del arguments, diff_param
         return SR(0)
+
+
+def _rebuild(draw: _Draw) -> tuple[type[_Draw], tuple[str, str, str | None, tuple[str, ...]]]:
+    """Return the class and the kind, the name, the distribution, and the keywords that rebuild a draw."""
+    return _Draw, (draw.kind, draw.draw, draw.distribution, draw.keywords)
+
+
+copyreg.pickle(_Draw, _rebuild)
 
 
 def _call(

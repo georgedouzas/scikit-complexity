@@ -55,8 +55,9 @@ class NetworkNodeComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import NetworkNodeComponent
-        >>> NetworkNodeComponent.group('nodes', 3)
-        GroupComponent('nodes', element=NetworkNodeComponent, size=3)
+        >>> group = NetworkNodeComponent.group('nodes', 3)
+        >>> group.label, group.element.__name__, group.size
+        ('nodes', 'NetworkNodeComponent', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'community'})

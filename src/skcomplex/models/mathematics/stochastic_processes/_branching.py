@@ -28,8 +28,9 @@ class IndividualComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import IndividualComponent
-        >>> IndividualComponent.group('population', 10, m=1.5)
-        GroupComponent('population', element=IndividualComponent, size=10)
+        >>> group = IndividualComponent.group('population', 10, m=1.5)
+        >>> group.label, group.element.__name__, group.size
+        ('population', 'IndividualComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'generation'})

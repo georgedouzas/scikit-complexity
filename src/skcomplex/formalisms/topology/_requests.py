@@ -70,11 +70,6 @@ class TopologyRequest:
         """Whether the request changes only the edges of its layer."""
         return self.kind in EDGE_KINDS
 
-    def __repr__(self) -> str:
-        """Return the kind of the request with its layer."""
-        layer = '' if self.layer is None else f', layer={self.layer!r}'
-        return f'{self.kind.replace("-", "_")}({layer.removeprefix(", ")})'
-
 
 def _checked(request: TopologyRequest) -> TopologyRequest:
     """Return a request, raising an error for an unknown kind or kept end, or a negative number of edges."""

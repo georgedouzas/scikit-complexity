@@ -102,8 +102,8 @@ class StrategyComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import StrategyComponent
-        >>> StrategyComponent.group('strategies', 3)
-        GroupComponent('strategies', element=StrategyComponent, size=3)
+        >>> StrategyComponent.group('strategies', 3).get_params()['size']
+        3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'score'})

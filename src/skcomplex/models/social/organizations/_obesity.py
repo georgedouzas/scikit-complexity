@@ -81,8 +81,9 @@ class RestaurantComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import RestaurantComponent
-        >>> RestaurantComponent.group('restaurants', 3, kind=2.0)
-        GroupComponent('restaurants', element=RestaurantComponent, size=3)
+        >>> group = RestaurantComponent.group('restaurants', 3, kind=2.0)
+        >>> group.label, group.element.__name__, group.size
+        ('restaurants', 'RestaurantComponent', 3)
     """
 
     kind: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -141,8 +142,9 @@ class EaterComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import EaterComponent
-        >>> EaterComponent.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
-        GroupComponent('people', element=EaterComponent, size=5)
+        >>> group = EaterComponent.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'EaterComponent', 5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})

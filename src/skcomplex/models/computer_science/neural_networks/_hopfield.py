@@ -44,8 +44,9 @@ class NeuronComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import NeuronComponent
-        >>> NeuronComponent.group('neurons', 4, spin=1.0)
-        GroupComponent('neurons', element=NeuronComponent, size=4)
+        >>> group = NeuronComponent.group('neurons', 4, spin=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('neurons', 'NeuronComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})

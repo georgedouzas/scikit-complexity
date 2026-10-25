@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, NumericDomain
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import NumericDomain
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE
@@ -183,7 +183,7 @@ class ImageVisual(BaseVisual):
                 continue
             path, shape = (
                 f'{element.path}/{state}',
-                (problem.lattice_shape(name) if isinstance(problem, Problem) else None) or (),
+                problem.lattice_shape(name) or (),
             )
             if len(shape) == 1 and self._history_of(shape[0]):
                 histories.append(

@@ -135,11 +135,6 @@ class CompiledEncounter:
     probabilities: TableValues | None
     fused: bool = False
 
-    def __repr__(self) -> str:
-        """Return the owner, the kind, and the sizes of the activity grids."""
-        sizes = f'{self.candidate.size}, {self.field.size}, {self.test.size}'
-        return f'CompiledEncounter({self.owner!r}, {self.kind!r}, activities=({sizes}))'
-
     @property
     def conserves(self) -> bool:
         """Whether the encounter moves particles and so conserves the total density."""

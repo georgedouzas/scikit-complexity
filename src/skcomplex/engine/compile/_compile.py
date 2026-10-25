@@ -8,8 +8,8 @@ from typing import cast
 
 import numpy as np
 
-from ...core.base import BaseProblem, Form, ValidationError
-from ...core.problems import BaseBackend, Partition, Problem, with_initial_state
+from ...core.base import Form, ValidationError
+from ...core.problems import BaseBackend, BaseProblem, Partition, Problem, with_initial_state
 from ...core.system import Observable, System
 from ._compilation import Compilation
 from ._declarations import is_interaction

@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _phase_colors
 from ._utils import MODULUS, PHASE

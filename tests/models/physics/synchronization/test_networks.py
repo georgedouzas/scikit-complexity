@@ -24,7 +24,7 @@ def test_kuramoto_on_networks_builds_its_network(network):
     """Test that every generator gives a valid system with one edge member per edge."""
     system = kuramoto_on_networks(40, network=network, degree=4)
     space = system.components[0].space
-    assert system.components[1].size == space.graph.number_of_edges()
+    assert system.components[1].prepare().size_ == space.graph.number_of_edges()
     assert validate(system).ok
 
 

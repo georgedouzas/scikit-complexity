@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from skcomplex.core.base import BaseProblem
+from skcomplex.core.problems import BaseProblem
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
 from skcomplex.engine.solvers import Solver

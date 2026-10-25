@@ -13,7 +13,6 @@ import qutip
 import scipy.sparse as sp
 
 from ...core.base import (
-    BaseSolver,
     ComponentKind,
     DomainKind,
     Form,
@@ -25,7 +24,8 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
+from ...core.problems import BaseSolver
+from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, state_of
 
 MAX_SEED = 2**32
 PURITY_TOLERANCE = 1e-8
@@ -89,7 +89,8 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
         problem = self.quantum_
         dims = [list(problem.dimensions)] * 2
-        constant = qutip.Qobj(sp.csr_array((problem.dimension, problem.dimension), dtype=complex), dims=dims)
+        size = math.prod(problem.dimensions)
+        constant = qutip.Qobj(sp.csr_array((size, size), dtype=complex), dims=dims)
         varying: list[Any] = []
         for term in terms:
             matrix = qutip.Qobj(term.matrix, dims=dims)
@@ -107,7 +108,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
         problem = self.quantum_
-        state = problem.state_of(x)
+        state = state_of(problem, x)
         if problem.pure:
             return self._ket(state)
         return qutip.Qobj(state, dims=[list(problem.dimensions)] * 2)
@@ -115,12 +116,13 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
     def _stored(self, state: qutip.Qobj) -> Vector:
         """Return a QuTiP state as a state vector of the problem."""
         problem = self.quantum_
+        entry = problem.states.entry(problem.states.names[0])
         values = state.full()
         if problem.pure:
-            return problem.encode(values.ravel())
+            return entry.encode(values.ravel())
         if values.shape[1] == 1:
             values = np.outer(values, values.conj())
-        return problem.encode(values)
+        return entry.encode(values)
 
     @property
     def _options(self) -> dict[str, Any]:
@@ -337,7 +339,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
         problem = self.quantum_
-        state = problem.state_of(x)
+        state = state_of(problem, x)
         if problem.pure:
             return self._ket(state)
         weights, vectors = np.linalg.eigh(state)

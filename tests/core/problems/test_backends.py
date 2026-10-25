@@ -68,7 +68,7 @@ class CompiledGrowthInteraction(BaseInteraction):
 
     def laws(self, s):
         """Return the compiled rate."""
-        return [RateLaw(s.target.n, Call(_logistic, s.target.n, s.r))]
+        return [RateLaw(s.target.n, Call(_logistic, (s.target.n, s.r)))]
 
 
 class PythonGrowthInteraction(BaseInteraction):
@@ -258,7 +258,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
     PairComponent = ElementComponent.define(
         'PairComponent',
         states={'x': 1.0, 'y': 0.0},
-        laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+        laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))],
     )
     trajectory = Simulation(System(components=[PairComponent('pair')]), backend='numpy').run(until=4).trajectory_
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]

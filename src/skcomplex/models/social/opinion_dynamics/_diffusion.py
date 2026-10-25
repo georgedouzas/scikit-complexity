@@ -58,8 +58,9 @@ class BelieverComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import BelieverComponent
-        >>> BelieverComponent.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
-        GroupComponent('people', element=BelieverComponent, size=4)
+        >>> group = BelieverComponent.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'BelieverComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
@@ -120,8 +121,9 @@ class AdopterComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdopterComponent
-        >>> AdopterComponent.group('people', 10, threshold=50.0)
-        GroupComponent('people', element=AdopterComponent, size=10)
+        >>> group = AdopterComponent.group('people', 10, threshold=50.0)
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'AdopterComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})

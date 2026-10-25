@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseProblem, Vector
-from ...core.problems import Problem, Record
+from ...core.base import Vector
+from ...core.problems import BaseProblem, Record
 from ..solvers import AgentSnapshot
 
 
@@ -96,7 +96,7 @@ class Frame:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name) if isinstance(self.problem, Problem) else None
+        shape = self.problem.lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)

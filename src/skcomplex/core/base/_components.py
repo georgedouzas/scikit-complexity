@@ -17,7 +17,6 @@ from ._variables import (
     _check_declared,
     _declarations,
     _declare,
-    _declared_repr,
     _define_type,
     _get_default,
     _get_params,
@@ -59,8 +58,8 @@ class BaseComponent(BaseEstimator):
     that stores them and passes the label and the remaining values on.
 
     `check()` rejects a value the type does not declare and a declared variable without a default that is not given,
-    `prepare()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from the
-    hook `laws` that a type overrides. Validation checks every component of a system.
+    `prepare()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from
+    the hook `laws` that a type overrides. Validation checks every component of a system.
 
     Args:
         label:
@@ -185,10 +184,6 @@ class BaseComponent(BaseEstimator):
         """
         return _get_params(self, BaseComponent, deep=deep)
 
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the type, the label, and the arguments that differ from their defaults."""
-        return _declared_repr(self, BaseComponent, N_CHAR_MAX)
-
     def laws(self, s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the component, none by default.
 
@@ -247,8 +242,8 @@ class BaseInteraction(BaseEstimator):
     an undirected graph the source comes first in node order. Rate, noise, and jump laws may target any of them, and
     update laws the edge member.
 
-    `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a
-    type that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `prepare()` sets
+    `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a type
+    that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `prepare()` sets
     `declarations_`, and `run(s)` returns the laws of the interaction for a namespace of symbols, from the hook `laws`.
 
     Attributes:
@@ -366,10 +361,6 @@ class BaseInteraction(BaseEstimator):
             40
         """
         return _get_params(self, BaseInteraction, deep=deep)
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the type, the label, and the arguments that differ from their defaults."""
-        return _declared_repr(self, BaseInteraction, N_CHAR_MAX)
 
     @classmethod
     def define(

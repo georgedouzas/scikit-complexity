@@ -68,7 +68,7 @@ def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseL
         return law
     value = law.value
     if isinstance(value, Call):
-        value = Call(value.function, *(reductions.lower(argument, spec) for argument in value.arguments))
+        value = Call(value.function, tuple(reductions.lower(argument, spec) for argument in value.arguments))
     else:
         value = reductions.lower(value, spec)
     if isinstance(law, RateLaw | NoiseLaw):

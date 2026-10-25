@@ -25,8 +25,9 @@ class SaverComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import SaverComponent
-        >>> SaverComponent.group('savers', 10, wealth=2.0)
-        GroupComponent('savers', element=SaverComponent, size=10)
+        >>> group = SaverComponent.group('savers', 10, wealth=2.0)
+        >>> group.label, group.element.__name__, group.size
+        ('savers', 'SaverComponent', 10)
     """
 
     wealth: float = state(default=1.0, domain=NumericDomain.REAL)

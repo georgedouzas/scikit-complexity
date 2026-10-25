@@ -9,8 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseProblem
-from ...core.problems import NetworkSnapshot, Problem, Record
+from ...core.problems import BaseProblem, NetworkSnapshot, Record
 from ..solvers import AgentSnapshot
 
 
@@ -87,7 +86,7 @@ class Trajectory:
 
     def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
-        topology = self.problem.topology if isinstance(self.problem, Problem) else None
+        topology = self.problem.topology
         if topology is None or topology.presence(name, self.parameters[0]) is None:
             return values
         present = np.array([topology.presence(name, row) for row in self.parameters])
@@ -215,7 +214,7 @@ class Trajectory:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name) if isinstance(self.problem, Problem) else None
+        shape = self.problem.lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
@@ -266,7 +265,7 @@ class Trajectory:
             KeyError:
                 The system has no network whose topology changes.
         """
-        topology = self.problem.topology if isinstance(self.problem, Problem) else None
+        topology = self.problem.topology
         if topology is None:
             error_msg = 'The system has no network whose topology changes. Give its groups `variable=True`.'
             raise KeyError(error_msg)
@@ -293,7 +292,7 @@ class Trajectory:
         Examples:
             >>> from skcomplex.models import run
             >>> trajectory = run('cantor_set', settings={'until': 4}).trajectory_
-            >>> len(trajectory.structure('cantor', 2))
+            >>> trajectory.structure('cantor', 2).parts
             4
         """
         structures = self.structures[frame] if self.structures else {}

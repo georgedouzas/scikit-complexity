@@ -8,8 +8,9 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp
 
-from skcomplex.core.base import BackendError, BaseSolver, Form, NumericDomain, SolverError, parameter
+from skcomplex.core.base import BackendError, Form, NumericDomain, SolverError, parameter
 from skcomplex.core.laws import where
+from skcomplex.core.problems import BaseSolver
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import SOLVERS, compile_system

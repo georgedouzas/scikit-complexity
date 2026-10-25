@@ -10,8 +10,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement, NetworkSnapshot
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
 from ...core.space import LatticeSpace, NetworkSpace
 from ..runtime import Frame
 from ._utils import GRID_RADIUS, NODE_SPACING
@@ -26,7 +25,7 @@ CHANGING_CENTRING = 0.05
 
 def _changes_topology(element: CompiledElement, problem: BaseProblem) -> bool:
     """Check whether a group lies on the nodes of a network whose topology changes."""
-    topology = getattr(problem, 'topology', None)
+    topology = problem.topology
     return topology is not None and element.path in {path for path, _ in topology.layers}
 
 
@@ -143,7 +142,7 @@ class SiteVisual(BaseVisual):
             values = np.ravel(np.asarray(frame.value(name), dtype=float))
             path = f'{element.path}/{state}'
             if _changes_topology(element, frame.problem):
-                snapshot = getattr(frame.problem, 'topology', None).read_network(frame.parameters, element.path)  # type: ignore[union-attr]
+                snapshot = frame.problem.topology.read_network(frame.parameters, element.path)  # type: ignore[union-attr]
                 self._log_changing(recording, path, snapshot, values)
                 continue
             if isinstance(space, NetworkSpace):
