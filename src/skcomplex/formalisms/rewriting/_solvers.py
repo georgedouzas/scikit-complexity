@@ -44,7 +44,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         ...     ],
         ... )
         >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
-        >>> trajectory['algae.size'].tolist()
+        >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
 

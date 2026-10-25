@@ -44,4 +44,4 @@ def test_observable_and_set_parameter_by_view():
     )
     observables = [Observable('wealth', group='traders', variable='money', reduce='sum')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=2).trajectory_
-    assert trajectory['reader.total'][-1] == 8.0
+    assert trajectory.values('reader.total')[-1] == 8.0

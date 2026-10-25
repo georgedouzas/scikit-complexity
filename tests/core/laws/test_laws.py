@@ -212,7 +212,7 @@ def test_pendulum_as_written_matches_solved_form():
     """Test that `m l θ'' = -m g sin θ` runs exactly like the rate law `θ'' = -(g / l) sin θ`."""
     written = Simulation(System(components=[WrittenComponent('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
     solved = Simulation(System(components=[SolvedComponent('bob')]), solver=PRECISE, dt=0.1).run(until=5).trajectory_
-    assert np.array_equal(written['bob.theta'], solved['bob.theta'])
+    assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
 
 
 def test_rates_add_to_equation():
@@ -222,7 +222,7 @@ def test_rates_add_to_equation():
         interactions=[PushInteraction('push', target='bob')],
     )
     trajectory = Simulation(pushed, solver=PRECISE, dt=0.01).run(until=0.1).trajectory_
-    assert trajectory['bob.theta'][-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
+    assert trajectory.values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
 
 
 def test_nonlinear_highest_derivative_is_rejected():
@@ -238,7 +238,7 @@ def test_many_equations_are_solved_numerically():
     )
     expected = np.cos(trajectory.times / np.sqrt(2))
     for index in range(7):
-        assert np.allclose(trajectory[f'o.x{index}'], expected, atol=1e-7)
+        assert np.allclose(trajectory.values(f'o.x{index}'), expected, atol=1e-7)
 
 
 def test_equation_takes_two_sides():
@@ -258,8 +258,8 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     fields = {'states': {'x': state(default=1.0, order=2)}, 'parameters': {'m': 2.0, 'k': 3.0}}
     written = System(components=[ElementComponent.define('WrittenSpringComponent', **fields, laws=equation)('mass')])
     solved = System(components=[ElementComponent.define('SolvedSpringComponent', **fields, laws=rate)('mass')])
-    first = Simulation(written, solver=PRECISE, dt=0.1).run(until=3).trajectory_['mass.x']
-    second = Simulation(solved, solver=PRECISE, dt=0.1).run(until=3).trajectory_['mass.x']
+    first = Simulation(written, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
+    second = Simulation(solved, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
     assert first == pytest.approx(second, abs=1e-8)
 
 
@@ -281,7 +281,7 @@ def test_adaptive_parameter_changes_only_when_the_policy_fires():
         interactions=[PolicyInteraction('bank', target='economy')],
     )
     trajectory = Simulation(system).run(until=4).trajectory_
-    rates, prices = trajectory['economy.rate'], trajectory['economy.price']
+    rates, prices = trajectory.values('economy.rate'), trajectory.values('economy.price')
     assert rates[0] == pytest.approx(0.03)
     np.testing.assert_array_equal(np.diff(rates) > 0, prices[:-1] > 1.05)
 
@@ -289,13 +289,13 @@ def test_adaptive_parameter_changes_only_when_the_policy_fires():
 def test_fibonacci_recurrence():
     """Test that `x_{t+1} = x_t + x_{t-1}` from 1 and 1 gives the Fibonacci sequence."""
     trajectory = Simulation(System(components=[FibonacciComponent('f')])).run(until=8).trajectory_
-    assert trajectory['f.x'].tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
-    assert trajectory['f.x_lag1'].tolist()[:3] == [1, 1, 2]
+    assert trajectory.values('f.x').tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
+    assert trajectory.values('f.x_lag1').tolist()[:3] == [1, 1, 2]
 
 
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's model with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
-    income = Simulation(System(components=[IncomeComponent('economy')])).run(until=40).trajectory_['economy.Y']
+    income = Simulation(System(components=[IncomeComponent('economy')])).run(until=40).trajectory_.values('economy.Y')
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)
     first, last = np.abs(deviation[:10]).max(), np.abs(deviation[-10:]).max()
@@ -335,9 +335,9 @@ def test_initial_angular_velocity():
         .run(until=1)
         .trajectory_
     )
-    assert trajectory['bob.theta'][0] == pytest.approx(0.1)
-    assert trajectory['bob.theta_d1'][0] == pytest.approx(0.5)
-    assert trajectory['bob.theta'][1] > 0.1
+    assert trajectory.values('bob.theta')[0] == pytest.approx(0.1)
+    assert trajectory.values('bob.theta_d1')[0] == pytest.approx(0.5)
+    assert trajectory.values('bob.theta')[1] > 0.1
 
 
 def test_first_order_unchanged():
@@ -357,7 +357,7 @@ def test_newton_superposition_of_separate_laws():
     omega = np.sqrt(8.0 / 2.0 - gamma**2)
     t = trajectory.times
     expected = np.exp(-gamma * t) * (np.cos(omega * t) + gamma / omega * np.sin(omega * t))
-    assert np.allclose(trajectory['mass.x'], expected, atol=1e-7)
+    assert np.allclose(trajectory.values('mass.x'), expected, atol=1e-7)
 
 
 def test_order_mismatch_is_rejected():
@@ -374,7 +374,7 @@ def test_velocity_verlet_runs_order_two_position():
     """Test that velocity Verlet recognises a position of order 2 and conserves the oscillator's energy."""
     system = System(components=[MassComponent('mass')], interactions=[SpringInteraction('spring', target='mass')])
     trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.001), dt=0.1).run(until=10).trajectory_
-    energy = 0.5 * 2.0 * trajectory['mass.x_d1'] ** 2 + 0.5 * 8.0 * trajectory['mass.x'] ** 2
+    energy = 0.5 * 2.0 * trajectory.values('mass.x_d1') ** 2 + 0.5 * 8.0 * trajectory.values('mass.x') ** 2
     assert np.allclose(energy, energy[0], rtol=1e-4)
 
 

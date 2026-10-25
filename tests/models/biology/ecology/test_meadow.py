@@ -16,7 +16,7 @@ def test_meadow_runs_nested_in_a_farm(growth):
     root = _run_until(meadow_capacity(growth=growth, random_state=0), 25, random_state=0)
     nested = meadow_capacity(growth=growth, random_state=0).set_params(label='farm')
     farm = _run_until(System(components=[nested]), 25, random_state=0)
-    assert farm['farm/cows.count'].tolist() == root['cows.count'].tolist()
+    assert farm.values('farm/cows.count').tolist() == root.values('cows.count').tolist()
     assert {interaction.pasture for interaction in nested.interactions} == {'pasture'}
 
 
@@ -24,8 +24,8 @@ def test_meadow_regrowth_raises_carrying_capacity():
     """Test that a meadow without regrowth starves its cows within the summer, and regrowth feeds them."""
     barren = _run_until(meadow_capacity(cows=80, growth=0.0, random_state=0), 25, random_state=0)
     growing = _run_until(meadow_capacity(cows=80, growth=0.2, random_state=0), 25, random_state=0)
-    assert barren['cows.count'][-1] == 0
-    assert growing['cows.count'][-1] == 80
+    assert barren.values('cows.count')[-1] == 0
+    assert growing.values('cows.count')[-1] == 80
 
 
 def test_meadow_capacity_carries_or_loses_the_whole_herd():

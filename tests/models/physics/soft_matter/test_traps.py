@@ -21,7 +21,7 @@ def test_biased_trap_walk_subdiffusion():
         random_state=0,
         observables=describe('biased_trap_walk').observables_of(built),
     ).run(until=2000)
-    times, position = simulation.trajectory_.times, simulation.trajectory_['position']
+    times, position = simulation.trajectory_.times, simulation.trajectory_.values('position')
     late = times >= 50
     slope = np.polyfit(np.log(times[late]), np.log(position[late]), 1)[0]
     assert slope == pytest.approx(alpha, abs=0.1)

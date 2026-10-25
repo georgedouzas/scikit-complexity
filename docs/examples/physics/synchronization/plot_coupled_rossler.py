@@ -34,7 +34,9 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.02, 0.06]:
     run = Simulation(create(MODEL, n_oscillators=2, k=coupling, mismatch=0.02, seed=0), dt=0.1).run(until=500)
     phases = [
-        np.unwrap(np.arctan2(np.ravel(run.trajectory_[f'{name}.x2']), np.ravel(run.trajectory_[f'{name}.x1'])))
+        np.unwrap(
+            np.arctan2(np.ravel(run.trajectory_.values(f'{name}.x2')), np.ravel(run.trajectory_.values(f'{name}.x1')))
+        )
         for name in ('oscillator_0', 'oscillator_1')
     ]
     ax.plot(run.trajectory_.times, (phases[1] - phases[0]) / (2 * np.pi), label=f'k = {coupling}')

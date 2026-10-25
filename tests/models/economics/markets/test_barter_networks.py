@@ -18,13 +18,13 @@ def _barter(topology):
 def test_wilhite_trade_networks_small_world_converges_with_few_searches():
     """Isolated groups keep different prices, a small world unifies them with a fraction of the complete searches."""
     isolated, small_world, complete = (_barter(topology) for topology in ('isolated', 'small_world', 'complete'))
-    assert small_world['dispersion'][-1] < 0.1
-    assert isolated['dispersion'][-1] > 2 * small_world['dispersion'][-1]
-    assert complete['barter.searches'][1:].sum() > 4 * small_world['barter.searches'][1:].sum()
+    assert small_world.values('dispersion')[-1] < 0.1
+    assert isolated.values('dispersion')[-1] > 2 * small_world.values('dispersion')[-1]
+    assert complete.values('barter.searches')[1:].sum() > 4 * small_world.values('barter.searches')[1:].sum()
     goods = [small_world.agents('traders', frame).values for frame in (0, 30)]
     for good in ('good1', 'good2'):
         np.testing.assert_allclose(np.sum(goods[1][good]), np.sum(goods[0][good]))
-    assert small_world['utility'][-1] > small_world['utility'][0]
+    assert small_world.values('utility')[-1] > small_world.values('utility')[0]
 
 
 def test_wilhite_trade_networks_rejects_unknown_topology():

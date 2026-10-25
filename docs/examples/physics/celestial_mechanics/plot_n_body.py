@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=PERIOD)
 # every multiple of the period, and the three stars should share a single figure-eight path.
 
 run = Simulation(create(MODEL, preset='figure_eight'), dt=0.005).run(until=3 * PERIOD)
-positions = np.stack([np.asarray(run.trajectory_[f'body_{index}.x']) for index in range(3)], axis=1)
+positions = np.stack([np.asarray(run.trajectory_.values(f'body_{index}.x')) for index in range(3)], axis=1)
 distance = np.linalg.norm(positions - positions[0], axis=(1, 2))
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))
 for index in range(3):

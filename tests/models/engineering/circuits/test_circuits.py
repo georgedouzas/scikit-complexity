@@ -28,7 +28,7 @@ def _peaks(series):
 def test_chua_double_scroll_visits_both_scrolls():
     """Test that the double-scroll attractor stays bounded and visits both sides of the origin."""
     trajectory = Simulation(chua(), dt=0.05).run(until=100).trajectory_
-    x = trajectory['circuit.x'][400:]
+    x = trajectory.values('circuit.x')[400:]
     assert np.abs(x).max() < 3.0
     assert 0.2 < (x > 0).mean() < 0.8
 
@@ -36,7 +36,7 @@ def test_chua_double_scroll_visits_both_scrolls():
 def test_chua_sine_diode_has_several_scrolls():
     """Test that the sine diode gives a bounded attractor spanning more than two scrolls."""
     trajectory = Simulation(chua(nonlinearity='sine'), dt=0.5).run(until=600).trajectory_
-    x = trajectory['circuit.x'][100:]
+    x = trajectory.values('circuit.x')[100:]
     assert np.abs(x).max() < 15.0
     assert x.min() < -4 * 1.3
     assert x.max() > 4 * 1.3
@@ -53,7 +53,7 @@ def test_mixed_mode_chua_oscillations(c, mixed):
     """Test that small oscillations come between the spikes for `c = 0.00053` and not for `c = 0.00105`."""
     solver = ScipyODESolver(method='Radau')
     trajectory = Simulation(mixed_mode_chua(c=c), dt=0.1, solver=solver).run(until=50).trajectory_
-    peaks = _peaks(trajectory['circuit.x'][100:])
+    peaks = _peaks(trajectory.values('circuit.x')[100:])
     assert (peaks > 1.0).sum() >= 4
     assert ((peaks < 0.3).sum() >= 4) == mixed
 
@@ -61,7 +61,7 @@ def test_mixed_mode_chua_oscillations(c, mixed):
 def test_memristor_oscillator_keeps_oscillating():
     """Test that the memristor circuit neither decays nor diverges."""
     trajectory = Simulation(memristor_oscillator(), dt=0.1).run(until=200).trajectory_
-    voltage = trajectory['circuit.v']
+    voltage = trajectory.values('circuit.v')
     assert np.abs(voltage).max() < 10.0
     assert np.ptp(voltage[-500:]) > 0.5
 
@@ -69,7 +69,7 @@ def test_memristor_oscillator_keeps_oscillating():
 def test_tunnel_diode_limit_cycle_amplitude():
     """Test that the tunnel-diode oscillator settles on the van der Pol limit cycle of amplitude `2 sqrt(alpha / 3)`."""
     trajectory = Simulation(tunnel_diode_oscillator(alpha=1.0, gamma=1.0), dt=0.05).run(until=50).trajectory_
-    assert np.abs(trajectory['circuit.V'][-300:]).max() == pytest.approx(2 * math.sqrt(1 / 3), rel=0.02)
+    assert np.abs(trajectory.values('circuit.V')[-300:]).max() == pytest.approx(2 * math.sqrt(1 / 3), rel=0.02)
 
 
 def test_impulsive_circuit_kicks_the_rate():
@@ -85,6 +85,6 @@ def test_impulsive_circuit_kicks_the_rate():
 
 def test_circuit_and_oscillator_agree():
     """Test that the RLC circuit and the damped oscillator agree to the solver tolerance for equal coefficients."""
-    charge = run('rlc_circuit', L=2.0, R=0.4, C=1 / 8, V=0.5, omega=1.3).trajectory_['circuit.q']
-    displacement = run('driven_damped_oscillator', m=2.0, c=0.4, k=8.0, F=0.5, omega=1.3).trajectory_['mass.x']
+    charge = run('rlc_circuit', L=2.0, R=0.4, C=1 / 8, V=0.5, omega=1.3).trajectory_.values('circuit.q')
+    displacement = run('driven_damped_oscillator', m=2.0, c=0.4, k=8.0, F=0.5, omega=1.3).trajectory_.values('mass.x')
     assert np.allclose(charge, displacement, rtol=1e-5, atol=1e-5)

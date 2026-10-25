@@ -138,7 +138,7 @@ class Simulation(BaseEstimator):
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
-        >>> round(simulation.trajectory_['rabbits.n'][-1])
+        >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
 
@@ -456,7 +456,7 @@ class Simulation(BaseEstimator):
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory['rabbits.n'][5] == trajectory['rabbits.n'][10])
+            >>> bool(trajectory.values('rabbits.n')[5] == trajectory.values('rabbits.n')[10])
             True
         """
         self._check_prepared()

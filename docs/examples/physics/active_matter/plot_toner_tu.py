@@ -40,7 +40,7 @@ speeds = []
 for density in densities:
     system_d = create(MODEL, shape=(16, 16), rho0=density, random_state=1)
     run = Simulation(system_d, solver=solver, dt=1.0, random_state=1).run(until=60)
-    velocity = np.stack([run.trajectory_['flock.vx'][-10:], run.trajectory_['flock.vy'][-10:]], axis=-1)
+    velocity = np.stack([run.trajectory_.values('flock.vx')[-10:], run.trajectory_.values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())
 grid = np.linspace(0.2, 2.0, 300)
 fig, ax = plt.subplots(figsize=(7, 4))

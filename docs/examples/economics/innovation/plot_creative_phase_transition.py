@@ -47,8 +47,8 @@ trajectory = simulation.trajectory_
 densities = np.linspace(0.5, 12.0, 400)
 coarse = np.linspace(1.0, 12.0, 12)
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(trajectory.times, trajectory['system.x'], 'o-', ms=3, label='diversity x')
-series.plot(trajectory.times, trajectory['system.d'], 's-', ms=3, label='new share d')
+series.plot(trajectory.times, trajectory.values('system.x'), 'o-', ms=3, label='diversity x')
+series.plot(trajectory.times, trajectory.values('system.d'), 's-', ms=3, label='new share d')
 series.set_xlabel('step')
 series.set_ylabel('share of possible goods')
 series.set_title('Creative explosion for r = 5')
@@ -56,7 +56,8 @@ series.legend()
 for index, start in enumerate((0.05, 0.1, 0.2)):
     diagram.plot(densities, [final_diversity(start, r) for r in densities], color=f'C{index}', label=f'x0 = {start}')
     finals = [
-        Simulation(create(MODEL, x=start, r=r), dt=1).run(until=UNTIL).trajectory_['system.x'][-1] for r in coarse
+        Simulation(create(MODEL, x=start, r=r), dt=1).run(until=UNTIL).trajectory_.values('system.x')[-1]
+        for r in coarse
     ]
     diagram.plot(coarse, finals, 'o', color=f'C{index}')
 diagram.set_xlabel('rule density r')

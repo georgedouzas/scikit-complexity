@@ -39,7 +39,7 @@ for n in coefficients:
 trajectory = simulation.trajectory_
 fig, (series, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('x1', 'x2', 'x3'):
-    series.plot(trajectory.times, trajectory[f'{name}.x'], label=name)
+    series.plot(trajectory.times, trajectory.values(f'{name}.x'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('concentration')
 series.set_title('Sustained oscillations for n = 12')

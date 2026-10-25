@@ -36,8 +36,8 @@ combined = Simulation(create(MODEL), dt=2.0).run(until=600).trajectory_
 fig, (one, three) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, trajectory, title in ((one, single, 'Drug 1 alone'), (three, combined, 'All three drugs')):
     for name in ('S', 'R1', 'R12', 'R123'):
-        axis.semilogy(trajectory.times, np.maximum(trajectory[f'tumour.{name}'], 1e-3), label=name)
-    axis.semilogy(trajectory.times, sum(trajectory[f'tumour.{name}'] for name in names), 'k--', label='total')
+        axis.semilogy(trajectory.times, np.maximum(trajectory.values(f'tumour.{name}'), 1e-3), label=name)
+    axis.semilogy(trajectory.times, sum(trajectory.values(f'tumour.{name}') for name in names), 'k--', label='total')
     axis.set_ylim(1e-3, 1e13)
     axis.set_xlabel('time (days)')
     axis.set_title(title)

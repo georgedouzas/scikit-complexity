@@ -53,14 +53,16 @@ fig, (order, speed) = plt.subplots(1, 2, figsize=(10, 4))
 for index, walkers in enumerate((20, 40, 60)):
     system = create(MODEL, n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
     trajectory = Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), random_state=0).run(until=UNTIL).trajectory_
-    rightward, leftward = trajectory['rightward.x'], trajectory['leftward.x']
+    rightward, leftward = trajectory.values('rightward.x'), trajectory.values('leftward.x')
     order.plot(
         trajectory.times,
         [lane_order(right, left) for right, left in zip(rightward, leftward, strict=True)],
         color=f'C{index}',
         label=f'{walkers} each way',
     )
-    velocity = (trajectory['rightward.v'][:, :, 0].mean(axis=1) - trajectory['leftward.v'][:, :, 0].mean(axis=1)) / 2
+    velocity = (
+        trajectory.values('rightward.v')[:, :, 0].mean(axis=1) - trajectory.values('leftward.v')[:, :, 0].mean(axis=1)
+    ) / 2
     speed.plot(trajectory.times, velocity, color=f'C{index}', label=f'{walkers} each way')
 order.set_xlabel('time (s)')
 order.set_ylabel('lane order')

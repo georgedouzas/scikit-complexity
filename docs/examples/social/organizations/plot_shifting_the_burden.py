@@ -48,9 +48,9 @@ unaided = Simulation(create(MODEL, fix_rate=0.0), dt=0.5).run(60).trajectory_
 times = np.asarray(trajectory.times)
 fig, (fixed, alone) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, run, title in ((fixed, trajectory, 'With the quick fix'), (alone, unaided, 'Without the quick fix')):
-    axis.plot(times, run['burden.capability'], label='capability')
-    axis.plot(times, run['burden.intervention'], '--', label='intervention')
-    axis.plot(times, run['burden.symptom'], ':', label='symptom')
+    axis.plot(times, run.values('burden.capability'), label='capability')
+    axis.plot(times, run.values('burden.intervention'), '--', label='intervention')
+    axis.plot(times, run.values('burden.symptom'), ':', label='symptom')
     axis.set_xlabel('years')
     axis.set_title(title)
     axis.legend()

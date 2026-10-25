@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=60)
 def response_frequency(omega):
     """Return the mean angular frequency of the response after a transient."""
     run = Simulation(create(MODEL, x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), dt=0.025).run(until=400)
-    times, x = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_['oscillator.x'])
+    times, x = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('oscillator.x'))
     late = times > 150
     crossings = times[late][1:][(x[late][:-1] < 0) & (x[late][1:] >= 0)]
     return 2 * np.pi * (len(crossings) - 1) / (crossings[-1] - crossings[0])

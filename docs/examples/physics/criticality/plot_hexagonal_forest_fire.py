@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=2, observers=[observer], random_state=0).run(
 # at one node should burn, at every step, exactly the nodes at that graph distance from it.
 
 steady = Simulation(create(MODEL, shape=(64, 64)), dt=1, random_state=1).run(5000)
-burning = (steady.trajectory_['forest.cover'][1000:] == 2).sum(axis=1)
+burning = (steady.trajectory_.values('forest.cover')[1000:] == 2).sum(axis=1)
 bins, density = histogram(burning[burning > 0], 15, log=True)
 centers = np.sqrt(bins[1:] * bins[:-1])
 
@@ -42,7 +42,7 @@ graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
 start = np.ones(500)
 start[0] = 2
 spread = Simulation(create(MODEL, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).run(until=15)
-front = (spread.trajectory_['forest.cover'] == 2).sum(axis=1)
+front = (spread.trajectory_.values('forest.cover') == 2).sum(axis=1)
 distances = np.bincount(list(nx.single_source_shortest_path_length(graph, 0).values()), minlength=len(front))
 
 fig, (fires, fronts) = plt.subplots(1, 2, figsize=(10, 4))

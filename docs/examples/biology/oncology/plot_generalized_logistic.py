@@ -34,7 +34,7 @@ r, K, n0 = 0.305, 1221.0, 10.0
 fig, (curves, rates) = plt.subplots(1, 2, figsize=(10, 4))
 for p in (0.5, 1.0, 2.0):
     trajectory = Simulation(create(MODEL, n=n0, p=p), dt=0.2).run(until=40).trajectory_
-    times, volume = trajectory.times, trajectory['tumour.n']
+    times, volume = trajectory.times, trajectory.values('tumour.n')
     exact = n0 * K / (n0**p + (K**p - n0**p) * np.exp(-r * p * times)) ** (1 / p)
     curves.plot(times, volume, label=f'p = {p}')
     curves.plot(times, exact, '--', color='black', linewidth=0.8)

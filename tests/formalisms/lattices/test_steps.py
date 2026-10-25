@@ -59,7 +59,7 @@ FitnessComponent = ElementComponent.define(
 
 def _ising_magnetization(trajectory):
     """Return the mean absolute magnetisation of the recorded frames."""
-    return float(np.abs(trajectory['spins.spin'].mean(axis=1)).mean())
+    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())
 
 
 class Recording:
@@ -135,8 +135,8 @@ def test_grid_graph_matches_square_lattice():
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
     on_lattice = System(components=[_life(Neighborhood.moore()).lattice('cells', lattice, alive=glider)])
     on_graph = System(components=[_life(Adjacency()).lattice('cells', NetworkSpace(graph), alive=glider.ravel())])
-    expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_['cells.alive']
-    found = Simulation(on_graph, dt=1).run(until=40).trajectory_['cells.alive']
+    expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_.values('cells.alive')
+    found = Simulation(on_graph, dt=1).run(until=40).trajectory_.values('cells.alive')
     assert np.array_equal(found, expected)
     assert expected[-1].sum() == 5
 
@@ -307,7 +307,7 @@ def test_extremal_runs_are_reproducible_across_backends():
     for backend in ('numpy', 'numpy', 'numba', 'numba'):
         system = System(components=[FitnessComponent.lattice('ring', LatticeSpace(50), value=values)])
         simulation = Simulation(system, dt=1, backend=backend, random_state=7).run(until=20)
-        runs.append((simulation.trajectory_['ring.value'], simulation.trajectory_.events))
+        runs.append((simulation.trajectory_.values('ring.value'), simulation.trajectory_.events))
     system = System(components=[FitnessComponent.lattice('ring', LatticeSpace(50), value=values)])
     compiled = compile_system(system, backend='numba')
     assert isinstance(compiled.lattice[0], CompiledExtremal)

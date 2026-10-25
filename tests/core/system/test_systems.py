@@ -67,7 +67,7 @@ def test_four_part_system_runs():
         time=ContinuousTime(),
     )
     trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
-    assert trajectory['rabbits.n'][-1] > 1.0
+    assert trajectory.values('rabbits.n')[-1] > 1.0
     assert Simulation(system).run(until=0).problem_.parameters.names == ['growth.r']
 
 
@@ -80,7 +80,7 @@ def test_systems_nest_as_components():
     assert system.systems[0].label == 'meadow'
     assert system.elements == ()
     trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
-    assert trajectory['meadow/rabbits.n'][-1] > 2.0
+    assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
 
 
 def test_duplicate_labels_are_reported():
@@ -135,7 +135,7 @@ def test_periodic_space_wraps_positions_without_box_component():
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
-    assert trajectory['p.x'][-1].tolist() == pytest.approx([0.1, 0.5])
+    assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
     assert system.interactions == ()
 
 
@@ -183,7 +183,7 @@ def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = System(components=[GroupComponent('cells', element=CellComponent, size=10, variable=True)])
     trajectory = Simulation(system).run(until=3).trajectory_
-    assert trajectory['cells.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
 def test_group_on_edges_has_one_member_per_edge():
@@ -241,7 +241,7 @@ def test_sequence_state_is_rewritten_in_parallel():
         interactions=[Rewrite('rules', target='algae', rules=rules)],
     )
     trajectory = Simulation(system).run(until=4).trajectory_
-    assert trajectory['algae.size'].tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
+    assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
     assert structure_of(WordComponent) == 'sequence'
 
 
@@ -331,8 +331,8 @@ def test_periodic_box_wraps_member_with_same_velocity():
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
-    assert np.allclose(trajectory['gas.x'][-1], [[0.15, 0.5]])
-    assert np.allclose(trajectory['gas.v'][-1], [[1.0, 0.0]])
+    assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
+    assert np.allclose(trajectory.values('gas.v')[-1], [[1.0, 0.0]])
 
 
 @pytest.mark.slow
@@ -345,5 +345,5 @@ def test_pair_interaction_conserves_momentum():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
-    momentum = trajectory['gas.v'].sum(axis=1)
+    momentum = trajectory.values('gas.v').sum(axis=1)
     assert np.allclose(momentum, momentum[0], atol=1e-8)

@@ -35,7 +35,7 @@ def rates(y):
     return [1 + 0.05 * A - 0.03 * E + 0.1245 * E / (E + 1e-3), 0.18 * A * (1 - 1e-9 * A) - E * A / (A + 1e5)]
 
 
-E, A = simulation.trajectory_['site.E'], simulation.trajectory_['site.A']
+E, A = simulation.trajectory_.values('site.E'), simulation.trajectory_.values('site.A')
 E_star, A_star = fsolve(rates, [E[-1], A[-1]])
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, A, label='tumour cells')

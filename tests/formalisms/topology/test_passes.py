@@ -88,13 +88,13 @@ def test_growth_runs_on_numba_and_agrees_with_numpy():
     }
     numpy, numba = (runs[backend].trajectory_ for backend in BACKENDS)
     assert np.allclose(numpy.parameters, numba.parameters, atol=1e-12, equal_nan=True)
-    ages = numba['nodes.age']
+    ages = numba.values('nodes.age')
     for frame, row in enumerate(ages):
         present = numba.network(frame).nodes
         assert np.all(np.isfinite(row[present]))
         assert np.all(np.isnan(np.delete(row, present)))
     assert numba.network(-1).nodes.size == 1000
-    assert np.allclose(numpy['nodes.age'], ages, equal_nan=True)
+    assert np.allclose(numpy.values('nodes.age'), ages, equal_nan=True)
 
 
 def test_snapshot_by_frame_holds_the_network_of_that_frame():
@@ -171,7 +171,7 @@ def test_requests_remove_and_add_edges_and_nodes():
     snapshot = trajectory.network(-1)
     assert np.all(snapshot.sources == 0)
     assert sorted(snapshot.targets.tolist()) == [1, 2, 3]
-    assert np.allclose(trajectory['links.w'][-1][snapshot.edges], 5.0)
+    assert np.allclose(trajectory.values('links.w')[-1][snapshot.edges], 5.0)
 
 
 def _prevalence(w, seed):
@@ -204,7 +204,7 @@ def _prevalence(w, seed):
         ],
     )
     trajectory = Simulation(system, dt=1.0, random_state=seed).run(until=30).trajectory_
-    return float(np.nanmean(trajectory['nodes.i'][15:]))
+    return float(np.nanmean(trajectory.values('nodes.i')[15:]))
 
 
 def test_rewiring_raises_the_epidemic_threshold():
@@ -234,7 +234,7 @@ def test_reductions_over_capacity_groups_count_present_members():
         time=DiscreteTime(),
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).run(until=4).trajectory_
-    assert trajectory['counter.size'].tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
+    assert trajectory.values('counter.size').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
     problem = compile_system(system)
     assert problem.topology is not None
 

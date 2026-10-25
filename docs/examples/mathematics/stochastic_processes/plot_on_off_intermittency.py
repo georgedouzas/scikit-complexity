@@ -36,7 +36,7 @@ simulation.run(until=598)
 # run above should wander far below 0 and never far above it.
 
 ensemble = Simulation(create(MODEL, n_realizations=50), dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=1)
-values = ensemble.run(until=500).trajectory_['variables.x']
+values = ensemble.run(until=500).trajectory_.values('variables.x')
 durations = np.concatenate(
     [
         detect_events(-values[:, index], threshold=-0.05, times=ensemble.trajectory_.times).durations[1:-1]
@@ -54,7 +54,7 @@ laminar.set_xlabel('duration of a laminar phase')
 laminar.set_ylabel('probability density')
 laminar.set_title('Laminar phases have power-law durations')
 laminar.legend()
-logarithm.plot(simulation.trajectory_.times, np.log(simulation.trajectory_['variables.x'][:, 0]))
+logarithm.plot(simulation.trajectory_.times, np.log(simulation.trajectory_.values('variables.x')[:, 0]))
 logarithm.axhline(0.0, color='grey', linestyle='--')
 logarithm.set_xlabel('time')
 logarithm.set_ylabel('ln x')

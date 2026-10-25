@@ -145,7 +145,7 @@ def orbit_diagram(
     if vectorized:
         settings = {'dt': step, 'random_state': arguments.get('random_state')}
         trajectory, _ = _ensemble(source, {parameter: list(values)}, transient + (keep - 1) * step, settings)
-        series = np.asarray(trajectory[observable])[np.asarray(trajectory.times) >= transient - 1e-9]
+        series = np.asarray(trajectory.values(observable))[np.asarray(trajectory.times) >= transient - 1e-9]
         points = [series[:, index] for index in range(len(values))]
         return OrbitDiagram(parameter, np.asarray(values, dtype=float), points)
     experiment = Experiment(

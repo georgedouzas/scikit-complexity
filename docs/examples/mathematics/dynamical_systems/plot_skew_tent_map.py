@@ -42,7 +42,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(system, dt=1, observers=[observer]).run(until=40)
-occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in simulation.trajectory_['points.x'][:30]]
+occupied = [np.histogram(row, bins=25, range=(0, 1))[0] > 0 for row in simulation.trajectory_.values('points.x')[:30]]
 image = np.where(np.array(occupied).T[::-1, :, None], [255, 170, 40], [20, 20, 30]).astype(np.uint8)
 observer.recording_.log('spreading', rr.Image(image.repeat(12, axis=0).repeat(12, axis=1)), static=True)
 observer.recording_.flush()
@@ -54,7 +54,7 @@ observer.recording_.flush()
 # values of the last 30 steps, pooled over the ensemble, should give a flat histogram at the density 1 that Bertin
 # derives from the Perron-Frobenius equation `p(x) = a p(ax) + (1 - a) p(1 - (1 - a) x)`.
 
-values = simulation.trajectory_['points.x']
+values = simulation.trajectory_.values('points.x')
 fig, (branches, density) = plt.subplots(1, 2, figsize=(10, 4))
 branches.plot(values[:-1].ravel(), values[1:].ravel(), '.', markersize=1, alpha=0.3)
 branches.set_xlabel('$x_t$')

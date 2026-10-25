@@ -37,7 +37,7 @@ alpha, beta = (total + root) / 2, (total - root) / 2
 times = simulation.trajectory_.times
 exact = ((alpha - k21) * np.exp(-alpha * times) + (k21 - beta) * np.exp(-beta * times)) / (alpha - beta)
 fig, (central, drug) = plt.subplots(1, 2, figsize=(10, 4))
-central.semilogy(times, simulation.trajectory_['patient.Uc'], label='simulated')
+central.semilogy(times, simulation.trajectory_.values('patient.Uc'), label='simulated')
 central.semilogy(times, exact, '--', color='black', label='bi-exponential')
 central.semilogy(times, (k21 - beta) / (alpha - beta) * np.exp(-beta * times), ':', label='slow phase')
 central.set_ylim(1e-5, 1.5)
@@ -45,9 +45,14 @@ central.set_xlabel('time (min)')
 central.set_ylabel('central concentration')
 central.set_title('Distribution then elimination')
 central.legend()
-drug.plot(times, simulation.trajectory_['patient.Uc'], label='central')
-drug.plot(times, simulation.trajectory_['patient.Up'], label='peripheral')
-drug.plot(times, simulation.trajectory_['patient.Uc'] + simulation.trajectory_['patient.Up'], '--', label='total')
+drug.plot(times, simulation.trajectory_.values('patient.Uc'), label='central')
+drug.plot(times, simulation.trajectory_.values('patient.Up'), label='peripheral')
+drug.plot(
+    times,
+    simulation.trajectory_.values('patient.Uc') + simulation.trajectory_.values('patient.Up'),
+    '--',
+    label='total',
+)
 drug.set_xlabel('time (min)')
 drug.set_ylabel('concentration')
 drug.set_title('Only elimination lowers the total')

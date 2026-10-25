@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=4)
 # three odd modes, which the symmetric pluck excites, should follow cosines at those frequencies.
 
 trajectory = simulation.trajectory_
-heights = np.stack([np.asarray(trajectory[f'mass_{index}.x'])[:, 1] for index in range(N_MASSES)], axis=1)
+heights = np.stack([np.asarray(trajectory.values(f'mass_{index}.x'))[:, 1] for index in range(N_MASSES)], axis=1)
 sites = np.arange(1, N_MASSES + 1)
 times = np.asarray(trajectory.times)
 fig, ax = plt.subplots(figsize=(7, 4))

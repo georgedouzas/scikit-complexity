@@ -44,8 +44,8 @@ rate.set_title('Three steady states')
 rate.legend()
 for c0 in np.linspace(0.02, 1.0, 21):
     run = Simulation(create(MODEL, c=c0), dt=0.5).run(until=100).trajectory_
-    runs.plot(run.times, run['pellet.c'], color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
-runs.plot(simulation.trajectory_.times, simulation.trajectory_['pellet.c'], color='black', linewidth=2)
+    runs.plot(run.times, run.values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
+runs.plot(simulation.trajectory_.times, simulation.trajectory_.values('pellet.c'), color='black', linewidth=2)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)
 runs.set_xlabel('time')

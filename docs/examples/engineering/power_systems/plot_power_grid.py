@@ -53,8 +53,8 @@ for ax, (label, arguments) in zip(axes, grids, strict=True):
         else Simulation(create(MODEL, **arguments), dt=1.0).run(300).trajectory_
     )
     for node in range(8):
-        ax.plot(run.times, run[f'node_{node}.phi_d1'], linewidth=0.8)
-    spread = np.abs([run[f'node_{node}.phi_d1'][-50:] for node in range(8)]).max()
+        ax.plot(run.times, run.values(f'node_{node}.phi_d1'), linewidth=0.8)
+    spread = np.abs([run.values(f'node_{node}.phi_d1')[-50:] for node in range(8)]).max()
     ax.set_title(f'{label}: max |phi\'| {spread:.2f}', fontsize=10)
     ax.set_xlabel('time')
 axes[0].set_ylabel("frequency deviation phi'")

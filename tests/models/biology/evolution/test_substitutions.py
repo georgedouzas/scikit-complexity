@@ -19,7 +19,7 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
         .run(until=5000)
         .trajectory_
     )
-    alleles = trajectory['genome.s'][100:]
+    alleles = trajectory.values('genome.s')[100:]
     visited = np.bincount(((alleles > 0) * 2 ** np.arange(loci)).sum(axis=1).astype(int), minlength=2**loci)
     fields = system.elements[0].values['h']
     couplings = system.interactions[0].couplings
@@ -37,5 +37,5 @@ def test_origin_fixation_walk_climbs_the_landscape():
         .trajectory_
     )
     fields = system.elements[0].values['h']
-    assert trajectory['fitness'][-1] == pytest.approx(1.0 + np.abs(fields).sum(), abs=0.02)
-    assert trajectory['fitness'][-1] > trajectory['fitness'][0]
+    assert trajectory.values('fitness')[-1] == pytest.approx(1.0 + np.abs(fields).sum(), abs=0.02)
+    assert trajectory.values('fitness')[-1] > trajectory.values('fitness')[0]

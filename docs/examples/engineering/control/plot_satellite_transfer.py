@@ -54,8 +54,8 @@ simulation = Simulation(
 # angular momentum 0.7.
 
 trajectory = simulation.trajectory_
-s, theta = trajectory['satellite.s'], trajectory['satellite.theta']
-energy = trajectory['energy']
+s, theta = trajectory.values('satellite.s'), trajectory.values('satellite.theta')
+energy = trajectory.values('energy')
 fig, (orbit, rise) = plt.subplots(1, 2, figsize=(10, 4.5))
 orbit.plot(s * np.cos(theta), s * np.sin(theta), label='satellite')
 orbit.plot(0.0, 0.0, 'o', color='black', label='planet')

@@ -188,7 +188,7 @@ def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
     simulation = Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).run(until=2)
     assert simulation.problem_.backend == 'numba'
-    assert np.allclose(simulation.trajectory_['herds.n'][-1], np.linspace(1.0, 50.0, 5) / 4)
+    assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
 
 
 @pytest.mark.parametrize('period', [None, 24.0])
@@ -261,7 +261,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
     )
     trajectory = Simulation(System(components=[PairComponent('pair')]), backend='numpy').run(until=4).trajectory_
-    assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
+    assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
 
@@ -431,7 +431,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         dt=10.0,
     )
     trajectory = simulation.run(until=1000).trajectory_
-    energy = 0.5 * trajectory['p.v'][:, 0, 0] ** 2 + 0.5 * trajectory['p.x'][:, 0, 0] ** 2
+    energy = 0.5 * trajectory.values('p.v')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
 
 

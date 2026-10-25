@@ -54,7 +54,7 @@ def test_sindy_surrogate_surrogate_follows_trajectory():
     trajectory = _lorenz_trajectory()
     model = SINDySurrogate().prepare(trajectory)
     run = Simulation(model.system_, dt=0.002).run(until=0.5).trajectory_
-    assert np.allclose(run['surrogate.x'], trajectory['lorenz.x'][:251], atol=0.05)
+    assert np.allclose(run.values('surrogate.x'), trajectory.values('lorenz.x')[:251], atol=0.05)
     assert model.training_error_ < 1e-3
 
 
@@ -71,7 +71,7 @@ def test_sindy_surrogate_run_continues_lotka_volterra():
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     trajectory = Simulation(create('lotka_volterra'), solver=solver, dt=0.01).run(until=20.0).trajectory_
     names = ['prey.n', 'predators.n']
-    values = np.column_stack([trajectory[name] for name in names])
+    values = np.column_stack([trajectory.values(name) for name in names])
     model = SINDySurrogate(degree=2, threshold=0.01).prepare(Series(trajectory.times[:1001], values[:1001], names))
     assert isinstance(model.system_, System)
     assert isinstance(model.training_error_, float)

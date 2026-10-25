@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=10, observers=[observer], random_state=0).run
 # The counts of the final aggregate, fitted over the inner half of its radii, should follow a power law with a slope
 # near this value and well below 2, and level off beyond the tips of the aggregate.
 
-final = simulation.trajectory_.agents('walkers', len(simulation.trajectory_) - 1)
+final = simulation.trajectory_.agents('walkers', len(simulation.trajectory_.times) - 1)
 stuck = final.locations[final.values['stuck'] > 0].astype(float)
 distances = np.linalg.norm(stuck - 50, axis=1)
 radii = np.arange(2, int(distances.max()) + 1)

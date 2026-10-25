@@ -48,7 +48,7 @@ def test_signature_analysis_of_agents():
     signature = signature_analysis(trajectory)[0]
     assert signature.kind == DataKind.AGENTS
     assert set(signature.curves) == {'polar order', 'milling order'}
-    assert signature.curves['polar order'][1].size == len(trajectory)
+    assert signature.curves['polar order'][1].size == len(trajectory.times)
 
 
 def test_signature_analysis_of_agents_without_motion():

@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=30)
 # The first species stops growing on the line `n1 + alpha12 n2 = K1` and the second on `alpha21 n1 + n2 = K2`. The
 # lines cross at the coexistence equilibrium, and the trajectory should run into that crossing.
 
-first, second = simulation.trajectory_['first.n'], simulation.trajectory_['second.n']
+first, second = simulation.trajectory_.values('first.n'), simulation.trajectory_.values('second.n')
 K1, K2, alpha12, alpha21 = 100.0, 80.0, 0.5, 0.6
 n1 = (K1 - alpha12 * K2) / (1 - alpha12 * alpha21)
 n2 = (K2 - alpha21 * K1) / (1 - alpha12 * alpha21)

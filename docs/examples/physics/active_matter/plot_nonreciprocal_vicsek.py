@@ -66,7 +66,7 @@ def headings(coupling):
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     ).run(until=300)
-    return run.trajectory_.times, run.trajectory_['heading_a'], run.trajectory_['heading_b']
+    return run.trajectory_.times, run.trajectory_.values('heading_a'), run.trajectory_.values('heading_b')
 
 
 fig, (relative, turning) = plt.subplots(1, 2, figsize=(10, 4))

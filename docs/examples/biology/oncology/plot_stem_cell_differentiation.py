@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=10.0, observers=[observer]).run(until=2000)
 trajectory = simulation.trajectory_
 fig, (lineages, mutation) = plt.subplots(1, 2, figsize=(10, 4))
 for state, name in [('NPr', 'normal progenitors'), ('ND', 'normal differentiated'), ('AD', 'malignant differentiated')]:
-    lineages.semilogy(trajectory.times, trajectory[f'tissue.{state}'].clip(1e-3), label=name)
+    lineages.semilogy(trajectory.times, trajectory.values(f'tissue.{state}').clip(1e-3), label=name)
 lineages.set_xlabel('time')
 lineages.set_ylabel('cells')
 lineages.set_title('The lineages settle under therapy')
@@ -41,7 +41,7 @@ rates, finals = [], []
 for seed in range(8):
     run = create(MODEL, seed=seed)
     rates.append(run.elements[0].m1)
-    finals.append(Simulation(run, dt=10.0).run(until=2000).trajectory_['tissue.AD'][-1])
+    finals.append(Simulation(run, dt=10.0).run(until=2000).trajectory_.values('tissue.AD')[-1])
 mutation.plot(rates, finals, 'o')
 mutation.set_xlabel('mutation rate m1')
 mutation.set_ylabel('final malignant differentiated cells')

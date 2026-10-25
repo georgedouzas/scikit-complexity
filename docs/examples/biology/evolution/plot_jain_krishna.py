@@ -33,9 +33,9 @@ simulation = Simulation(system, dt=5.0, observers=[observer], random_state=1).ru
 # afterwards.
 
 trajectory = simulation.trajectory_
-populated = np.nansum(trajectory['species.x'] > 1e-3, axis=1)
+populated = np.nansum(trajectory.values('species.x') > 1e-3, axis=1)
 eigenvalues, links = [], []
-for frame in range(len(trajectory)):
+for frame in range(len(trajectory.times)):
     snapshot = trajectory.network(frame)
     graph = nx.DiGraph()
     graph.add_nodes_from(snapshot.nodes.tolist())

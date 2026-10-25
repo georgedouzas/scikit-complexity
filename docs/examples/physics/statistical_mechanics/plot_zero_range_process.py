@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=12.0, observers=[observer], random_state=0, b
 # all sites but the largest, after the condensate forms, should follow this law, and the largest occupation should
 # approach `L (rho - rho_c) = 125`.
 
-occupations = simulation.trajectory_['sites.n']
+occupations = simulation.trajectory_.values('sites.n')
 settled = np.sort(occupations[100:], axis=1)[:, :-1].ravel()
 counts = np.arange(0, 12)
 weights = np.exp(gammaln(counts + 1) + gammaln(5) - gammaln(counts + 5))

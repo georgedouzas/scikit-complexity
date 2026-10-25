@@ -20,8 +20,8 @@ def test_credit_switching_concentrates_loans():
         40,
         observables=describe('credit_networks').observables_of(built),
     )
-    assert fast['herfindahl'][-20:].mean() > slow['herfindahl'][-20:].mean()
-    assert fast['credit.spread'][-20:].mean() < slow['credit.spread'][-20:].mean()
+    assert fast.values('herfindahl')[-20:].mean() > slow.values('herfindahl')[-20:].mean()
+    assert fast.values('credit.spread')[-20:].mean() < slow.values('credit.spread')[-20:].mean()
 
 
 def test_credit_net_worth_moves_between_firms_and_banks():
@@ -31,6 +31,6 @@ def test_credit_net_worth_moves_between_firms_and_banks():
         20,
         observables=describe('credit_networks').observables_of(built),
     )
-    total = trajectory['bank_equity'] + trajectory['firm_worth']
-    changes = trajectory['returns'][1:] + trajectory['injected'][1:]
+    total = trajectory.values('bank_equity') + trajectory.values('firm_worth')
+    changes = trajectory.values('returns')[1:] + trajectory.values('injected')[1:]
     np.testing.assert_allclose(np.diff(total), changes, rtol=1e-6, atol=1e-6)

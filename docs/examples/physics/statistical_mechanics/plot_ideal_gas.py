@@ -46,7 +46,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=2.0)
 # `f(v) = (m v / kT) exp(-m v^2 / (2 kT))` at that temperature. Walls reverse velocity components without changing
 # speeds, so the agreement holds at every frame.
 
-velocities = simulation.trajectory_['gas.v'][-1]
+velocities = simulation.trajectory_.values('gas.v')[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
 edges, density = histogram(speeds, bins=25)

@@ -17,4 +17,4 @@ def test_generalized_lotka_volterra_reaches_coexistence():
         dt=0.5,
         solver=SYSTEMS_PRECISE,
     )
-    assert np.allclose(trajectory['species.x'][-1], -np.linalg.solve(a, b), rtol=1e-4)
+    assert np.allclose(trajectory.values('species.x')[-1], -np.linalg.solve(a, b), rtol=1e-4)

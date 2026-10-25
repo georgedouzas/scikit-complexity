@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=100)
 # Near the threshold the period of the oscillation is `4 tau`, and it lengthens as `r tau` grows. The time between
 # successive peaks of the settled oscillation should be somewhat above `4 tau = 8`, and the same at every peak.
 
-times, population = simulation.trajectory_.times, simulation.trajectory_['population.n']
+times, population = simulation.trajectory_.times, simulation.trajectory_.values('population.n')
 peaks, _ = find_peaks(population)
 periods = np.diff(times[peaks])
 fig, (series, period) = plt.subplots(1, 2, figsize=(10, 4))

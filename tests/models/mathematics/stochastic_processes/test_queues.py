@@ -11,6 +11,6 @@ def test_birth_death_queue_stationary_distribution():
     rho = 0.5
     system = birth_death_queue(200, arrival_rate=rho, service_rate=1.0)
     simulation = Simulation(system, dt=0.5, random_state=0, backend='numba').run(until=2000)
-    lengths = simulation.trajectory_['queues.n'][100:]
+    lengths = simulation.trajectory_.values('queues.n')[100:]
     occupation = np.array([np.mean(lengths == n) for n in range(6)])
     assert np.all(np.abs(occupation - (1 - rho) * rho ** np.arange(6)) < 0.01)

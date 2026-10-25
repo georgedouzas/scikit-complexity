@@ -119,7 +119,7 @@ def run_task(task: Task) -> RunResult:
         if callable(output):
             scalars.update(_scalars(getattr(output, '__name__', 'output'), output(trajectory)))
             continue
-        values = np.asarray(trajectory[output])
+        values = np.asarray(trajectory.values(output))
         series[output] = values[keep]
         if values.ndim == 1 and values.size:
             scalars[output] = values[-1]

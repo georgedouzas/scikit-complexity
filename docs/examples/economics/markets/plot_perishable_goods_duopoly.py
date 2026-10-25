@@ -61,11 +61,11 @@ for temperature in temperatures:
     run = Simulation(model_system, random_state=1, observables=describe(MODEL).observables_of(model_system)).run(
         until=400,
     )
-    asymmetries.append(np.abs(run.trajectory_['m'][-100:]).mean())
+    asymmetries.append(np.abs(run.trajectory_.values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['m'])
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('m'))
 series.axhline(mean_field_asymmetry(0.1), color='black', linestyle='--', label='+-m* of mean field')
 series.axhline(-mean_field_asymmetry(0.1), color='black', linestyle='--')
 series.set_xlabel('time')

@@ -86,7 +86,7 @@ def test_tangled_nature_population_persists_and_diversifies():
     """Test that the Tangled Nature population persists and mutants spread over several types."""
     trajectory = _run_until(tangled_nature(random_state=1), 20, random_state=0)
     final = trajectory.agents('organisms', 20).values['trait']
-    assert trajectory['organisms.count'].min() > 0
+    assert trajectory.values('organisms.count').min() > 0
     assert len(np.unique(final)) > 3
 
 

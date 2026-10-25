@@ -35,10 +35,10 @@ fig, ax = plt.subplots(figsize=(8, 4))
 for w in (0.0, 1.0, 4.0):
     trajectory = Simulation(create(MODEL, w=w), dt=0.25, random_state=1).run(until=30).trajectory_
     snapshot = trajectory.network(-1)
-    infected = np.nan_to_num(trajectory['hosts.i'][-1])
+    infected = np.nan_to_num(trajectory.values('hosts.i')[-1])
     healthy = np.mean((infected[snapshot.sources] == 0) & (infected[snapshot.targets] == 0))
     label = f'w = {w}: S-S edges {healthy:.0%}'
-    ax.plot(trajectory.times, np.nanmean(trajectory['hosts.i'], axis=1), label=label)
+    ax.plot(trajectory.times, np.nanmean(trajectory.values('hosts.i'), axis=1), label=label)
 ax.set_xlabel('time')
 ax.set_ylabel('prevalence')
 ax.set_title('Rewiring away from infected neighbours suppresses the epidemic')

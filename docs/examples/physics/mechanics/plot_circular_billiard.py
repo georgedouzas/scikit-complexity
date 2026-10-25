@@ -29,8 +29,8 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=20)
 # the distance `|L| / |v|` from the centre. The distance of the particle from the centre should never drop below
 # that radius, and its histogram should pile up at the caustic, where the chords are tangent.
 
-x, y = np.ravel(simulation.trajectory_['particle.x']), np.ravel(simulation.trajectory_['particle.y'])
-vx, vy = np.ravel(simulation.trajectory_['particle.vx']), np.ravel(simulation.trajectory_['particle.vy'])
+x, y = np.ravel(simulation.trajectory_.values('particle.x')), np.ravel(simulation.trajectory_.values('particle.y'))
+vx, vy = np.ravel(simulation.trajectory_.values('particle.vx')), np.ravel(simulation.trajectory_.values('particle.vy'))
 momentum = x * vy - y * vx
 caustic = abs(momentum[0]) / np.hypot(0.4, 1.0)
 fig, (conserved, radii) = plt.subplots(1, 2, figsize=(10, 4))

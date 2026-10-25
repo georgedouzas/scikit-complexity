@@ -48,7 +48,7 @@ random = Simulation(create(MODEL, n_agents=200, strategy='random', random_state=
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times
 for label, run in [('random', random), ('crowd avoiding', simulation)]:
-    values = run.trajectory_['restaurants.utilization']
+    values = run.trajectory_.values('restaurants.utilization')
     ax.plot(times, values, lw=0.8, label=f'{label}, mean {np.nanmean(values[20:]):.3f}')
 ax.axhline(1 - 1 / np.e, color='C0', linestyle='--', label='1 - 1/e')
 ax.axhline(0.8, color='C1', linestyle='--', label='0.8')

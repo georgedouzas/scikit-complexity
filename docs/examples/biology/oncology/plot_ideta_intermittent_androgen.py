@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=600)
 # it turns.
 
 trajectory = simulation.trajectory_
-times, psa = trajectory.times, trajectory['tumour.AD'] + trajectory['tumour.AI']
+times, psa = trajectory.times, trajectory.values('tumour.AD') + trajectory.values('tumour.AI')
 fig, (level, androgen) = plt.subplots(1, 2, figsize=(10, 4))
 level.plot(times, psa, label='PSA')
 level.axhline(15.0, color='black', linestyle='--', label='upper threshold')
@@ -41,7 +41,7 @@ level.set_xlabel('time (days)')
 level.set_ylabel('PSA (ng/mL)')
 level.set_title('Therapy on (red) and off (green)')
 level.legend()
-androgen.plot(times, trajectory['tumour.U'])
+androgen.plot(times, trajectory.values('tumour.U'))
 androgen.set_xlabel('time (days)')
 androgen.set_ylabel('serum androgen (nmol/L)')
 androgen.set_title('The androgen falls during therapy')

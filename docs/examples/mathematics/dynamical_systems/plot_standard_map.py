@@ -26,7 +26,7 @@ MODEL = 'standard_map'
 def orbits(K, starts, until):
     """Return the angle and the unwrapped momentum of the orbits from several starting points."""
     runs = [Simulation(create(MODEL, theta=theta, p=p, K=K), dt=1).run(until=until).trajectory_ for theta, p in starts]
-    return np.array([run['map.theta'] for run in runs]), np.array([run['map.p'] for run in runs])
+    return np.array([run.values('map.theta') for run in runs]), np.array([run.values('map.p') for run in runs])
 
 
 # Every view shows the whole run, not the default window that follows the latest frame.

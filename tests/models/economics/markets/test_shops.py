@@ -55,7 +55,7 @@ def test_interest_rate_rule():
     )
     observables = [Observable('price_level', group='shops', variable='price')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=40).trajectory_
-    rate, inflation = trajectory['bank.rate'], trajectory['bank.inflation']
+    rate, inflation = trajectory.values('bank.rate'), trajectory.values('bank.inflation')
     changed = np.diff(rate) != 0
     assert changed.any()
     assert not changed.all()
@@ -67,6 +67,6 @@ def test_digital_market_closes_shops_and_lowers_prices():
     """Test that shopping online leaves fewer shops, a larger leader, and lower prices than shopping in person."""
     local = run('shops', online=0.0, settings={'until': 100}).trajectory_
     digital = run('shops', online=1.0, settings={'until': 100}).trajectory_
-    assert digital['open_shops'][-1] < local['open_shops'][-1]
-    assert digital['concentration'][-1] > 2 * local['concentration'][-1]
-    assert digital['mean_price'][50:].mean() < local['mean_price'][50:].mean()
+    assert digital.values('open_shops')[-1] < local.values('open_shops')[-1]
+    assert digital.values('concentration')[-1] > 2 * local.values('concentration')[-1]
+    assert digital.values('mean_price')[50:].mean() < local.values('mean_price')[50:].mean()

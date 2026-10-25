@@ -13,7 +13,7 @@ from ..conftest import _run_observed
 def test_kuramoto_on_networks_synchronizes_above_the_critical_coupling(K, synchronized):
     """Test that oscillators on a small-world network stay incoherent at weak coupling and synchronize at strong."""
     order = np.asarray(
-        _run_observed('kuramoto_on_networks', kuramoto_on_networks(200, K=K), 40.0, 0.5)['order'],
+        _run_observed('kuramoto_on_networks', kuramoto_on_networks(200, K=K), 40.0, 0.5).values('order'),
     )
     assert order[0] < 0.15
     assert bool(order[-10:].mean() > 0.8) is synchronized
@@ -39,7 +39,7 @@ def test_coupled_maps_on_networks_synchronize_at_strong_coupling(epsilon, synchr
     """Test that chaotic logistic maps on a network fall onto one orbit at strong coupling and stay apart at weak."""
     system = coupled_map_lattices_on_networks(100, epsilon=epsilon)
     spread = np.asarray(
-        _run_observed('coupled_map_lattices_on_networks', system, 200.0, 1.0)['spread'],
+        _run_observed('coupled_map_lattices_on_networks', system, 200.0, 1.0).values('spread'),
     )
     assert spread[0] > 0.05
     assert bool(spread[-10:].mean() < 1e-6) is synchronized

@@ -33,8 +33,8 @@ fig, ax = plt.subplots(figsize=(6, 5))
 for first in grid:
     for second in grid:
         trajectory = Simulation(create(MODEL, proteins=(first, second)), dt=0.5).run(until=100).trajectory_
-        winner = 'tab:blue' if trajectory['gene_0.p'][-1] > trajectory['gene_1.p'][-1] else 'tab:orange'
-        ax.plot(trajectory['gene_0.p'], trajectory['gene_1.p'], color=winner, linewidth=0.6, alpha=0.7)
+        winner = 'tab:blue' if trajectory.values('gene_0.p')[-1] > trajectory.values('gene_1.p')[-1] else 'tab:orange'
+        ax.plot(trajectory.values('gene_0.p'), trajectory.values('gene_1.p'), color=winner, linewidth=0.6, alpha=0.7)
 ax.plot([0, 120], [0, 120], ':', color='black', label='equal start')
 ax.set_xlabel('protein 0')
 ax.set_ylabel('protein 1')

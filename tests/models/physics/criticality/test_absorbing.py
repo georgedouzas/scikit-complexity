@@ -13,7 +13,7 @@ def _stationary_density(energy):
     trajectory = (
         Simulation(system, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
     )
-    return float(np.asarray(trajectory['neurons.rho'])[-10:].mean())
+    return float(np.asarray(trajectory.values('neurons.rho'))[-10:].mean())
 
 
 def test_directed_percolation_langevin_has_an_absorbing_threshold():

@@ -29,7 +29,7 @@ def test_vibration_energy_harvester_steady_response():
         ],
     )
     amplitude = abs(np.linalg.solve(stiffness, [k1 * A, 0.0])[1])
-    sprung = trajectory['harvester.y2'][-1000:]
+    sprung = trajectory.values('harvester.y2')[-1000:]
     assert np.ptp(sprung) / 2 == pytest.approx(amplitude, rel=0.01)
-    stroke = trajectory['harvester.y2'] - trajectory['harvester.y1']
-    assert trajectory['voltage'] == pytest.approx(10.0 * 4.0e-10 * 2.0e4 * stroke / 1.0e-8)
+    stroke = trajectory.values('harvester.y2') - trajectory.values('harvester.y1')
+    assert trajectory.values('voltage') == pytest.approx(10.0 * 4.0e-10 * 2.0e4 * stroke / 1.0e-8)

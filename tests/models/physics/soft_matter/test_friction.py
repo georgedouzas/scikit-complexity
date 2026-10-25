@@ -28,7 +28,7 @@ def test_shaken_spring_block_blocked_configurations():
         system = shaken_spring_block(50, amplitude=amplitude, relax_time=relax_time)
         simulation = Simulation(system, dt=period, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
         trajectory = simulation.run(until=12 * period).trajectory_
-        positions, velocities = trajectory['chain.x'][1:], trajectory['chain.v'][1:]
+        positions, velocities = trajectory.values('chain.x')[1:], trajectory.values('chain.v')[1:]
         assert np.all(np.abs(velocities) <= 0.02)
         assert np.all(np.abs(np.diff(positions, n=2, axis=1)) < 1.0)
         statistics.append(_elongation_statistics(positions))
@@ -41,6 +41,6 @@ def test_shaken_spring_block_independent_anchored_blocks():
     """Test that independent blocks held by springs stop inside the blocked interval |x| < mu_s / anchor."""
     system = shaken_spring_block(100, k=0.0, anchor=2.0, amplitude=2.0, relax_time=20.0)
     simulation = Simulation(system, dt=22.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=110)
-    positions = simulation.trajectory_['chain.x'][1:]
+    positions = simulation.trajectory_.values('chain.x')[1:]
     assert np.all(np.abs(positions) < 0.5)
     assert np.abs(positions).max() > 0.3

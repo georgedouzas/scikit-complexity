@@ -48,7 +48,7 @@ left.axvline(np.mean(degrees(graph)), color='black', linestyle=':', label='mean 
 left.set_yscale('log')
 left.set_xlabel('degree k')
 left.set_ylabel('P(degree >= k)')
-left.set_title(f"Degree distribution, modularity {trajectory['modularity'][-1]:.2f}")
+left.set_title(f"Degree distribution, modularity {trajectory.values('modularity')[-1]:.2f}")
 left.legend()
 right.bar(list(scores.zscores), list(scores.zscores.values()))
 right.axhline(0, color='black', linewidth=0.8)

@@ -46,11 +46,13 @@ simulation = Simulation(create(MODEL, n_balls=BALLS), dt=1, observers=[observer]
 steps = np.arange(301)
 urns = np.array(
     [
-        Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=seed).run(300).trajectory_['urn.n']
+        Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=seed).run(300).trajectory_.values('urn.n')
         for seed in range(200)
     ],
 )
-counts = np.asarray(Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).run(20000).trajectory_['urn.n'])
+counts = np.asarray(
+    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).run(20000).trajectory_.values('urn.n')
+)
 relaxed = counts[400:].astype(int)
 values = np.arange(BALLS + 1)
 

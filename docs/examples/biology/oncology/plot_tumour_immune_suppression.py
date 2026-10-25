@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).run
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for antigenicity in (1e-5, 1e-4, 1e-3, 1e-2, 1.0, 100.0):
     trajectory = Simulation(create(MODEL, alpha_a=antigenicity), dt=1.0, solver=solver).run(until=200).trajectory_
-    tumour.semilogy(trajectory.times, trajectory['site.A'], label=f'alpha_a = {antigenicity:g}')
+    tumour.semilogy(trajectory.times, trajectory.values('site.A'), label=f'alpha_a = {antigenicity:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells')
 tumour.set_title('Weakly antigenic tumours escape')

@@ -59,7 +59,7 @@ spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
     run = Simulation(create(MODEL, graph=graph, xi=share * critical, x=0.01), dt=0.5).run(until=100)
-    totals.semilogy(run.trajectory_.times, run.trajectory_['cells.x'].sum(axis=1), label=f'xi = {share} xi_crit')
+    totals.semilogy(run.trajectory_.times, run.trajectory_.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')
 totals.set_title('Decay below and growth above the threshold')

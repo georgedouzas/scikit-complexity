@@ -38,7 +38,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 def energy_and_magnetization(up):
     """Return the energy per site and the late mean absolute magnetization of a run of the automaton."""
     run = Simulation(create(MODEL, shape=(64, 64), up=up, random_state=1), dt=1).run(until=3000)
-    spins = run.trajectory_['spins.spin'].reshape(-1, 64, 64)
+    spins = run.trajectory_.values('spins.spin').reshape(-1, 64, 64)
     bonds = spins * np.roll(spins, 1, axis=1) + spins * np.roll(spins, 1, axis=2)
     return -bonds.mean(axis=(1, 2))[-1], np.abs(spins[1000:].mean(axis=(1, 2))).mean()
 

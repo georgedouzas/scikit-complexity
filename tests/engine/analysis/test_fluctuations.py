@@ -30,7 +30,7 @@ def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
 def test_fano_factor_poisson_and_bursty_production():
     """Test that Gillespie production counts give a Fano factor near 1 and bursty mRNA copies near 5."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 50_000.0, 'random_state': 0}).trajectory_
-    counts = np.diff(trajectory['counters.count'][:, 0][::10])
+    counts = np.diff(trajectory.values('counters.count')[:, 0][::10])
     assert fano_factor(counts) == pytest.approx(1, abs=0.05)
     assert fano_factor(_bursty_expression(np.random.default_rng(0), 20_000)) == pytest.approx(5, abs=0.3)
 

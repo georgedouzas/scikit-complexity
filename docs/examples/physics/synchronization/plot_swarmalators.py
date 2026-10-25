@@ -43,15 +43,17 @@ simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[obs
 # 1, the static phase wave. Across the phase coupling `K`, the phase coherence should reach 1 for `K > 0`, the
 # synchronized disk, while `S±` and the coherence should all stay small for negative `K`, the asynchronous disk.
 
-positions = np.asarray(simulation.trajectory_['units.x'])
-phases = np.asarray(simulation.trajectory_['units.theta'])
+positions = np.asarray(simulation.trajectory_.values('units.x'))
+phases = np.asarray(simulation.trajectory_.values('units.theta'))
 history = np.array([order_parameters(position, phase) for position, phase in zip(positions, phases, strict=True)])
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
     run = Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1)).run(until=60)
     final.append(
-        order_parameters(np.asarray(run.trajectory_['units.x'])[-1], np.asarray(run.trajectory_['units.theta'])[-1]),
+        order_parameters(
+            np.asarray(run.trajectory_.values('units.x'))[-1], np.asarray(run.trajectory_.values('units.theta'))[-1]
+        ),
     )
 final = np.array(final)
 

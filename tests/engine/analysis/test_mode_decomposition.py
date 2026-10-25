@@ -40,7 +40,7 @@ def _linear_trajectory():
 def _linear_series(trajectory, samples):
     """Return the series of the first samples of the states of the linear trajectory."""
     names = ['linear.x', 'linear.y', 'linear.z']
-    values = np.column_stack([trajectory[name][:samples] for name in names])
+    values = np.column_stack([trajectory.values(name)[:samples] for name in names])
     return Series(trajectory.times[:samples], values, names)
 
 
@@ -61,7 +61,7 @@ def test_dmd_surrogate_surrogate_validates_under_continuous_time():
     assert isinstance(resolve_solver(compile_system(decomposition.system_), 'auto'), ScipyODESolver)
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     run = Simulation(decomposition.system_, solver=solver, dt=0.05).run(until=10.0).trajectory_
-    assert np.allclose(run['surrogate.y'], trajectory['linear.y'], atol=1e-6)
+    assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
 
 
 def test_dmd_surrogate_run_continues_trajectory():
@@ -72,7 +72,7 @@ def test_dmd_surrogate_run_continues_trajectory():
     assert decomposition.states_ == ['x', 'y', 'z']
     forecast = decomposition.run(50)
     assert forecast.shape == (50, 3)
-    assert np.allclose(forecast[:, 2], trajectory['linear.z'][101:151], atol=1e-8)
+    assert np.allclose(forecast[:, 2], trajectory.values('linear.z')[101:151], atol=1e-8)
 
 
 def test_dmd_surrogate_run_matches_simulated_system():

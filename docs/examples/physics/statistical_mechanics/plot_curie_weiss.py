@@ -52,10 +52,10 @@ measured = []
 for temperature in temperatures:
     ordered = create(MODEL, n_spins=1000, temperature=temperature, initial='up')
     run = Simulation(ordered, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(ordered)).run(until=40)
-    measured.append(np.abs(run.trajectory_['magnetization'][10:]).mean())
+    measured.append(np.abs(run.trajectory_.values('magnetization')[10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['magnetization'])
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('magnetization'))
 series.axhline(mean_field_magnetization(0.5), color='black', linestyle='--', label='root of m = tanh(2 m)')
 series.set_xlabel('time')
 series.set_ylabel('magnetization')

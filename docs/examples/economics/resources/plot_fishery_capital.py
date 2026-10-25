@@ -36,7 +36,7 @@ improved = Simulation(create(MODEL, yield_table=TECHNOLOGY), dt=1.0).run(until=U
 runs = {'catch falls with the stock': simulation.trajectory_, 'better technology': improved}
 fig, (plane, fleet) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, trajectory) in enumerate(runs.items()):
-    resource, capital = trajectory['fishery.resource'], trajectory['fishery.capital']
+    resource, capital = trajectory.values('fishery.resource'), trajectory.values('fishery.capital')
     plane.plot(resource, capital, color=f'C{index}', label=name)
     plane.plot(resource[-1], capital[-1], 'o', color=f'C{index}')
     fleet.plot(trajectory.times, capital, color=f'C{index}', label=name)

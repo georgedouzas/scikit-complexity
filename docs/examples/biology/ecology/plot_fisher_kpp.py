@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=80)
 # approaches `2 sqrt(r D) = 2` once its shape has settled.
 
 trajectory = simulation.trajectory_
-density = trajectory['line.u']
+density = trajectory.values('line.u')
 positions = np.arange(density.shape[1]) * 0.25
 front = np.array([positions[np.argmax(row < 0.5)] for row in density])
 moving = (trajectory.times > 20) & (front < positions[-1] - 10)

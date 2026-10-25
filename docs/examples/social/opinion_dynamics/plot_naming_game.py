@@ -35,7 +35,7 @@ def consensus_games(n_agents, seed):
     """Return the number of games, steps times agents, until every inventory holds the same single word."""
     run = Simulation(create(MODEL, n_agents=n_agents), random_state=seed).run(until=200)
     trajectory = run.trajectory_
-    for frame in range(1, len(trajectory)):
+    for frame in range(1, len(trajectory.times)):
         words = trajectory.agents('namers', frame).values['words']
         if np.all(words.sum(axis=1) == 1) and np.count_nonzero(words.sum(axis=0)) == 1:
             return frame * n_agents

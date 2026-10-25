@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=RK4Solver(dt=0.5), dt=2.5, observers=[obs
 
 trajectory = simulation.trajectory_
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory['walkers.x'][1:] ** 2, axis=-1), axis=1)
+squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
 late = times > 50
 slope = np.polyfit(np.log(times[late]), np.log(squared[late]), 1)[0]
 turns = [
@@ -57,7 +57,7 @@ displacement.set_xlabel('time t')
 displacement.set_ylabel('ensemble mean squared displacement')
 displacement.set_title('Superdiffusion, <x^2> ~ t^(3 - sigma)')
 displacement.legend()
-path.plot(trajectory['walkers.x'][:, 0, 0], trajectory['walkers.x'][:, 0, 1])
+path.plot(trajectory.values('walkers.x')[:, 0, 0], trajectory.values('walkers.x')[:, 0, 1])
 path.plot([0.0], [0.0], 'o', color='black')
 path.set_xlabel('x')
 path.set_ylabel('y')

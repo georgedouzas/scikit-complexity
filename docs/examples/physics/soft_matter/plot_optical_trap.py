@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 # `gamma / k = 4` of the soft axis, the positions along each axis should follow these Gaussians, twice as wide along
 # the soft axis.
 
-positions = simulation.trajectory_['beads.x'][150:]
+positions = simulation.trajectory_.values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()

@@ -58,7 +58,7 @@ class Trajectory:
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
-        >>> trajectory['a.n'].round(3).tolist()
+        >>> trajectory.values('a.n').round(3).tolist()
         [1.0, 1.649, 2.718]
     """
 
@@ -85,10 +85,6 @@ class Trajectory:
         self.events = list(events)
         self.structures = structures
 
-    def __len__(self) -> int:
-        """Return the number of recorded frames."""
-        return len(self.times)
-
     def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
         topology = self.problem.topology if isinstance(self.problem, Problem) else None
@@ -98,7 +94,7 @@ class Trajectory:
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def __getitem__(self, name: str) -> npt.NDArray[Any]:
+    def values(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -153,10 +149,10 @@ class Trajectory:
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
             >>> trajectory = Simulation(ensemble, dt=1).run(until=2).trajectory_
-            >>> float(trajectory.member(1, compile_system(logistic_map()))['map.x'][0])
+            >>> float(trajectory.member(1, compile_system(logistic_map())).values('map.x')[0])
             0.2
         """
-        frames = len(self)
+        frames = len(self.times)
         states = np.zeros((frames, problem.states.size))
         parameters = np.zeros((frames, problem.parameters.size))
         for layout, source, target, values in (
@@ -175,7 +171,7 @@ class Trajectory:
 
     @property
     def names(self) -> list[str]:
-        """Names of the states, parameters, reporters, and observables that indexing the trajectory reads."""
+        """Names of the states, parameters, reporters, and observables that `values` reads."""
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
@@ -198,7 +194,7 @@ class Trajectory:
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """
-        frames = [self.agents(group, frame) for frame in range(len(self))]
+        frames = [self.agents(group, frame) for frame in range(len(self.times))]
         return [
             np.asarray(snapshot.locations) if snapshot.locations is not None else np.zeros((0, 0))
             for snapshot in frames
@@ -223,7 +219,7 @@ class Trajectory:
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self[name].reshape(len(self), *shape)
+        return self.values(name).reshape(len(self.times), *shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshot:
         """Return the agents of a group alive at a frame, with their ids, states, and locations.

@@ -41,7 +41,7 @@ for radius in [0.9, 0.7, 0.5]:
     pulled = {'right.r': lambda time, value=radius: 1.0 if time < 5.0 else value}
     run = Simulation(create(MODEL, omega=1.0, r=1.0), dt=0.02, schedule=pulled).run(until=10)
     times = np.asarray(run.trajectory_.times)
-    angle = np.unwrap(np.ravel(run.trajectory_['right.theta']))
+    angle = np.unwrap(np.ravel(run.trajectory_.values('right.theta')))
     line = ax.plot(times[1:], np.diff(angle) / np.diff(times), label=f'r = {radius} after t = 5')[0]
     ax.hlines(1 / radius**2, 5, 10, linestyles='--', colors=line.get_color())
 ax.set_xlabel('time')

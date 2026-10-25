@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).ru
 # `b1 / d1` as its success ratio, of mean `b0 / (d1 - b1) = 10`. Pooling the abundances of the last half of the run,
 # the histogram should follow it.
 
-abundances = simulation.trajectory_['species.n'][50:].ravel()
+abundances = simulation.trajectory_.values('species.n')[50:].ravel()
 b0, b1, d1 = 1.0, 0.9, 1.0
 counts = np.arange(abundances.max() + 1)
 law = nbinom.pmf(counts, b0 / b1, 1 - b1 / d1)

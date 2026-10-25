@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=30)
 # The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`. In the phase plane the generations should
 # spiral outwards from it, until a crash leaves almost no hosts and the parasitoids starve.
 
-hosts, parasitoids = simulation.trajectory_['hosts.n'], simulation.trajectory_['parasitoids.n']
+hosts, parasitoids = simulation.trajectory_.values('hosts.n'), simulation.trajectory_.values('parasitoids.n')
 before_crash = np.cumprod((hosts > 1) & (parasitoids > 1)).astype(bool)
 hosts, parasitoids = hosts[before_crash], parasitoids[before_crash]
 k, a, c = 2.0, 0.05, 1.0

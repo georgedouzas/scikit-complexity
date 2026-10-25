@@ -49,7 +49,7 @@ observer.recording_.flush()
 # dimension `D = log 4 / log 3`, about 1.262, over boxes larger than its segments.
 
 generations = trajectory.times
-lengths = trajectory['koch.length']
+lengths = trajectory.values('koch.length')
 grid = trajectory.structure('koch', 5).raster(2048)
 sizes = np.array([16, 32, 64, 128, 256])
 counts = np.array([grid.reshape(2048 // size, size, 2048 // size, size).any(axis=(1, 3)).sum() for size in sizes])

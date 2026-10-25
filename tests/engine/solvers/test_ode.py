@@ -131,7 +131,7 @@ def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
     with pytest.warns(UserWarning, match='LSODA stalled'):
         simulation = Simulation(tubs, dt=1).run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
-    np.testing.assert_allclose(np.ravel(simulation.trajectory_['tubs.water'])[:5], [20, 15, 10, 5, 0], atol=1e-6)
+    np.testing.assert_allclose(np.ravel(simulation.trajectory_.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-6)
     with pytest.raises(SolverError, match='stalled'):
         Simulation(tubs, dt=1, solver=ScipyODESolver(method='LSODA')).run(until=6)
 
@@ -146,7 +146,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     simulation = Simulation(System(components=[ForcedComponent('oscillator')]), dt=0.01).run(until=5)
     times = simulation.trajectory_.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
-    np.testing.assert_allclose(simulation.trajectory_['oscillator.x'], expected, atol=1e-6)
+    np.testing.assert_allclose(simulation.trajectory_.values('oscillator.x'), expected, atol=1e-6)
 
 
 def _decay():
@@ -171,16 +171,16 @@ def test_scipy_ode_keeps_integrator_across_frames():
     calls.clear()
     p = problem.initial_parameters
     solve_ivp(lambda t, x: counted(t, x, p), (0.0, 10.0), problem.initial_state, rtol=1e-6, atol=1e-9)
-    assert len(trajectory) == 1001
+    assert len(trajectory.times) == 1001
     assert frames <= 2 * len(calls)
-    assert trajectory['a.n'][-1] == pytest.approx(np.exp(-10.0), rel=1e-4)
+    assert trajectory.values('a.n')[-1] == pytest.approx(np.exp(-10.0), rel=1e-4)
 
 
 def test_scipy_ode_restarts_on_parameter_change():
     """Test that a decay rate set to zero at time 5 keeps the state constant from then on."""
     simulation = Simulation(_decay(), dt=0.01).run(until=5)
     simulation.update_parameters({'g.r': 0.0})
-    values = simulation.extend(until=10).trajectory_['a.n']
+    values = simulation.extend(until=10).trajectory_.values('a.n')
     assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
     assert np.all(values[500:] == values[500])
 

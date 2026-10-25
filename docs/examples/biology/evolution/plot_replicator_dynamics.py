@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=30)
 fig, ax = plt.subplots(figsize=(7, 4))
 for start in [0.05, 0.3, 0.6, 0.95]:
     trajectory = Simulation(create(MODEL, x=[start, 1 - start]), dt=0.1).run(until=30).trajectory_
-    ax.plot(trajectory.times, trajectory['population.x'][:, 0], label=f'{start:.0%} hawks at the start')
+    ax.plot(trajectory.times, trajectory.values('population.x')[:, 0], label=f'{start:.0%} hawks at the start')
 ax.axhline(2 / 3, color='black', linestyle='--', label='V / C')
 ax.set_xlabel('time')
 ax.set_ylabel('share of hawks')

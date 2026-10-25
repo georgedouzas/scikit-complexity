@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
 simulation = Simulation(create(MODEL), dt=0.01, observers=[observer]).run(until=50)
-points = np.column_stack([simulation.trajectory_[f'lorenz.{state}'] for state in 'xyz'])
+points = np.column_stack([simulation.trajectory_.values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
 
@@ -53,7 +53,7 @@ observer.recording_.flush()
 # Lorenz showed that each maximum of `z` is almost a function of the previous one. Plotting successive maxima of the
 # simulated `z` against each other should give a thin tent-shaped curve, the signature of chaos on the attractor.
 
-z = simulation.trajectory_['lorenz.z']
+z = simulation.trajectory_.values('lorenz.z')
 maxima = z[find_peaks(z)[0]]
 fig, ax = plt.subplots(figsize=(5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=4)

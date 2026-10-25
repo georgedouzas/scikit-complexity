@@ -386,7 +386,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     trajectory, problem = simulation.trajectory_, simulation.problem_
     element = next(item for item in problem.elements if item.path == 'nodes')
     visual, recording = SiteVisual().prepare(element, problem), _AllLogs()
-    for index in range(len(trajectory)):
+    for index in range(len(trajectory.times)):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem)
         visual.run(frame, recording)
     nodes = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphNodes']

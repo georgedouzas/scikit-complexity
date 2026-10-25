@@ -51,7 +51,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=200)
 totals = {}
 for strategy in STRATEGIES:
     trajectory = Simulation(create(MODEL, strategy=strategy), dt=0.1).run(until=200).trajectory_
-    totals[strategy] = [trajectory[f'organism.{kind}_cost'][-1] for kind in COSTS]
+    totals[strategy] = [trajectory.values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))
 for index, kind in enumerate(COSTS):
@@ -62,7 +62,7 @@ bars.set_ylabel('cost over 20 episodes')
 bars.set_title('Total cost falls with each level of adaptivity')
 bars.legend()
 times = simulation.trajectory_.times
-excursion = simulation.trajectory_['organism.e']
+excursion = simulation.trajectory_.values('organism.e')
 episodes = np.arange(1.0, 200.0, 10.0)
 maxima = [excursion[(times >= start) & (times < start + 10)].max() for start in episodes]
 peaks.plot(np.arange(1, len(maxima) + 1), maxima, 'o-')

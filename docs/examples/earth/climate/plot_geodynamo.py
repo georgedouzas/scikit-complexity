@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=600)
 
 run = Simulation(create(MODEL), dt=0.5).run(until=20000).trajectory_
 settled = run.times > 500
-times, Q, D = run.times[settled], run['dynamo.Q'][settled], run['dynamo.D'][settled]
+times, Q, D = run.times[settled], run.values('dynamo.Q')[settled], run.values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5
 polarity = np.sign(D[strong])
 flips = times[strong][1:][polarity[1:] != polarity[:-1]]

@@ -39,7 +39,7 @@ def _run_monitored(system: System, dt: float, until: float) -> Trajectory:
 
 def _peak(trajectory: Trajectory, name: str) -> float:
     """Return the time at which a recorded series peaks."""
-    return float(np.asarray(trajectory.times)[np.argmax(trajectory[name])])
+    return float(np.asarray(trajectory.times)[np.argmax(trajectory.values(name))])
 
 
 def _series(name: str, until: float, **arguments: Any) -> Trajectory:  # noqa: ANN401

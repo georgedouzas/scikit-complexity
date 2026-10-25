@@ -138,7 +138,7 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
         "    'valid': validate(system).ok,\n"
         "    'form': compile_system(system).form is DECAYING,\n"
         "    'solver': type(simulation.stepper_) is ExactDecaySolver,\n"
-        "    'final': float(simulation.trajectory_['a.n'][-1]),\n"
+        "    'final': float(simulation.trajectory_.values('a.n')[-1]),\n"
         '}))\n',
     )
     assert found == {'valid': True, 'form': True, 'solver': True, 'final': pytest.approx(2 * 0.36787944117144233)}

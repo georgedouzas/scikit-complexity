@@ -43,7 +43,7 @@ alone = Simulation(create(MODEL, Us=0.0), dt=0.25).run(until=40).trajectory_
 
 def total(run):
     """Return the total tumour volume of a run."""
-    return sum(run[f'tumour.A{index}'] for index in range(1, 7))
+    return sum(run.values(f'tumour.A{index}') for index in range(1, 7))
 
 
 fig, (bars, volume) = plt.subplots(1, 2, figsize=(10, 4))

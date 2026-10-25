@@ -34,7 +34,7 @@ couplings = np.linspace(0.0, 1.0, 41)
 differences = []
 for coupling in couplings:
     run = Simulation(create(MODEL, x1=0.3, x2=0.6, kappa=coupling), dt=1).run(until=200)
-    gap = np.abs(np.ravel(run.trajectory_['first.x']) - np.ravel(run.trajectory_['second.x']))
+    gap = np.abs(np.ravel(run.trajectory_.values('first.x')) - np.ravel(run.trajectory_.values('second.x')))
     differences.append(gap[-50:].mean())
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(differences, 1e-17), 'o-')

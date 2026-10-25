@@ -40,7 +40,7 @@ responses = []
 for intensity in intensities:
     run = Simulation(create(MODEL, D=intensity), solver=solver, dt=1.0, random_state=1).run(until=4000)
     times = run.trajectory_.times
-    well = np.sign(run.trajectory_['particle.x'])
+    well = np.sign(run.trajectory_.values('particle.x'))
     responses.append(2 * np.abs(np.mean(well * np.exp(-2j * np.pi * 0.01 * times))))
 matching = 1 / (4 * np.log(50 * np.sqrt(2) / (2 * np.pi)))
 fig, ax = plt.subplots(figsize=(7, 4))

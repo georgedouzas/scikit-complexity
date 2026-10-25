@@ -33,7 +33,7 @@ frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for frequency in frequencies:
     run = Simulation(create(MODEL, x=0.0, v=0.0, c=0.1, F=0.5, omega=frequency), dt=0.05).run(until=150)
-    steady = np.ravel(run.trajectory_['mass.x'])[np.asarray(run.trajectory_.times) > 100]
+    steady = np.ravel(run.trajectory_.values('mass.x'))[np.asarray(run.trajectory_.times) > 100]
     amplitudes.append(np.abs(steady).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, ax = plt.subplots(figsize=(6, 4))

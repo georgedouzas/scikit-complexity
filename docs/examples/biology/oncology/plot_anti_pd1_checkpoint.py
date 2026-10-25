@@ -36,8 +36,8 @@ runs[1e-10] = simulation
 fig, (tumour, t_cells) = plt.subplots(1, 2, figsize=(10, 4))
 for dose, run in sorted(runs.items()):
     trajectory = run.trajectory_
-    tumour.plot(trajectory.times, trajectory['site.A'], label=f'u = {dose:g}')
-    t_cells.semilogy(trajectory.times, trajectory['site.E'], label=f'u = {dose:g}')
+    tumour.plot(trajectory.times, trajectory.values('site.A'), label=f'u = {dose:g}')
+    t_cells.semilogy(trajectory.times, trajectory.values('site.E'), label=f'u = {dose:g}')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour (g/cm³)')
 tumour.set_title('More drug, smaller tumour')

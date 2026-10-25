@@ -26,7 +26,7 @@ def test_curie_weiss_magnetization(temperature):
         .run(until=30)
         .trajectory_
     )
-    magnetization = np.abs(trajectory['magnetization'][10:]).mean()
+    magnetization = np.abs(trajectory.values('magnetization')[10:]).mean()
     if temperature < 1:
         assert abs(magnetization - spontaneous_magnetization(temperature)) < 0.02
     else:
@@ -49,7 +49,7 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
             .run(until=100)
             .trajectory_
         )
-        spins = trajectory['spins.spin'][50:]
+        spins = trajectory.values('spins.spin')[50:]
         energy = -0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200
         frozen.append(np.mean(spins.mean(axis=0) ** 2))
         if temperature > 1:

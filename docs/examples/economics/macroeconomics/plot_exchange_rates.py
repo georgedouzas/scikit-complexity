@@ -63,7 +63,7 @@ fig, (stages, sign) = plt.subplots(1, 2, figsize=(10, 4))
 for floating, color in ((False, 'C0'), (True, 'C1')):
     name = 'floating' if floating else 'fixed'
     trajectory = run(-1.0, floating)
-    stages.plot(trajectory.times, trajectory['balance'], 'o-', color=color, label=name)
+    stages.plot(trajectory.times, trajectory.values('balance'), 'o-', color=color, label=name)
     sign.plot(
         -elasticities,
         [run(elasticity, floating)['balance'][-1] for elasticity in elasticities],

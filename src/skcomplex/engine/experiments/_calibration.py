@@ -151,7 +151,7 @@ def calibrate(
             )
             runs.append(
                 {
-                    path: np.interp(times, trajectory.times, np.asarray(trajectory[path], dtype=float))
+                    path: np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
                     for path, (times, _) in series.items()
                 },
             )

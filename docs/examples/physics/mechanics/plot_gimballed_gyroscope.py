@@ -48,12 +48,12 @@ trajectory = simulation.trajectory_
 early = trajectory.times <= 0.5
 spins = np.array([25.0, 50.0, 100.0, 200.0])
 rates = [
-    Simulation(create(MODEL, spin=spin), dt=0.01).run(until=10).trajectory_['gyroscope.alpha'][-1] / 10
+    Simulation(create(MODEL, spin=spin), dt=0.01).run(until=10).trajectory_.values('gyroscope.alpha')[-1] / 10
     for spin in spins
 ]
 grid = np.linspace(20.0, 220.0, 100)
 fig, (nutation, law) = plt.subplots(1, 2, figsize=(10, 4))
-nutation.plot(trajectory.times[early], trajectory['gyroscope.alpha_d1'][early], label="precession rate alpha'")
+nutation.plot(trajectory.times[early], trajectory.values('gyroscope.alpha_d1')[early], label="precession rate alpha'")
 nutation.axhline(-1 / (2 * 50 * np.cos(0.3)), color='black', linestyle='--', label='mean rate')
 nutation.set_xlabel('time')
 nutation.set_ylabel("alpha'")

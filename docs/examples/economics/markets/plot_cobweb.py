@@ -34,10 +34,14 @@ simulation = Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, ob
 
 def prices(d, until=30):
     """Return the prices of a cobweb market with supply slope `d`."""
-    return Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=d), dt=1).run(until=until).trajectory_['market.price']
+    return (
+        Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=d), dt=1)
+        .run(until=until)
+        .trajectory_.values('market.price')
+    )
 
 
-price = simulation.trajectory_['market.price']
+price = simulation.trajectory_.values('market.price')
 grid = np.linspace(0.5, 5.0, 2)
 fig, (cobweb, theorem) = plt.subplots(1, 2, figsize=(10, 4))
 cobweb.plot(grid, (A - C - 1.6 * grid) / B, color='C0', label='price map')

@@ -58,8 +58,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=20)
 # momentum, the solution of `g tan θ = φ'^2 (a + l sin θ)` with `φ' = L / [J + n m (a + l sin θ)^2]`, dashed.
 
 times = np.asarray(simulation.trajectory_.times)
-theta = np.ravel(simulation.trajectory_['swing.theta'])
-speed = np.ravel(simulation.trajectory_['swing.phi_d1'])
+theta = np.ravel(simulation.trajectory_.values('swing.theta'))
+speed = np.ravel(simulation.trajectory_.values('swing.phi_d1'))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)

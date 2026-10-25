@@ -34,7 +34,12 @@ simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).ru
 # one, so the intervals between spikes should be equal.
 
 trajectory = simulation.trajectory_
-times, x, y, z = trajectory.times, trajectory['reactor.x'], trajectory['reactor.y'], trajectory['reactor.z']
+times, x, y, z = (
+    trajectory.times,
+    trajectory.values('reactor.x'),
+    trajectory.values('reactor.y'),
+    trajectory.values('reactor.z'),
+)
 spikes = detect_events(y, threshold=10.0, times=times).starts
 periods = np.diff(spikes[1:])
 fig, (orbit, intervals) = plt.subplots(1, 2, figsize=(10, 4))

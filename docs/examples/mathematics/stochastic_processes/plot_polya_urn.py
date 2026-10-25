@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL, n_urns=6), dt=1.0, observers=[observer], random_state=0).run(until=200)
 trajectory = simulation.trajectory_
-share = trajectory['urns.red'] / (trajectory['urns.red'] + trajectory['urns.blue'])
+share = trajectory.values('urns.red') / (trajectory.values('urns.red') + trajectory.values('urns.blue'))
 for urn in range(6):
     observer.recording_.send_columns(
         f'share/urn_{urn}',
@@ -56,7 +56,7 @@ shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
     urns = Simulation(create(MODEL, n_urns=2000, red=red), dt=1.0, random_state=1).run(until=200).trajectory_
-    share = urns['urns.red'][-1] / (urns['urns.red'][-1] + urns['urns.blue'][-1])
+    share = urns.values('urns.red')[-1] / (urns.values('urns.red')[-1] + urns.values('urns.blue')[-1])
     limits.hist(share, bins=20, range=(0, 1), density=True, alpha=0.5, color=color, label=f'red = {red}, blue = 1')
     limits.plot(grid, stats.beta.pdf(grid, red, 1), color=color)
 limits.set_xlabel('share of red after 200 draws')

@@ -40,7 +40,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
     run = Simulation(create(MODEL, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1).run(400)
     times = run.trajectory_.times
-    escaped = np.maximum.accumulate(run.trajectory_['particles.x'] >= 1.0, axis=0)
+    escaped = np.maximum.accumulate(run.trajectory_.values('particles.x') >= 1.0, axis=0)
     rate = np.sqrt(2) / (2 * np.pi) * np.exp(-1 / (4 * intensity))
     ax.semilogy(times, 1 - escaped.mean(axis=1), color=color, label=f'simulation, D = {intensity}')
     ax.semilogy(times, np.exp(-rate * times), '--', color=color, label=f'Kramers, r = {rate:.4f}')

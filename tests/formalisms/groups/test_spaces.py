@@ -135,7 +135,9 @@ def test_local_rule_free_group_majority(backend):
     """Test that every interior cell of a ball of radius 6 of the free group takes the majority of its five cells."""
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
-    alive = _run(System(components=[CellComponent.lattice('cells', space, alive=cells)]), 1, backend)['cells.alive']
+    alive = _run(System(components=[CellComponent.lattice('cells', space, alive=cells)]), 1, backend).values(
+        'cells.alive'
+    )
     table = space._index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)
     expected = cells[table[interior]].sum(axis=1) >= 3
@@ -148,7 +150,7 @@ def test_local_rule_keeps_the_orientation_of_the_memory():
     elements = {space.words_[site]: site for site in range(space.size_)}
     cells = np.zeros(space.size_)
     cells[elements['b']] = 1.0
-    alive = _run(System(components=[CopyComponent.lattice('cells', space, alive=cells)]), 1)['cells.alive'][1]
+    alive = _run(System(components=[CopyComponent.lattice('cells', space, alive=cells)]), 1).values('cells.alive')[1]
     assert alive[elements['b*a^-1']] == 1
     assert alive[elements['a^-1*b']] == 0
 
@@ -159,13 +161,13 @@ def test_local_rule_runs_without_gap(monkeypatch):
     cells = (np.random.default_rng(1).random(space.size_) < 0.5).astype(float)
     system = System(components=[CopyComponent.lattice('cells', space, alive=cells)])
     monkeypatch.setitem(sys.modules, 'sage.all__sagemath_gap', None)
-    assert _run(system, 50)['cells.alive'].shape == (51, 40)
+    assert _run(system, 50).values('cells.alive').shape == (51, 40)
 
 
 def test_local_rule_runs_on_a_level_quotient():
     """Test that the copy rule on the level-2 quotient of the Grigorchuk group is a permutation of the 8 cells."""
     space = CayleySpace(automaton_group(GRIGORCHUK), quotient=2).prepare()
     cells = np.arange(space.size_) % 2.0
-    alive = _run(System(components=[CopyComponent.lattice('cells', space, alive=cells)]), 3)['cells.alive']
+    alive = _run(System(components=[CopyComponent.lattice('cells', space, alive=cells)]), 3).values('cells.alive')
     assert space.size_ == 8
     assert (alive.sum(axis=1) == cells.sum()).all()

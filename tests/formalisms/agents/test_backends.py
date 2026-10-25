@@ -190,7 +190,7 @@ def test_agents_are_born_every_step():
     trajectory = (
         Simulation(System(components=[BreederComponent.group('herd', 10, variable=True)])).run(until=3).trajectory_
     )
-    assert trajectory['herd.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert trajectory.values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
     assert len(trajectory.agents('herd', 3)) == 80
 
 
@@ -208,7 +208,7 @@ def test_model_rules_remove_agents():
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
-    assert trajectory['walkers.count'].tolist() == [5.0, 4.0, 3.0, 2.0]
+    assert trajectory.values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
     assert 1 not in trajectory.agents('walkers', 1).ids.tolist()
 
 

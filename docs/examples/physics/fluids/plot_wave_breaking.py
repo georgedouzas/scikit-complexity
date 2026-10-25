@@ -37,7 +37,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observe
 
 trajectory = simulation.trajectory_
 times = trajectory.times
-numbers = trajectory['train.k']
+numbers = trajectory.values('train.k')
 spacing = 2 * np.pi / numbers.shape[1]
 slope = np.abs(np.diff(numbers, axis=1, append=numbers[:, :1])).max(axis=1) / spacing
 grid = np.linspace(0, 2 * np.pi, 2000)

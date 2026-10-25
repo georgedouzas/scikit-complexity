@@ -18,12 +18,12 @@ def _truth_table(arity, function):
 
 def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
     """Test that the total cost never rises, and that it falls further when redesigns change fewer components."""
-    modular = _run(built := nk_technology(10, 1), 2000, observables=describe('nk_technology').observables_of(built))[
-        'total_cost'
-    ]
-    coupled = _run(built := nk_technology(10, 4), 2000, observables=describe('nk_technology').observables_of(built))[
-        'total_cost'
-    ]
+    modular = _run(
+        built := nk_technology(10, 1), 2000, observables=describe('nk_technology').observables_of(built)
+    ).values('total_cost')
+    coupled = _run(
+        built := nk_technology(10, 4), 2000, observables=describe('nk_technology').observables_of(built)
+    ).values('total_cost')
     for costs in (modular, coupled):
         assert np.all(np.diff(costs) <= 1e-12)
     assert modular[-1] < coupled[-1]
@@ -59,4 +59,4 @@ def test_arthur_polak_invents_only_wanted_functions():
     inventions = set(zip(pool['arity'][3:].astype(int).tolist(), pool['table'][3:].astype(int).tolist(), strict=True))
     assert len(inventions) == len(pool['arity']) - 3 > 0
     assert inventions <= wanted
-    assert np.all(np.diff(trajectory['technologies.count']) >= 0)
+    assert np.all(np.diff(trajectory.values('technologies.count')) >= 0)

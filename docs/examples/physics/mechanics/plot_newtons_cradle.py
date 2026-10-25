@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=5)
 # stay almost at rest.
 
 times = np.asarray(simulation.trajectory_.times)
-velocities = np.stack([np.ravel(simulation.trajectory_[f'ball_{index}.x_d1']) for index in range(5)], axis=1)
+velocities = np.stack([np.ravel(simulation.trajectory_.values(f'ball_{index}.x_d1')) for index in range(5)], axis=1)
 fig, ax = plt.subplots(figsize=(8, 4))
 for index in range(5):
     ax.plot(times, velocities[:, index], label=f'ball {index}')

@@ -36,9 +36,9 @@ traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
     run = Simulation(create(MODEL, width=8, height=8, features=3, traits=q, random_state=0), random_state=0)
-    shares.append(run.run(until=300).trajectory_['census.largest_region'][-1])
+    shares.append(run.run(until=300).trajectory_.values('census.largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_['census.largest_region'])
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('census.largest_region'))
 series.set_xlabel('step')
 series.set_ylabel('share of the largest region')
 series.set_title('Growth of the largest region, F = 3, q = 5')

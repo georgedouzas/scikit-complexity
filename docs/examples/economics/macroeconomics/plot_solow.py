@@ -42,7 +42,9 @@ def exact(k0, s, times):
 fig, (paths, golden) = plt.subplots(1, 2, figsize=(10, 4))
 for index, k0 in enumerate((1.0, 4.0, 12.0)):
     trajectory = Simulation(create(MODEL, k=k0, s=0.2), dt=1.0).run(until=UNTIL).trajectory_
-    paths.plot(trajectory.times[::5], trajectory['economy.k'][::5], 'o', ms=3, color=f'C{index}', label=f'k(0) = {k0}')
+    paths.plot(
+        trajectory.times[::5], trajectory.values('economy.k')[::5], 'o', ms=3, color=f'C{index}', label=f'k(0) = {k0}'
+    )
     paths.plot(trajectory.times, exact(k0, 0.2, trajectory.times), color=f'C{index}', lw=0.8)
 paths.axhline((0.2 / DELTA) ** (1 / (1 - ALPHA)), color='grey', linestyle=':', label='k*')
 paths.set_xlabel('time t')
@@ -50,7 +52,9 @@ paths.set_ylabel('capital per worker k')
 paths.set_title('Simulated (dots) and exact (lines) paths')
 paths.legend()
 savings = np.linspace(0.05, 0.9, 18)
-final = [Simulation(create(MODEL, k=1.0, s=s), dt=1.0).run(until=400).trajectory_['economy.k'][-1] for s in savings]
+final = [
+    Simulation(create(MODEL, k=1.0, s=s), dt=1.0).run(until=400).trajectory_.values('economy.k')[-1] for s in savings
+]
 grid = np.linspace(0.02, 0.95, 200)
 golden.plot(savings, (1 - savings) * np.array(final) ** ALPHA, 'o', label='simulation at t = 400')
 golden.plot(grid, (1 - grid) * (grid / DELTA) ** (ALPHA / (1 - ALPHA)), 'k', lw=0.8, label='(1 - s) k*^alpha')

@@ -46,8 +46,10 @@ simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationOb
 
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
-money = trajectory['households.deposits'] + trajectory['firms.deposits'] + trajectory['bank.deposits']
-created = trajectory['circuit.lending'] - trajectory['circuit.repayments']
+money = (
+    trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
+)
+created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
 matrix = flow_matrix(trajectory, 10)
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')

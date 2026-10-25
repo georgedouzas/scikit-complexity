@@ -37,7 +37,7 @@ def test_edwards_anderson_freezes_without_magnetization():
         spins = trajectory.lattice('spins.spin')[-50:]
         energy = lattice_bond_energy(spins, right, down).mean()
         frozen = np.mean(spins.mean(axis=0) ** 2)
-        assert np.abs(trajectory['magnetization'][-50:]).mean() < 0.1
+        assert np.abs(trajectory.values('magnetization')[-50:]).mean() < 0.1
         if temperature > 1:
             assert abs(energy + 2 * np.tanh(1 / temperature)) < 0.05
             assert frozen < 0.1
@@ -55,8 +55,8 @@ def test_mattis_spin_glass_overlap_orders_like_ising():
             .run(until=1000)
             .trajectory_
         )
-        overlap = np.abs(trajectory['overlap'][-30:]).mean()
-        assert np.abs(trajectory['magnetization'][-30:]).mean() < 0.1
+        overlap = np.abs(trajectory.values('overlap')[-30:]).mean()
+        assert np.abs(trajectory.values('magnetization')[-30:]).mean() < 0.1
         if temperature < ISING_CRITICAL_TEMPERATURE:
             assert abs(overlap - onsager_magnetization(temperature)) < 0.02
         else:

@@ -49,7 +49,7 @@ observer.recording_.flush()
 # `s^-D` with the similarity dimension `D = log 2 / log 3`, about 0.631.
 
 generations = trajectory.times
-lengths = trajectory['cantor.length']
+lengths = trajectory.values('cantor.length')
 segments = trajectory.structure('cantor', 8).segments()
 sizes = 3.0 ** -np.arange(1, 7)
 counts = np.array([len(np.unique(np.floor(segments[:, 0, 0] / size + 1e-9))) for size in sizes])

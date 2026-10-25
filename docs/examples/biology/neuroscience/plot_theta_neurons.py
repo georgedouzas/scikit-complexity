@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=10)
 
 def spikes_of(trajectory):
     """Return the step and the neuron of every crossing of π."""
-    wrapped = np.mod(trajectory['neurons.theta'], 2 * np.pi)
+    wrapped = np.mod(trajectory.values('neurons.theta'), 2 * np.pi)
     steps, neurons = np.nonzero((wrapped[:-1] < np.pi) & (wrapped[1:] >= np.pi))
     return trajectory.times[steps + 1], neurons
 

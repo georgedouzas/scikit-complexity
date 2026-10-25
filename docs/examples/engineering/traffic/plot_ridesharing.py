@@ -64,8 +64,8 @@ waits, utilisations = [], []
 for demand in demands:
     system = create(MODEL, demand=demand, random_state=0)
     run = Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).run(until=STEPS)
-    waits.append(np.nanmean(run.trajectory_['mean_wait'][STEPS // 2 :]))
-    utilisations.append(run.trajectory_['utilisation'][STEPS // 2 :].mean())
+    waits.append(np.nanmean(run.trajectory_.values('mean_wait')[STEPS // 2 :]))
+    utilisations.append(run.trajectory_.values('utilisation')[STEPS // 2 :].mean())
 fig, (wait, busy) = plt.subplots(1, 2, figsize=(11, 4))
 wait.plot(demands, waits, marker='o')
 wait.set_xlabel('new riders per step')

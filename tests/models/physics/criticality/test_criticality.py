@@ -38,7 +38,7 @@ def test_forest_fire_burns_graph_by_distance():
     cover = np.ones(500)
     cover[0] = 2
     system = hexagonal_forest_fire(graph=graph, growth=0.0, lightning=0.0, cover=cover)
-    covers = Simulation(system, dt=1).run(until=40).trajectory_['forest.cover']
+    covers = Simulation(system, dt=1).run(until=40).trajectory_.values('forest.cover')
     distances = nx.single_source_shortest_path_length(graph, 0)
     assert (covers == 2).any(axis=0).all()
     assert np.array_equal(np.argmax(covers == 2, axis=0), [distances[node] for node in graph.nodes])

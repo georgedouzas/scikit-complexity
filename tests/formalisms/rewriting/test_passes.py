@@ -82,7 +82,7 @@ def test_generations_as_steps():
     assert compile_system(system).form == Form.REWRITING
     trajectory = Simulation(system).run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
-    assert trajectory['word.size'].tolist() == [1, 2, 3, 5, 8, 13]
+    assert trajectory.values('word.size').tolist() == [1, 2, 3, 5, 8, 13]
 
 
 def test_fractional_generation():
@@ -94,10 +94,10 @@ def test_fractional_generation():
 def test_parikh_vector():
     """Test that the symbol counts are consecutive Fibonacci numbers whose sum is the size."""
     trajectory = Simulation(_fibonacci()).run(until=10).trajectory_
-    a, b = trajectory['word.A'], trajectory['word.B']
+    a, b = trajectory.values('word.A'), trajectory.values('word.B')
     assert np.array_equal(a[:-1], b[1:])
     assert np.array_equal(a[2:], a[1:-1] + a[:-2])
-    assert np.array_equal(trajectory['word.size'], a + b)
+    assert np.array_equal(trajectory.values('word.size'), a + b)
 
 
 def test_stochastic_choice():
@@ -159,7 +159,7 @@ def test_parametric_growth():
     trajectory = simulation.trajectory_
     assert str(trajectory.structure('plant', 5)) == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
     assert str(trajectory.structure('plant', 6)) == str(trajectory.structure('plant', 5))
-    assert trajectory['growth.R'][0] == 0.5
+    assert trajectory.values('growth.R')[0] == 0.5
     assert trajectory.structure('plant', 1).modules()[1] == Module('A', 0.5)
 
 
@@ -177,7 +177,7 @@ def test_exponential_growth_stopped():
     simulation = Simulation(system)
     with pytest.raises(RewritingError, match="Word 'koch' would reach 152916 symbols at generation 8"):
         simulation.run(until=10)
-    assert len(simulation.trajectory_) == 8
+    assert len(simulation.trajectory_.times) == 8
 
 
 @pytest.mark.benchmark
@@ -228,7 +228,7 @@ def test_koch_curve_length():
     assert curve.length() == pytest.approx((4 / 3) ** 4, abs=1e-12)
     assert np.allclose(segments[0, 0], [0, 0], atol=1e-12)
     assert np.allclose(segments[-1, 1], [1, 0], atol=1e-12)
-    assert trajectory['koch.length'][-1] == pytest.approx((4 / 3) ** 4, abs=1e-12)
+    assert trajectory.values('koch.length')[-1] == pytest.approx((4 / 3) ** 4, abs=1e-12)
 
 
 def test_branches_return():
@@ -329,7 +329,7 @@ def test_sierpinski_triangle_area():
     patch = trajectory.structure('gasket', 6)
     assert len(patch) == 729
     assert patch.area() == pytest.approx(0.75**6 * np.sqrt(3) / 4, abs=1e-12)
-    assert trajectory['gasket.triangle'][-1] == 729
+    assert trajectory.values('gasket.triangle')[-1] == 729
 
 
 def test_gasket_box_counting():
@@ -375,7 +375,7 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
     rule = SubstitutionLaw('square', [('square', Affine(scale=0.5)), ('dot', Affine())])
     patch = PatchComponent('patch', prototiles=[square, dot])
     trajectory = Simulation(_system(patch, rule)).run(until=2).trajectory_
-    assert trajectory['patch.dot'].tolist() == [0, 1, 2]
+    assert trajectory.values('patch.dot').tolist() == [0, 1, 2]
     with pytest.raises(RewritingError, match='not one of'):
         compile_system(_system(patch, SubstitutionLaw('circle', [])))
     with pytest.raises(RewritingError, match='two substitutions'):
@@ -388,7 +388,7 @@ def test_edge_subdivision():
     """Test that subdividing every edge of a 4-cycle three times gives a 32-cycle."""
     system = _system(HostGraphComponent('graph', graph=nx.cycle_graph(4)), _subdivision())
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
-    assert trajectory['graph.size'].tolist() == [4, 8, 16, 32]
+    assert trajectory.values('graph.size').tolist() == [4, 8, 16, 32]
     assert nx.is_isomorphic(trajectory.structure('graph', 3).graph, nx.cycle_graph(32))
 
 
@@ -404,7 +404,7 @@ def test_dangling_edge():
     production = GraphProductionLaw(left, nx.Graph(), nx.Graph())
     trajectory = Simulation(_system(HostGraphComponent('graph', graph=host), production)).run(until=1).trajectory_
     assert sorted(trajectory.structure('graph', 1).graph.nodes) == ['hub', 'other']
-    assert trajectory['graph.X'].tolist() == [2, 1]
+    assert trajectory.values('graph.X').tolist() == [2, 1]
 
 
 def test_graph_rewriting_is_reproducible():
@@ -421,7 +421,7 @@ def test_graph_rewriting_is_reproducible():
     system = _system(HostGraphComponent('graph', graph=host), GraphProductionLaw(left, interface, right))
     first = Simulation(system, random_state=1).run(until=2).trajectory_
     second = Simulation(system, random_state=1).run(until=2).trajectory_
-    assert first['graph.new'].tolist() == [0, 3, 3]
+    assert first.values('graph.new').tolist() == [0, 3, 3]
     assert nx.utils.graphs_equal(first.structure('graph', 2).graph, second.structure('graph', 2).graph)
     with pytest.raises(RewritingError, match='not nodes of both'):
         compile_system(_system(HostGraphComponent('graph', graph=host), GraphProductionLaw(left, right, right)))

@@ -49,7 +49,7 @@ simulation = Simulation(create(MODEL), observers=[observer], random_state=0).run
 fig, (pools, invention) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(SEEDS):
     trajectory = Simulation(create(MODEL), random_state=seed).run(until=STEPS).trajectory_
-    count = trajectory['technologies.count']
+    count = trajectory.values('technologies.count')
     pools.step(trajectory.times, count, where='post', color='C0', alpha=0.4)
     costs = trajectory.agents('technologies', len(trajectory.times) - 1).values['cost']
     found = [int(np.argmax(count > index)) for index in range(3, int(count[-1]))]

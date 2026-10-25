@@ -28,7 +28,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
         .run(until=20)
         .trajectory_
     )
-    amplitude = np.asarray(dying['amplitude'])
+    amplitude = np.asarray(dying.values('amplitude'))
     rate = _decay_rate(np.asarray(dying.times), amplitude, start=8.0)
     assert amplitude[-1] < 1e-3
     assert rate == pytest.approx(1 - 1.5, rel=0.1)
@@ -41,7 +41,7 @@ def test_oscillator_death_follows_lorentzian_threshold():
         .run(until=20)
         .trajectory_
     )
-    assert living['amplitude'][-1] > 0.3
+    assert living.values('amplitude')[-1] > 0.3
 
 
 def test_oscillator_death_follows_quartic_threshold():
@@ -52,13 +52,13 @@ def test_oscillator_death_follows_quartic_threshold():
     assert (
         Simulation(above, dt=0.5, observables=describe('oscillator_death').observables_of(above))
         .run(until=40)
-        .trajectory_['amplitude'][-1]
+        .trajectory_.values('amplitude')[-1]
         < 1e-3
     )
     assert (
         Simulation(below, dt=0.5, observables=describe('oscillator_death').observables_of(below))
         .run(until=40)
-        .trajectory_['amplitude'][-1]
+        .trajectory_.values('amplitude')[-1]
         > 0.3
     )
 
@@ -79,7 +79,7 @@ def test_heterogeneous_global_coupling_restabilizes_fixed_point():
             observables=describe('heterogeneous_global_coupling').observables_of(built),
         )
         .run(until=60)
-        .trajectory_['amplitude'][-1]
+        .trajectory_.values('amplitude')[-1]
         for k in (0.0, 2.0, 15.0)
     }
     assert amplitudes[0.0] > 0.1
@@ -99,6 +99,6 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
         .run(until=60)
         .trajectory_
     )
-    rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory['amplitude']), start=20.0)
+    rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory.values('amplitude')), start=20.0)
     assert predicted < 0
     assert rate == pytest.approx(predicted, rel=0.15)

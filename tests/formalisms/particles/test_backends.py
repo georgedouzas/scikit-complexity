@@ -99,7 +99,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
     native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.2)
     external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.2)
     for name in ('gas.x', 'gas.v'):
-        assert external[name].shape == native[name].shape
+        assert external.values(name).shape == native.values(name).shape
 
 
 def test_lammps_rejects_population_model():
@@ -148,8 +148,8 @@ def test_lammps_custom_pair_energy_matches_native_forces():
         interactions=[ExponentialInteraction('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.v')[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.v')[-1]
     assert np.allclose(external, native, rtol=1e-8, atol=1e-8 * np.abs(native).max())
 
 
@@ -162,16 +162,16 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
         interactions=[StepwiseInteraction('contact', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
-    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
-    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
+    native = _run(system, VelocityVerletSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.v')[-1]
+    external = _run(system, LammpsSolver(dt=1e-4), 1e-4, dt=1e-4).values('gas.v')[-1]
     assert np.abs(native).max() > 0
     assert np.allclose(external, native, rtol=1e-10, atol=1e-10 * np.abs(native).max())
 
 
 def test_lammps_short_run_matches_native():
     """Test that 100 Lennard-Jones atoms agree with the native velocity Verlet run within 1e-6 after 0.1."""
-    native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.1)['gas.x']
-    external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.1)['gas.x']
+    native = _run(_lennard_jones_gas(), VelocityVerletSolver(dt=0.005), 0.1).values('gas.x')
+    external = _run(_lennard_jones_gas(), LammpsSolver(dt=0.005), 0.1).values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
 
 
@@ -179,8 +179,8 @@ def test_lammps_periodic_box_matches_native():
     """Test that a periodic Lennard-Jones gas agrees with the native run and stays in the box."""
     size = 12.0
     system = _lennard_jones_gas(space=ContinuousSpace(size, size, boundary='periodic'))
-    native = _run(system, VelocityVerletSolver(dt=0.002), 0.2)['gas.x']
-    external = _run(system, LammpsSolver(dt=0.002), 0.2)['gas.x']
+    native = _run(system, VelocityVerletSolver(dt=0.002), 0.2).values('gas.x')
+    external = _run(system, LammpsSolver(dt=0.002), 0.2).values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
     assert np.all((external >= 0) & (external < size))
 
@@ -209,8 +209,8 @@ def test_lammps_walls_confine_atoms_on_their_own():
 def test_lammps_forces_match_native(interaction):
     """Test that external forces, constant forces, and drag agree with the native run."""
     system = _lennard_jones_gas(interactions=[interaction])
-    native = _run(system, VelocityVerletSolver(dt=0.005), 0.2)['gas.x']
-    external = _run(system, LammpsSolver(dt=0.005), 0.2)['gas.x']
+    native = _run(system, VelocityVerletSolver(dt=0.005), 0.2).values('gas.x')
+    external = _run(system, LammpsSolver(dt=0.005), 0.2).values('gas.x')
     assert np.allclose(external, native, atol=1e-6)
 
 
@@ -237,8 +237,8 @@ def test_lammps_thermostat_temperature_changes_live():
     simulation.update_parameters({'bath.temperature': 3.0})
     simulation.wait()
     trajectory = simulation.trajectory_
-    temperature = (trajectory['gas.v'] ** 2).sum(axis=2).mean(axis=1) / 2
-    changed = int(np.argmax(trajectory['bath.temperature'] == 3.0))
+    temperature = (trajectory.values('gas.v') ** 2).sum(axis=2).mean(axis=1) / 2
+    changed = int(np.argmax(trajectory.values('bath.temperature') == 3.0))
     assert temperature[:changed].mean() == pytest.approx(1.0, rel=0.1)
     assert temperature[-10:].mean() == pytest.approx(3.0, rel=0.1)
 

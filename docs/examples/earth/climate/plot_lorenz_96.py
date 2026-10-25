@@ -49,7 +49,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=30)
 # at the time a wave takes to travel from one site to the next.
 
 trajectory = simulation.trajectory_
-x = trajectory['ring.x']
+x = trajectory.values('ring.x')
 times = trajectory.times
 late = x[times > 10] - x[times > 10].mean()
 lags = np.arange(-20, 21)

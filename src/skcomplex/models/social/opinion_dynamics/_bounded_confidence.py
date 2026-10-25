@@ -233,7 +233,7 @@ def hegselmann_krause(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import hegselmann_krause
         >>> trajectory = Simulation(hegselmann_krause(50, confidence=0.3), random_state=0).run(until=20).trajectory_
-        >>> len(np.unique(np.round(trajectory['people.opinion'][-1], 6))) <= 3
+        >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
         True
     """
     space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()

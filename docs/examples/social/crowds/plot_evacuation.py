@@ -43,13 +43,13 @@ simulation = Simulation(system, observers=[observer], dt=0.2, observables=observ
 
 times = simulation.trajectory_.times
 sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0)
-particles = sampled.run(until=20).trajectory_['evacuated']
+particles = sampled.run(until=20).trajectory_.values('evacuated')
 crowded_system = create(MODEL, crowding=8.0)
 crowded = Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system)).run(until=20)
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(times, simulation.trajectory_['evacuated'], label='gain and loss equations')
+ax.plot(times, simulation.trajectory_.values('evacuated'), label='gain and loss equations')
 ax.plot(times, particles, linestyle='--', label='5000 particles')
-ax.plot(times, crowded.trajectory_['evacuated'], label='equations, four times the crowding')
+ax.plot(times, crowded.trajectory_.values('evacuated'), label='equations, four times the crowding')
 ax.set_xlabel('time')
 ax.set_ylabel('evacuated fraction')
 ax.set_title('Evacuation of a building of seven rooms')

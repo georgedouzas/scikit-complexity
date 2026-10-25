@@ -209,7 +209,7 @@ def test_double_auction_efficiency():
     assert realised > 0.9 * maximum
     money = buyers.values['money'].sum() + sellers.values['money'].sum()
     assert money == pytest.approx(values.sum())
-    assert np.nansum(simulation.trajectory_['auction.volume']) == bought.sum()
+    assert np.nansum(simulation.trajectory_.values('auction.volume')) == bought.sum()
 
 
 def test_order_book_is_a_pairing_of_the_matching_law():

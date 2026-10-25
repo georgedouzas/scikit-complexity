@@ -51,7 +51,7 @@ small = create(MODEL, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_st
 alleles = (
     Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small))
     .run(until=5000)
-    .trajectory_['genome.s'][100:]
+    .trajectory_.values('genome.s')[100:]
 )
 visited = np.bincount(((alleles > 0) * 2 ** np.arange(4)).sum(axis=1).astype(int), minlength=16)
 genomes = np.array([[2 * bit - 1 for bit in reversed(bits)] for bits in itertools.product((0, 1), repeat=4)])
@@ -59,7 +59,7 @@ couplings = small.interactions[0].couplings
 fitness = 1.0 + genomes @ small.elements[0].values['h'] + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
 
 fig, (climb, law) = plt.subplots(1, 2, figsize=(10, 4))
-climb.plot(simulation.trajectory_.times, simulation.trajectory_['fitness'], label='simulated')
+climb.plot(simulation.trajectory_.times, simulation.trajectory_.values('fitness'), label='simulated')
 climb.axhline(1 + np.abs(fields).sum(), color='black', linestyle='--', label='peak of the landscape')
 climb.axhline(stationary, color='black', linestyle=':', label='stationary f*')
 climb.set_xlabel('time')

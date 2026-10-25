@@ -30,9 +30,9 @@ def test_newtons_cradle_passes_momentum():
 def test_circular_billiard_keeps_speed_and_angle():
     """Test that the billiard keeps its speed and its angle of incidence at every bounce."""
     trajectory = Simulation(circular_billiard(), dt=0.05).run(until=20).trajectory_
-    speeds = np.hypot(trajectory['particle.vx'], trajectory['particle.vy'])
+    speeds = np.hypot(trajectory.values('particle.vx'), trajectory.values('particle.vy'))
     assert speeds == pytest.approx(np.full(speeds.size, math.hypot(0.4, 1.0)))
-    assert np.hypot(trajectory['particle.x'], trajectory['particle.y']).max() <= 1.0 + 1e-9
+    assert np.hypot(trajectory.values('particle.x'), trajectory.values('particle.y')).max() <= 1.0 + 1e-9
     incidence = [
         abs(event.before[0] * event.before[2] + event.before[1] * event.before[3]) for event in trajectory.events
     ]

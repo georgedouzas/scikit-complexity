@@ -27,7 +27,7 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
     asymmetry = np.abs(
         Simulation(system, random_state=0, observables=describe('perishable_goods_duopoly').observables_of(system))
         .run(until=300)
-        .trajectory_['m'][-50:],
+        .trajectory_.values('m')[-50:],
     ).mean()
     if ratio < 1:
         assert asymmetry == pytest.approx(_asymmetry_at_mean_field(ratio * critical, control), abs=0.1)

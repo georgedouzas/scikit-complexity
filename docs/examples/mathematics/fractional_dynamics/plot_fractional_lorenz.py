@@ -44,7 +44,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
 simulation = Simulation(create(MODEL), dt=0.05, observers=[observer]).run(until=40)
-points = np.column_stack([simulation.trajectory_[f'lorenz.{state}'] for state in 'xyz'])
+points = np.column_stack([simulation.trajectory_.values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
 
@@ -54,7 +54,7 @@ observer.recording_.flush()
 # As for the ordinary flow, each maximum of `z` should be almost a function of the previous one, so successive maxima
 # lie on a thin tent-shaped curve. The memory of the fractional derivatives blurs the curve a little.
 
-z = simulation.trajectory_['lorenz.z']
+z = simulation.trajectory_.values('lorenz.z')
 maxima = z[find_peaks(z)[0]]
 fig, ax = plt.subplots(figsize=(5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=5)

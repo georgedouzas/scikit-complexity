@@ -39,7 +39,7 @@ simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).run(unt
 fig, ax = plt.subplots(figsize=(6, 5))
 for y in np.linspace(-0.3, 0.45, 12):
     section = poincare_section(start(y, 0.0), 'star.x', 0.0, until=2000)
-    ax.plot(section['star.y'], section['star.y_d1'], '.', markersize=1.5)
+    ax.plot(section.values('star.y'), section.values('star.y_d1'), '.', markersize=1.5)
 ax.set_xlabel('y')
 ax.set_ylabel('p_y')
 ax.set_title('Poincaré section at x = 0, E = 1/8')

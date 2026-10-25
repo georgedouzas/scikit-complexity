@@ -38,7 +38,7 @@ simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], ran
 # fill this exponential profile.
 
 run = Simulation(create(MODEL, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1).run(until=15000)
-heights = run.trajectory_['particle.z'][200:]
+heights = run.trajectory_.values('particle.z')[200:]
 edges, density = histogram(heights, bins=30)
 grid = np.linspace(0, edges[-1], 200)
 fig, ax = plt.subplots(figsize=(7, 4))

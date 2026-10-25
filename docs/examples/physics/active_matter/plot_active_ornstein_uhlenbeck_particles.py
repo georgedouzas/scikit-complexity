@@ -54,7 +54,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for tau, color in ((1.0, 'tab:blue'), (10.0, 'tab:orange')):
     system_t = create(MODEL, n_particles=500, tau=tau, size=1e5, random_state=1)
     run = Simulation(system_t, solver=solver, dt=0.1, random_state=1).run(until=40)
-    positions = run.trajectory_['swimmers.x']
+    positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * (times - tau * (1 - np.exp(-times / tau)))

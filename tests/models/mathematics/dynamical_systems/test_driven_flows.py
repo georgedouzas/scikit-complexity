@@ -15,5 +15,5 @@ def test_ou_driven_rossler_control_has_the_stationary_variance():
     solver = describe('ou_driven_rossler').defaults['solver']
     system = ou_driven_rossler(tau=1.0, rho=0.2)
     trajectory = Simulation(system, dt=0.1, solver=solver, random_state=0).run(until=2000.0).trajectory_
-    assert trajectory['rossler.eta'].var() == pytest.approx(0.2**2 / 2, rel=0.1)
-    assert np.abs(trajectory['rossler.x']).max() < 20
+    assert trajectory.values('rossler.eta').var() == pytest.approx(0.2**2 / 2, rel=0.1)
+    assert np.abs(trajectory.values('rossler.x')).max() < 20

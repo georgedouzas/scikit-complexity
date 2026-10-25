@@ -308,4 +308,4 @@ class BaseSurrogate(BaseEstimator):
             initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
         )
         trajectory = simulation.run(until=steps * dt).trajectory_
-        return np.column_stack([trajectory[name] for name in names[: len(self.labels_)]])[1 : steps + 1]
+        return np.column_stack([trajectory.values(name) for name in names[: len(self.labels_)]])[1 : steps + 1]

@@ -54,7 +54,7 @@ for social_weight in (0.0, 2.0):
             observables=describe(MODEL).observables_of(system),
         )
         .run(until=15)
-        .trajectory_['fair_share'][-5:]
+        .trajectory_.values('fair_share')[-5:]
         .mean()
         for premium in premiums
     ]

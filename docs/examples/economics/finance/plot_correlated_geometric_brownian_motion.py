@@ -35,11 +35,11 @@ simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], ra
 # tilted along the diagonal.
 
 trajectory = simulation.trajectory_
-first, second = (np.diff(np.log(trajectory[f'{label}.price'])) for label in ('first', 'second'))
+first, second = (np.diff(np.log(trajectory.values(f'{label}.price'))) for label in ('first', 'second'))
 correlation = np.corrcoef(first, second)[0, 1]
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))
-paths.plot(trajectory.times, trajectory['first.price'], label='first')
-paths.plot(trajectory.times, trajectory['second.price'], label='second')
+paths.plot(trajectory.times, trajectory.values('first.price'), label='first')
+paths.plot(trajectory.times, trajectory.values('second.price'), label='second')
 paths.set_xlabel('time (years)')
 paths.set_ylabel('price')
 paths.set_title('Prices that move together')

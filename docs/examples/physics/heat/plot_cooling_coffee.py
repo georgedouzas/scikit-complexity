@@ -32,7 +32,7 @@ times = np.asarray(simulation.trajectory_.times)
 fig, ax = plt.subplots(figsize=(6, 4))
 for start in [90.0, 60.0, 40.0]:
     run = Simulation(create(MODEL, T=start, room=20.0, k=0.1), dt=0.5).run(until=60)
-    line = ax.semilogy(times, np.ravel(run.trajectory_['coffee.T']) - 20.0, label=f'T0 = {start:.0f}')[0]
+    line = ax.semilogy(times, np.ravel(run.trajectory_.values('coffee.T')) - 20.0, label=f'T0 = {start:.0f}')[0]
     ax.semilogy(times, (start - 20.0) * np.exp(-0.1 * times), '--', color=line.get_color())
 ax.set_xlabel('time (minutes)')
 ax.set_ylabel('T - T_room')

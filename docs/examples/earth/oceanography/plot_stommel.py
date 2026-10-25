@@ -33,7 +33,7 @@ fig, ax = plt.subplots(figsize=(6, 5))
 for T0 in np.linspace(0.1, 2.9, 8):
     for S0 in np.linspace(0.1, 2.9, 8):
         run = Simulation(create(MODEL, T=T0, S=S0), dt=0.1).run(until=50).trajectory_
-        T, S = run['ocean.T'], run['ocean.S']
+        T, S = run.values('ocean.T'), run.values('ocean.S')
         ax.plot(T, S, color='C3' if T[-1] > S[-1] else 'C0', linewidth=0.7)
         ax.plot(T[-1], S[-1], 'o', color='black', markersize=6)
 ax.plot([0, 3], [0, 3], color='gray', linestyle='--', label='no flow, T = S')

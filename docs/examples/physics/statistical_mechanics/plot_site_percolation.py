@@ -36,7 +36,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 def spans(side, p, seed):
     """Return whether the fire lit along the top row of a lattice reaches its bottom row."""
     run = Simulation(create(MODEL, shape=(side, side), p=p, random_state=seed), dt=1).run(until=4 * side)
-    return bool((run.trajectory_['lattice.cover'][-1].reshape(side, side)[-1] >= 2).any())
+    return bool((run.trajectory_.values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
 
 
 probabilities = np.linspace(0.5, 0.7, 17)

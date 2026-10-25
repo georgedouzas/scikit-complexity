@@ -35,14 +35,14 @@ trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (series, orbit) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A', 'B', 'C'):
-    series.plot(times, trajectory[f'loop.{name}'], label=name)
+    series.plot(times, trajectory.values(f'loop.{name}'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('unphosphorylated fraction')
 series.set_title('The proteins switch in turn')
 series.legend()
 late = times >= 10.0
-orbit.plot(trajectory['loop.A'][late], trajectory['loop.B'][late])
-crossings = times[1:][(trajectory['loop.A'][1:] > 0.5) & (trajectory['loop.A'][:-1] <= 0.5)]
+orbit.plot(trajectory.values('loop.A')[late], trajectory.values('loop.B')[late])
+crossings = times[1:][(trajectory.values('loop.A')[1:] > 0.5) & (trajectory.values('loop.A')[:-1] <= 0.5)]
 orbit.set_xlabel('A')
 orbit.set_ylabel('B')
 orbit.set_title(f'Limit cycle, period {np.mean(np.diff(crossings)):.2f}')

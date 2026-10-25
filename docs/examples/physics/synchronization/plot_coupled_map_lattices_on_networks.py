@@ -42,7 +42,7 @@ variances = []
 for coupling in couplings:
     model_system = create(MODEL, n_nodes=100, degree=20, epsilon=coupling, seed=0)
     run = Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system)).run(until=200)
-    variances.append(np.mean(np.asarray(run.trajectory_['spread'])[-20:]))
+    variances.append(np.mean(np.asarray(run.trajectory_.values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(variances, 1e-32), 'o-', label='late variance of the states')
 for bound in (low, high):

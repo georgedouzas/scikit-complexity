@@ -195,7 +195,7 @@ class Snapshots:
 
 def _agent_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
     """Return the snapshots of an agent group, aligned on the agents present in every frame."""
-    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory))]
+    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
     common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
     ids = np.asarray(sorted(common), dtype=np.int64)
     columns = [
@@ -251,12 +251,12 @@ def _particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
     """Return the snapshots of a particle group from its vector states."""
     element = next(item for item in getattr(trajectory.problem, 'elements', ()) if item.path == group)
     box = _particle_box(trajectory, group)
-    raw = np.asarray(trajectory[element.states[POSITION_STATE]], dtype=float)
+    raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
     positions = _unwrap(raw, box, periodic=box is not None)
     velocity = element.states.get(VELOCITY_STATE)
-    velocities = np.asarray(trajectory[velocity], dtype=float) if velocity is not None else None
+    velocities = np.asarray(trajectory.values(velocity), dtype=float) if velocity is not None else None
     others = {
-        name: np.asarray(trajectory[dotted]).reshape(len(trajectory), -1)
+        name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
         for name, dotted in element.states.items()
         if name not in {POSITION_STATE, VELOCITY_STATE}
     }
@@ -368,7 +368,7 @@ def series_of(trajectory: Trajectory, names: Sequence[str] | None = None) -> Ser
         raise _missing(trajectory, 'scalar series')
     columns, labels = [], []
     for name in chosen:
-        values = np.asarray(trajectory[name], dtype=float).reshape(len(trajectory), -1)
+        values = np.asarray(trajectory.values(name), dtype=float).reshape(len(trajectory.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
     return Series(np.asarray(trajectory.times, dtype=float), np.concatenate(columns, axis=1), labels)
@@ -423,7 +423,7 @@ def path_of(trajectory: Trajectory, name: str | None = None) -> JumpPath:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _missing(trajectory, 'discrete state')
-    values = np.asarray(trajectory[chosen], dtype=float).reshape(len(trajectory), -1)
+    values = np.asarray(trajectory.values(chosen), dtype=float).reshape(len(trajectory.times), -1)
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     return JumpPath(
@@ -530,7 +530,7 @@ def networks_of(trajectory: Trajectory) -> list[nx.Graph]:
     space = _network_space(trajectory.problem)
     if space is None:
         raise _missing(trajectory, 'network')
-    return [space.graph] * len(trajectory)
+    return [space.graph] * len(trajectory.times)
 
 
 @dataclass(frozen=True)

@@ -21,24 +21,24 @@ def test_brownian_motion_is_ballistic_then_diffusive():
     trajectory = (
         Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.001), random_state=0).run(until=1).trajectory_
     )
-    positions = trajectory['beads.x'][..., 0]
+    positions = trajectory.values('beads.x')[..., 0]
     assert (positions[2] ** 2).mean() == pytest.approx(2 * (0.1 - 1 + np.exp(-0.1)), rel=0.1)
     overdamped = brownian_motion(4000, inertial=False)
     trajectory = (
         Simulation(overdamped, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=10).trajectory_
     )
-    assert (trajectory['beads.x'][-1] ** 2).mean() == pytest.approx(2 * 10, rel=0.1)
+    assert (trajectory.values('beads.x')[-1] ** 2).mean() == pytest.approx(2 * 10, rel=0.1)
 
 
 def test_optical_trap_holds_particles_with_the_thermal_variance():
     """Test that trapped particles have the variance `kT / k` along each axis, and that moving traps run."""
     trajectory = Simulation(optical_trap(1000), dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=30)
-    positions = trajectory.trajectory_['beads.x'][10:]
+    positions = trajectory.trajectory_.values('beads.x')[10:]
     assert positions[..., 0].var() == pytest.approx(1.0, rel=0.1)
     assert positions[..., 1].var() == pytest.approx(4.0, rel=0.1)
     blinking = optical_trap(100, blink_period=4.0, amplitude=(1.0, 0.0), frequency=0.1)
     moving = Simulation(blinking, dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=10).trajectory_
-    assert np.isfinite(moving['beads.x']).all()
+    assert np.isfinite(moving.values('beads.x')).all()
 
 
 def test_kramers_escape_rate():
@@ -48,7 +48,7 @@ def test_kramers_escape_rate():
     trajectory = (
         Simulation(kramers_escape(size, D=D), dt=0.1, solver=solver, random_state=0).run(until=until).trajectory_
     )
-    positions = trajectory['particles.x']
+    positions = trajectory.values('particles.x')
     wells = np.sign(positions[0])
     hops = 0
     for row in positions[1:]:
@@ -66,7 +66,7 @@ def test_multiplicative_noise_conventions_give_their_stationary_densities(noise,
     trajectory = (
         Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=400).trajectory_
     )
-    positions = trajectory['particles.x'][2000:]
+    positions = trajectory.values('particles.x')[2000:]
     assert (positions < 5).mean() == pytest.approx(left, abs=0.03)
 
 
@@ -76,7 +76,7 @@ def test_scaled_brownian_motion_has_the_anomalous_exponent():
     trajectory = (
         Simulation(model, dt=0.1, solver=EulerMaruyamaSolver(dt=0.001), random_state=0).run(until=10).trajectory_
     )
-    squared = (trajectory['walkers.x'] ** 2).mean(axis=1)
+    squared = (trajectory.values('walkers.x') ** 2).mean(axis=1)
     exponent = np.polyfit(np.log(trajectory.times[10:]), np.log(squared[10:]), 1)[0]
     assert exponent == pytest.approx(0.5, abs=0.05)
 
@@ -88,7 +88,7 @@ def test_speckle_field_traps_particles():
         model = diffusion_in_a_speckle_field(200, strength=strength)
         solver = EulerMaruyamaSolver(dt=0.01)
         trajectory = Simulation(model, dt=1, solver=solver, random_state=0).run(until=50).trajectory_
-        positions = trajectory['beads.x']
+        positions = trajectory.values('beads.x')
         coefficients[strength] = ((positions[-1] - positions[20]) ** 2).sum(axis=-1).mean() / (4 * 30)
     assert coefficients[0.0] == pytest.approx(1.0, rel=0.15)
     assert coefficients[1000.0] < 0.1
@@ -98,7 +98,7 @@ def test_speckle_field_defaults_give_anomalous_diffusion():
     """Test that the default field draws the particles in over several frames and lets them escape slowly."""
     solver = EulerMaruyamaSolver(dt=0.01)
     simulation = Simulation(diffusion_in_a_speckle_field(), dt=0.5, solver=solver, random_state=0).run(until=60)
-    positions = np.asarray(simulation.trajectory_['beads.x'])
+    positions = np.asarray(simulation.trajectory_.values('beads.x'))
     times = simulation.trajectory_.times[21:] - simulation.trajectory_.times[20]
     squared = ((positions[21:] - positions[20]) ** 2).sum(axis=-1).mean(axis=-1)
     exponent = np.polyfit(np.log(times), np.log(squared), 1)[0]

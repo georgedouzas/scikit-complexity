@@ -35,11 +35,11 @@ fig, (curves, bars) = plt.subplots(1, 2, figsize=(10, 4))
 finals = {}
 for name, arm in arms.items():
     trajectory = Simulation(arm, dt=0.2).run(until=32).trajectory_
-    total = trajectory['tumour.AU'] + trajectory['tumour.AV']
+    total = trajectory.values('tumour.AU') + trajectory.values('tumour.AV')
     curves.semilogy(2 * trajectory.times, total, label=name)
     finals[name] = total[-1]
 combined = simulation.trajectory_
-total = combined['tumour.AU'] + combined['tumour.AV']
+total = combined.values('tumour.AU') + combined.values('tumour.AV')
 curves.semilogy(2 * combined.times, total, label='combination', color='black')
 finals['combination'] = total[-1]
 curves.set_xlabel('time (days)')

@@ -44,7 +44,7 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 simulation = Simulation(create(MODEL, order=0.8), dt=0.1, observers=[observer]).run(until=30)
 harmonic = Simulation(create(MODEL, order=1.0), dt=0.1).run(until=2 * np.pi).trajectory_
 strips = [
-    np.column_stack([100 * run['oscillator.x'], -100 * run['oscillator.v']])
+    np.column_stack([100 * run.values('oscillator.x'), -100 * run.values('oscillator.v')])
     for run in (harmonic, simulation.trajectory_)
 ]
 observer.recording_.log(
@@ -65,7 +65,7 @@ fig, ax = plt.subplots(figsize=(7, 4.5))
 for order, color in ((1.0, 'tab:blue'), (0.9, 'tab:green'), (0.8, 'tab:orange'), (0.6, 'tab:red')):
     run = Simulation(create(MODEL, order=order), dt=0.1).run(until=30).trajectory_
     exact = mittag_leffler(2 * order, 1.0, -(run.times ** (2 * order)))
-    ax.plot(run.times, run['oscillator.x'], 'o', markersize=1.5, color=color, label=f'order {order}')
+    ax.plot(run.times, run.values('oscillator.x'), 'o', markersize=1.5, color=color, label=f'order {order}')
     ax.plot(run.times, exact, '-', linewidth=0.8, color='black')
 ax.set_xlabel('time t')
 ax.set_ylabel('x(t)')

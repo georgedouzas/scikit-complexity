@@ -60,8 +60,8 @@ for topology in ('isolated', 'linked', 'small_world', 'complete'):
     network = create(MODEL, n_agents=200, topology=topology, n_groups=10, shortcuts=5, random_state=0)
     run = Simulation(network, random_state=0, observables=describe(MODEL).observables_of(network)).run(until=40)
     trajectory = run.trajectory_
-    searches = np.concatenate([[0.0], np.cumsum(trajectory['barter.searches'][1:])])
-    ax.loglog(searches[1:], trajectory['dispersion'][1:], label=topology)
+    searches = np.concatenate([[0.0], np.cumsum(trajectory.values('barter.searches')[1:])])
+    ax.loglog(searches[1:], trajectory.values('dispersion')[1:], label=topology)
 ax.set_xlabel('cumulative searches')
 ax.set_ylabel('dispersion of log rates of substitution')
 ax.set_title('Small worlds unify prices with few searches')

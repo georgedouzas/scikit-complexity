@@ -32,15 +32,15 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (quota, biomass) = plt.subplots(1, 2, figsize=(10, 4))
-quota.plot(times, trajectory['algae.Q'], label='simulated')
+quota.plot(times, trajectory.values('algae.Q'), label='simulated')
 quota.axhline(2.0, color='black', linestyle='--', label='Q*')
 quota.set_xlabel('time (days)')
 quota.set_ylabel('cell quota')
 quota.set_title('The quota fills to its equilibrium')
 quota.legend()
-biomass.semilogy(times, trajectory['algae.P'], label='simulated')
+biomass.semilogy(times, trajectory.values('algae.P'), label='simulated')
 late = times >= 10
-exponential = trajectory['algae.P'][late][0] * np.exp(0.05 * (times[late] - times[late][0]))
+exponential = trajectory.values('algae.P')[late][0] * np.exp(0.05 * (times[late] - times[late][0]))
 biomass.semilogy(times[late], exponential, '--', color='black', label='rate 0.05')
 biomass.set_xlabel('time (days)')
 biomass.set_ylabel('biomass')

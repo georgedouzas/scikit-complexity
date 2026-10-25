@@ -21,7 +21,7 @@ def test_hormone_cascade_amplifier_multiplies_the_signal_by_the_gains_until_the_
             0.05,
             ScipyODESolver(rtol=1e-9, atol=1e-12),
         )
-        runs[k_gtp] = (trajectory.times, trajectory['g_protein.g'], trajectory['phosphorylase.x'])
+        runs[k_gtp] = (trajectory.times, trajectory.values('g_protein.g'), trajectory.values('phosphorylase.x'))
     times, signal, output = runs[0.5]
     gain = np.trapezoid(output, times) / np.trapezoid(signal, times)
     assert gain == pytest.approx(10 * 50 * 2 * 10 * 10, rel=1e-3)

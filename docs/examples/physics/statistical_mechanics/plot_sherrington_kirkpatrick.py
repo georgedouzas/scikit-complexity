@@ -47,7 +47,7 @@ for temperature in temperatures:
     spins = (
         Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample))
         .run(until=100)
-        .trajectory_['spins.spin'][50:]
+        .trajectory_.values('spins.spin')[50:]
     )
     energies.append(-0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200)
     frozen.append(np.mean(spins.mean(axis=0) ** 2))

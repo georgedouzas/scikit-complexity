@@ -56,22 +56,24 @@ simulation = Simulation(
 fig, (spread, utility, totals) = plt.subplots(1, 3, figsize=(14, 4))
 for goods in (2, 3):
     run = Simulation(create(MODEL, goods=goods, random_state=0), random_state=0).run(until=50).trajectory_
-    spread.semilogy(run.times[1:], run['exchange.dispersion'][1:], label=f'{goods} goods')
+    spread.semilogy(run.times[1:], run.values('exchange.dispersion')[1:], label=f'{goods} goods')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')
 spread.set_title('The prices of the trades converge')
 spread.legend()
 trajectory = simulation.trajectory_
-utility.plot(trajectory.times, trajectory['utility'])
+utility.plot(trajectory.times, trajectory.values('utility'))
 utility.set_xlabel('step')
 utility.set_ylabel('mean log utility')
 utility.set_title('Barter raises the mean utility')
 for good in ('sugar', 'spice', 'salt'):
-    totals.plot(trajectory.times, trajectory[good] / trajectory[good][0] - 1, label=good)
+    totals.plot(trajectory.times, trajectory.values(good) / trajectory.values(good)[0] - 1, label=good)
 totals.set_ylim(-1e-9, 1e-9)
 totals.set_xlabel('step')
 totals.set_ylabel('relative change of the total')
-totals.set_title(f'Totals conserved, largest change {np.max(np.abs(trajectory["sugar"] - trajectory["sugar"][0])):.0e}')
+totals.set_title(
+    f'Totals conserved, largest change {np.max(np.abs(trajectory.values("sugar") - trajectory.values("sugar")[0])):.0e}'
+)
 totals.legend()
 fig.tight_layout()
 plt.show()

@@ -42,8 +42,8 @@ simulation = Simulation(
 level = brentq(lambda x: 1 - 2 * x + 0.2 * (1 - x) / (x - 0.2) - 0.1, 0.21, 1.0)
 trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4.5))
-ax.plot(trajectory.times, trajectory['resource.x'], label='stock x')
-ax.plot(trajectory.times, trajectory['resource.effort'], label='effort E')
+ax.plot(trajectory.times, trajectory.values('resource.x'), label='stock x')
+ax.plot(trajectory.times, trajectory.values('resource.effort'), label='effort E')
 ax.axhline(level, color='black', linestyle='--', linewidth=0.8, label=f'singular level x* = {level:.3f}')
 ax.axhline(1 - level, color='gray', linestyle=':', linewidth=0.8, label=f'singular effort 1 - x* = {1 - level:.3f}')
 ax.set_xlabel('time (years)')

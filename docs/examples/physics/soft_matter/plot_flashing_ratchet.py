@@ -39,7 +39,7 @@ simulation.run(until=60)
 def measure_current(asymmetry, rate, duration):
     run = create(MODEL, n_particles=200, asymmetry=asymmetry, rate=rate, duration=duration, random_state=1)
     positions = Simulation(run, dt=1.0, solver=EulerMaruyamaSolver(dt=0.004), random_state=2).run(until=duration)
-    velocities = positions.trajectory_['particles.x'][-1, :, 0] / duration
+    velocities = positions.trajectory_.values('particles.x')[-1, :, 0] / duration
     return velocities.mean(), 3 * velocities.std() / np.sqrt(velocities.size)
 
 

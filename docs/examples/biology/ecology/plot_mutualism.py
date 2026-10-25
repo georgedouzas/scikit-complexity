@@ -31,12 +31,14 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=30)
 alone = Simulation(create(MODEL, first=5.0, second=0.0), dt=0.1).run(until=30).trajectory_
 trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(trajectory.times, trajectory['first.n'], label='first, with partner')
-ax.plot(trajectory.times, trajectory['second.n'], label='second, with partner')
-ax.plot(alone.times, alone['first.n'], '--', color='black', label='first, alone')
+ax.plot(trajectory.times, trajectory.values('first.n'), label='first, with partner')
+ax.plot(trajectory.times, trajectory.values('second.n'), label='second, with partner')
+ax.plot(alone.times, alone.values('first.n'), '--', color='black', label='first, alone')
 ax.axhline(50.0, color='grey', linestyle=':', label='carrying capacity')
 ax.set_xlabel('time')
 ax.set_ylabel('population')
-ax.set_title(f'Mutualists settle at {trajectory["first.n"][-1]:.0f} and {trajectory["second.n"][-1]:.0f}, above 50')
+ax.set_title(
+    f'Mutualists settle at {trajectory.values("first.n")[-1]:.0f} and {trajectory.values("second.n")[-1]:.0f}, above 50'
+)
 ax.legend()
 plt.show()

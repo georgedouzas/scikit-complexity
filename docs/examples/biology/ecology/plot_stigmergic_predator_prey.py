@@ -32,7 +32,7 @@ without = Simulation(create(MODEL, emotions=False, random_state=0), dt=1, random
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(axes, [simulation.trajectory_, without], ['with emotions', 'without'], strict=True):
     for kind in ['plants', 'prey', 'predators']:
-        ax.plot(trajectory.times, trajectory[f'life/{kind}.count'], label=kind)
+        ax.plot(trajectory.times, trajectory.values(f'life/{kind}.count'), label=kind)
     ax.set_xlabel('step')
     ax.set_title(title)
 axes[0].set_ylabel('organisms')
