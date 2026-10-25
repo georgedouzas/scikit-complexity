@@ -4,6 +4,7 @@
 # License: MIT
 
 import copy
+import dataclasses
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Self
@@ -24,18 +25,19 @@ from ...core.base import (
     VariableKind,
     Vector,
     declarations_of,
+    state,
     symbol,
     symbols_of,
     vector,
 )
-from ...core.components import Aggregate
+from ...core.components import AggregateQuantity, ElementComponent, GroupComponent
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.problems import BaseProblem, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
 from ...core.problems._problem import real_components_of
 from ...core.problems._quantities import _Recorded
 from ...core.problems._reads import Read
 from ...core.problems._reductions import CompiledReduction
-from ...core.system import Observable, System, reduce_values
+from ...core.system import ObservableQuantity, System, reduce_values
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
 from ._specs import Observed
@@ -52,7 +54,7 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-type Declared = dict[str, tuple[str, Observable]]
+type Declared = dict[str, tuple[str, ObservableQuantity]]
 
 
 def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
@@ -90,16 +92,23 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def _with_observables(system: System, observables: Sequence[Observable]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name."""
-    if not observables:
-        return system
-    by_scope: dict[str, list[Observable]] = {}
+def _has_aggregates(system: System) -> bool:
+    """Check whether a system tree declares an aggregate."""
+    return bool(system.aggregates) or any(_has_aggregates(child) for child in system.systems)
+
+
+def _with_observables(system: System, observables: Sequence[ObservableQuantity]) -> System:
+    """Return a copy of a system tree that declares observables in the systems their labels name.
+
+    The copy holds the value of every aggregate in an element of its own, which roles bind.
+    """
+    by_scope: dict[str, list[ObservableQuantity]] = {}
     for observable in observables:
-        scope, _, label = observable.label.rpartition('/')
-        local = copy.copy(observable)
-        local.label = label
-        by_scope.setdefault(scope, []).append(local)
+        checked = observable.check()
+        scope, _, label = checked.label.rpartition('/')
+        by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
+    if not by_scope and not _has_aggregates(system):
+        return system
     paths = {''} | set(_system_paths(system))
     unknown = sorted(set(by_scope) - paths)
     if unknown:
@@ -119,13 +128,23 @@ def _system_paths(system: System, scope: str = '') -> Iterator[str]:
         yield from _system_paths(child, path)
 
 
-def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str) -> System:
+def _attached_component(
+    component: ElementComponent | GroupComponent | AggregateQuantity | System,
+    by_scope: dict[str, list[ObservableQuantity]],
+    scope: str,
+) -> ElementComponent | GroupComponent | System:
+    """Return a nested system with its observables attached, the element holding an aggregate, or the component."""
+    if isinstance(component, System):
+        return _attached(component, by_scope, _join(scope, component.label))
+    if isinstance(component, AggregateQuantity):
+        return _AggregateElement(component.label, quantity=component.check())
+    return component
+
+
+def _attached(system: System, by_scope: dict[str, list[ObservableQuantity]], scope: str) -> System:
     """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
     copied = copy.copy(system)
-    copied.components = [
-        _attached(component, by_scope, _join(scope, component.label)) if isinstance(component, System) else component
-        for component in system.components
-    ]
+    copied.components = [_attached_component(component, by_scope, scope) for component in system.components]
     copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
     return copied
 
@@ -147,7 +166,7 @@ def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
     return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
 
 
-def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, Node]) -> bool:
+def _is_lowerable(scope: str, observable: ObservableQuantity, nodes: dict[str, Node]) -> bool:
     """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
     if observable.group is None:
         return True
@@ -160,7 +179,7 @@ def _source_of(block: Block) -> Source:
     return Source.MEMBER if block.node.members is not None else Source.SINGLE
 
 
-def _reduced_value(path: str, observable: Observable, block: Block) -> object:
+def _reduced_value(path: str, observable: ObservableQuantity, block: Block) -> object:
     """Return an observable that reduces a group as a reduction over the group's member symbols."""
     namespace, _ = block.namespace(_source_of(block))
     if observable.reduce == 'count':
@@ -206,7 +225,7 @@ def _readers_of(problem: Problem, path: str) -> set[str]:
     return readers
 
 
-def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
+def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, ObservableQuantity]]:
     """Yield the path of every system in a tree that declares observables, with each observable.
 
     Args:
@@ -257,9 +276,13 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
                 'Declare it with `group` and `variable`.'
             )
             raise ValidationError(error_msg)
-        aggregates.append(
-            Aggregate(observable.label, group=observable.group, reduce=observable.reduce, variable=observable.variable),
+        quantity = AggregateQuantity(
+            observable.label,
+            group=observable.group,
+            reduce=observable.reduce,
+            variable=observable.variable,
         )
+        aggregates.append(_AggregateElement(observable.label, quantity=quantity))
         held.append(path)
     children = []
     for child in system.systems:
@@ -292,6 +315,30 @@ def held_observables(system: System, nodes: list[Node]) -> set[str]:
     return (_role_paths(system) & declared) - set(lowerable)
 
 
+def aggregates_of(problem: BaseProblem) -> list[tuple[str, AggregateQuantity]]:
+    """Return the aggregates of a compiled problem, each with the path of the element that holds its value.
+
+    Args:
+        problem:
+            The problem.
+
+    Returns:
+        aggregates:
+            The path of every element that holds an aggregate, with the aggregate.
+
+    Examples:
+        >>> from skcomplex.engine.compile import aggregates_of, compile_system
+        >>> from skcomplex.models import create
+        >>> [path for path, _ in aggregates_of(compile_system(create('harvesting')))]
+        ['village/size']
+    """
+    return [
+        (element.path, element.element.quantity)
+        for element in problem.elements
+        if isinstance(element.element, _AggregateElement)
+    ]
+
+
 def check_held_reads(problem: Problem, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
     groups = {
@@ -309,6 +356,16 @@ def check_held_reads(problem: Problem, held: list[str]) -> None:
                 'subsystem of a different form.'
             )
             raise ValidationError(error_msg)
+
+
+class _AggregateElement(ElementComponent):
+    """Element that holds the value of an aggregate in its state `value`, so roles bind the aggregate's path."""
+
+    value: float = state(default=0.0)
+
+    def __init__(self, label: str, *, quantity: AggregateQuantity, **values: Any) -> None:  # noqa: ANN401
+        super().__init__(label, **values)
+        self.quantity = quantity
 
 
 @dataclass
@@ -429,10 +486,10 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
-        >>> from skcomplex.core.system import Observable, System
+        >>> from skcomplex.core.system import ObservableQuantity, System
         >>> from skcomplex.models.biology.ecology import PopulationComponent
         >>> system = System(components=[PopulationComponent.group('herd', 2, n=[2.0, 6.0])])
-        >>> total = Observable('total', group='herd', reduce='sum', variable='n')
+        >>> total = ObservableQuantity('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
@@ -545,7 +602,7 @@ class ObservableEvaluator:
             members[item] = _from_vector(reference.is_state, indices)
         return self._compile(recorded.path, recorded.expression, {}, members)
 
-    def _expression_getter(self, scope: str, path: str, observable: Observable) -> Getter:
+    def _expression_getter(self, scope: str, path: str, observable: ObservableQuantity) -> Getter:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         items: dict[str, Any] = {
@@ -571,7 +628,7 @@ class ObservableEvaluator:
                 return layout.entry(name)
         return None
 
-    def _reduction_getter(self, scope: str, path: str, observable: Observable) -> Getter:
+    def _reduction_getter(self, scope: str, path: str, observable: ObservableQuantity) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""
         group = _join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
@@ -630,7 +687,7 @@ class ObservableEvaluator:
 
         return read_expression
 
-    def _agent_getter(self, group: str, path: str, observable: Observable) -> Getter:
+    def _agent_getter(self, group: str, path: str, observable: ObservableQuantity) -> Getter:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partitions:
             error_msg = f'Observable {path} reduces {group}, which is neither an element group nor an agent group.'
@@ -688,7 +745,7 @@ class Observer:
         self,
         path: str,
         scope: str,
-        observable: Observable,
+        observable: ObservableQuantity,
     ) -> tuple[object, dict[Expression, Reference]]:
         """Return an expression of the symbols of a system's elements, with earlier observables by label."""
         prefix = f'{scope}/' if scope else ''
@@ -712,7 +769,12 @@ class Observer:
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         return expression, references
 
-    def value(self, path: str, scope: str, observable: Observable) -> tuple[object, dict[Expression, Reference]]:
+    def value(
+        self,
+        path: str,
+        scope: str,
+        observable: ObservableQuantity,
+    ) -> tuple[object, dict[Expression, Reference]]:
         """Return the value of an observable with the references of the symbols it reads."""
         if path in self.values:
             return self.values[path]

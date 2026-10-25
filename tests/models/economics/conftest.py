@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy.typing as npt
 
-from skcomplex.core.system import Observable, System
+from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.runtime import Simulation, Trajectory
 
 
@@ -19,6 +19,6 @@ def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, npt.
     return trajectory.agents(group, frame).values
 
 
-def _run_observed(system: System, until: float, observables: Sequence[Observable] = ()) -> Trajectory:
+def _run_observed(system: System, until: float, observables: Sequence[ObservableQuantity] = ()) -> Trajectory:
     """Return the trajectory of a model run with a fixed random state."""
     return Simulation(system, random_state=0, observables=observables).run(until=until).trajectory_

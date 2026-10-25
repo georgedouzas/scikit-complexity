@@ -36,7 +36,9 @@ unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.1, solver=solver).run(un
 early = Simulation(create(MODEL), dt=0.02, solver=solver).run(until=2).trajectory_
 early_unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.02, solver=solver).run(until=2).trajectory_
 fig, (lag, cells) = plt.subplots(1, 2, figsize=(10, 4))
-lag.plot(early.times, early.values('site.E1H') - early_unvaccinated.values('site.E1H'), label='gain of type 1 helper cells')
+lag.plot(
+    early.times, early.values('site.E1H') - early_unvaccinated.values('site.E1H'), label='gain of type 1 helper cells'
+)
 lag.axvline(0.47, color='grey', linestyle=':', label='one division tau3')
 lag.axvline(0.94, color='black', linestyle='--', label='two divisions 2 tau3')
 lag.set_xlabel('time (days)')
@@ -45,7 +47,9 @@ lag.set_title('The helper response lags the first dose')
 lag.legend()
 for state, name in (('ED', 'dendritic cells'), ('E1H', 'type 1 helper cells'), ('ER', 'regulatory T cells')):
     cells.semilogy(vaccinated.times, vaccinated.values(f'site.{state}'), label=name)
-cells.semilogy(unvaccinated.times, unvaccinated.values('site.ED'), color='grey', linestyle=':', label='unvaccinated DCs')
+cells.semilogy(
+    unvaccinated.times, unvaccinated.values('site.ED'), color='grey', linestyle=':', label='unvaccinated DCs'
+)
 cells.set_xlabel('time (days)')
 cells.set_ylabel('cells')
 cells.set_title('Weekly doses and the populations they drive')

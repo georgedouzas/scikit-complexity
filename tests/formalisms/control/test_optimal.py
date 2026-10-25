@@ -22,8 +22,8 @@ class FreeComponent(ElementComponent):
 
 
 def test_optimal_control_needs_an_objective():
-    """Test that a system without an objective law is rejected by the optimal control solvers."""
-    with pytest.raises(SolverError, match='one objective law'):
+    """Test that a system without an objective is rejected by the optimal control solvers."""
+    with pytest.raises(SolverError, match='one objective'):
         Simulation(System(components=[FreeComponent('plant')]), solver=PontryaginSolver()).run(until=1.0)
 
 
@@ -41,6 +41,6 @@ def test_optimal_control_needs_a_finite_horizon(linear_quadratic):
 
 
 def test_default_solver_does_not_optimise_objectives(linear_quadratic):
-    """Test that the default solver, which follows laws, refuses a system with an objective law."""
+    """Test that the default solver, which follows laws, refuses a system with an objective."""
     with pytest.raises(SolverError, match='does not optimise'):
         Simulation(linear_quadratic).run(until=1.0)

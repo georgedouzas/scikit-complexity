@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, Totalistic
 from ....core.space import LatticeSpace, Memory, Neighborhood
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.groups import CayleySpace
 from ....formalisms.lattices import LocalRuleLaw
@@ -36,14 +36,14 @@ def _random_cells(size: int, density: float, random_state: int | np.random.Gener
     return (np.random.default_rng(random_state).random(size) < density).astype(float)
 
 
-def _density_observables(system: System) -> list[Observable]:
+def _density_observables(system: System) -> list[ObservableQuantity]:
     """Return the density of ones of the cells."""
-    return [Observable('density', group='cells', variable='alive')]
+    return [ObservableQuantity('density', group='cells', variable='alive')]
 
 
-def _mean_observables(system: System) -> list[Observable]:
+def _mean_observables(system: System) -> list[ObservableQuantity]:
     """Return the mean value of the cells."""
-    return [Observable('mean', group='cells', variable='value')]
+    return [ObservableQuantity('mean', group='cells', variable='value')]
 
 
 class MajorityCellComponent(ElementComponent):

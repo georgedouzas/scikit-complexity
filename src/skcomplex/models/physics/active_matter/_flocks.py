@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parame
 from ....core.components import ElementComponent, GroupComponent
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 HEADINGS = VisualSpec(
@@ -48,13 +48,13 @@ def _nematic_order(s: Symbols) -> Expression:
     return _modulus('mean_axis', s)
 
 
-def _orders(group: str) -> list[Observable]:
+def _orders(group: str) -> list[ObservableQuantity]:
     """Return the mean heading and axis of a group of flockers and their moduli, the polar and nematic orders."""
     return [
-        Observable('mean_heading', _heading, group=group),
-        Observable('polarization', _polarization),
-        Observable('mean_axis', _axis, group=group),
-        Observable('nematic_order', _nematic_order),
+        ObservableQuantity('mean_heading', _heading, group=group),
+        ObservableQuantity('polarization', _polarization),
+        ObservableQuantity('mean_axis', _axis, group=group),
+        ObservableQuantity('nematic_order', _nematic_order),
     ]
 
 

@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
@@ -26,11 +26,13 @@ def _reward(actions: Array, couplings: Array) -> float:
     return float(actions @ couplings @ actions / actions.size)
 
 
-def _observables(system: System) -> list[Observable]:
+def _observables(system: System) -> list[ObservableQuantity]:
     """Return the observable of the mean reward per agent of the SK game."""
     values = cast('Mapping[str, Any]', system.elements[0].values)
     couplings = np.asarray(values['couplings'], dtype=float)
-    return [Observable('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings))]
+    return [
+        ObservableQuantity('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
+    ]
 
 
 class LearningAgentComponent(ElementComponent):

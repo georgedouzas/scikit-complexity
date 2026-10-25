@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import sqrt
 from ....core.base import BaseInteraction, Expression, NumericDomain, ValidationError, VisualSpec, parameter
 from ....core.components import ElementComponent
 from ....core.laws import RateLaw, Symbols, mean
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 QUANTILE_GRID_SIZE = 20001
@@ -96,10 +96,10 @@ def _spread_on_circle(size: int, random_state: int | np.random.Generator | None)
     references=('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021'),
     defaults={'until': 20.0, 'dt': 0.2},
     observables=lambda system: [
-        Observable('amplitude', _amplitude, group='oscillators'),
-        Observable('X', group='oscillators', variable='x'),
-        Observable('Y', group='oscillators', variable='y'),
-        Observable('order', _order),
+        ObservableQuantity('amplitude', _amplitude, group='oscillators'),
+        ObservableQuantity('X', group='oscillators', variable='x'),
+        ObservableQuantity('Y', group='oscillators', variable='y'),
+        ObservableQuantity('order', _order),
     ],
 )
 def oscillator_death(
@@ -164,11 +164,11 @@ def oscillator_death(
     references=("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021'),
     defaults={'until': 40.0, 'dt': 0.2},
     observables=lambda system: [
-        Observable('amplitude', _amplitude, group='systems'),
-        Observable('X', group='systems', variable='x'),
-        Observable('Y', group='systems', variable='y'),
-        Observable('V', _time_scale_deviation_x, group='systems'),
-        Observable('W', _time_scale_deviation_y, group='systems'),
+        ObservableQuantity('amplitude', _amplitude, group='systems'),
+        ObservableQuantity('X', group='systems', variable='x'),
+        ObservableQuantity('Y', group='systems', variable='y'),
+        ObservableQuantity('V', _time_scale_deviation_x, group='systems'),
+        ObservableQuantity('W', _time_scale_deviation_y, group='systems'),
     ],
 )
 def heterogeneous_global_coupling(

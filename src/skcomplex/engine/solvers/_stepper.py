@@ -58,11 +58,11 @@ class Solver(BaseSolver[Problem]):
     """
 
     def _check_capabilities(self, problem: Problem) -> None:
-        """Raise an error for renewal laws, fractional noise, or objective laws of a problem that the stepper lacks."""
+        """Raise an error for renewal laws, fractional noise, or objectives of a problem that the stepper lacks."""
         name = type(self).__name__
         if problem.objectives and LawKind.OBJECTIVE not in self.supports.laws:
             error_msg = (
-                f'{name} follows the laws of a system but does not optimise its objective laws. Use an optimal control '
+                f'{name} follows the laws of a system but does not optimise its objectives. Use an optimal control '
                 'solver, PontryaginSolver or CollocationSolver.'
             )
             raise SolverError(error_msg)

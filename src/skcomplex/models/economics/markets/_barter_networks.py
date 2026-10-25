@@ -15,7 +15,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, ro
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, NetworkSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, RuleLaw, matches
 
@@ -209,8 +209,8 @@ class BilateralBarterInteraction(BaseInteraction):
     references=('Wilhite 2001', 'Gooding 2019'),
     defaults={'until': 60},
     observables=lambda system: [
-        Observable('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        Observable('utility', _utility, group='traders'),
+        ObservableQuantity('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        ObservableQuantity('utility', _utility, group='traders'),
     ],
 )
 def wilhite_trade_networks(

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
 import numpy as np
@@ -12,6 +12,7 @@ from ..base import (
     BaseComponent,
     BaseInteraction,
     BaseLaw,
+    BaseQuantity,
     BaseSpace,
     ComponentKind,
     NumericDomain,
@@ -155,6 +156,7 @@ class ElementComponent(BaseComponent):
         states: Mapping[str, Any] | None = None,
         parameters: Mapping[str, Any] | None = None,
         laws: Callable[..., list[BaseLaw]] | None = None,
+        quantities: Callable[..., Sequence[BaseQuantity]] | None = None,
         visual: VisualSpec | None = None,
     ) -> type['ElementComponent']:
         """Return a new element type built from declarations, without writing a class.
@@ -174,6 +176,10 @@ class ElementComponent(BaseComponent):
 
             laws:
                 A function `laws(s)` or `laws(self, s)` that returns the intrinsic laws of the type.
+
+            quantities:
+                A function `quantities(s)` or `quantities(self, s)` that returns the auxiliaries, invariants, and
+                objectives of the type.
 
             visual:
                 The visual of the type, or `None` to inherit it.
@@ -196,7 +202,14 @@ class ElementComponent(BaseComponent):
             DecayingComponent(k=0.5, label='atoms', n=10.0)
         """
         attributes = {} if visual is None else {'visual': visual}
-        return cls._define(name, states=states, parameters=parameters, laws=laws, attributes=attributes)
+        return cls._define(
+            name,
+            states=states,
+            parameters=parameters,
+            laws=laws,
+            quantities=quantities,
+            attributes=attributes,
+        )
 
     @classmethod
     def group(

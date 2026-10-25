@@ -6,15 +6,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, cast
 
 from ...core.base import (
+    BaseComponent,
+    BaseInteraction,
     BaseLaw,
+    BaseQuantity,
     BaseSpace,
     ComponentKind,
+    DeclarationError,
     Entry,
     Expression,
+    LawKind,
     Registry,
     SkcomplexError,
     SymbolicVector,
@@ -31,7 +36,19 @@ from ...core.base import (
     symbols_of,
 )
 from ...core.components import GroupComponent
-from ...core.laws import BoundaryLaw, EquationLaw, EventLaw, JumpLaw, NoiseLaw, Objective, RateLaw, UpdateLaw, values_of
+from ...core.laws import (
+    AuxiliaryQuantity,
+    BoundaryLaw,
+    EquationLaw,
+    EventLaw,
+    InvariantQuantity,
+    JumpLaw,
+    NoiseLaw,
+    ObjectiveQuantity,
+    RateLaw,
+    UpdateLaw,
+    values_of,
+)
 from ...core.problems import EdgeSearch
 from ...core.problems._kernels import PairSearch
 from ...core.system import System
@@ -43,7 +60,39 @@ from ._tree import Node
 
 type OwnerRule = Callable[[KernelSpec, BaseLaw, set[str]], str | None]
 
+DECLARED_QUANTITIES = (AuxiliaryQuantity, InvariantQuantity, ObjectiveQuantity)
+
 OWNER_RULES = Registry[OwnerRule]('owner rule')
+
+
+def _check_no_quantities(spec: KernelSpec, declared: object) -> None:
+    """Raise an error for a quantity that a component returns among its laws."""
+    for item in declared if isinstance(declared, list | tuple) else []:
+        if isinstance(item, BaseQuantity):
+            error_msg = (
+                f'`laws` of {spec.owner} returns the {type(item).__name__} {item.label!r}, which is a quantity, not a '
+                'law. Return it from `quantities` instead.'
+            )
+            raise DeclarationError(error_msg)
+
+
+def _check_quantities(spec: KernelSpec, declared: object) -> None:
+    """Raise an error for a law, or for anything else than an auxiliary, invariant, or objective, among quantities."""
+    items = declared if isinstance(declared, list | tuple) else [declared]
+    for item in items:
+        if isinstance(item, BaseLaw):
+            error_msg = (
+                f'`quantities` of {spec.owner} returns a {type(item).__name__}, which is a law, not a quantity. Return '
+                'it from `laws` instead.'
+            )
+            raise DeclarationError(error_msg)
+        if not isinstance(item, DECLARED_QUANTITIES):
+            names = ', '.join(kind.__name__ for kind in DECLARED_QUANTITIES)
+            error_msg = (
+                f'`quantities` of {spec.owner} must return a list of {names}, but returns {item!r}. A run takes the '
+                'observables, and a system takes the aggregates among its components.'
+            )
+            raise DeclarationError(error_msg)
 
 
 def _check_registered(spec: KernelSpec, declared: object) -> None:
@@ -125,17 +174,53 @@ def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
     return declaration is not None and declaration.vector
 
 
+def declared_quantities(spec: KernelSpec, component: BaseComponent | BaseInteraction) -> list[BaseQuantity]:
+    """Return the checked auxiliaries, invariants, and objectives a component returns for its namespace.
+
+    Args:
+        spec:
+            The kernel spec of the component.
+
+        component:
+            The component or interaction, or a representative member of a group.
+
+    Returns:
+        quantities:
+            The quantities, checked.
+
+    Raises:
+        DeclarationError:
+            `quantities` returns a law, or something other than auxiliaries, invariants, and objectives.
+
+        ValidationError:
+            A quantity is invalid.
+    """
+    declared: Any = component.quantities(spec.namespace)
+    _check_quantities(spec, declared)
+    checked = []
+    for quantity in declared:
+        try:
+            checked.append(quantity.check())
+        except ValidationError as error:
+            error_msg = f'{type(quantity).__name__} of {spec.owner}: {error}'
+            raise ValidationError(error_msg) from error
+    return checked
+
+
 def _records_of(
     block: Block,
     elements: dict[str, Block],
     observe: Observer,
     declarations: Declarations,
     agents: set[str],
-) -> list[CensusRecord]:
-    """Return the census records of the laws of one component."""
+) -> tuple[list[CensusRecord], list[tuple[str, BaseQuantity]]]:
+    """Return the census records of the laws of one component, and its quantities with the path of the component."""
     records = []
+    quantities = []
     for spec in specs_of(block, elements, declarations.time, observe.evaluate):
-        for law in declared_laws(spec, component_of(block.node)):
+        component = cast('BaseComponent | BaseInteraction', component_of(block.node))
+        quantities += [(spec.owner, quantity) for quantity in declared_quantities(spec, component)]
+        for law in declared_laws(spec, component):
             items = [item for target in law.targets for item in components_of(target)]
             references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
             targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
@@ -156,7 +241,7 @@ def _records_of(
                     **_noise_census(spec, law, declarations),
                 ),
             )
-    return records
+    return records, quantities
 
 
 def register_owner(rule: OwnerRule) -> None:
@@ -173,7 +258,7 @@ def register_owner(rule: OwnerRule) -> None:
 def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
     """Return the path of the element or group whose state a law changes, or that a registered rule names.
 
-    Equations, events, and objectives belong to their component.
+    Equations and events belong to their component.
 
     Args:
         spec:
@@ -197,7 +282,7 @@ def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
         owner = OWNER_RULES.resolve(key)(spec, law, agents)
         if owner is not None:
             return owner
-    if isinstance(law, EquationLaw | EventLaw | Objective):
+    if isinstance(law, EquationLaw | EventLaw):
         return spec.owner
     return target_references(_changed_target(spec, law), spec)[0].entry.name.rpartition('.')[0]
 
@@ -234,10 +319,14 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
         UnregisteredLawError:
             A law is of a class that no formalism registered.
 
+        DeclarationError:
+            `laws` returns a quantity.
+
         ValidationError:
             `laws` returns something other than declarable laws, or laws its binding does not take.
     """
     declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
+    _check_no_quantities(spec, declared)
     _check_registered(spec, declared)
     if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
@@ -261,6 +350,24 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
             error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
             raise ValidationError(error_msg) from error
     return checked
+
+
+def quantity_kinds(quantities: list[tuple[str, BaseQuantity]]) -> dict[str, set[LawKind]]:
+    """Return the law kinds that the quantities of every component need a solver to support, the objective kind.
+
+    Args:
+        quantities:
+            The quantities, each with the path of its component.
+
+    Returns:
+        kinds:
+            The kinds by the path of the component.
+    """
+    kinds: dict[str, set[LawKind]] = {}
+    for owner, quantity in quantities:
+        if isinstance(quantity, ObjectiveQuantity):
+            kinds.setdefault(owner, set()).add(LawKind.OBJECTIVE)
+    return kinds
 
 
 def census_of(system: System, nodes: list[Node]) -> Census:
@@ -293,12 +400,15 @@ def census_of(system: System, nodes: list[Node]) -> Census:
     observe = Observer(declarations, lowerable_observables(system, nodes))
     agents = {block.node.path for block in blocks if block.node.is_agent}
     records = []
+    quantities = []
     for block in blocks:
         try:
-            records += _records_of(block, elements, observe, declarations, agents)
+            found, declared = _records_of(block, elements, observe, declarations, agents)
+            records += found
+            quantities += declared
         except SkcomplexError as error:
             errors.append((block.node.path, error))
-    return Census(system, records, errors)
+    return Census(system, records, errors, quantities)
 
 
 @dataclass(frozen=True)
@@ -371,8 +481,12 @@ class Census:
 
         errors:
             The path of every failing component with its error.
+
+        quantities:
+            The auxiliaries, invariants, and objectives of the components, each with the path of its component.
     """
 
     system: System
     records: list[CensusRecord]
     errors: list[tuple[str, SkcomplexError]]
+    quantities: list[tuple[str, BaseQuantity]] = field(default_factory=list)

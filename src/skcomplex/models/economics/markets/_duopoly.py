@@ -10,7 +10,7 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
@@ -124,8 +124,8 @@ class CournotAdjustmentInteraction(BaseInteraction):
     references=('Hamill and Gilbert 2016', 'Cournot 1838'),
     defaults={'until': 30},
     observables=lambda system: [
-        Observable('total', group='firms', reduce='sum', variable='output'),
-        Observable('price', _price),
+        ObservableQuantity('total', group='firms', reduce='sum', variable='output'),
+        ObservableQuantity('price', _price),
     ],
 )
 def cournot_duopoly(

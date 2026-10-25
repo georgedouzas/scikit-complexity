@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import sin
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import RateLaw, Symbols, derivative
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 
@@ -53,7 +53,7 @@ PiezoHarvesterComponent = ElementComponent.define(
     tags=('energy harvesting', 'piezoelectric', 'vibration', 'vehicles', 'ode'),
     references=('Trzaska 2023',),
     defaults={'until': 10.0, 'dt': 0.01},
-    observables=lambda system: [Observable('voltage', _piezo_voltage)],
+    observables=lambda system: [ObservableQuantity('voltage', _piezo_voltage)],
 )
 def vibration_energy_harvester(
     *,

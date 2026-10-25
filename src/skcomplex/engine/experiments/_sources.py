@@ -9,7 +9,7 @@ from typing import Any
 
 from ...core.base import ValidationError
 from ...core.problems import BaseProblem
-from ...core.system import Observable, System
+from ...core.system import ObservableQuantity, System
 from ..compile import compile_system
 from ..runtime import MODELS
 
@@ -21,7 +21,7 @@ def _problem(
     source: Callable[..., System] | System,
     arguments: Mapping[str, Any],
     system: System | None,
-    observables: Sequence[Observable] | str | None = None,
+    observables: Sequence[ObservableQuantity] | str | None = None,
 ) -> BaseProblem:
     """Return the compiled problem of a source with factory arguments, compiled once per process and arguments."""
     if system is not None:
@@ -84,7 +84,7 @@ def split_overrides(values: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str
     return arguments, paths
 
 
-def observables_for(observables: Sequence[Observable] | str | None, system: System) -> list[Observable]:
+def observables_for(observables: Sequence[ObservableQuantity] | str | None, system: System) -> list[ObservableQuantity]:
     """Return the observables of a run: given ones, the standard ones of a registered model by name, or none.
 
     Args:

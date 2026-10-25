@@ -10,7 +10,7 @@ from typing import cast
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseLaw, Expression, SymbolicVector, vector
-from ....core.laws import Invariant, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._census import kind_of, law_owner
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
@@ -54,12 +54,11 @@ def _owned(specs: Laws, owners: frozenset[str] | None, agents: set[str]) -> Laws
 
 
 def _law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:
-    """Return the kinds of the laws of every component, without the invariants of members."""
+    """Return the kinds of the laws of every component."""
     kinds: dict[str, set[type]] = defaultdict(set)
     for spec, laws in specs:
         for law in laws:
-            if not (isinstance(law, Invariant) and law.is_member):
-                kinds[law_owner(spec, law, agents)].add(kind_of(law))
+            kinds[law_owner(spec, law, agents)].add(kind_of(law))
     return kinds
 
 

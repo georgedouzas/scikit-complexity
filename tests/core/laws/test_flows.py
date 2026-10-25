@@ -11,9 +11,9 @@ from scipy import stats
 from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import (
-    Auxiliary,
+    AuxiliaryQuantity,
     BoundaryLaw,
-    Invariant,
+    InvariantQuantity,
     RateLaw,
     Sink,
     Source,
@@ -40,8 +40,12 @@ class TanksComponent(ElementComponent):
     b: float = state(1.0)
 
     def laws(self, s):
-        """Return the transfer and the invariant."""
-        return [TransferLaw(s.a, s.b, s.a / 4, label='flow'), Invariant('total', s.a + s.b)]
+        """Return the transfer."""
+        return [TransferLaw(s.a, s.b, s.a / 4, label='flow')]
+
+    def quantities(self, s):
+        """Return the invariant of the total."""
+        return [InvariantQuantity('total', s.a + s.b)]
 
 
 def _tub_laws(s):
@@ -52,11 +56,15 @@ def _tub_laws(s):
     ]
 
 
+def _population_quantities(s):
+    """Return the birth rate."""
+    return [AuxiliaryQuantity('birth_rate', s.b * s.n)]
+
+
 def _population_laws(s):
     """Return births through an auxiliary and deaths proportional to the population."""
-    births = Auxiliary('birth_rate', s.b * s.n)
+    (births,) = _population_quantities(s)
     return [
-        births,
         TransferLaw(Source(), s.n, births.symbol, label='births'),
         TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
     ]
@@ -76,9 +84,9 @@ def _ledger_laws(s):
     ]
 
 
-def _fertility_laws(s):
+def _fertility_quantities(s):
     """Return an auxiliary that reads a table of food per person."""
-    return [Auxiliary('fertility', lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)])), RateLaw(s.food, 1.0)]
+    return [AuxiliaryQuantity('fertility', lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)]))]
 
 
 TubComponent = ElementComponent.define(
@@ -94,6 +102,7 @@ PopulationComponent = ElementComponent.define(
     states={'n': state(10.0, quantity='people')},
     parameters={'b': 0.03, 'd': 0.01},
     laws=_population_laws,
+    quantities=_population_quantities,
 )
 
 
@@ -111,7 +120,12 @@ LedgerComponent = ElementComponent.define(
 )
 
 
-FertilityComponent = ElementComponent.define('FertilityComponent', states={'food': state(-1.0)}, laws=_fertility_laws)
+FertilityComponent = ElementComponent.define(
+    'FertilityComponent',
+    states={'food': state(-1.0)},
+    laws=lambda s: [RateLaw(s.food, 1.0)],
+    quantities=_fertility_quantities,
+)
 
 
 def _delayed(kind):
@@ -139,8 +153,12 @@ class BankComponent(ElementComponent):
     equity: float = state(2.0)
 
     def laws(self, s):
-        """Return the rule that loses assets and the invariant of the balance."""
-        return [RuleLaw(self.lose), Invariant('assets == liabilities + equity', _balance)]
+        """Return the rule that loses assets."""
+        return [RuleLaw(self.lose)]
+
+    def quantities(self, s):
+        """Return the invariant of the balance."""
+        return [InvariantQuantity('assets == liabilities + equity', _balance)]
 
     def lose(self, agent, model):
         """Lower the assets by 1."""
@@ -197,8 +215,12 @@ class PaymentsInteraction(BaseInteraction):
     creates: float = parameter(0.0)
 
     def laws(self, s):
-        """Return the rule that moves money and the invariant of the total."""
-        return [RuleLaw(self.move), Invariant('total money', _total_money)]
+        """Return the rule that moves money."""
+        return [RuleLaw(self.move)]
+
+    def quantities(self, s):
+        """Return the invariant of the total money."""
+        return [InvariantQuantity('total money', _total_money)]
 
     def move(self, model):
         """Move one unit from the first holder to the second, and create money when the payments create it."""
@@ -373,8 +395,8 @@ def test_transfer_moves_between_states_and_checks_names():
 def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
     """Test that invariants of members take module-level functions, which pickle."""
     with pytest.raises(ValidationError, match='cannot be pickled'):
-        Invariant('lambda', lambda agent: 0.0).check()
-    data = pickle.dumps(Invariant('equity', attrgetter('equity')))
+        InvariantQuantity('lambda', lambda agent: 0.0).check()
+    data = pickle.dumps(InvariantQuantity('equity', attrgetter('equity')))
     invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
     assert invariant.label == 'equity'
 

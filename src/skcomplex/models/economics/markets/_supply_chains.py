@@ -7,7 +7,7 @@ from itertools import pairwise
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
+from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -27,12 +27,15 @@ def _orders(echelon: Symbols) -> Expression:
     return where(orders > 0, orders, 0)
 
 
+def _echelon_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the orders and the shipments of an echelon."""
+    return [AuxiliaryQuantity('orders', _orders(s)), AuxiliaryQuantity('shipments', _shipments(s))]
+
+
 def _echelon_laws(s: Symbols) -> list[BaseLaw]:
-    """Return the laws of an echelon, its orders and shipments and the decay of its expectation."""
-    shipments = Auxiliary('shipments', _shipments(s))
+    """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
+    _, shipments = _echelon_quantities(s)
     return [
-        Auxiliary('orders', _orders(s)),
-        shipments,
         RateLaw(s.backlog, -shipments.symbol),
         RateLaw(s.expected, -s.theta * s.expected),
     ]
@@ -53,11 +56,15 @@ def _link_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
+def _customer_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the demand of the customers."""
+    return [AuxiliaryQuantity('demand', s.demand + step(s.t, s.step_time, s.demand_step))]
+
+
 def _customer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the customers, whose demand reaches the retailer and who take its shipments."""
-    demand = Auxiliary('demand', s.demand + step(s.t, s.step_time, s.demand_step))
+    (demand,) = _customer_quantities(s)
     return [
-        demand,
         RateLaw(s.retailer.backlog, demand.symbol),
         RateLaw(s.retailer.expected, s.retailer.theta * demand.symbol),
         TransferLaw(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
@@ -92,6 +99,7 @@ EchelonComponent = ElementComponent.define(
         'dispatch_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_echelon_laws,
+    quantities=_echelon_quantities,
 )
 
 SupplyLinkInteraction = BaseInteraction.define(
@@ -113,6 +121,7 @@ RetailDemandInteraction = BaseInteraction.define(
         'step_time': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_customer_laws,
+    quantities=_customer_quantities,
 )
 
 BreweryInteraction = BaseInteraction.define(

@@ -2,9 +2,9 @@
 
 ## 1. Quantities
 
-- [ ] 1.1 Add `BaseQuantity` to `core/base/_quantities.py`, and derive `ObservableQuantity`, `AuxiliaryQuantity`, `InvariantQuantity`,
+- [x] 1.1 Add `BaseQuantity` to `core/base/_quantities.py`, and derive `ObservableQuantity`, `AuxiliaryQuantity`, `InvariantQuantity`,
   `ObjectiveQuantity`, and `AggregateQuantity` from it. Verify with the scenario "No quantity is a law".
-- [ ] 1.2 Add `quantities` next to `laws` on `BaseComponent` and `BaseInteraction`, reject quantities from `laws`
+- [x] 1.2 Add `quantities` next to `laws` on `BaseComponent` and `BaseInteraction`, reject quantities from `laws`
   and laws from `quantities`, and move every declaration in `src`, `tests`, and `docs` with a codemod kept in the
   scratchpad. Verify with the scenarios "Quantities of a component" and "Quantity among the laws".
 

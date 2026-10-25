@@ -13,7 +13,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, p
 from ....core.components import ElementComponent, GroupComponent
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.kinetics import EncounterLaw, moment
 
@@ -358,7 +358,7 @@ def _sizes_of(system: System) -> tuple[int, int]:
     return int(crowding.rooms), int(crowding.speeds)
 
 
-def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
+def evacuation_observables(rooms: int, speeds: int) -> list[ObservableQuantity]:
     """Return the evacuated fraction and the mean walking speed of a crowd `crowd`.
 
     Args:
@@ -378,8 +378,8 @@ def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
         ['evacuated', 'mean_speed']
     """
     return [
-        Observable('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
-        Observable('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
+        ObservableQuantity('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
+        ObservableQuantity('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
     ]
 
 

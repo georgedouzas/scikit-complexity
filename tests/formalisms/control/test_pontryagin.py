@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.base import SolverError, parameter, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import Objective, RateLaw
+from skcomplex.core.laws import ObjectiveQuantity, RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.control import PontryaginSolver
@@ -18,8 +18,12 @@ class QuarticComponent(ElementComponent):
     u: float = parameter(0.0, adaptive=True, bounds=(-1, 1))
 
     def laws(self, s):
-        """Return the rate and the quartic cost."""
-        return [RateLaw(s.x, s.u), Objective(s.x**2 + s.u**4 - s.u**2)]
+        """Return the rate."""
+        return [RateLaw(s.x, s.u)]
+
+    def quantities(self, s):
+        """Return the quartic cost."""
+        return [ObjectiveQuantity('objective', s.x**2 + s.u**4 - s.u**2)]
 
 
 def test_pontryagin_matches_riccati_solution(linear_quadratic, riccati_control):

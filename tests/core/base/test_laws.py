@@ -3,7 +3,7 @@
 import dataclasses
 
 from skcomplex.core.base import BaseLaw, LawClass, LawKind, Trait, has_trait, law_classes, symbol
-from skcomplex.core.laws import BoundaryLaw, Invariant, RateLaw, Totalistic
+from skcomplex.core.laws import BoundaryLaw, EventLaw, RateLaw, Totalistic, TransferLaw
 from skcomplex.core.space import Neighborhood
 from skcomplex.formalisms.agents import MatchLaw
 from skcomplex.formalisms.lattices import LocalRuleLaw
@@ -14,7 +14,7 @@ from skcomplex.formalisms.rewriting import GraphProductionLaw, ProductionLaw, Su
 def test_law_classes_share_the_base():
     """Test that every law class derives from the law base and declares a kind, a time class, and its traits."""
     classes = law_classes()
-    for law in (MatchLaw, Invariant, DissipatorLaw, GeneratorLaw, ProductionLaw, GraphProductionLaw, SubstitutionLaw):
+    for law in (MatchLaw, TransferLaw, DissipatorLaw, GeneratorLaw, ProductionLaw, GraphProductionLaw, SubstitutionLaw):
         assert law in classes
     for law in classes:
         assert issubclass(law, BaseLaw)
@@ -50,7 +50,7 @@ def test_targets_are_a_tuple_once_checked():
     assert isinstance(checked.targets, tuple)
     assert checked.targets[0] is x
     assert LocalRuleLaw([x, y], Neighborhood.radius(), Totalistic({2: 1})).check().targets == (x, y)
-    assert Invariant('total', x + y).check().targets == ()
+    assert EventLaw(x - 1).check().targets == ()
 
 
 def test_law_is_importable_at_run_time():

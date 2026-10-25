@@ -8,7 +8,7 @@ import numpy as np
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import RateLaw, Symbols, total
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 
@@ -97,8 +97,8 @@ class ImmunizingDegreeClassComponent(ElementComponent):
     ),
     defaults={'until': 100.0, 'dt': 0.5},
     observables=lambda system: [
-        Observable('infected', _infected_share, group='network', reduce='sum'),
-        Observable('recovered', _recovered_share, group='network', reduce='sum'),
+        ObservableQuantity('infected', _infected_share, group='network', reduce='sum'),
+        ObservableQuantity('recovered', _recovered_share, group='network', reduce='sum'),
     ],
 )
 def heterogeneous_mean_field_sir(

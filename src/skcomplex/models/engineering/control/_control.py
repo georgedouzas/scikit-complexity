@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import cos, pi, sin
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import RateLaw, Symbols, derivative, step, where
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
 
@@ -307,7 +307,7 @@ def pendulum_swing_up(
     tags=('control', 'orbits', 'celestial mechanics', 'ode'),
     references=('Dilão et al. 2022', 'Dilão 2023'),
     defaults={'until': 20.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.005)},
-    observables=lambda system: [Observable('energy', _energy_of_satellite)],
+    observables=lambda system: [ObservableQuantity('energy', _energy_of_satellite)],
 )
 def satellite_transfer(
     s: float = 0.314,

@@ -198,16 +198,16 @@ def _is_declaration(value: object) -> bool:
     return isinstance(value, dataclasses.Field)
 
 
-def _laws_method(laws: Callable[..., list[Any]]) -> Callable[..., list[Any]]:
-    """Return a `laws` method from a function of the namespace, or of the instance and the namespace."""
-    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
-        return laws
+def _namespace_method(function: Callable[..., Sequence[Any]], name: str) -> Callable[..., Sequence[Any]]:
+    """Return a `laws` or `quantities` method from a function of the namespace, or of the instance and the namespace."""
+    if len(inspect.signature(function).parameters) >= 2:  # noqa: PLR2004
+        return function
 
-    def method(self: object, s: Any) -> list[Any]:
-        """Return the laws of the function."""
-        return laws(s)
+    def method(self: object, s: Any) -> Sequence[Any]:
+        """Return the list of the function."""
+        return function(s)
 
-    method.__doc__ = laws.__doc__ or 'Return the laws of the type.'
+    method.__doc__ = function.__doc__ or f'Return the {name} of the type.'
     return method
 
 
@@ -302,9 +302,10 @@ def _define_type(
     states: Mapping[str, Any] | None = None,
     parameters: Mapping[str, Any] | None = None,
     laws: Callable[..., list[Any]] | None = None,
+    quantities: Callable[..., Sequence[Any]] | None = None,
     attributes: Mapping[str, Any] | None = None,
 ) -> type:
-    """Return a subclass of a type built from declarations, a laws function, and class attributes, in a module.
+    """Return a subclass of a type built from declarations, laws and quantities functions, and class attributes.
 
     A state or a parameter given as a plain value is declared with that value as its default.
     """
@@ -316,7 +317,9 @@ def _define_type(
     namespace: dict[str, Any] = {'__module__': module, **(attributes or {}), **fields}
     namespace['__qualname__'] = name
     if laws is not None:
-        namespace['laws'] = _laws_method(laws)
+        namespace['laws'] = _namespace_method(laws, 'laws')
+    if quantities is not None:
+        namespace['quantities'] = _namespace_method(quantities, 'quantities')
     new_type = type(name, (kind,), namespace)
     new_type._declarations()  # type: ignore[attr-defined]
     return new_type

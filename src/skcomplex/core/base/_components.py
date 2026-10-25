@@ -9,6 +9,7 @@ from typing import Any, ClassVar, Self, cast
 from ._errors import ValidationError
 from ._estimator import BaseEstimator
 from ._laws import BaseLaw
+from ._quantities import BaseQuantity
 from ._variables import (
     Variable,
     VariableKind,
@@ -59,7 +60,8 @@ class BaseComponent(BaseEstimator):
 
     `check()` rejects a value the type does not declare and a declared variable without a default that is not given,
     `prepare()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from
-    the hook `laws` that a type overrides. Validation checks every component of a system.
+    the hook `laws` that a type overrides. A type returns its auxiliaries, invariants, and objectives from the hook
+    `quantities`, which takes the same namespace. Validation checks every component of a system.
 
     Args:
         label:
@@ -197,6 +199,19 @@ class BaseComponent(BaseEstimator):
         """
         return []
 
+    def quantities(self, s: Any) -> list[Any]:  # noqa: ANN401
+        """Return the auxiliaries, invariants, and objectives of the component, none by default.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the component.
+        """
+        return []
+
 
 class BaseInteraction(BaseEstimator):
     """Base class of laws that couple elements to each other or to the environment.
@@ -245,6 +260,7 @@ class BaseInteraction(BaseEstimator):
     `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a type
     that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `prepare()` sets
     `declarations_`, and `run(s)` returns the laws of the interaction for a namespace of symbols, from the hook `laws`.
+    The hook `quantities` returns the auxiliaries, invariants, and objectives of the interaction for the same namespace.
 
     Attributes:
         declarations_:
@@ -370,6 +386,7 @@ class BaseInteraction(BaseEstimator):
         roles: Sequence[str] = (),
         parameters: Mapping[str, Any] | None = None,
         laws: Callable[..., list[BaseLaw]] | None = None,
+        quantities: Callable[..., Sequence[BaseQuantity]] | None = None,
         over: str | None = None,
     ) -> type['BaseInteraction']:
         """Return a new interaction type built from declarations, without writing a class.
@@ -389,6 +406,10 @@ class BaseInteraction(BaseEstimator):
 
             laws:
                 A function `laws(s)` or `laws(self, s)` that returns the laws of the interaction.
+
+            quantities:
+                A function `quantities(s)` or `quantities(self, s)` that returns the auxiliaries, invariants, and
+                objectives of the interaction.
 
             over:
                 The binding of the laws, such as `'neighbors'`, or `None` to inherit it.
@@ -410,7 +431,14 @@ class BaseInteraction(BaseEstimator):
             GrowthInteraction(label='growth', r=0.5, target='rabbits')
         """
         attributes = {} if over is None else {'over': over}
-        return cls._define(name, roles=roles, parameters=parameters, laws=laws, attributes=attributes)
+        return cls._define(
+            name,
+            roles=roles,
+            parameters=parameters,
+            laws=laws,
+            quantities=quantities,
+            attributes=attributes,
+        )
 
     def laws(self, s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the interaction, none by default.
@@ -422,5 +450,18 @@ class BaseInteraction(BaseEstimator):
         Returns:
             laws:
                 The laws of the interaction.
+        """
+        return []
+
+    def quantities(self, s: Any) -> list[Any]:  # noqa: ANN401
+        """Return the auxiliaries, invariants, and objectives of the interaction, none by default.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the interaction.
         """
         return []

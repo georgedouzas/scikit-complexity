@@ -100,7 +100,7 @@ class PontryaginSolver(OptimalControlSolver):
     Examples:
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import ElementComponent
-        >>> from skcomplex.core.laws import Objective, RateLaw
+        >>> from skcomplex.core.laws import ObjectiveQuantity, RateLaw
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.formalisms.control import PontryaginSolver
         >>> from skcomplex.core.system import System
@@ -108,7 +108,8 @@ class PontryaginSolver(OptimalControlSolver):
         ...     'PlantComponent',
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-        ...     laws=lambda s: [RateLaw(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
+        ...     laws=lambda s: [RateLaw(s.x, s.u)],
+        ...     quantities=lambda s: [ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
         ... )
         >>> simulation = Simulation(System(components=[PlantComponent('plant')]), solver=PontryaginSolver()).run(
         ...     until=1.0

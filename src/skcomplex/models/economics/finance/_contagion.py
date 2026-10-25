@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, role, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -161,7 +161,7 @@ class DebtRankCascadeInteraction(BaseInteraction):
     tags=('systemic risk', 'network', 'contagion', 'agents'),
     references=('Thurner et al. 2018', 'Battiston et al. 2012'),
     defaults={'until': 10},
-    observables=lambda system: [Observable('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
+    observables=lambda system: [ObservableQuantity('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
 )
 def debtrank(
     liabilities: Sequence[Sequence[float]] | None = None,

@@ -1,24 +1,30 @@
-"""Define aggregates, the elements that summarise a group for partitions that cannot see its members."""
+"""Define aggregates, the quantities that summarise a group for partitions that cannot see its members."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Self
 
-from ..base import state
-from ._components import ElementComponent
+from ..base import BaseQuantity, ValidationError
 
 
-class Aggregate(ElementComponent):
-    """Summary of a group, the count of its members or a reduction of one of its states, held in the state `value`.
+@dataclass(frozen=True)
+class AggregateQuantity(BaseQuantity):
+    """Summary of a group, the count of its members or a reduction of one of their states.
 
-    In a co-simulation the scheduler computes the value at every synchronisation point, so partitions that cannot
-    see a group's members, such as differential equations next to agents, read the group through the aggregate.
+    A system declares its aggregates among its components. In a co-simulation the scheduler computes the value at every
+    synchronisation point, so partitions that cannot see a group's members, such as differential equations next to
+    agents, read the group through the aggregate. A role binds the path of the aggregate, and laws read its value as
+    `s.<role>.value`, which the trajectory records under `<aggregate path>.value`.
 
     Args:
         label:
-            The label of the aggregate.
+            The label of the aggregate, unique among the children of its system.
+
+        expression:
+            Unused, since an aggregate counts the members or reduces one of their states, so `None`.
 
         group:
             The path of the agent group or element group, relative to the system that holds the aggregate.
@@ -29,31 +35,30 @@ class Aggregate(ElementComponent):
         variable:
             The state the reduction reads, unused for `'count'`.
 
-        **values:
-            The values of the declared variables by name:
-
-            value:
-                The initial value, before the first synchronisation point.
+    Raises:
+        ValidationError:
+            The aggregate has an expression, or names no group.
 
     Examples:
-        >>> from skcomplex.core.components import Aggregate
-        >>> Aggregate('size', group='farmers').reduce
+        >>> from skcomplex.core.components import AggregateQuantity
+        >>> AggregateQuantity('size', group='farmers').check().reduce
         'count'
     """
 
-    value: float = state(default=0.0)
-    group: str  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
+    expression: object = None
+    group: str = field(default='', kw_only=True)
+    reduce: str | Callable[[Any], float] = field(default='count', kw_only=True)
+    variable: str | None = field(default=None, kw_only=True)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        group: str = '',
-        reduce: str | Callable[[Any], float] = 'count',
-        variable: str | None = None,
-        **values: Any,  # noqa: ANN401
-    ) -> None:
-        super().__init__(label, **values)
-        self.group = group
-        self.reduce = reduce
-        self.variable = variable
+    def _check(self) -> Self:
+        """Return the aggregate after checking that it names a group and has no expression."""
+        if not self.group:
+            error_msg = f'The aggregate {self.label!r} names no group. Give the path of the group it summarises.'
+            raise ValidationError(error_msg)
+        if self.expression is not None:
+            error_msg = (
+                f'The aggregate {self.label!r} has an expression, but aggregates count the members of a group or '
+                'reduce one of their states. Give `variable` instead.'
+            )
+            raise ValidationError(error_msg)
+        return self

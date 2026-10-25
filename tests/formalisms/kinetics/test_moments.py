@@ -7,7 +7,7 @@ from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError,
 from skcomplex.core.components import ElementComponent, GroupComponent
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime, LatticeSpace
-from skcomplex.core.system import Observable, System
+from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.kinetics import EncounterLaw, moment
@@ -71,9 +71,9 @@ def activity_variance(s):
 
 
 OBSERVABLES = [
-    Observable('density', density, group='wealth'),
-    Observable('mean_activity', mean_activity, group='wealth'),
-    Observable('variance', activity_variance, group='wealth'),
+    ObservableQuantity('density', density, group='wealth'),
+    ObservableQuantity('mean_activity', mean_activity, group='wealth'),
+    ObservableQuantity('variance', activity_variance, group='wealth'),
 ]
 
 

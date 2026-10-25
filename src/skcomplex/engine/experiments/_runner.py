@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ...core.base import ExperimentError, ValidationError
-from ...core.system import Observable
+from ...core.system import ObservableQuantity
 from ._designs import BaseDesign
 from ._results import ExperimentResult
 from ._scenarios import Scenario
@@ -87,7 +87,7 @@ class Experiment(BaseEstimator):
         warmup: float = 0.0,
         random_state: int | None = None,
         executor: str | Executor = 'serial',
-        observables: Sequence[Observable] | None = None,
+        observables: Sequence[ObservableQuantity] | None = None,
     ) -> None:
         self.source = source
         self.design = design

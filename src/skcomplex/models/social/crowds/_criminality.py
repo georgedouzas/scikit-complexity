@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, p
 from ....core.components import ElementComponent, GroupComponent
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.kinetics import EncounterLaw, moment
 
@@ -354,11 +354,11 @@ class RecruitmentInteraction(BaseInteraction):
 
 def _sizes_of(system: System) -> tuple[int, int]:
     """Return the number of criminality classes and of efficacy classes of a model."""
-    sizes = {item.label: int(item.size or 0) for item in system.components}
+    sizes = {item.label: int(item.size or 0) for item in system.elements}
     return sizes['citizens'], sizes['security']
 
 
-def criminality_observables(classes: int, forces: int) -> list[Observable]:
+def criminality_observables(classes: int, forces: int) -> list[ObservableQuantity]:
     """Return the mean criminality, the criminal fraction, and the density of the security forces of the model.
 
     Args:
@@ -379,9 +379,9 @@ def criminality_observables(classes: int, forces: int) -> list[Observable]:
     """
     criminality = criminality_grid(classes)
     return [
-        Observable('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
-        Observable('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
-        Observable('security_forces', partial(security_density, forces=forces), group='security'),
+        ObservableQuantity('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
+        ObservableQuantity('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
+        ObservableQuantity('security_forces', partial(security_density, forces=forces), group='security'),
     ]
 
 

@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, p
 from ....core.components import ElementComponent
 from ....core.laws import JumpLaw, Symbols
 from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 
@@ -129,8 +129,8 @@ class HoppingInteraction(BaseInteraction):
     references=('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009'),
     defaults={'until': 50.0, 'dt': 0.5, 'backend': 'numba'},
     observables=lambda system: [
-        Observable('mean', group='patches', variable='n', reduce='mean'),
-        Observable('variance', group='patches', variable='n', reduce='var'),
+        ObservableQuantity('mean', group='patches', variable='n', reduce='mean'),
+        ObservableQuantity('variance', group='patches', variable='n', reduce='var'),
     ],
 )
 def neutral_clustering(

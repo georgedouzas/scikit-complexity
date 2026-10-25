@@ -8,7 +8,7 @@ import numpy as np
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -109,7 +109,7 @@ class InvestingFirmComponent(ElementComponent):
     tags=('business cycle', 'agents', 'firms'),
     references=('Caiani et al. 2016', 'Delli Gatti et al. 2010'),
     defaults={'until': 100},
-    observables=lambda system: [Observable('production', group='firms', reduce='sum', variable='Y')],
+    observables=lambda system: [ObservableQuantity('production', group='firms', reduce='sum', variable='Y')],
 )
 def toy_firm_investment(
     n_firms: int = 100,

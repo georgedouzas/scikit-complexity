@@ -7,10 +7,9 @@ from dataclasses import replace
 from typing import cast
 
 from ....core.base import BaseLaw
-from ....core.laws import Auxiliary, Invariant, TransferLaw
+from ....core.laws import TransferLaw
 from ....core.problems import Problem, StockFlow
-from .._census import Census
-from .._compilation import BlockLaws, Compilation
+from .._compilation import BlockLaws, Compilation, Quantities
 from .._declarations import Declarations
 from .._flows import StockFlowPass, quantities_of
 from .._pipeline import BasePass
@@ -18,19 +17,19 @@ from .._specs import KernelSpec
 
 
 def _flow_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
-    """Return the component that declares a flow, an auxiliary, or an invariant, or `None` for another law."""
+    """Return the component that declares a flow, or `None` for another law."""
     del agents
-    return spec.owner if isinstance(law, TransferLaw | Auxiliary | Invariant) else None
+    return spec.owner if isinstance(law, TransferLaw) else None
 
 
 class ExpandFlowsPass(BasePass):
     """Pass that expands the flows, auxiliaries, invariants, and objectives of components into laws of other kinds."""
 
-    reads = ('collected', 'layout')
+    reads = ('collected', 'quantities', 'layout')
     writes = ('collected', 'flows')
 
     def _run(self, compilation: Compilation) -> None:
-        """Expand the flows of the collected laws.
+        """Expand the flows of the collected laws, and record the quantities.
 
         Args:
             compilation:
@@ -38,29 +37,12 @@ class ExpandFlowsPass(BasePass):
         """
         declarations = cast('Declarations', compilation.layout)
         flows = StockFlowPass(quantities_of(declarations.blocks))
+        quantities = {id(spec): items for spec, items in cast('Quantities', compilation.quantities)}
         compilation.collected = [
-            (spec, flows.expand(spec, list(laws)), block)
+            (spec, flows.expand(spec, list(laws), quantities.get(id(spec), [])), block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
         compilation.facts['flows'] = flows
-
-
-class FlowsCensusPass(BasePass):
-    """Pass that leaves the auxiliaries and invariants, which change no state, out of the census."""
-
-    reads = ('census',)
-    writes = ('census',)
-
-    def _run(self, compilation: Compilation) -> None:
-        """Leave the auxiliaries and invariants out of the census.
-
-        Args:
-            compilation:
-                The compilation state.
-        """
-        census = cast('Census', compilation.census)
-        records = [record for record in census.records if not isinstance(record.law, Auxiliary | Invariant)]
-        compilation.census = replace(census, records=records)
 
 
 class LowerFlowsPass(BasePass):
@@ -101,5 +83,5 @@ class FlowsProblemPass(BasePass):
         )
 
 
-PASSES = (ExpandFlowsPass(), FlowsCensusPass(), LowerFlowsPass(), FlowsProblemPass())
+PASSES = (ExpandFlowsPass(), LowerFlowsPass(), FlowsProblemPass())
 OWNER_RULES = (_flow_owner,)

@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import tanh
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, total, uniform, where
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
@@ -134,13 +134,13 @@ class LearnerComponent(ElementComponent):
         ]
 
 
-def _observables(system: System) -> list[Observable]:
+def _observables(system: System) -> list[ObservableQuantity]:
     """Return the mean reward, the mean temperature, and the least fitness of the agents."""
     del system
     return [
-        Observable('mean_reward', group='agents', variable='reward'),
-        Observable('mean_temperature', group='agents', variable='temperature'),
-        Observable('least_fitness', group='agents', variable='fitness', reduce='min'),
+        ObservableQuantity('mean_reward', group='agents', variable='reward'),
+        ObservableQuantity('mean_temperature', group='agents', variable='temperature'),
+        ObservableQuantity('least_fitness', group='agents', variable='fitness', reduce='min'),
     ]
 
 

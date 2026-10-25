@@ -48,8 +48,8 @@ def _check_supported(problem: Problem) -> None:
         raise SolverError(error_msg)
     if len(problem.objectives) != 1:
         error_msg = (
-            f'Optimal control solvers optimise one objective law, but the system has {len(problem.objectives)}. Give '
-            'the system one Objective law.'
+            f'Optimal control solvers optimise one objective, but the system has {len(problem.objectives)}. Give '
+            'the system one ObjectiveQuantity.'
         )
         raise SolverError(error_msg)
 
@@ -239,7 +239,7 @@ class ControlSolution:
 class OptimalControlSolver(Solver):
     """Base class of solvers that compute the controls minimising or maximising the objective of a system.
 
-    The solver reads the bounded adaptive parameters of the system as its controls and its objective law as its cost.
+    The solver reads the bounded adaptive parameters of the system as its controls and its objective as its cost.
     It solves the problem over the whole run from the initial state and the initial parameters at the start of the
     run, and then follows the solution frame by frame. Subclasses implement `_solve`, and may implement `_prepare`.
 
