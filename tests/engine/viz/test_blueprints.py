@@ -46,10 +46,10 @@ def test_views_of_builtin_visuals():
     gray = compile_system(create('gray_scott', shape=(16, 16)))
     voters = compile_system(create('voter_model'))
     views = [
-        ScalarsVisual().views(lotka.elements[0], lotka)[0],
-        PointsVisual(position='x', states=()).views(gas.elements[0], gas)[0],
-        ImageVisual().views(gray.elements[0], gray)[0],
-        AgentsVisual().views(voters.agents[0], voters)[0],
+        ScalarsVisual().fit(lotka.elements[0], lotka).views_[0],
+        PointsVisual(position='x', states=()).fit(gas.elements[0], gas).views_[0],
+        ImageVisual().fit(gray.elements[0], gray).views_[0],
+        AgentsVisual().fit(voters.agents[0], voters).views_[0],
     ]
     assert [type(view).__name__ for view in views] == ['TimeSeriesView', 'Spatial3DView', 'Spatial2DView', 'GraphView']
     assert [str(view.origin) for view in views] == ['prey', 'gas', 'cells/u', 'voters']
@@ -58,13 +58,13 @@ def test_views_of_builtin_visuals():
 def test_views_of_user_visual_are_empty_by_default():
     """Test that a visual that declares no views is left out of the layout."""
     problem = compile_system(create('lotka_volterra'))
-    assert BaseVisual().views(problem.elements[0], problem) == []
+    assert BaseVisual().fit(problem.elements[0], problem).views_ == []
 
 
 def test_views_of_points_log_other_states_as_series():
     """Test that the states other than the position get a time series view."""
     problem = compile_system(create('ideal_gas', n_molecules=10))
-    views = PointsVisual(position='x').views(problem.elements[0], problem)
+    views = PointsVisual(position='x').fit(problem.elements[0], problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
@@ -217,7 +217,7 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
     """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
     problem = compile_system(create('moran_process'))
     assert problem.agent_space is None
-    assert AgentsVisual().views(problem.agents[0], problem) == []
+    assert AgentsVisual().fit(problem.agents[0], problem).views_ == []
     view = primary_view(problem)
     assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'population trait')
 
@@ -225,7 +225,7 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
     problem = compile_system(create('elementary_automaton'))
-    views = ImageVisual(history=0).views(problem.elements[0], problem)
+    views = ImageVisual(history=0).fit(problem.elements[0], problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 

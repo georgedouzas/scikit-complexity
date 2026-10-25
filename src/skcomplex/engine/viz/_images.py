@@ -43,10 +43,14 @@ class ImageVisual(BaseVisual):
             The largest number of rows of the space-time image of a one-dimensional lattice, 0 for no space-time
             image, or `None` for as many rows as the lattice has sites, between 64 and 256.
 
+    Attributes:
+        rows_:
+            The recent rows of the space-time image of every state, by entity path.
+
     Examples:
         >>> from skcomplex.engine.viz import ImageVisual
         >>> ImageVisual(low=0, high=1)
-        ImageVisual(states=None, low=0, high=1, history=None)
+        ImageVisual(high=1, low=0)
     """
 
     def __init__(
@@ -60,11 +64,11 @@ class ImageVisual(BaseVisual):
         self.low = low
         self.high = high
         self.history = history
-        self._rows: dict[str, deque[npt.NDArray[np.float64]]] = {}
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return f'ImageVisual(states={self.states!r}, low={self.low!r}, high={self.high!r}, history={self.history!r})'
+    def _fit(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the element, forget the rows of earlier runs, and set the views."""
+        self.rows_: dict[str, deque[npt.NDArray[np.float64]]] = {}
+        super()._fit(element, problem)
 
     def _history_of(self, sites: int) -> int:
         """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
@@ -83,7 +87,7 @@ class ImageVisual(BaseVisual):
         rows = self._history_of(len(values))
         if not rows:
             return
-        history = self._rows.setdefault(path, deque(maxlen=rows))
+        history = self.rows_.setdefault(path, deque(maxlen=rows))
         history.append(values)
         image = np.stack(history)
         depth = rr.DepthImage(_levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
@@ -109,7 +113,7 @@ class ImageVisual(BaseVisual):
             rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
         )
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
 
         A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
@@ -141,7 +145,7 @@ class ImageVisual(BaseVisual):
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
             self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
 
         A one-dimensional lattice gets the 2D spatial views of its space-time images first, named `<state> history`.
@@ -164,10 +168,10 @@ class ImageVisual(BaseVisual):
             >>> from skcomplex.engine.viz import ImageVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
-            >>> [str(view.origin) for view in ImageVisual().views(problem.elements[0], problem)]
+            >>> [str(view.origin) for view in ImageVisual().fit(problem.elements[0], problem).views_]
             ['cells/u', 'cells/v']
             >>> problem = compile_system(create('elementary_automaton'))
-            >>> [str(view.origin) for view in ImageVisual().views(problem.elements[0], problem)]
+            >>> [str(view.origin) for view in ImageVisual().fit(problem.elements[0], problem).views_]
             ['cells/space_time/alive', 'cells/alive']
         """
         if not isinstance(element, CompiledElement):

@@ -322,7 +322,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
-    SiteVisual().log(recording, simulation.problem_.elements[0], frame)
+    SiteVisual().fit(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
     ((path, points, _),) = recording.entries
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
@@ -339,8 +339,9 @@ def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
     simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    visual, recording = SiteVisual(low=-1, high=1), Recording()
-    visual.log(recording, simulation.problem_.elements[0], frame)
-    visual.log(recording, simulation.problem_.elements[0], frame)
+    visual = SiteVisual(low=-1, high=1).fit(simulation.problem_.elements[0], simulation.problem_)
+    recording = Recording()
+    visual.run(frame, recording)
+    visual.run(frame, recording)
     kinds = [(type(archetype).__name__, static) for _, archetype, static in recording.entries]
     assert kinds == [('GraphEdges', True), ('GraphNodes', False), ('GraphNodes', False)]

@@ -14,10 +14,9 @@ import rerun.blueprint as rrb
 from rerun import bindings
 
 from ...core.base import BaseProblem, ValidationError
-from ...core.problems import CompiledElement, RenewalRecord
+from ...core.problems import RenewalRecord
 from ...core.space import NetworkSpace
 from ..runtime import BaseObserver, Frame
-from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
 from ._utils import log_scalars
@@ -58,9 +57,11 @@ def _renewal_text(record: RenewalRecord) -> str:
 class RerunObserver(BaseObserver):
     """Observer that logs frames to Rerun, with entity paths that follow the system tree.
 
-    Each logged frame sets the `sim_time` and `step` timelines, logs every element with the visual its type
-    declares, logs every parameter under `parameters/<name>`, and logs the renewals of renewal laws since the
-    previous frame as text entries under `renewals/<label>`.
+    `fit(problem)` creates the recording and fits the visual of every element and agent group, `run(frame)` logs a
+    frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines,
+    logs every element with the visual its type declares, logs every parameter under `parameters/<name>`, and logs
+    the renewals of renewal laws since the previous frame as text entries under `renewals/<label>`. A subclass logs
+    entities of its own apart from the system's with `_log_extra`.
 
     Args:
         application_id:
@@ -89,6 +90,12 @@ class RerunObserver(BaseObserver):
 
         blueprint_:
             The blueprint sent with the recording, or `None`.
+
+        visuals_:
+            The fitted visuals of the elements and the agent groups, in the order they are logged.
+
+        logged_frames_:
+            The number of frames logged.
 
     Raises:
         ValidationError:
@@ -141,13 +148,8 @@ class RerunObserver(BaseObserver):
         error_msg = f'blueprint = {self.blueprint!r} is not supported. Use None, \'default\', or a Rerun blueprint.'
         raise ValidationError(error_msg)
 
-    def on_start(self, problem: BaseProblem) -> None:
-        """Create the recording and send it to its sinks.
-
-        Args:
-            problem:
-                The compiled problem.
-        """
+    def _fit(self, problem: BaseProblem) -> None:
+        """Create the recording, send it to its sinks, and fit a visual to every element and agent group."""
         self.blueprint_ = self._resolve_blueprint(problem)
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
@@ -162,35 +164,26 @@ class RerunObserver(BaseObserver):
             rr.spawn(executable_path=_viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_)
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
-        self._visuals: list[tuple[CompiledElement, BaseVisual]] = [
-            (element, resolve_visual(element.visual)) for element in getattr(problem, 'elements', ())
+        agents = getattr(problem, 'agents', ())
+        self.visuals_: list[BaseVisual] = [
+            *(resolve_visual(element.visual).fit(element, problem) for element in getattr(problem, 'elements', ())),
+            *(agents_visual_of(group, problem).fit(group, problem) for group in agents),
         ]
-        self._agent_visuals: dict[str, AgentsVisual] = {}
-        for agents in getattr(problem, 'agents', ()):
-            self._agent_visuals[agents.path] = agents_visual_of(agents, problem)
-        self._space = getattr(problem, 'agent_space', None)
-        if isinstance(self._space, NetworkSpace):
-            edges = [(str(first), str(second)) for first, second in self._space.graph.edges]
-            for agents in getattr(problem, 'agents', ()):
-                self.recording_.log(agents.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
+        space = getattr(problem, 'agent_space', None)
+        if isinstance(space, NetworkSpace):
+            edges = [(str(first), str(second)) for first, second in space.graph.edges]
+            for group in agents:
+                self.recording_.log(group.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
         self.logged_frames_ = 0
 
-    def on_frame(self, frame: Frame) -> None:
-        """Log a frame when its step is a multiple of the interval.
-
-        Args:
-            frame:
-                The frame.
-        """
-        if frame.step % self.interval:
+    def _run(self, frame: Frame | None = None) -> None:
+        """Log a frame when its step is a multiple of the interval, and nothing for the call that ends the run."""
+        if frame is None or frame.step % self.interval:
             return
         self.recording_.set_time('step', sequence=frame.step)
         self.recording_.set_time('sim_time', duration=frame.time)
-        for element, visual in self._visuals:
-            visual.log(self.recording_, element, frame)
-        for path, snapshot in frame.agents.items():
-            visual = self._agent_visuals.setdefault(path, AgentsVisual())
-            visual.log_agents(self.recording_, path, snapshot, self._space)
+        for visual in self.visuals_:
+            visual.run(frame, self.recording_)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
         owners = {element.path for element in getattr(frame.problem, 'elements', ())}
@@ -204,8 +197,12 @@ class RerunObserver(BaseObserver):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(_renewal_text(record)))
         self.logged_frames_ += 1
 
-    def log_extra(self, path: str, archetype: rr.AsComponents, *, static: bool = False) -> None:
-        """Log an archetype of the caller's own under `extra/<path>`, apart from the paths of the system's entities.
+    def _release(self) -> None:
+        """Flush the recording."""
+        self.recording_.flush()
+
+    def _log_extra(self, path: str, archetype: rr.AsComponents, *, static: bool = False) -> None:
+        """Log an archetype of a subclass's own under `extra/<path>`, apart from the paths of the system's entities.
 
         Characters that Rerun would escape, such as spaces, become underscores, so a name such as `chain angle` needs
         no escaping and the entity never merges into the view of an element.
@@ -221,7 +218,3 @@ class RerunObserver(BaseObserver):
                 Whether the archetype holds for the whole recording.
         """
         self.recording_.log(f'{EXTRA}/{_sanitised(path)}', archetype, static=static)
-
-    def on_stop(self) -> None:
-        """Flush the recording."""
-        self.recording_.flush()

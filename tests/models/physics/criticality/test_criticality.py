@@ -21,10 +21,10 @@ def test_sandpile_avalanches_follow_power_law():
     observer = EventsObserver(lambda frame: (frame.lattice('pile.height') < 4).all())
     simulation = Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer])
     simulation.run(until=30_000)
-    sizes = np.asarray([event.size for event in observer.events if event.time > 8_000])
-    assert observer.passed
+    sizes = np.asarray([event.size for event in observer.events_ if event.time > 8_000])
+    assert observer.passed_
     assert sizes.max() > 1000
-    assert {event.label for event in observer.events} == {'avalanche'}
+    assert {event.label for event in observer.events_} == {'avalanche'}
     edges, density = histogram(sizes, 20, log=True)
     centers = np.sqrt(edges[1:] * edges[:-1])
     decades = (centers >= 1) & (centers <= 100) & (density > 0)

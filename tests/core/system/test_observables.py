@@ -197,7 +197,7 @@ def test_observables_logged_to_rerun(tmp_path):
     simulation = Simulation(_oscillators(), dt=0.5, observers=[observer], observables=ORDER).run(until=1)
     observer.recording_ = LoggedPaths()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_, observables={'order': 0.5})
-    observer.on_frame(frame)
+    observer.run(frame)
     assert 'order' in observer.recording_.paths
 
 

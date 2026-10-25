@@ -32,17 +32,17 @@ class _Redirect:
 
 
 _REDIRECT = _Redirect()
-_ON_START = RerunObserver.on_start
+_FIT = RerunObserver._fit
 
 
-def _on_start(observer: RerunObserver, problem: Problem) -> None:
-    """Start an observer, moving the relative recording path of an example that runs in its folder to its run."""
+def _fit(observer: RerunObserver, problem: Problem) -> None:
+    """Fit an observer, moving the relative recording path of an example that runs in its folder to its run."""
     path, target = observer.save_path, _REDIRECT.target
     in_example = Path.cwd().resolve() == _REDIRECT.source
     if target is not None and path is not None and not Path(path).is_absolute() and in_example:
         observer.save_path = target / path
         observer.save_path.parent.mkdir(parents=True, exist_ok=True)
-    _ON_START(observer, problem)
+    _FIT(observer, problem)
 
 
 def images_markdown(paths: list[Path], script: Any) -> str:  # noqa: ANN401
@@ -137,7 +137,7 @@ class RerunScraper:
             shutil.rmtree(self._folder, ignore_errors=True)
         self._folder = Path(tempfile.mkdtemp(prefix=f'{Path(file).stem}-'))
         _REDIRECT.source, _REDIRECT.target = Path(file).resolve().parent, self._folder
-        RerunObserver.on_start = _on_start  # type: ignore[method-assign,unused-ignore]
+        RerunObserver._fit = _fit  # type: ignore[method-assign,unused-ignore]
         self._start, self._captured = time.perf_counter(), 0.0
 
     def _seconds(self) -> float | None:

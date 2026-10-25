@@ -12,7 +12,7 @@ from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import EventLaw, NoiseLaw, RateLaw, delayed, pulse_train, series, step
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -288,15 +288,10 @@ def test_events_are_attached_to_frames():
     """Test that every frame carries the events since the previous one."""
     frames = []
 
-    class Collector:
-        def on_start(self, problem):
-            pass
-
-        def on_frame(self, frame):
-            frames.append(frame)
-
-        def on_stop(self):
-            pass
+    class Collector(BaseObserver):
+        def _run(self, frame=None):
+            if frame is not None:
+                frames.append(frame)
 
     Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).run(until=1.5)
     assert [len(frame.events) for frame in frames] == [0, 1, 0, 1]

@@ -56,14 +56,10 @@ class ExpectationVisual(ImageVisual):
     Examples:
         >>> from skcomplex.formalisms.quantum import ExpectationVisual
         >>> ExpectationVisual(low=-0.5, high=0.5)
-        ExpectationVisual(states=None, low=-0.5, high=0.5, history=None)
+        ExpectationVisual(high=0.5, low=-0.5)
     """
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return super().__repr__().replace('ImageVisual', 'ExpectationVisual', 1)
-
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the local expectations of a quantum element or group at one frame.
 
         Args:
@@ -91,7 +87,7 @@ class ExpectationVisual(ImageVisual):
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the space-time and image views of a quantum group or particle, or a series view of an element.
 
         Args:
