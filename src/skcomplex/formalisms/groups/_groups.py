@@ -411,7 +411,7 @@ def matrix_group(
     return _MatrixGroup(_names_of(names, len(arrays)), entries, modulus)
 
 
-class _FreeSolver(WordProblem):
+class _FreeWordProblem(WordProblem):
     """Word problem of a free group, by free reduction."""
 
     def identity(self) -> Word:
@@ -427,7 +427,7 @@ class _FreeSolver(WordProblem):
         return element
 
 
-class _RewritingSolver(WordProblem):
+class _RewritingWordProblem(WordProblem):
     """Word problem of a finitely presented group, by a confluent rewriting system of KBMAG in GAP."""
 
     def __init__(self, generators: tuple[str, ...], relators: tuple[Word, ...]) -> None:
@@ -474,7 +474,7 @@ class _RewritingSolver(WordProblem):
         return tuple(int(item) for item in _libgap().ExtRepOfObj(element))
 
 
-class _PermutationSolver(WordProblem):
+class _PermutationWordProblem(WordProblem):
     """Word problem of a permutation group, by composing images."""
 
     def __init__(self, permutations: Sequence[Permutation]) -> None:
@@ -494,7 +494,7 @@ class _PermutationSolver(WordProblem):
         return element.tobytes()
 
 
-class _MatrixSolver(WordProblem):
+class _MatrixWordProblem(WordProblem):
     """Word problem of a matrix group over the integers or a prime field, by matrix products."""
 
     def __init__(self, matrices: Sequence[npt.NDArray[np.int64]], modulus: int | None) -> None:
@@ -524,7 +524,7 @@ class _MatrixSolver(WordProblem):
         return element.tobytes()
 
 
-class _AutomatonSolver(WordProblem):
+class _AutomatonWordProblem(WordProblem):
     """Word problem of an automaton group: tree-level actions as keys, and AutomGrp in GAP to resolve equal keys."""
 
     def __init__(self, group: '_AutomatonGroup') -> None:
@@ -575,8 +575,8 @@ class _PresentedGroup(FinitelyGeneratedGroup):
     def word_problem(self) -> WordProblem:
         """Return free reduction without relators, and a confluent rewriting system otherwise."""
         if not self.relators:
-            return _FreeSolver()
-        return _RewritingSolver(self.generators, self.relators)
+            return _FreeWordProblem()
+        return _RewritingWordProblem(self.generators, self.relators)
 
     def short_key(self, word: Word) -> Hashable:
         """Return the freely reduced word, with generators whose square is a relator taken as their own inverses."""
@@ -611,7 +611,7 @@ class _PermutationGroup(FinitelyGeneratedGroup):
 
     def word_problem(self) -> WordProblem:
         """Return the composition of images."""
-        return _PermutationSolver(self.permutations())
+        return _PermutationWordProblem(self.permutations())
 
     def short_key(self, word: Word) -> Hashable:
         """Return the bytes of the permutation of the word."""
@@ -640,15 +640,15 @@ class _MatrixGroup(FinitelyGeneratedGroup):
 
     def word_problem(self) -> WordProblem:
         """Return matrix products."""
-        return _MatrixSolver(self.letter_matrices(), self.modulus)
+        return _MatrixWordProblem(self.letter_matrices(), self.modulus)
 
     def short_key(self, word: Word) -> Hashable:
         """Return the bytes of the product of the word."""
-        solver = self.word_problem()
-        element = solver.identity()
+        problem = self.word_problem()
+        element = problem.identity()
         for letter in word:
-            element = solver.multiply(element, letter)
-        return solver.key(element)
+            element = problem.multiply(element, letter)
+        return problem.key(element)
 
 
 @dataclass(frozen=True)
@@ -704,7 +704,7 @@ class _AutomatonGroup(FinitelyGeneratedGroup):
 
     def word_problem(self) -> WordProblem:
         """Return the tree-level keys resolved by AutomGrp."""
-        return _AutomatonSolver(self)
+        return _AutomatonWordProblem(self)
 
     def short_key(self, word: Word) -> Hashable:
         """Return the bytes of the action of the word on the hash level."""
