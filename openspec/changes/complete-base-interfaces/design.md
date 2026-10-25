@@ -46,14 +46,14 @@
 - **Three verbs, written once on each base.** For every base on `BaseEstimator`:
   - `check()` calls `_check()`, then returns `self`. It raises a named error for an argument the object cannot
     take.
-  - `fit(*context)` calls `check()` and then `_fit(*context)`, then returns `self`. Calling it again refits from the
+  - `prepare(*context)` calls `check()` and then `_prepare(*context)`, then returns `self`. Calling it again prepares again from the
     current arguments.
   - `run(*inputs, final=False)` calls `_run(*inputs)`, and `_release()` when `final` is true, then returns the
     hook's result.
 
   The base provides trivial hooks:
   - `_check` accepts;
-  - `_fit` derives nothing;
+  - `_prepare` derives nothing;
   - `_run` returns nothing;
   - `_release` releases nothing.
 
@@ -61,24 +61,24 @@
   running in the order the family requires stays inside the base.
   - *Alternative:* a fourth verb, `close`. Rejected by the maintainer in favour of `run(..., final=True)`.
 
-- **What each family fits and runs.**
+- **What each family prepares and runs.**
 
-  | Base | `fit(context)` derives | `run(input)` does |
+  | Base | `prepare(context)` derives | `run(input)` does |
   |---|---|---|
   | `BaseComponent`, `BaseInteraction` | `declarations_` | `run(s)` returns the laws, from the user's `laws` hook |
   | `BaseSpace` | `size_`, `n_dim_`, `shape_`, `positions_`, `periodic_`, `default_visual_`, and the neighbour tables | `run(site, neighborhood=None)` returns the neighbours of a site |
   | `BaseTime` | `time_kind_`, `schedule_` | `run(until)` returns the frame times up to a time |
-  | `BaseSolver` | `fit(problem, rng, until)`: `problem_`, `rng_`, `initial_state_` | `run(t, x, p, until)` returns the state at `until` and sets `events_`, `stopped_at_`, `snapshot_`, `agents_` |
-  | `BaseBackend` | `fit(form, size)` | `run(kernels)` returns the numeric functions |
-  | `BaseSystemCompiler` | `fit(system)`: `claims_` | `run(system)` returns the problem |
+  | `BaseSolver` | `prepare(problem, rng, until)`: `problem_`, `rng_`, `initial_state_` | `run(t, x, p, until)` returns the state at `until` and sets `events_`, `stopped_at_`, `snapshot_`, `agents_` |
+  | `BaseBackend` | `prepare(form, size)` | `run(kernels)` returns the numeric functions |
+  | `BaseSystemCompiler` | `prepare(system)`: `claims_` | `run(system)` returns the problem |
   | `BasePass` | none | `run(compilation)` writes the fields it declares |
-  | `BaseVisual` | `fit(problem)`: `views_` | `run(frame)` logs the frame |
-  | `BaseObserver` | `fit(problem)` | `run(frame)` reacts to a frame, and `run(frame, final=True)` ends the run |
-  | `BaseClock` | `fit()`: `started_` | `run(time)` waits until a frame's time |
-  | `BaseDesign` | `fit()`: `rows_` | `run()` returns the rows |
-  | `BaseSurrogate` | `fit(series)`: `system_`, `labels_`, `dt_`, `training_error_`, `validation_error_` | `run(steps)` forecasts, simulating the fitted system unless the surrogate has a faster `_run` |
+  | `BaseVisual` | `prepare(element, problem)`: `element_`, `space_`, `layouts_`, `views_` | `run(frame)` logs the frame |
+  | `BaseObserver` | `prepare(problem)` | `run(frame)` reacts to a frame, and `run(frame, final=True)` ends the run |
+  | `BaseClock` | `prepare()`: `started_` | `run(time)` waits until a frame's time |
+  | `BaseDesign` | `prepare()`: `rows_` | `run()` returns the rows |
+  | `BaseSurrogate` | `prepare(series)`: `system_`, `labels_`, `dt_`, `training_error_`, `validation_error_` | `run(steps)` forecasts, simulating the prepared system unless the surrogate has a faster `_run` |
 
-  - The runtime calls `fit` before the first frame, `run` at every frame, and `run(..., final=True)` at the last.
+  - The runtime calls `prepare` before the first frame, `run` at every frame, and `run(..., final=True)` at the last.
   - `run(final=True)` releases the Rerun viewer, the LAMMPS process, and the agent model.
   - Child-only methods become private or move to their user. These include `CayleySpace.words`,
     `MeshSpace.skfem_mesh`, `MesaSolver.create_agent`, and the quantum problem's `expect`.
@@ -88,11 +88,11 @@
   - Extension hooks a user writes to define a subclass stay public on the class that calls them, as `fit` is public
     in scikit-learn. These are `laws`, `energy`, and `pair_energy`.
 
-- **Trivial constructors and fitted attributes.**
+- **Trivial constructors and prepared attributes.**
   - `__init__` assigns each argument to the attribute of the same name, `self.x = x`, and nothing else. Components
     and interactions keep their single declaration-based constructor, which stores the label and every declared value
     the same way.
-  - Every attribute that is not an argument ends in `_` and is set only by `fit` or `run`.
+  - Every attribute that is not an argument ends in `_` and is set only by `prepare` or `run`.
   - The checks of today's constructors move to `_check`. Validation calls `check()` on every part of a system before
     compiling, so an invalid part is reported with its path, and `compile_system` validates too.
 
@@ -145,8 +145,8 @@
   The tests, the doctests, the user guide, and the gallery check that every caller moved.
 - [Errors move from construction to validation.] → Validation runs `check()` on every part of a system before
   compiling, so no unchecked part reaches a solver, and the errors gain the path of the part.
-- [Fitted attributes replace methods with arguments, such as `neighbors(site)`.] → What takes an argument stays a
-  `run` input, and only facts of the whole object become fitted attributes.
+- [Prepared attributes replace methods with arguments, such as `neighbors(site)`.] → What takes an argument stays a
+  `run` input, and only facts of the whole object become prepared attributes.
 - [`trajectory['a.n']` is the most-used notation in tests, models, and the guide.] → The codemod rewrites every
   subscript of a trajectory to `values`, and the doctests and markdown tests check the documents.
 - [Code compares terms with `is`.] → The codemod rewrites every `is` comparison of a term, and mypy and the tests

@@ -1,31 +1,31 @@
 ## ADDED Requirements
 
 ### Requirement: Configurable bases share three verbs
-Every base on `BaseEstimator` SHALL define `check()`, `fit(context)`, and `run(input, final=False)` once, each calling
+Every base on `BaseEstimator` SHALL define `check()`, `prepare(context)`, and `run(input, final=False)` once, each calling
 a private hook a child overrides, with trivial defaults, so every configurable object answers all three. No
 configurable class SHALL add a public verb beyond its constructors and the extension hooks a user implements.
 
 #### Scenario: One vocabulary
-- **WHEN** a user calls `check()`, `fit(...)`, and `run(...)` on a space, a solver, a visual, an observer, a design,
+- **WHEN** a user calls `check()`, `prepare(...)`, and `run(...)` on a space, a solver, a visual, an observer, a design,
   and a surrogate
 - **THEN** every call works, and none of `initialize`, `advance`, `lower`, `on_frame`, `compile`, or `forecast`
   exists
 
 #### Scenario: A new child through hooks
-- **WHEN** a user writes a space that implements `_fit` setting `size_`, `n_dim_`, and `positions_`, and `_run`
+- **WHEN** a user writes a space that implements `_prepare` setting `size_`, `n_dim_`, and `positions_`, and `_run`
   returning neighbours
-- **THEN** the space is checked, fitted, and run through the base's verbs, and the runtime uses it
+- **THEN** the space is checked, prepared, and run through the base's verbs, and the runtime uses it
 
 ### Requirement: Constructors only store their arguments
 Every `__init__` SHALL assign each argument to the attribute of the same name and do nothing else. Every other
-attribute SHALL end in `_` and be set only by `fit` or `run`, and the checks of arguments SHALL run in `check()`.
+attribute SHALL end in `_` and be set only by `prepare` or `run`, and the checks of arguments SHALL run in `check()`.
 
 #### Scenario: Invalid argument
 - **WHEN** a user builds a lattice space with a negative side and then validates a system that holds it
 - **THEN** construction succeeds, and validation raises an error that names the space and the side
 
-#### Scenario: Facts are fitted
-- **WHEN** a user fits a lattice space of shape `(4, 5)`
+#### Scenario: Facts are prepared
+- **WHEN** a user prepares a lattice space of shape `(4, 5)`
 - **THEN** `size_` is 20, `n_dim_` is 2, and `positions_` has 20 rows
 
 ### Requirement: Values carry fields and a check
@@ -63,11 +63,11 @@ SHALL store its symbols as plain attributes.
 - **THEN** the result runs every combination of their rows
 
 ### Requirement: Surrogates are estimators
-A surrogate SHALL take its settings in `__init__`, learn with `fit(series)`, store `system_` and its errors, and
-forecast with `run(steps)`, which the base defines by simulating the fitted system.
+A surrogate SHALL take its settings in `__init__`, learn with `prepare(series)`, store `system_` and its errors, and
+forecast with `run(steps)`, which the base defines by simulating the prepared system.
 
-#### Scenario: Fit and run
-- **WHEN** a user fits a `SINDySurrogate` to the series of a Lotka-Volterra run and runs it for 50 steps
+#### Scenario: Prepare and run
+- **WHEN** a user prepares a `SINDySurrogate` to the series of a Lotka-Volterra run and runs it for 50 steps
 - **THEN** `system_` is a system, `training_error_` is a number, and the forecast has 50 rows
 
 ### Requirement: The runtime reads problems through their base

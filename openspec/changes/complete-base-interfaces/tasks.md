@@ -10,9 +10,9 @@
 
 ## 2. Verbs
 
-- [ ] 2.1 Add `check`, `fit`, and `run` with their trivial hooks to every configurable base, and make every
-  `__init__` store its arguments only, moving its checks to `_check` and its derived values to `_fit`. Verify with the
-  scenarios "Invalid argument" and "Facts are fitted".
+- [ ] 2.1 Add `check`, `prepare`, and `run` with their trivial hooks to every configurable base, and make every
+  `__init__` store its arguments only, moving its checks to `_check` and its derived values to `_prepare`. Verify with the
+  scenarios "Invalid argument" and "Facts are prepared".
 - [ ] 2.2 Move every family to the verbs with a codemod kept in the scratchpad:
   - spaces, removing `SiteSpace`;
   - times;
@@ -23,11 +23,11 @@
 
   Make child-only methods private or move them to their users. Verify with the scenarios "One vocabulary", "A new
   child through hooks", and "Designs combine by name".
-- [ ] 2.3 Make the runtime call `fit` before the first frame, `run` at every frame, and `run(..., final=True)` at the
+- [ ] 2.3 Make the runtime call `prepare` before the first frame, `run` at every frame, and `run(..., final=True)` at the
   last. Remove its `getattr` fallbacks, and move `engine/analysis/_quantum.py` to `formalisms/quantum`. Verify with
   the scenario "Quantum run through the base".
-- [x] 2.4 Make the surrogates estimators with `fit` and `run`, replacing `fit_dmd`, `fit_sindy`, and `fit_reservoir`.
-  Verify with the scenario "Fit and run".
+- [x] 2.4 Make the surrogates estimators with `prepare` and `run`, replacing `fit_dmd`, `fit_sindy`, and `fit_reservoir`.
+  Verify with the scenario "Prepare and run".
 
 ## 3. Magic methods
 
@@ -44,7 +44,7 @@
 
 ## 4. Rules and gate
 
-- [ ] 4.1 Amend the constitution with the three verbs, trivial constructors and fitted attributes, the split between
+- [ ] 4.1 Amend the constitution with the three verbs, trivial constructors and prepared attributes, the split between
   values and configurable objects, and the allowed magic methods. Update the user guide, the README, and the gallery
   for the new verbs.
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.

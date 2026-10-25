@@ -21,18 +21,18 @@ The bases name their families but neither define them nor speak a common languag
 - **One vocabulary for every configurable base.** Each base on `BaseEstimator` speaks three verbs, with
   scikit-learn's `get_params` and `set_params`:
   - **`check()`** validates the stored arguments, raises a named error, and returns `self`.
-  - **`fit(context)`** prepares the object against what it works on, derives every attribute that ends in `_`, and
+  - **`prepare(context)`** prepares the object against what it works on, derives every attribute that ends in `_`, and
     returns `self`.
-  - **`run(input)`** is the one action of the family, which uses the fitted state. `run(..., final=True)` also
-    releases what `fit` acquired.
+  - **`run(input)`** is the one action of the family, which uses the prepared state. `run(..., final=True)` also
+    releases what `prepare` acquired.
 
-  Each verb is written once on its base and calls a private hook, `_check`, `_fit`, or `_run`, that a child
+  Each verb is written once on its base and calls a private hook, `_check`, `_prepare`, or `_run`, that a child
   overrides, so a base answers every verb, trivially where a family has nothing to do.
   - Families stop having verbs of their own: `initialize`, `advance`, `lower`, `views`, `log`, `on_start`,
-    `on_frame`, `on_stop`, `claims`, `compile`, `forecast`, and `rows` become `fit` and `run`.
-  - Facts of a family become fitted attributes, such as `space.size_`, `space.positions_`, and `solver.events_`.
+    `on_frame`, `on_stop`, `claims`, `compile`, `forecast`, and `rows` become `prepare` and `run`.
+  - Facts of a family become prepared attributes, such as `space.size_`, `space.positions_`, and `solver.events_`.
 - **Trivial constructors.** `__init__` stores every argument unmodified as `self.x = x` and does nothing else. Every
-  other attribute ends in `_` and is set by `fit` or `run`. The checks in today's constructors move to `check()`.
+  other attribute ends in `_` and is set by `prepare` or `run`. The checks in today's constructors move to `check()`.
 - **Values keep data, not verbs.** Laws, domains, problems, terms, and compiled records stay frozen dataclasses
   without hand-written methods. Their only shared method is `check()`, and their bases define the fields every child
   has, such as `targets` for laws.
@@ -41,16 +41,16 @@ The bases name their families but neither define them nor speak a common languag
     `layout.size` replaces `len(layout)`, and `layout.entries` replaces iterating the layout.
   - The symbol namespace of laws keeps `s.x`, with every symbol stored as a plain attribute and no `__getattr__`.
 - **Terms become value records** compared with `==`.
-- **Surrogates become estimators:** `SINDySurrogate(...).fit(series).run(50)` replaces `fit_sindy(...)` and
+- **Surrogates become estimators:** `SINDySurrogate(...).prepare(series).run(50)` replaces `fit_sindy(...)` and
   `forecast`.
-- **BREAKING:** every renamed verb, the fitted attributes that replace methods, construction-time validation, the
+- **BREAKING:** every renamed verb, the prepared attributes that replace methods, construction-time validation, the
   surrogate functions, the design operators, the callable objects, and the repr of the classes that printed
   themselves.
 
 ## Capabilities
 
 ### New Capabilities
-- `base-interfaces`: the shared verbs of the configurable bases, trivial constructors and fitted attributes, the
+- `base-interfaces`: the shared verbs of the configurable bases, trivial constructors and prepared attributes, the
   values and their checks, and which magic methods the code allows.
 
 ### Modified Capabilities
@@ -64,7 +64,7 @@ The bases name their families but neither define them nor speak a common languag
 
   Every value base and its children: laws, domains, problems.
 - **Callers:**
-  - the runtime, the compiler, and the visuals, which call the new verbs and read fitted attributes;
+  - the runtime, the compiler, and the visuals, which call the new verbs and read prepared attributes;
   - every model and example that calls a renamed method;
   - every `is` comparison of a term.
 - **Depends on:** `gather-base-classes`. The change `fix-class-relations` reworks the quantity classes, so this change

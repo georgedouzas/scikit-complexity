@@ -225,9 +225,9 @@ to fill in as the project takes shape.
 
 - Ecosystem contract: the scikit-learn estimator contract. Every configurable base derives from the framework's
   `BaseEstimator`, a child of `sklearn.base.BaseEstimator`, and speaks three verbs: `check()` validates the stored
-  arguments, `fit(*context)` checks and derives every attribute ending in an underscore, and
-  `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `fit`
-  acquired. Each verb calls a private hook, `_check`, `_fit`, `_run`, or `_release`, with a trivial default, and no
+  arguments, `prepare(*context)` checks and derives every attribute ending in an underscore, and
+  `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `prepare`
+  acquired. Each verb calls a private hook, `_check`, `_prepare`, `_run`, or `_release`, with a trivial default, and no
   family MUST add a verb of its own. Laws, domains, problems, terms, and compiled records are values: frozen
   dataclasses whose only shared method is `check()`, which returns a checked copy. Elements and groups derive from
   `BaseComponent`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
