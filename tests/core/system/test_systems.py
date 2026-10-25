@@ -6,17 +6,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import (
-    HilbertDomain,
-    NumericDomain,
-    SpaceError,
-    Structure,
-    TensorDomain,
-    ValidationError,
-    parameter,
-    role,
-    state,
-)
+from skcomplex.core.base import NumericDomain, SpaceError, TensorDomain, ValidationError, parameter, role, state
 from skcomplex.core.components import ElementComponent, GroupComponent
 from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import RateLaw, UpdateLaw
@@ -27,8 +17,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
-from skcomplex.formalisms.quantum import GeneratorLaw, QuantumView, is_quantum
-from skcomplex.formalisms.rewriting import ProductionLaw, Rewrite, WordComponent, structure_of
+from skcomplex.formalisms.quantum import GeneratorLaw, HilbertDomain, QuantumView, is_quantum
+from skcomplex.formalisms.rewriting import ProductionLaw, Rewrite, StructureDomain, WordComponent, structure_of
 from skcomplex.models.biology.ecology import PopulationComponent
 
 
@@ -267,7 +257,7 @@ def test_structured_domains_name_their_kind():
     """Test that tensor and structure domains report their kinds, and an unknown structure is rejected."""
     assert TensorDomain(2, 'traceless').value == 'traceless tensor of rank 2'
     with pytest.raises(ValueError, match='structure'):
-        Structure('tree')
+        StructureDomain('tree')
 
 
 def test_state_on_an_interaction_is_rejected():

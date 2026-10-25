@@ -36,10 +36,6 @@ class SpaceTooLargeError(SpaceError):
     """A space would hold more sites than its limit, or its elements would overflow their integer type."""
 
 
-class WordProblemError(SpaceError):
-    """A group has no word problem the library can solve, so a ball of its Cayley graph cannot be built."""
-
-
 class UnregisteredLawError(ValidationError):
     """A system holds a law of a class that neither the shared core nor a formalism registered."""
 
@@ -58,10 +54,6 @@ class PipelineError(SkcomplexError):
 
 class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
-
-
-class HorizonError(SolverError):
-    """A stepper with a fixed horizon is asked to advance beyond it."""
 
 
 class ParameterError(SkcomplexError):
@@ -84,16 +76,8 @@ class AnalysisError(SkcomplexError):
     """An analysis cannot be applied to the system or the data."""
 
 
-class RewritingError(SkcomplexError):
-    """A rewriting system is malformed, or a generation would exceed its maximum size."""
-
-
 class RegistryError(SkcomplexError):
     """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
-
-
-class HilbertSpaceError(SkcomplexError):
-    """A quantum system has a Hilbert space larger than its declared limit."""
 
 
 class BackendWarning(UserWarning):

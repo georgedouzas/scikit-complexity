@@ -1,15 +1,6 @@
-"""Shared vocabulary of the framework: errors, domains, declarations, forms, support, and registries."""
+"""Bases of the framework and the helpers they are declared with."""
 
-from ._domains import (
-    AnyDomain,
-    CategoricalDomain,
-    HilbertDomain,
-    HilbertFamilyDomain,
-    NumericDomain,
-    Structure,
-    TensorDomain,
-    wrap_angle,
-)
+from ._domains import BaseDomain, CategoricalDomain, NumericDomain, TensorDomain
 from ._errors import (
     AnalysisError,
     ArgumentError,
@@ -18,14 +9,11 @@ from ._errors import (
     CapacityError,
     ConservationError,
     ExperimentError,
-    HilbertSpaceError,
-    HorizonError,
     IncompatibleLawsError,
     LabelError,
     ParameterError,
     PipelineError,
     RegistryError,
-    RewritingError,
     RoleError,
     SimulationError,
     SkcomplexError,
@@ -35,15 +23,13 @@ from ._errors import (
     UnobservedStatesWarning,
     UnregisteredLawError,
     ValidationError,
-    WordProblemError,
 )
-from ._forms import Form
-from ._registry import Registry
-from ._support import (
+from ._kinds import (
     NUMERIC_DOMAINS,
     Binding,
     ComponentKind,
     DomainKind,
+    Form,
     LawClass,
     LawKind,
     NoiseKind,
@@ -51,39 +37,22 @@ from ._support import (
     Requires,
     SpaceKind,
     Supports,
+    Term,
     TimeKind,
     Trait,
     vocabulary,
 )
-from ._symbolic import (
-    Expression,
-    SymbolicVector,
-    components_of,
-    domain_of,
-    symbol,
-    symbols_of,
-    vector,
-)
-from ._terms import Term
-from ._variables import (
-    Variable,
-    VariableKind,
-    declaration_of,
-    declarations_of,
-    declared_fields,
-    parameter,
-    role,
-    state,
-)
-from ._visuals import VisualSpec
+from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
+from ._utils import Registry, VisualSpec, wrap_angle
+from ._variables import Variable, VariableKind, declaration_of, declarations_of, declared_fields, parameter, role, state
 
 __all__: list[str] = [
     'NUMERIC_DOMAINS',
     'AnalysisError',
-    'AnyDomain',
     'ArgumentError',
     'BackendError',
     'BackendWarning',
+    'BaseDomain',
     'Binding',
     'CapacityError',
     'CategoricalDomain',
@@ -93,10 +62,6 @@ __all__: list[str] = [
     'ExperimentError',
     'Expression',
     'Form',
-    'HilbertDomain',
-    'HilbertFamilyDomain',
-    'HilbertSpaceError',
-    'HorizonError',
     'IncompatibleLawsError',
     'LabelError',
     'LawClass',
@@ -109,7 +74,6 @@ __all__: list[str] = [
     'Registry',
     'RegistryError',
     'Requires',
-    'RewritingError',
     'RoleError',
     'SimulationError',
     'SkcomplexError',
@@ -117,7 +81,6 @@ __all__: list[str] = [
     'SpaceError',
     'SpaceKind',
     'SpaceTooLargeError',
-    'Structure',
     'Supports',
     'SymbolicVector',
     'TensorDomain',
@@ -130,7 +93,6 @@ __all__: list[str] = [
     'Variable',
     'VariableKind',
     'VisualSpec',
-    'WordProblemError',
     'components_of',
     'declaration_of',
     'declarations_of',

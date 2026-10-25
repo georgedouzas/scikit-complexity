@@ -11,15 +11,12 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import (
-    DomainKind,
-    LawClass,
-    LawKind,
-    Requires,
-    RewritingError,
-    TimeKind,
-)
+from ...core.base import DomainKind, LawClass, LawKind, Requires, SkcomplexError, TimeKind
 from ...core.laws import BaseLaw
+
+
+class RewritingError(SkcomplexError):
+    """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
 class Module:

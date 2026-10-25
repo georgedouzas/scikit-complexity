@@ -1,4 +1,4 @@
-"""Define the system vocabulary and the requirement and support declarations that validation compares."""
+"""Define the kinds of the framework: open vocabularies of terms, forms, and the declarations validation compares."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,17 +7,19 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
-from typing import ClassVar
+from typing import Any, ClassVar, NoReturn, Self, cast
 
-from ._terms import Term
+from ._errors import RegistryError
+
+TERMS: dict[type, dict[str, Any]] = {}
 
 
-def _terms(values: Iterable[StrEnum | Term]) -> frozenset[StrEnum | Term]:
+def _terms(values: Iterable['StrEnum | Term']) -> frozenset['StrEnum | Term']:
     """Return the terms of a declaration as a frozen set."""
     return frozenset(values)
 
 
-def vocabulary() -> dict[str, tuple[StrEnum | Term, ...]]:
+def vocabulary() -> dict[str, tuple['StrEnum | Term', ...]]:
     """Return the terms of every category of the system vocabulary, with the registered space and law kinds.
 
     Returns:
@@ -37,6 +39,139 @@ def vocabulary() -> dict[str, tuple[StrEnum | Term, ...]]:
         'laws': LawKind.registered(),
         'domains': tuple(DomainKind),
     }
+
+
+class Term:
+    """Named value of an open vocabulary, created once per name and compared by identity.
+
+    Creating a term with a name already registered in its vocabulary returns the registered term, so every term of one
+    name is the same object. Each subclass is a vocabulary of its own, and an extension adds a term by creating it.
+
+    Args:
+        name:
+            The name of the term in upper case, such as `'ODE'`.
+
+        value:
+            The text of the term, such as `'ordinary differential equations'`.
+
+    Raises:
+        RegistryError:
+            The name is registered in the vocabulary with another value.
+
+    Examples:
+        >>> from skcomplex.core.base import Form
+        >>> Form('ODE', 'ordinary differential equations') is Form.ODE
+        True
+        >>> str(Form.ODE)
+        'ordinary differential equations'
+    """
+
+    __slots__ = ('name', 'value')
+
+    name: str
+    value: str
+
+    def __new__(cls, name: str, value: str) -> Self:
+        """Return the registered term of the name, or register a new one."""
+        members: dict[str, Self] = TERMS.setdefault(cls, {})
+        registered = members.get(name)
+        if registered is not None and registered.value != value:
+            error_msg = (
+                f'{cls.__name__} {name} is registered with the value {registered.value!r}, not {value!r}. Give the '
+                'registered value, or choose another name.'
+            )
+            raise RegistryError(error_msg)
+        if registered is not None:
+            return registered
+        term = super().__new__(cls)
+        object.__setattr__(term, 'name', name)
+        object.__setattr__(term, 'value', value)
+        members[name] = term
+        return term
+
+    def __setattr__(self, name: str, value: object) -> NoReturn:
+        """Reject any change, since a term is frozen."""
+        error_msg = f'{self!r} is frozen, so its attribute {name!r} cannot be set.'
+        raise AttributeError(error_msg)
+
+    def __reduce__(self) -> tuple[type[Self], tuple[str, str]]:
+        """Return the constructor call that restores the registered term."""
+        return type(self), (self.name, self.value)
+
+    def __copy__(self) -> Self:
+        """Return the term itself, since a term is unique."""
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object]) -> Self:
+        """Return the term itself, since a term is unique."""
+        return self
+
+    def __str__(self) -> str:
+        """Return the value of the term."""
+        return self.value
+
+    def __repr__(self) -> str:
+        """Return the vocabulary and the name of the term."""
+        return f'{type(self).__name__}.{self.name}'
+
+    @classmethod
+    def registered(cls) -> tuple[Self, ...]:
+        """Return the terms of the vocabulary in registration order.
+
+        Returns:
+            terms:
+                The registered terms.
+
+        Examples:
+            >>> from skcomplex.core.base import SpaceKind
+            >>> SpaceKind.LATTICE in SpaceKind.registered()
+            True
+        """
+        return tuple(cast('dict[str, Self]', TERMS.get(cls, {})).values())
+
+
+class Form(Term):
+    """Mathematical form of a compiled system, a term of an open vocabulary that extensions add forms to.
+
+    Args:
+        name:
+            The name of the form in upper case.
+
+        value:
+            The description of the form.
+
+    Examples:
+        >>> from skcomplex.core.base import Form
+        >>> Form.SDE.value
+        'stochastic differential equations'
+    """
+
+    ODE: ClassVar['Form']
+    FRACTIONAL: ClassVar['Form']
+    SDE: ClassVar['Form']
+    JUMP: ClassVar['Form']
+    DISCRETE: ClassVar['Form']
+    AGENT: ClassVar['Form']
+    LATTICE: ClassVar['Form']
+    MONTE_CARLO: ClassVar['Form']
+    REWRITING: ClassVar['Form']
+    RENEWAL: ClassVar['Form']
+    COUPLED: ClassVar['Form']
+    QUANTUM: ClassVar['Form']
+
+
+Form.ODE = Form('ODE', 'ordinary differential equations')
+Form.FRACTIONAL = Form('FRACTIONAL', 'fractional differential equations')
+Form.SDE = Form('SDE', 'stochastic differential equations')
+Form.JUMP = Form('JUMP', 'jump process')
+Form.DISCRETE = Form('DISCRETE', 'discrete map')
+Form.AGENT = Form('AGENT', 'agent-based model')
+Form.LATTICE = Form('LATTICE', 'lattice dynamics')
+Form.MONTE_CARLO = Form('MONTE_CARLO', 'Monte Carlo sampling')
+Form.REWRITING = Form('REWRITING', 'rewriting system')
+Form.RENEWAL = Form('RENEWAL', 'renewal process')
+Form.COUPLED = Form('COUPLED', 'co-simulation')
+Form.QUANTUM = Form('QUANTUM', 'quantum dynamics')
 
 
 class TimeKind(StrEnum):

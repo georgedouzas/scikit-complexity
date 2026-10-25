@@ -12,10 +12,10 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from .....core.base import HilbertDomain, ValidationError, VisualSpec, state
+from .....core.base import ValidationError, VisualSpec, state
 from .....core.components import ElementComponent
 from .....core.space import BaseSpace, LatticeSpace, NetworkSpace, neighbor_pairs
-from .....formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
+from .....formalisms.quantum import HilbertDomain, LocalOperator, Operator, QuantumView, sparse_matrix
 
 DIGEST_SIZE = 8
 

@@ -17,7 +17,6 @@ from ...core.base import (
     Form,
     IncompatibleLawsError,
     NumericDomain,
-    RewritingError,
     RoleError,
     ValidationError,
     VariableKind,
@@ -39,7 +38,7 @@ from ...engine.compile import (
 )
 from ._components import HostGraphComponent, PatchComponent, structure_of
 from ._interactions import Rewriting
-from ._laws import GraphProductionLaw, ProductionLaw, RewritingLaw, SubstitutionLaw
+from ._laws import GraphProductionLaw, ProductionLaw, RewritingError, RewritingLaw, SubstitutionLaw
 from ._structures import GraphStructure, PatchStructure
 from ._words import IDENTIFIER, CompiledWord, Parameters
 

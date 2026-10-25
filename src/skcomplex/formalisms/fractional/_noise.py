@@ -15,7 +15,6 @@ from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
-    HorizonError,
     LawKind,
     NoiseKind,
     OrderKind,
@@ -89,6 +88,10 @@ def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Ge
     scale = np.sqrt(np.clip(eigenvalues, 0.0, None) / row.size)[:, np.newaxis]
     gaussian = rng.standard_normal((row.size, size)) + 1j * rng.standard_normal((row.size, size))
     return np.asarray(scipy.fft.fft(scale * gaussian, axis=0)[:n].real, dtype=float)
+
+
+class HorizonError(SolverError):
+    """A stepper with a fixed horizon is asked to advance beyond it."""
 
 
 class FractionalEulerMaruyamaSolver(Solver):

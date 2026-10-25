@@ -13,11 +13,8 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
-    CategoricalDomain,
     DomainKind,
     Form,
-    HilbertDomain,
-    HilbertFamilyDomain,
     LabelError,
     LawClass,
     LawKind,
@@ -32,9 +29,7 @@ from ...core.base import (
     SpaceError,
     SpaceKind,
     SpaceTooLargeError,
-    Structure,
     Supports,
-    TensorDomain,
     TimeKind,
     UnregisteredLawError,
     ValidationError,
@@ -106,19 +101,7 @@ def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
     domain = entry.domain
     if vector or entry.is_complex or domain is NumericDomain.COMPLEX:
         return DomainKind.VECTOR if vector else DomainKind.COMPLEX
-    if isinstance(domain, Structure):
-        return DomainKind(domain.kind)
-    classes = {CategoricalDomain: DomainKind.CATEGORICAL, TensorDomain: DomainKind.TENSOR}
-    classes |= {HilbertDomain: DomainKind.HILBERT, HilbertFamilyDomain: DomainKind.HILBERT}
-    if type(domain) in classes:
-        return classes[type(domain)]
-    kinds: dict[object, DomainKind] = {
-        NumericDomain.INTEGER: DomainKind.INTEGER,
-        NumericDomain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
-        NumericDomain.BOOLEAN: DomainKind.BOOLEAN,
-        NumericDomain.ANGLE: DomainKind.ANGLE,
-    }
-    return kinds.get(domain, DomainKind.REAL)
+    return domain.domain_kind
 
 
 def _space_kind(space: BaseSpace | None) -> SpaceKind:

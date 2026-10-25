@@ -3,42 +3,76 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-from ._errors import ValidationError
+from ._kinds import DomainKind
+from ._utils import wrap_angle
 
-NORM_TOLERANCE = 1e-8
 
+class BaseDomain:
+    """Base of the domains, the sets of values a variable takes.
 
-def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
-    """Return angles wrapped into one turn centred on zero, the half-open interval `(-pi, pi]`.
-
-    Args:
-        values:
-            An angle or an array of angles in radians.
-
-    Returns:
-        angles:
-            The angles in `(-pi, pi]`, with `-pi` moved to `pi` and angles already inside left exactly as they are.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.base import wrap_angle
-        >>> wrap_angle(np.array([3 * np.pi / 2, -np.pi, 0.5])).round(4).tolist()
-        [-1.5708, 3.1416, 0.5]
+    A domain names its kind, which decides the laws that may target a variable of it, checks that a value belongs to
+    it, and turns values to and from the stored numbers of a state vector. Its methods raise `NotImplementedError`
+    rather than being abstract, so an enumeration of domains can derive from it.
     """
-    angles = np.asarray(values, dtype=float)
-    inside = (angles > -np.pi) & (angles <= np.pi)
-    return np.where(inside, angles, np.pi - np.mod(np.pi - angles, 2 * np.pi))
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        raise NotImplementedError
+
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain: real, positive, integer, or complex."""
+        raise NotImplementedError
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as the stored numbers of a state vector.
+
+        Args:
+            value:
+                A value of the domain.
+
+        Returns:
+            array:
+                The stored numbers.
+        """
+        raise NotImplementedError
+
+    def decode(self, values: npt.NDArray[np.float64]) -> Any:  # noqa: ANN401
+        """Return stored numbers as values of the domain.
+
+        Args:
+            values:
+                The stored numbers.
+
+        Returns:
+            values:
+                The values of the domain.
+        """
+        raise NotImplementedError
+
+    def contains(self, value: object) -> bool:
+        """Check that a value belongs to the domain.
+
+        Args:
+            value:
+                A value.
+
+        Returns:
+            is_contained:
+                Whether the value belongs to the domain.
+        """
+        raise NotImplementedError
 
 
-class NumericDomain(Enum):
+class NumericDomain(BaseDomain, Enum):
     """Set of values a variable can take.
 
     Examples:
@@ -81,6 +115,18 @@ class NumericDomain(Enum):
             [1.0, 2.0]
         """
         return CategoricalDomain(tuple(labels))
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        kinds = {
+            NumericDomain.INTEGER: DomainKind.INTEGER,
+            NumericDomain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
+            NumericDomain.BOOLEAN: DomainKind.BOOLEAN,
+            NumericDomain.ANGLE: DomainKind.ANGLE,
+            NumericDomain.COMPLEX: DomainKind.COMPLEX,
+        }
+        return kinds.get(self, DomainKind.REAL)
 
     @property
     def sage_domain(self) -> str:
@@ -169,7 +215,7 @@ class NumericDomain(Enum):
 
 
 @dataclass(frozen=True)
-class CategoricalDomain:
+class CategoricalDomain(BaseDomain):
     """Domain of a finite alphabet, whose values are stored as the indices of its labels.
 
     Args:
@@ -188,6 +234,11 @@ class CategoricalDomain:
     def value(self) -> str:
         """Name of the domain, used in error messages."""
         return f'categorical {{{", ".join(map(str, self.labels))}}}'
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        return DomainKind.CATEGORICAL
 
     @property
     def sage_domain(self) -> str:
@@ -251,302 +302,7 @@ class CategoricalDomain:
 
 
 @dataclass(frozen=True)
-class HilbertDomain:
-    """Domain of a state that is a vector of a Hilbert space, with the local operators laws build Hamiltonians from.
-
-    An element whose state lies in a Hilbert space is a quantum subsystem. Its laws read every local operator by name,
-    and a group of such elements is the tensor product of its members' spaces, in member order.
-
-    Args:
-        dimension:
-            The dimension of the space.
-
-        operators:
-            A mapping from operator name to its matrix and whether it is Hermitian, such as `{'z': (matrix, True)}`.
-
-        basis:
-            A mapping from the label of a basis state to its index, such as `{'up': 0, 'down': 1}`.
-
-        display:
-            The name of the operator whose expectation visuals show for a group of such elements, or `None` for the
-            probabilities of the basis states.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.base import HilbertDomain
-        >>> space = HilbertDomain(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
-        >>> space.index('down'), space.index(0)
-        (1, 0)
-    """
-
-    dimension: int
-    operators: Mapping[str, tuple[Any, bool]] = field(default_factory=dict)
-    basis: Mapping[str, int] = field(default_factory=dict)
-    display: str | None = 'z'
-
-    @property
-    def value(self) -> str:
-        """Name of the domain, used in error messages."""
-        return f'Hilbert space of dimension {self.dimension}'
-
-    @property
-    def sage_domain(self) -> str:
-        """Sage domain of the symbols of the domain, complex for amplitudes."""
-        return 'complex'
-
-    def encode(self, value: object) -> npt.NDArray[Any]:
-        """Return a value as complex numbers.
-
-        Args:
-            value:
-                A vector of amplitudes.
-
-        Returns:
-            array:
-                The complex values.
-        """
-        return np.asarray(value, dtype=complex)
-
-    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
-        """Return stored values unchanged.
-
-        Args:
-            values:
-                The stored values.
-
-        Returns:
-            values:
-                The values.
-        """
-        return np.asarray(values)
-
-    def contains(self, value: object) -> bool:
-        """Check that a value is a basis label or index, or a vector of unit norm of the space's dimension.
-
-        Args:
-            value:
-                The value.
-
-        Returns:
-            is_contained:
-                Whether the value is a state of the space.
-        """
-        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
-            try:
-                self.index(value)
-            except ValueError:
-                return False
-            return True
-        try:
-            vector = np.asarray(value, dtype=complex).ravel()
-        except (TypeError, ValueError):
-            return False
-        return vector.size == self.dimension and abs(float(np.linalg.norm(vector)) - 1) <= NORM_TOLERANCE
-
-    def index(self, label: object) -> int:
-        """Return the index of a basis state from its label or its index.
-
-        Args:
-            label:
-                The label of a basis state, or its index.
-
-        Returns:
-            index:
-                The index of the basis state.
-
-        Raises:
-            ValueError:
-                The label names no basis state.
-        """
-        if isinstance(label, str) and label in self.basis:
-            return self.basis[label]
-        if isinstance(label, int | np.integer) and not isinstance(label, bool) and 0 <= label < self.dimension:
-            return int(label)
-        labels = ', '.join(map(repr, self.basis)) or 'none'
-        error_msg = f'{label!r} is no basis state. Use a label ({labels}) or an index from 0 to {self.dimension - 1}.'
-        raise ValueError(error_msg)
-
-    @staticmethod
-    def family(function: Callable[[Any], 'HilbertDomain']) -> 'HilbertFamilyDomain':
-        """Return the Hilbert spaces of an element type that depend on the values of each element.
-
-        Args:
-            function:
-                A function of an element that returns its Hilbert space, such as the space of a spin of quantum
-                number `element.j`.
-
-        Returns:
-            family:
-                The family, which a state declares as its domain.
-        """
-        return HilbertFamilyDomain(function)
-
-
-@dataclass(frozen=True)
-class HilbertFamilyDomain:
-    """Hilbert spaces of the elements of a type, each given by a function of the element.
-
-    Args:
-        function:
-            A function of an element that returns its Hilbert space.
-    """
-
-    function: Callable[[Any], HilbertDomain]
-
-    @property
-    def value(self) -> str:
-        """Name of the domain, used in error messages."""
-        return 'Hilbert space'
-
-    @property
-    def sage_domain(self) -> str:
-        """Sage domain of the symbols of the domain, complex for amplitudes."""
-        return 'complex'
-
-    def encode(self, value: object) -> npt.NDArray[Any]:
-        """Return a value as complex numbers.
-
-        Args:
-            value:
-                A vector of amplitudes.
-
-        Returns:
-            array:
-                The complex values.
-        """
-        return np.asarray(value, dtype=complex)
-
-    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
-        """Return stored values unchanged.
-
-        Args:
-            values:
-                The stored values.
-
-        Returns:
-            values:
-                The values.
-        """
-        return np.asarray(values)
-
-    def contains(self, value: object) -> bool:
-        """Check that a value is a basis label or index, or a finite vector, since the space depends on the element.
-
-        Args:
-            value:
-                The value.
-
-        Returns:
-            is_contained:
-                Whether the value can be a state of a space of the family.
-        """
-        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
-            return True
-        try:
-            return bool(np.all(np.isfinite(np.asarray(value, dtype=complex))))
-        except (TypeError, ValueError):
-            return False
-
-    def of(self, element: object) -> HilbertDomain:
-        """Return the Hilbert space of one element.
-
-        Args:
-            element:
-                The element.
-
-        Returns:
-            space:
-                Its Hilbert space.
-        """
-        return self.function(element)
-
-
-STRUCTURES = ('sequence', 'tiling', 'graph')
-
-
-@dataclass(frozen=True)
-class Structure:
-    """Domain of a state that is a structure rewritten as a whole: a sequence of symbols, a tiling, or a graph.
-
-    Args:
-        kind:
-            `'sequence'`, `'tiling'`, or `'graph'`.
-
-    Raises:
-        ValueError:
-            The kind is unknown.
-
-    Examples:
-        >>> from skcomplex.core.base import Structure
-        >>> Structure('sequence').value
-        'sequence'
-    """
-
-    kind: str
-
-    def __post_init__(self) -> None:
-        """Check the kind of structure."""
-        if self.kind not in STRUCTURES:
-            error_msg = f'Unknown structure {self.kind!r}. Use one of {", ".join(STRUCTURES)}.'
-            raise ValueError(error_msg)
-
-    @property
-    def value(self) -> str:
-        """Name of the domain, used in error messages."""
-        return self.kind
-
-    @property
-    def sage_domain(self) -> str:
-        """Sage domain of the symbols of the domain, which name structures but never take their values."""
-        return 'real'
-
-    def contains(self, value: object) -> bool:
-        """Check that a value is given, since the rewriting stepper checks the structure itself.
-
-        Args:
-            value:
-                The value.
-
-        Returns:
-            is_contained:
-                Whether the value is not `None`.
-        """
-        return value is not None
-
-    def encode(self, value: object) -> npt.NDArray[Any]:
-        """Raise an error, since structures live in the rewriting stepper and not in the state vector.
-
-        Args:
-            value:
-                The value.
-
-        Returns:
-            array:
-                Never, since a structure has no numeric encoding.
-
-        Raises:
-            ValidationError:
-                Always.
-        """
-        error_msg = f'A {self.kind} is rewritten as a whole by the rewriting stepper and has no numeric encoding.'
-        raise ValidationError(error_msg)
-
-    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
-        """Return stored values unchanged.
-
-        Args:
-            values:
-                The stored values.
-
-        Returns:
-            values:
-                The values.
-        """
-        return np.asarray(values)
-
-
-@dataclass(frozen=True)
-class TensorDomain:
+class TensorDomain(BaseDomain):
     """Domain of a state that is a tensor of a rank over the dimensions of the space, with a declared symmetry.
 
     Fields of tensors, such as the nematic order of active matter, are specified by `add-tensor-fields`.
@@ -572,6 +328,11 @@ class TensorDomain:
         """Name of the domain, used in error messages."""
         kind = f'{self.symmetry} tensor' if self.symmetry else 'tensor'
         return f'{kind} of rank {self.rank}'
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        return DomainKind.TENSOR
 
     @property
     def sage_domain(self) -> str:
@@ -620,6 +381,3 @@ class TensorDomain:
         except (TypeError, ValueError):
             return False
         return bool(np.all(np.isfinite(numbers)) and np.all(numbers.imag == 0))
-
-
-type AnyDomain = NumericDomain | CategoricalDomain | HilbertDomain | HilbertFamilyDomain | Structure | TensorDomain

@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import (
-    AnyDomain,
+    BaseDomain,
     LabelError,
     NumericDomain,
     SpaceError,
@@ -403,7 +403,7 @@ def coerce_value(
     name: str,
     value: object,
     shape: tuple[int, ...],
-    domain: AnyDomain,
+    domain: BaseDomain,
     members: int | None = None,
 ) -> npt.NDArray[np.float64]:
     """Return a value as a flat float array of the given shape after validating it.

@@ -145,12 +145,14 @@
     Every solver of the compiler's problem derives from it. The quantum, rewriting, and kinetic solvers derive from
     `BaseSolver` of their own problem.
 
-- **A domain is a base.** `BaseDomain` declares `kind`, `contains`, `encode`, and `decode`, with methods that raise
-  `NotImplementedError` rather than `ABC`, so the `NumericDomain` enumeration can derive from it. `AnyDomain` is
-  removed, and validation reads `domain.kind`.
+- **A domain is a base.** `BaseDomain` declares `domain_kind`, `sage_domain`, `contains`, `encode`, and `decode`,
+  with methods that raise `NotImplementedError` rather than `ABC`, so the `NumericDomain` enumeration can derive
+  from it. It declares no `value`, which would hide the value of an enumeration member. `AnyDomain` is
+  removed, and validation reads `domain.domain_kind`.
 
 - **Errors stay in one hierarchy, except those of one formalism.** The shared errors stay in `_errors.py`. An error
-  that only one formalism raises moves to that formalism.
+  that only one formalism raises moves to that formalism: `HilbertSpaceError` to `quantum`, `RewritingError` to
+  `rewriting`, `WordProblemError` to `groups`, and `HorizonError` to `fractional`.
 
 - **No alias keeps an old name.** A codemod in the scratchpad performs every rename and move; it never enters the
   repository.

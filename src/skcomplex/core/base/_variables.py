@@ -13,7 +13,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ._domains import AnyDomain, NumericDomain
+from ._domains import BaseDomain, NumericDomain
 
 METADATA_KEY = 'skcomplex'
 
@@ -87,7 +87,7 @@ class Variable:
     """
 
     kind: VariableKind
-    domain: AnyDomain = NumericDomain.REAL
+    domain: BaseDomain = NumericDomain.REAL
     vector: bool = False
     order: float = 1
     lags: int = 0
@@ -183,7 +183,7 @@ def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, 
 def state(
     default: Any = 0.0,
     *,
-    domain: AnyDomain = NumericDomain.REAL,
+    domain: BaseDomain = NumericDomain.REAL,
     vector: bool = False,
     order: float = 1,
     lags: int = 0,
@@ -303,7 +303,7 @@ def declaration_of(value: object) -> Variable | None:
 def parameter(
     default: Any = dataclasses.MISSING,
     *,
-    domain: AnyDomain = NumericDomain.REAL,
+    domain: BaseDomain = NumericDomain.REAL,
     vector: bool = False,
     per: str | None = None,
     adaptive: bool = False,

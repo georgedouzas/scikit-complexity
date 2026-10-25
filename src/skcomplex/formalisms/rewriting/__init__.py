@@ -2,13 +2,22 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._components import HostGraphComponent, PatchComponent, WordComponent, structure_of
+from ._components import HostGraphComponent, PatchComponent, StructureDomain, WordComponent, structure_of
 from ._geometry import WordGeometry
 from ._interactions import Rewrite, Rewriting
-from ._laws import Affine, GraphProductionLaw, Module, ProductionLaw, Prototile, RewritingLaw, SubstitutionLaw
+from ._laws import (
+    Affine,
+    GraphProductionLaw,
+    Module,
+    ProductionLaw,
+    Prototile,
+    RewritingError,
+    RewritingLaw,
+    SubstitutionLaw,
+)
 from ._passes import CompiledGraph, CompiledPatch, RewritingPass, RewritingProblem, compile_rewriting
 from ._solvers import RewritingSolver
-from ._structures import GraphStructure, PatchStructure, StructureDomain, WordStructure
+from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ._visuals import GeometryVisual
 from ._words import CompiledWord
 
@@ -28,10 +37,12 @@ __all__: list[str] = [
     'Prototile',
     'Rewrite',
     'Rewriting',
+    'RewritingError',
     'RewritingLaw',
     'RewritingPass',
     'RewritingProblem',
     'RewritingSolver',
+    'Structure',
     'StructureDomain',
     'SubstitutionLaw',
     'WordComponent',

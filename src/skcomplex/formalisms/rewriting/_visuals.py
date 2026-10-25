@@ -14,7 +14,7 @@ from ...engine.compile import CompiledAgents, CompiledElement, Problem
 from ...engine.runtime import Frame
 from ...engine.viz import BaseVisual, colors_of, log_scalars
 from ._components import PatchComponent, WordComponent
-from ._structures import GraphStructure, PatchStructure, StructureDomain, WordStructure
+from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 
 MARGIN = 0.03
 RESOLUTION = 512
@@ -43,7 +43,7 @@ def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | 
     return (xmin - pad, ymin - pad, xmax + pad, ymax + pad)
 
 
-def _strips(structure: StructureDomain) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
     """Return the line strips of a structure, with y flipped for the downward axis of Rerun, and a value per strip."""
     segments = structure.segments()
     if isinstance(structure, WordStructure):

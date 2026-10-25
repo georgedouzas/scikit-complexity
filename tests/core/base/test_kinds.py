@@ -1,11 +1,12 @@
-"""Test the open vocabularies of named terms."""
+"""Test the `_kinds` module of `skcomplex.core.base`."""
 
 import copy
-import pickle  # nosec B403: the test round-trips only the terms it pickles itself
+import pickle
 
 import pytest
 
-from skcomplex.core.base import Form, LawKind, RegistryError, SpaceKind, Term, Trait
+from skcomplex.core.base import Form, LawKind, NoiseKind, RegistryError, SpaceKind, Term, Trait
+from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 
 
 class Colour(Term):
@@ -49,3 +50,10 @@ def test_term_text_and_representation():
     assert str(LawKind.LOCAL_RULE) == 'local-rule'
     assert repr(Form.MONTE_CARLO) == 'Form.MONTE_CARLO'
     assert Form.SDE.name == 'SDE'
+
+
+def test_declared_noise_support():
+    """Test that Euler-Maruyama and Heun declare every noise structure and Milstein only diagonal noise."""
+    assert set(EulerMaruyamaSolver.supports.noise) == set(NoiseKind)
+    assert set(HeunSolver.supports.noise) == set(NoiseKind)
+    assert set(MilsteinSolver.supports.noise) == {NoiseKind.DIAGONAL}

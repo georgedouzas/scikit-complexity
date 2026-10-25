@@ -4,20 +4,19 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import networkx as nx
+import numpy as np
+import numpy.typing as npt
 
-from ...core.base import (
-    Structure,
-    VariableKind,
-    VisualSpec,
-    declarations_of,
-    state,
-)
+from ...core.base import BaseDomain, DomainKind, ValidationError, VariableKind, VisualSpec, declarations_of, state
 from ...core.components import ElementComponent
 from ._geometry import WordGeometry
 from ._laws import Affine, Letters, Prototile
+
+STRUCTURES = ('sequence', 'tiling', 'graph')
 
 
 def structure_of(element_type: type) -> str | None:
@@ -39,9 +38,95 @@ def structure_of(element_type: type) -> str | None:
     if not (isinstance(element_type, type) and issubclass(element_type, ElementComponent)):
         return None
     for declaration in declarations_of(element_type, VariableKind.STATE).values():
-        if isinstance(declaration.domain, Structure):
+        if isinstance(declaration.domain, StructureDomain):
             return declaration.domain.kind
     return None
+
+
+@dataclass(frozen=True)
+class StructureDomain(BaseDomain):
+    """Domain of a state that is a structure rewritten as a whole: a sequence of symbols, a tiling, or a graph.
+
+    Args:
+        kind:
+            `'sequence'`, `'tiling'`, or `'graph'`.
+
+    Raises:
+        ValueError:
+            The kind is unknown.
+
+    Examples:
+        >>> from skcomplex.formalisms.rewriting import StructureDomain
+        >>> StructureDomain('sequence').value
+        'sequence'
+    """
+
+    kind: str
+
+    def __post_init__(self) -> None:
+        """Check the kind of structure."""
+        if self.kind not in STRUCTURES:
+            error_msg = f'Unknown structure {self.kind!r}. Use one of {", ".join(STRUCTURES)}.'
+            raise ValueError(error_msg)
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return self.kind
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        return DomainKind(self.kind)
+
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, which name structures but never take their values."""
+        return 'real'
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is given, since the rewriting stepper checks the structure itself.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value is not `None`.
+        """
+        return value is not None
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Raise an error, since structures live in the rewriting stepper and not in the state vector.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            array:
+                Never, since a structure has no numeric encoding.
+
+        Raises:
+            ValidationError:
+                Always.
+        """
+        error_msg = f'A {self.kind} is rewritten as a whole by the rewriting stepper and has no numeric encoding.'
+        raise ValidationError(error_msg)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
 
 
 class WordComponent(ElementComponent):
@@ -83,7 +168,7 @@ class WordComponent(ElementComponent):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    axiom: Letters = state('', domain=Structure('sequence'))
+    axiom: Letters = state('', domain=StructureDomain('sequence'))
 
     def __init__(
         self,
@@ -139,7 +224,7 @@ class PatchComponent(ElementComponent):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    tiles: Sequence[tuple[str, Affine]] | None = state(default=None, domain=Structure('tiling'))
+    tiles: Sequence[tuple[str, Affine]] | None = state(default=None, domain=StructureDomain('tiling'))
 
     def __init__(
         self,
@@ -187,7 +272,7 @@ class HostGraphComponent(ElementComponent):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    graph: nx.Graph = state(nx.Graph(), domain=Structure('graph'))
+    graph: nx.Graph = state(nx.Graph(), domain=StructureDomain('graph'))
 
     def __init__(
         self,

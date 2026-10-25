@@ -39,7 +39,8 @@
     variables, and symbols;
   - auxiliary: kinds, errors, and utils.
 - **BREAKING** The types and errors of one formalism leave `base` for that formalism: the Hilbert domains for
-  `quantum`, the structure domains for `rewriting`, and `HorizonError` for `control`.
+  `quantum`, the structure domain for `rewriting`, `WordProblemError` for `groups`, and `HorizonError` for
+  `fractional`.
 - Validation reads a domain's kind from the domain.
 - The constitution states the naming rule, the bases, their parents, and what `base` holds.
 - The classes that the change `fix-class-relations` reworks keep their names until that change.

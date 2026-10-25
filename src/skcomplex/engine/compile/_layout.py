@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnyDomain, NumericDomain
+from ...core.base import BaseDomain, NumericDomain
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -51,7 +51,7 @@ class Entry:
     name: str
     start: int
     shape: tuple[int, ...]
-    domain: AnyDomain
+    domain: BaseDomain
     members: int | None = None
     is_complex: bool = False
     _size: int = field(init=False, repr=False, compare=False)

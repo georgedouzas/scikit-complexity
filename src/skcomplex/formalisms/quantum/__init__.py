@@ -2,10 +2,17 @@
 
 from ...core.base import Form
 from .._formalism import Formalism, register
-from ._components import QuantumView, hilbert_state, is_quantum, view_of
+from ._components import HilbertDomain, HilbertFamilyDomain, QuantumView, hilbert_state, is_quantum, view_of
 from ._laws import DissipatorLaw, GeneratorLaw, LocalOperator, Operator, sparse_matrix
 from ._observables import expectation
-from ._passes import DEFAULT_MAX_DIMENSION, QuantumPass, QuantumProblem, QuantumTerm, contains_quantum
+from ._passes import (
+    DEFAULT_MAX_DIMENSION,
+    HilbertSpaceError,
+    QuantumPass,
+    QuantumProblem,
+    QuantumTerm,
+    contains_quantum,
+)
 from ._solvers import LindbladSolver, QuantumSolver, QuantumTrajectoriesSolver, UnitarySolver
 from ._visuals import ExpectationVisual
 
@@ -14,6 +21,9 @@ __all__: list[str] = [
     'DissipatorLaw',
     'ExpectationVisual',
     'GeneratorLaw',
+    'HilbertDomain',
+    'HilbertFamilyDomain',
+    'HilbertSpaceError',
     'LindbladSolver',
     'LocalOperator',
     'Operator',

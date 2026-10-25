@@ -3,6 +3,7 @@
 from .. import Formalism, register
 from ._groups import (
     FinitelyGeneratedGroup,
+    WordProblemError,
     automaton_group,
     finitely_presented_group,
     matrix_group,
@@ -16,6 +17,7 @@ __all__: list[str] = [
     'CayleySpace',
     'CayleyVisual',
     'FinitelyGeneratedGroup',
+    'WordProblemError',
     'automaton_group',
     'finitely_presented_group',
     'matrix_group',

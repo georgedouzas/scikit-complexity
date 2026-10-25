@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ...core.base import RewritingError
+from ._laws import RewritingError
 
 ACTIONS = frozenset(
     {

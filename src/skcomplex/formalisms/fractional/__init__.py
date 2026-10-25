@@ -3,7 +3,7 @@
 from ...core.base import Form
 from .._formalism import Formalism, register
 from ._laws import FractionalNoiseLaw
-from ._noise import FractionalEulerMaruyamaSolver, fractional_gaussian_noise
+from ._noise import FractionalEulerMaruyamaSolver, HorizonError, fractional_gaussian_noise
 from ._passes import CheckFractionalNoisePass, FractionalFormPass, FractionalProblemPass, order_issues
 from ._solvers import FractionalABMSolver, GrunwaldLetnikovSolver, L1Solver
 
@@ -12,6 +12,7 @@ __all__: list[str] = [
     'FractionalEulerMaruyamaSolver',
     'FractionalNoiseLaw',
     'GrunwaldLetnikovSolver',
+    'HorizonError',
     'L1Solver',
     'fractional_gaussian_noise',
 ]

@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, RewritingError, symbols_of
+from ...core.base import Expression, symbols_of
 from ...engine.compile import numpy_function
 from ._components import WordComponent
 from ._geometry import WordGeometry
@@ -32,7 +32,7 @@ from ._kernels import (
     neighbors,
     walk_word,
 )
-from ._laws import Module, ProductionLaw, parse_word
+from ._laws import Module, ProductionLaw, RewritingError, parse_word
 from ._structures import WordStructure
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')

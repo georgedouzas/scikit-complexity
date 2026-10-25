@@ -18,9 +18,9 @@ from sage.all__sagemath_symbolics import SR
 from ...core.base import (
     Expression,
     Form,
-    HilbertSpaceError,
     IncompatibleLawsError,
     NumericDomain,
+    SkcomplexError,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -151,6 +151,10 @@ def _check_dimension(nodes: list[Node], dimensions: list[int], limit: int) -> No
         'fewer or smaller subsystems, or raise max_dimension of the quantum solver.'
     )
     raise HilbertSpaceError(error_msg)
+
+
+class HilbertSpaceError(SkcomplexError):
+    """A quantum system has a Hilbert space larger than its declared limit."""
 
 
 @dataclass(frozen=True)

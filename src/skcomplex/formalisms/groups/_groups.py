@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, matrix
 
-from ...core.base import SpaceTooLargeError, ValidationError, WordProblemError
+from ...core.base import SpaceError, SpaceTooLargeError, ValidationError
 
 GAP_MODULE = 'sage.all__sagemath_gap'
 GAP_PACKAGE = 'passagemath-gap'
@@ -169,6 +169,10 @@ def parse_word(text: str, generators: Sequence[str]) -> Word:
         exponent = int(match.group(2) or 1)
         letters += [letter if exponent > 0 else -letter] * abs(exponent)
     return tuple(letters)
+
+
+class WordProblemError(SpaceError):
+    """A group has no word problem the library can solve, so a ball of its Cayley graph cannot be built."""
 
 
 class WordProblem:

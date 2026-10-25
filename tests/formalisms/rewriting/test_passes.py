@@ -7,16 +7,7 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.base import (
-    Form,
-    IncompatibleLawsError,
-    LawKind,
-    RewritingError,
-    RoleError,
-    ValidationError,
-    parameter,
-    symbol,
-)
+from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, RoleError, ValidationError, parameter, symbol
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import box_counting_dimension
 from skcomplex.engine.compile import claiming_pass, compile_system
@@ -34,6 +25,7 @@ from skcomplex.formalisms.rewriting import (
     Prototile,
     Rewrite,
     Rewriting,
+    RewritingError,
     RewritingPass,
     RewritingSolver,
     SubstitutionLaw,

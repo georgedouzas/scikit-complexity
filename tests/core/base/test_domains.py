@@ -7,7 +7,6 @@ from skcomplex.core.base import (
     NumericDomain,
     ValidationError,
     state,
-    wrap_angle,
 )
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.interactions import BaseInteraction
@@ -100,21 +99,9 @@ def test_angle_encode_wraps_into_half_open_turn():
     np.testing.assert_allclose(encoded, [-np.pi / 2, np.pi, np.pi])
 
 
-def test_wrap_angle_maps_into_half_open_turn():
-    """Test that wrap_angle maps any real value into (-π, π]."""
-    values = wrap_angle(np.array([0.1, -0.1, 7.0, -7.0, np.pi, -np.pi]))
-    np.testing.assert_allclose(values, [0.1, -0.1, 7.0 - 2 * np.pi, -7.0 + 2 * np.pi, np.pi, np.pi])
-
-
 def test_boolean_values_return_as_booleans():
     """Test that boolean states return booleans and reject other numbers."""
     trajectory = Simulation(System(components=[SwitchComponent('s', on=True)]), dt=1).run(until=1).trajectory_
     assert trajectory['s.on'].tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
         Simulation(System(components=[SwitchComponent('s', on=0.5)])).run(until=1)
-
-
-def test_wrap_angle_keeps_angles_inside_exactly():
-    """Test that wrap_angle returns angles already in (-π, π] bit for bit, so boundary laws see no change."""
-    values = np.linspace(-3.14, np.pi, 1001)
-    assert np.array_equal(wrap_angle(values), values)

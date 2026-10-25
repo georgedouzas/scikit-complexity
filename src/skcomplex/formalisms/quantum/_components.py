@@ -3,13 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import HilbertDomain, HilbertFamilyDomain, ValidationError, VariableKind, declarations_of
+from ...core.base import BaseDomain, DomainKind, ValidationError, VariableKind, declarations_of
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import BaseLaw, Symbols
 from ._laws import LocalOperator, Operator, sparse_matrix
@@ -56,6 +57,227 @@ def is_quantum(element_type: type) -> bool:
         and issubclass(element_type, ElementComponent)
         and hilbert_state(element_type) is not None
     )
+
+
+@dataclass(frozen=True)
+class HilbertDomain(BaseDomain):
+    """Domain of a state that is a vector of a Hilbert space, with the local operators laws build Hamiltonians from.
+
+    An element whose state lies in a Hilbert space is a quantum subsystem. Its laws read every local operator by name,
+    and a group of such elements is the tensor product of its members' spaces, in member order.
+
+    Args:
+        dimension:
+            The dimension of the space.
+
+        operators:
+            A mapping from operator name to its matrix and whether it is Hermitian, such as `{'z': (matrix, True)}`.
+
+        basis:
+            A mapping from the label of a basis state to its index, such as `{'up': 0, 'down': 1}`.
+
+        display:
+            The name of the operator whose expectation visuals show for a group of such elements, or `None` for the
+            probabilities of the basis states.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.formalisms.quantum import HilbertDomain
+        >>> space = HilbertDomain(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
+        >>> space.index('down'), space.index(0)
+        (1, 0)
+    """
+
+    dimension: int
+    operators: Mapping[str, tuple[Any, bool]] = field(default_factory=dict)
+    basis: Mapping[str, int] = field(default_factory=dict)
+    display: str | None = 'z'
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return f'Hilbert space of dimension {self.dimension}'
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        return DomainKind.HILBERT
+
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, complex for amplitudes."""
+        return 'complex'
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as complex numbers.
+
+        Args:
+            value:
+                A vector of amplitudes.
+
+        Returns:
+            array:
+                The complex values.
+        """
+        return np.asarray(value, dtype=complex)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is a basis label or index, or a vector of unit norm of the space's dimension.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value is a state of the space.
+        """
+        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
+            try:
+                self.index(value)
+            except ValueError:
+                return False
+            return True
+        try:
+            vector = np.asarray(value, dtype=complex).ravel()
+        except (TypeError, ValueError):
+            return False
+        return vector.size == self.dimension and abs(float(np.linalg.norm(vector)) - 1) <= NORM_TOLERANCE
+
+    def index(self, label: object) -> int:
+        """Return the index of a basis state from its label or its index.
+
+        Args:
+            label:
+                The label of a basis state, or its index.
+
+        Returns:
+            index:
+                The index of the basis state.
+
+        Raises:
+            ValueError:
+                The label names no basis state.
+        """
+        if isinstance(label, str) and label in self.basis:
+            return self.basis[label]
+        if isinstance(label, int | np.integer) and not isinstance(label, bool) and 0 <= label < self.dimension:
+            return int(label)
+        labels = ', '.join(map(repr, self.basis)) or 'none'
+        error_msg = f'{label!r} is no basis state. Use a label ({labels}) or an index from 0 to {self.dimension - 1}.'
+        raise ValueError(error_msg)
+
+    @staticmethod
+    def family(function: Callable[[Any], 'HilbertDomain']) -> 'HilbertFamilyDomain':
+        """Return the Hilbert spaces of an element type that depend on the values of each element.
+
+        Args:
+            function:
+                A function of an element that returns its Hilbert space, such as the space of a spin of quantum
+                number `element.j`.
+
+        Returns:
+            family:
+                The family, which a state declares as its domain.
+        """
+        return HilbertFamilyDomain(function)
+
+
+@dataclass(frozen=True)
+class HilbertFamilyDomain(BaseDomain):
+    """Hilbert spaces of the elements of a type, each given by a function of the element.
+
+    Args:
+        function:
+            A function of an element that returns its Hilbert space.
+    """
+
+    function: Callable[[Any], HilbertDomain]
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return 'Hilbert space'
+
+    @property
+    def domain_kind(self) -> DomainKind:
+        """Kind of value the domain holds."""
+        return DomainKind.HILBERT
+
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, complex for amplitudes."""
+        return 'complex'
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as complex numbers.
+
+        Args:
+            value:
+                A vector of amplitudes.
+
+        Returns:
+            array:
+                The complex values.
+        """
+        return np.asarray(value, dtype=complex)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is a basis label or index, or a finite vector, since the space depends on the element.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value can be a state of a space of the family.
+        """
+        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
+            return True
+        try:
+            return bool(np.all(np.isfinite(np.asarray(value, dtype=complex))))
+        except (TypeError, ValueError):
+            return False
+
+    def of(self, element: object) -> HilbertDomain:
+        """Return the Hilbert space of one element.
+
+        Args:
+            element:
+                The element.
+
+        Returns:
+            space:
+                Its Hilbert space.
+        """
+        return self.function(element)
 
 
 @dataclass(frozen=True)

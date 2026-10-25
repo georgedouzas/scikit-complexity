@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement as SymbolicVector
 from sage.symbolic.expression import Expression
 
-from ._domains import AnyDomain, NumericDomain
+from ._domains import BaseDomain, NumericDomain
 
-_DOMAINS: dict[str, AnyDomain] = {}
+_DOMAINS: dict[str, BaseDomain] = {}
 
 
-def symbol(name: str, domain: AnyDomain = NumericDomain.REAL) -> Expression:
+def symbol(name: str, domain: BaseDomain = NumericDomain.REAL) -> Expression:
     """Return the Sage symbol of a name, real, integer, or complex, and record its variable domain.
 
     The symbol is declared real or integer without Maxima, which Sage would otherwise load to record the domain, so
@@ -102,7 +102,7 @@ def symbols_of(expressions: Iterable[Expression]) -> set[Expression]:
     return {item for expression in expressions for item in SR(expression).variables()}
 
 
-def domain_of(item: Expression) -> AnyDomain:
+def domain_of(item: Expression) -> BaseDomain:
     """Return the variable domain of a symbol.
 
     Args:
