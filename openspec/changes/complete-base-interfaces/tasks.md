@@ -4,7 +4,7 @@
 
 - [x] 1.1 Make `Term` a string of its value with `register`, drop its magic methods, and rewrite every `is` comparison of
   a term as `==` with a codemod kept in the scratchpad. Verify with the scenario "Terms by value".
-- [ ] 1.2 Give `BaseLaw`, `BaseDomain`, and `BaseProblem` their shared fields and `check()`, move every
+- [x] 1.2 Give `BaseLaw`, `BaseDomain`, and `BaseProblem` their shared fields and `check()`, move every
   `__post_init__` check into `_check` or the builder of the record, and make validation call `check()` on every law.
   Verify with the scenario "Invalid law".
 
