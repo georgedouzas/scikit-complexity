@@ -7,7 +7,17 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, RoleError, ValidationError, parameter, symbol
+from skcomplex.core.base import (
+    BaseProblem,
+    Form,
+    IncompatibleLawsError,
+    LawKind,
+    RoleError,
+    ValidationError,
+    parameter,
+    symbol,
+)
+from skcomplex.core.problems import Problem
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import box_counting_dimension
 from skcomplex.engine.compile import claiming_compiler, compile_system
@@ -27,6 +37,7 @@ from skcomplex.formalisms.rewriting import (
     Rewriting,
     RewritingCompiler,
     RewritingError,
+    RewritingProblem,
     RewritingSolver,
     SubstitutionLaw,
     WordComponent,
@@ -456,3 +467,9 @@ def test_snapshot_is_a_structure_state():
     snapshot = Simulation(system).run(until=2).stepper_.snapshot()
     assert isinstance(snapshot, StructureState)
     assert len(snapshot.structures['algae']) == 3
+
+
+def test_rewriting_problem_is_a_base_problem_and_not_the_compilers():
+    """Test that a rewriting problem derives from the problem base alone."""
+    assert issubclass(RewritingProblem, BaseProblem)
+    assert not issubclass(RewritingProblem, Problem)

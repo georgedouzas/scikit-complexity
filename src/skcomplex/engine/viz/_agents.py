@@ -10,8 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseSpace
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem, BaseSpace
+from ...core.problems import CompiledAgents, CompiledElement
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -183,7 +183,7 @@ class AgentsVisual(BaseVisual):
         radius = self._radius(space, positions)
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a graph view of the whole network, a 2D spatial view for agents in a space, and none without one.
 
         Args:
@@ -212,14 +212,15 @@ class AgentsVisual(BaseVisual):
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
             return [rrb.Spatial2DView(origin=element.path, name=element.path)]
-        if problem.agent_space is None:
+        space = getattr(problem, 'agent_space', None)
+        if space is None:
             return []
-        if isinstance(problem.agent_space, NetworkSpace):
-            positions = np.array([[0.0, 0.0], *self._layout(problem.agent_space).values()])
+        if isinstance(space, NetworkSpace):
+            positions = np.array([[0.0, 0.0], *self._layout(space).values()])
             low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
             bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
-        space = problem.agent_space
+        space = getattr(problem, 'agent_space', None)
         if isinstance(space, ContinuousSpace):
             margin = VIEW_MARGIN * max(space.width, space.height)
             bounds = rrb.VisualBounds2D(

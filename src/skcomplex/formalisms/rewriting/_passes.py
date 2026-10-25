@@ -14,12 +14,15 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ...core.base import (
+    BaseProblem,
     Entry,
+    Expression,
     Form,
     IncompatibleLawsError,
     Layout,
     NumericDomain,
     RoleError,
+    SymbolicVector,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -27,7 +30,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import CompiledElement, CompiledInteraction, Problem
+from ...core.problems import CompiledElement, CompiledInteraction
 from ...core.system import System
 from ...engine.compile import BaseSystemCompiler, Node, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of
@@ -215,10 +218,6 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
         initial_parameters=initial_parameters,
         time=symbol('t'),
         symbols=symbols,
-        equations={},
-        equation_symbols={},
-        has_callables=False,
-        has_group_sums=False,
         elements=tuple(compiled_elements),
         interactions=tuple(interactions),
         system=system,
@@ -528,7 +527,7 @@ class CompiledGraph:
 
 
 @dataclass(frozen=True)
-class RewritingProblem(Problem):
+class RewritingProblem(BaseProblem):
     """Problem of the rewriting form, with the compiled rewriting system of every rewritten element.
 
     Args:
@@ -536,6 +535,10 @@ class RewritingProblem(Problem):
             The compiled rewriting systems of the words, patches, and host graphs.
     """
 
+    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
+    elements: tuple[CompiledElement, ...] = ()
+    interactions: tuple[CompiledInteraction, ...] = ()
+    system: System | None = field(default=None, repr=False)
     rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
 
 
@@ -562,7 +565,7 @@ class RewritingCompiler(BaseSystemCompiler):
         backend: object,
         solver: object,
         initial_state: Mapping[str, object],
-    ) -> Problem:
+    ) -> BaseProblem:
         """Compile a rewriting system into a problem of the rewriting form.
 
         Args:

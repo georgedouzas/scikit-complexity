@@ -10,7 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement, NetworkSnapshot
 from ...core.space import LatticeSpace, NetworkSpace
 from ..runtime import Frame
 from ._colors import palette_colors
@@ -24,9 +25,9 @@ CHANGING_REPULSION = -60.0
 CHANGING_CENTRING = 0.05
 
 
-def _changes_topology(element: CompiledElement, problem: Problem) -> bool:
+def _changes_topology(element: CompiledElement, problem: BaseProblem) -> bool:
     """Check whether a group lies on the nodes of a network whose topology changes."""
-    topology = problem.topology
+    topology = getattr(problem, 'topology', None)
     return topology is not None and element.path in {path for path, _ in topology.layers}
 
 
@@ -141,7 +142,7 @@ class SiteVisual(BaseVisual):
             values = np.ravel(np.asarray(frame.value(name), dtype=float))
             path = f'{element.path}/{state}'
             if _changes_topology(element, frame.problem):
-                snapshot = frame.problem.topology.read_network(frame.parameters, element.path)  # type: ignore[union-attr]
+                snapshot = getattr(frame.problem, 'topology', None).read_network(frame.parameters, element.path)  # type: ignore[union-attr]
                 self._log_changing(recording, path, snapshot, values)
                 continue
             if isinstance(space, NetworkSpace):
@@ -154,7 +155,7 @@ class SiteVisual(BaseVisual):
             radius = HEXAGON_RADIUS * min(lattice.spacings)
             recording.log(path, rr.Points2D(positions, colors=self._colors(values), radii=radius))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one graph view per chosen state of a lattice group on a network, and a 2D spatial view otherwise.
 
         Args:

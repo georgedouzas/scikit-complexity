@@ -13,8 +13,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
 
-from ...core.base import ValidationError
-from ...core.problems import CompiledElement, Problem, RenewalRecord
+from ...core.base import BaseProblem, ValidationError
+from ...core.problems import CompiledElement, RenewalRecord
 from ...core.space import NetworkSpace
 from ..runtime import BaseObserver, Frame
 from ._agents import AgentsVisual
@@ -132,7 +132,7 @@ class RerunObserver(BaseObserver):
         self.interval = interval
         self.blueprint = blueprint
 
-    def _resolve_blueprint(self, problem: Problem) -> rrb.Blueprint | None:
+    def _resolve_blueprint(self, problem: BaseProblem) -> rrb.Blueprint | None:
         """Return the blueprint the observer sends, building the default one when it is asked for."""
         if self.blueprint is None or isinstance(self.blueprint, rrb.Blueprint):
             return self.blueprint
@@ -141,7 +141,7 @@ class RerunObserver(BaseObserver):
         error_msg = f'blueprint = {self.blueprint!r} is not supported. Use None, \'default\', or a Rerun blueprint.'
         raise ValidationError(error_msg)
 
-    def on_start(self, problem: Problem) -> None:
+    def on_start(self, problem: BaseProblem) -> None:
         """Create the recording and send it to its sinks.
 
         Args:
@@ -163,15 +163,15 @@ class RerunObserver(BaseObserver):
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
         self._visuals: list[tuple[CompiledElement, BaseVisual]] = [
-            (element, resolve_visual(element.visual)) for element in problem.elements
+            (element, resolve_visual(element.visual)) for element in getattr(problem, 'elements', ())
         ]
         self._agent_visuals: dict[str, AgentsVisual] = {}
-        for agents in problem.agents:
+        for agents in getattr(problem, 'agents', ()):
             self._agent_visuals[agents.path] = agents_visual_of(agents, problem)
-        self._space = problem.agent_space
+        self._space = getattr(problem, 'agent_space', None)
         if isinstance(self._space, NetworkSpace):
             edges = [(str(first), str(second)) for first, second in self._space.graph.edges]
-            for agents in problem.agents:
+            for agents in getattr(problem, 'agents', ()):
                 self.recording_.log(agents.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
         self.logged_frames_ = 0
 
@@ -193,7 +193,7 @@ class RerunObserver(BaseObserver):
             visual.log_agents(self.recording_, path, snapshot, self._space)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
-        owners = {element.path for element in frame.problem.elements}
+        owners = {element.path for element in getattr(frame.problem, 'elements', ())}
         for name, value in frame.observables.items():
             values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
             self.recording_.log(_entity_path(name, owners), rr.Scalars(values))

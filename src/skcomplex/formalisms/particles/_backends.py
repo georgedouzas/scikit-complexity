@@ -7,7 +7,7 @@ import functools
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -321,7 +321,7 @@ class LammpsSolver(ExternalSolver):
 
     def _check_external(self, problem: Problem, external: set[str]) -> list[str]:
         """Return the external interactions whose laws do more than change particle velocities."""
-        sub_problem = compile_system(_filter_system(problem.system, external), backend='numpy')  # type: ignore[arg-type]
+        sub_problem = cast('Problem', compile_system(_filter_system(problem.system, external), backend='numpy'))  # type: ignore[arg-type]
         reasons = []
         if sub_problem.form is not Form.ODE:
             reasons.append(f'the {sub_problem.form.value} form')
@@ -508,7 +508,9 @@ class LammpsSolver(ExternalSolver):
         self.atoms_ = _atoms_of(problem)
         external = self._external_paths(problem)
         self.external_ = (
-            compile_system(_filter_system(problem.system, external)) if external else None  # type: ignore[arg-type]
+            cast('Problem', compile_system(_filter_system(problem.system, external)))  # type: ignore[arg-type]
+            if external
+            else None
         )
         self.parameters_ = problem.initial_parameters.copy()
         self.time_, self.timestep_, self.start_step_ = 0.0, self.dt, 0

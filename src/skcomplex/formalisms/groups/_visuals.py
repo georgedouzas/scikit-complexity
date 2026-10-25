@@ -10,7 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import NODE_SPACING, UPWARD, BaseVisual, palette_colors
 from ._spaces import CayleySpace
@@ -102,7 +103,7 @@ class CayleyVisual(BaseVisual):
             )
             recording.log(path, drawn)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one graph view per chosen state, bounded by the outer ring.
 
         Args:

@@ -12,8 +12,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import ValidationError
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem, ValidationError
+from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
 from ._utils import UPWARD, _radius_of, log_scalars
@@ -275,7 +275,7 @@ class BodiesVisual(BaseVisual):
         for state, name in element.states.items():
             log_scalars(recording, f'{path}/{state}', frame.value(name))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.
 
         Args:

@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.system import System, replicate
-from ..compile import compile_system
+from ..compile import compiled_problem
 from ..experiments import Experiment, GridDesign, RandomDesign, Source, resolve_source
 from ..runtime import Simulation, Trajectory
 
@@ -243,7 +243,7 @@ def basin_stability(
         values = {path: [row[path] for row in rows] for path in bounds}
         settings = {'dt': arguments.get('dt'), 'random_state': random_state}
         trajectory, system = _ensemble(source, values, until, settings)
-        problem = compile_system(system)
+        problem = compiled_problem(system, 'A vectorised basin')
         return _stability([classifier(trajectory.member(index, problem)) for index in range(n)], n)
 
     def label(trajectory: Trajectory) -> Any:  # noqa: ANN401

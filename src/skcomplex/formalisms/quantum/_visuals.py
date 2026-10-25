@@ -8,7 +8,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement
 from ...core.space import LatticeSpace
 from ...engine.runtime import Frame
 from ...engine.viz import SPACE_TIME, ImageVisual, log_scalars
@@ -90,7 +91,7 @@ class ExpectationVisual(ImageVisual):
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the space-time and image views of a quantum group or particle, or a series view of an element.
 
         Args:

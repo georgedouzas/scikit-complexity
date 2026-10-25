@@ -5,8 +5,7 @@
 
 from collections.abc import Mapping
 
-from ...core.base import Registry
-from ...core.problems import Problem
+from ...core.base import BaseProblem, Registry
 from ...core.system import System
 
 SYSTEM_COMPILERS = Registry['BaseSystemCompiler']('system compiler')
@@ -77,7 +76,7 @@ class BaseSystemCompiler:
         backend: object,
         solver: object,
         initial_state: Mapping[str, object],
-    ) -> Problem:
+    ) -> BaseProblem:
         """Compile a claimed system into a problem.
 
         Args:

@@ -3,7 +3,7 @@
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
-from ._compile import compile_system, partition_system
+from ._compile import compile_system, compiled_problem, partition_system
 from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
 from ._issues import Issue, ValidationWarning, names_of
@@ -52,6 +52,7 @@ __all__: list[str] = [
     'claiming_compiler',
     'coerce_value',
     'compile_system',
+    'compiled_problem',
     'declared_times',
     'flatten_system',
     'group_space',

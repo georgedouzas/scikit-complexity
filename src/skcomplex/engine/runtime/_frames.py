@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import Vector
+from ...core.base import BaseProblem, Vector
 from ...core.problems import Problem, Record
 from ..solvers import AgentSnapshot
 
@@ -55,7 +55,7 @@ class Frame:
     time: float
     state: Vector
     parameters: Vector
-    problem: Problem
+    problem: BaseProblem
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
@@ -96,7 +96,7 @@ class Frame:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name)
+        shape = self.problem.lattice_shape(name) if isinstance(self.problem, Problem) else None
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)

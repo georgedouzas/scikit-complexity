@@ -3,9 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import cast
+
 import numpy as np
 
-from ...core.base import ConservationError, SimulationError, Vector
+from ...core.base import BaseProblem, ConservationError, SimulationError, Vector
 from ...core.problems import Problem, StockFlow
 from ._frames import Frame
 from ._observers import BaseObserver
@@ -53,7 +55,7 @@ class ConservationObserver(BaseObserver):
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
-    def on_start(self, problem: Problem) -> None:
+    def on_start(self, problem: BaseProblem) -> None:
         """Keep the quantities of the problem.
 
         Args:
@@ -64,11 +66,12 @@ class ConservationObserver(BaseObserver):
             SimulationError:
                 The problem has no stock-flow description, such as a partitioned problem.
         """
-        if problem.stock_flow is None:
+        stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
+        if stock_flow is None:
             error_msg = 'The conservation monitor needs a problem compiled as one partition with its stock flows.'
             raise SimulationError(error_msg)
-        self.problem_: Problem = problem
-        self.stock_flow_: StockFlow = problem.stock_flow
+        self.problem_: Problem = cast('Problem', problem)
+        self.stock_flow_: StockFlow = stock_flow
         self.totals_: dict[str, float] = {}
         self.initial_: dict[str, float] | None = None
         self.scale_: dict[str, float] = {}
@@ -109,14 +112,15 @@ class InvariantObserver(BaseObserver):
             The value of every invariant at the first frame.
     """
 
-    def on_start(self, problem: Problem) -> None:
+    def on_start(self, problem: BaseProblem) -> None:
         """Keep the invariants of the problem.
 
         Args:
             problem:
                 The compiled problem.
         """
-        self.invariants_ = dict(problem.stock_flow.invariants) if problem.stock_flow is not None else {}
+        stock_flow = problem.stock_flow if isinstance(problem, Problem) else None
+        self.invariants_ = dict(stock_flow.invariants) if stock_flow is not None else {}
         self.initial_: dict[str, float] = {}
 
     def on_frame(self, frame: Frame) -> None:

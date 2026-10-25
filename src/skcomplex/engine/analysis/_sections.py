@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ...core.base import AnalysisError, Form, Vector
 from ...core.problems import CompiledEvent, EventRecord, Problem
 from ...core.system import System
-from ..compile import compile_system
+from ..compile import compiled_problem
 from ..runtime import Simulation
 from ..solvers import Solver
 
@@ -61,7 +61,7 @@ class Section:
 
 def _problem(system: System | Problem) -> Problem:
     """Return the compiled problem of a system after checking that it flows in continuous time."""
-    problem = system if isinstance(system, Problem) else compile_system(system)
+    problem = compiled_problem(system, 'A section')
     if problem.form not in {Form.ODE, Form.SDE}:
         error_msg = f'Sections are taken of flows in continuous time, but the system is a {problem.form.value}.'
         raise AnalysisError(error_msg)

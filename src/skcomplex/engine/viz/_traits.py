@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseSpace
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem, BaseSpace
+from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
@@ -54,7 +54,7 @@ def _histogram(
     return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])
 
 
-def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
+def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisual:
     """Return the visual of an agent group: its declared agents visual, or the traits visual without a space.
 
     Args:
@@ -79,7 +79,7 @@ def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
     visual: Any = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
-    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
+    if getattr(problem, 'agent_space', None) is None and type(visual) is AgentsVisual and visual.position is None:
         return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual
 
@@ -203,7 +203,7 @@ class TraitsVisual(AgentsVisual):
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', numbers)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
 
         Args:

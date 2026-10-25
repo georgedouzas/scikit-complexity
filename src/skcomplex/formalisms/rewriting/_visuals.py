@@ -10,7 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import BaseVisual, colors_of, log_scalars
 from ._components import PatchComponent, WordComponent
@@ -133,7 +134,7 @@ class GeometryVisual(BaseVisual):
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the view of the geometry, with the bounds of the element, and a time series view of the counts.
 
         Args:

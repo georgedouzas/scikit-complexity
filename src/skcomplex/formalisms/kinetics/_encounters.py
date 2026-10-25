@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR
 from ...core.base import BaseLaw, Expression, ValidationError, symbols_of
 from ...core.problems import Reference, Source
 from ._contractions import CompiledEncounter, Indices, TableValues
-from ._laws import DestructionLaw, EncounterLaw, is_encounter
+from ._laws import DestructionLaw, EncounterLaw, KineticLaw, is_encounter
 
 
 def _nonzero(table: npt.NDArray[Any]) -> tuple[Indices, ...]:
@@ -57,7 +57,7 @@ def _group_indices(item: Expression | None, references: Mapping[Expression, Refe
     return reference.flat_indices.astype(np.intp)
 
 
-def _outcome_table(law: EncounterLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any] | None:
+def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any] | None:
     """Return the outcome table of a law, the identity on the candidate's activity for a proliferation without one."""
     if isinstance(law, DestructionLaw):
         return None
@@ -81,7 +81,7 @@ def _outcome_table(law: EncounterLaw, sizes: tuple[int, int, int], owner: str) -
     return table
 
 
-def _check_rate(law: EncounterLaw, sizes: tuple[int, int, int], owner: str) -> None:
+def _check_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> None:
     """Raise an error when the rate table of a law does not have one row per candidate and one column per field."""
     if law.rate.ndim and law.rate.shape != sizes[:2]:
         error_msg = (
@@ -92,7 +92,7 @@ def _check_rate(law: EncounterLaw, sizes: tuple[int, int, int], owner: str) -> N
 
 
 def compile_encounter(
-    law: EncounterLaw,
+    law: KineticLaw,
     owner: str,
     references: Mapping[Expression, Reference],
     time: Expression,

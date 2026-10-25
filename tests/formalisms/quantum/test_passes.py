@@ -9,6 +9,7 @@ import qutip
 
 from skcomplex.core.base import (
     BaseInteraction,
+    BaseProblem,
     Form,
     IncompatibleLawsError,
     LawKind,
@@ -18,6 +19,7 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.problems import Problem
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
@@ -226,3 +228,9 @@ def test_quantum_compiler_is_a_system_compiler_and_not_a_pass():
     """Test that the quantum compiler compiles whole systems and is not a step of the pipeline of passes."""
     assert issubclass(QuantumCompiler, BaseSystemCompiler)
     assert not issubclass(QuantumCompiler, BasePass)
+
+
+def test_quantum_problem_is_a_base_problem_and_not_the_compilers():
+    """Test that a quantum problem derives from the problem base alone, and that its run is recorded."""
+    assert issubclass(QuantumProblem, BaseProblem)
+    assert not issubclass(QuantumProblem, Problem)

@@ -11,7 +11,13 @@ from sklearn.base import clone
 from skcomplex.core.base import (
     ArgumentError,
     BaseComponent,
+    BaseDomain,
     BaseInteraction,
+    BaseLaw,
+    BaseProblem,
+    BaseSolver,
+    BaseSpace,
+    BaseTime,
     RoleError,
     ValidationError,
     parameter,
@@ -20,9 +26,10 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, neighbors
+from skcomplex.core.problems import BaseBackend
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.biology.ecology import PopulationComponent, PredationInteraction
@@ -406,3 +413,20 @@ def test_validation_reports_a_missing_layer():
     issues = validate(system).issues
     assert [issue.code for issue in issues] == ['binding']
     assert "'work'" in issues[0].message
+
+
+def test_no_base_is_another_base():
+    """Test that no base class of the framework derives from another."""
+    bases = [
+        BaseComponent,
+        BaseInteraction,
+        BaseSpace,
+        BaseTime,
+        BaseLaw,
+        BaseDomain,
+        BaseProblem,
+        BaseSolver,
+        BaseBackend,
+        BaseSystemCompiler,
+    ]
+    assert not [(a, b) for a in bases for b in bases if a is not b and issubclass(a, b)]

@@ -7,13 +7,23 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
-from ...core.problems import Problem
-from ...engine.solvers import Solver, StructureState
+from ...core.base import (
+    BaseSolver,
+    ComponentKind,
+    DomainKind,
+    Form,
+    LawKind,
+    OrderKind,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    Vector,
+)
+from ...engine.solvers import StructureState
 from ._passes import RewritingProblem
 
 
-class RewritingSolver(Solver):
+class RewritingSolver(BaseSolver[RewritingProblem]):
     """Solver of rewriting systems, which rewrites every structure in parallel once per generation.
 
     The structures live next to the state vector, whose components are their symbol, prototile, or label counts and
@@ -48,7 +58,7 @@ class RewritingSolver(Solver):
 
     form: ClassVar[Form] = Form.REWRITING
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def initialize(self, problem: RewritingProblem, rng: np.random.Generator) -> None:
         """Prepare the structures at generation 0.
 
         Args:

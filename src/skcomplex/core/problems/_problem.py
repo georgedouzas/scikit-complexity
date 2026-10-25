@@ -50,7 +50,7 @@ def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
         raise ValidationError(error_msg)
 
 
-def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) -> 'Problem':
+def with_initial_state[P: BaseProblem](problem: P, initial_state: Mapping[str, object]) -> P:
     """Return a problem whose initial state takes given values of some states.
 
     Args:

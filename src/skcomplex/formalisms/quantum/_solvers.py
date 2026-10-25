@@ -12,6 +12,7 @@ import qutip
 import scipy.sparse as sp
 
 from ...core.base import (
+    BaseSolver,
     ComponentKind,
     DomainKind,
     Form,
@@ -23,8 +24,6 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ...core.problems import Problem
-from ...engine.solvers import Solver
 from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 
 MAX_SEED = 2**32
@@ -41,7 +40,7 @@ def _coefficient(term: QuantumTerm, p: Vector) -> Callable[[float], complex]:
     return value
 
 
-class QuantumSolver(Solver):
+class QuantumSolver(BaseSolver[QuantumProblem]):
     """Base class of solvers that advance quantum problems with a stepwise QuTiP solver.
 
     The solver is created at the first frame and again whenever the parameters change, from the current state, so a
@@ -153,7 +152,7 @@ class QuantumSolver(Solver):
         del problem
         return []
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def initialize(self, problem: QuantumProblem, rng: np.random.Generator) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
@@ -172,7 +171,7 @@ class QuantumSolver(Solver):
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
             raise SolverError(error_msg)
-        self.quantum_: QuantumProblem = problem  # type: ignore[assignment]
+        self.quantum_: QuantumProblem = problem
         self.solver_: Any = None
         self.parameters_: Vector | None = None
 

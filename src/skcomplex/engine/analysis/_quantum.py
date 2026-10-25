@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import qutip
 
-from ...core.base import AnalysisError, Form, Layout, ParameterError, Vector
+from ...core.base import AnalysisError, BaseProblem, Form, Layout, ParameterError, Vector
 from ...core.laws import Symbols
 from ...core.problems import Problem
 from ...core.system import System
@@ -42,7 +42,7 @@ class Spectrum:
 
 def _quantum_problem(system: System | Problem) -> '_QuantumProblem':
     """Return the quantum problem of a system, compiling it when needed."""
-    problem = system if isinstance(system, Problem) else compile_system(system)
+    problem = system if isinstance(system, BaseProblem) else compile_system(system)
     if problem.form is not Form.QUANTUM:
         error_msg = f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
         raise AnalysisError(error_msg)

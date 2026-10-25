@@ -10,7 +10,7 @@ from pathlib import Path
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import ValidationError
+from ...core.base import BaseProblem, ValidationError
 from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ...core.system import Observable, System
 from ..compile import compile_system, observables_of
@@ -29,9 +29,9 @@ WHOLE_RUN = rrb.TimeAxis(
 )
 
 
-def _problem_of(system: System | Problem, observables: Sequence[Observable] = ()) -> Problem:
+def _problem_of(system: System | BaseProblem, observables: Sequence[Observable] = ()) -> BaseProblem:
     """Return the problem of a system with its observables, compiling it when it is not compiled yet."""
-    return system if isinstance(system, Problem) else compile_system(system, observables=observables)
+    return system if isinstance(system, BaseProblem) else compile_system(system, observables=observables)
 
 
 def _contents(view: rrb.View) -> list[str]:
@@ -84,15 +84,17 @@ def _type_name(element: CompiledElement) -> str:
     return str(getattr(kind, '__name__', type(element.element).__name__))
 
 
-def _series_count(element: CompiledElement, problem: Problem) -> int:
+def _series_count(element: CompiledElement, problem: BaseProblem) -> int:
     """Return the number of series a scalars visual logs for an element, leaving out lag states."""
-    shown = [name for name in element.states.values() if problem.companions.get(name, ('',))[0] != 'lag']
+    shown = [
+        name for name in element.states.values() if getattr(problem, 'companions', {}).get(name, ('',))[0] != 'lag'
+    ]
     return len(shown) * (element.members or 1)
 
 
 def _chunks(
     elements: list[tuple[CompiledElement, rrb.View]],
-    problem: Problem,
+    problem: BaseProblem,
 ) -> Iterator[list[tuple[CompiledElement, rrb.View]]]:
     """Yield consecutive runs of elements whose series fit in one view."""
     chunk: list[tuple[CompiledElement, rrb.View]] = []
@@ -108,10 +110,10 @@ def _chunks(
         yield chunk
 
 
-def _scalar_views(problem: Problem) -> list[rrb.View]:
+def _scalar_views(problem: BaseProblem) -> list[rrb.View]:
     """Return the time series views of the scalar elements, one per element type and at most six series each."""
     groups: dict[str, list[tuple[CompiledElement, rrb.View]]] = {}
-    for element in problem.elements:
+    for element in getattr(problem, 'elements', ()):
         visual = resolve_visual(element.visual)
         if not isinstance(visual, ScalarsVisual):
             continue
@@ -126,7 +128,7 @@ def _scalar_views(problem: Problem) -> list[rrb.View]:
     return views
 
 
-def _element_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
+def _element_views(problem: BaseProblem) -> tuple[list[rrb.View], list[rrb.View]]:
     """Return the spatial views and the time series views of the elements drawn by other visuals.
 
     Points share one spatial view per dimension, since the elements of a system share its space.
@@ -134,7 +136,7 @@ def _element_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
     spatial: list[rrb.View] = []
     series: list[rrb.View] = []
     points: dict[type, list[rrb.View]] = {}
-    for element in problem.elements:
+    for element in getattr(problem, 'elements', ()):
         visual = resolve_visual(element.visual)
         if isinstance(visual, ScalarsVisual):
             continue
@@ -148,13 +150,13 @@ def _element_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
     return [*spatial, *(_merged(views, 'points') for views in points.values())], series
 
 
-def _agent_views(problem: Problem) -> list[rrb.View]:
+def _agent_views(problem: BaseProblem) -> list[rrb.View]:
     """Return the views of the agents, merged into one per view class when the groups share a space."""
     views: list[rrb.View] = []
     agents: CompiledAgents
-    for agents in problem.agents:
+    for agents in getattr(problem, 'agents', ()):
         views += agents_visual_of(agents, problem).views(agents, problem)
-    if problem.agent_space is None:
+    if getattr(problem, 'agent_space', None) is None:
         return views
     by_class: dict[type, list[rrb.View]] = {}
     for view in views:
@@ -162,25 +164,25 @@ def _agent_views(problem: Problem) -> list[rrb.View]:
     return [_merged(group, 'agents') for group in by_class.values()]
 
 
-def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:
+def _summary_views(problem: BaseProblem, *, parameters: bool) -> list[rrb.View]:
     """Return the time series views of the observables, the agent reporters, and optionally the parameters."""
     views: list[rrb.View] = []
-    system = problem.system
+    system = getattr(problem, 'system', None)
     paths = (
         [f'{scope}/{item.label}' if scope else item.label for scope, item in observables_of(system)] if system else []
     )
-    problems = (problem, *(partition.problem for partition in problem.partitions))
-    paths += [f'{renewal.label}.renewals' for item in problems for renewal in item.renewals]
+    problems = (problem, *(partition.problem for partition in getattr(problem, 'partitions', ())))
+    paths += [f'{renewal.label}.renewals' for item in problems for renewal in getattr(item, 'renewals', ())]
     if paths:
         views.append(_series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))
-    if problem.agents:
+    if getattr(problem, 'agents', ()):
         views.append(_series_view([rrb.TimeSeriesView(origin='/reporters')], 'reporters'))
     if parameters and problem.parameters.names:
         views.append(_series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
     return views
 
 
-def _ordered_views(problem: Problem, *, parameters: bool) -> tuple[list[rrb.View], list[rrb.View]]:
+def _ordered_views(problem: BaseProblem, *, parameters: bool) -> tuple[list[rrb.View], list[rrb.View]]:
     """Return the spatial views and the time series views of a problem, each in order of importance."""
     spatial, series = _element_views(problem)
     spatial = [*spatial, *_agent_views(problem)]
@@ -246,7 +248,7 @@ def primary_view(system: System | Problem) -> rrb.View:
 
 
 def default_blueprint(
-    system: System | Problem,
+    system: System | BaseProblem,
     *,
     parameters: bool = False,
     primary: str | None = None,

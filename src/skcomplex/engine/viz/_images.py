@@ -11,7 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import NumericDomain
+from ...core.base import BaseProblem, NumericDomain
 from ...core.problems import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
@@ -141,7 +141,7 @@ class ImageVisual(BaseVisual):
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
             self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
 
         A one-dimensional lattice gets the 2D spatial views of its space-time images first, named `<state> history`.
@@ -177,7 +177,10 @@ class ImageVisual(BaseVisual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            path, shape = f'{element.path}/{state}', problem.lattice_shape(name) or ()
+            path, shape = (
+                f'{element.path}/{state}',
+                (problem.lattice_shape(name) if isinstance(problem, Problem) else None) or (),
+            )
             if len(shape) == 1 and self._history_of(shape[0]):
                 histories.append(
                     rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),

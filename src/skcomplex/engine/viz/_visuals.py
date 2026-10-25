@@ -8,8 +8,8 @@ from typing import Any
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import Registry, VisualSpec
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem, Registry, VisualSpec
+from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 
 
@@ -20,7 +20,7 @@ class BaseVisual:
     name with `register_visual`.
     """
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element, none by default.
 
         Args:

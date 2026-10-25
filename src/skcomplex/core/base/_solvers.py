@@ -33,6 +33,8 @@ class BaseSolver[P: BaseProblem](BaseEstimator):
     fractional: ClassVar[bool] = False
     reads_inputs: ClassVar[bool] = False
 
+    problem_: P
+
     def initialize(self, problem: P, rng: np.random.Generator) -> None:
         """Prepare the solver for a problem.
 

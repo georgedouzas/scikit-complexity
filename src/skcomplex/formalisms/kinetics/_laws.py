@@ -26,7 +26,7 @@ from ...core.base import (
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
 type Table = npt.NDArray[Any]
-type EncounterLaw = EncounterLaw | ProliferationLaw | DestructionLaw
+type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 
 
 def _table(value: object, dimensions: tuple[int, ...], description: str) -> Table:
@@ -53,7 +53,7 @@ def _check_sizes(rate: Table, outcomes: Table | None, description: str) -> None:
     raise ValidationError(error_msg)
 
 
-def is_encounter(law: BaseLaw) -> TypeGuard[EncounterLaw]:
+def is_encounter(law: BaseLaw) -> TypeGuard[KineticLaw]:
     """Check whether a law is an encounter law, a law of the encounter kind."""
     return law.law_kind is LawKind.ENCOUNTER
 

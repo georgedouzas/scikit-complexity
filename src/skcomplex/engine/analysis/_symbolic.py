@@ -14,7 +14,7 @@ from sage.symbolic.function_factory import function as formal_function
 from ...core.base import AnalysisError, Expression, Form, components_of
 from ...core.problems import Problem
 from ...core.system import System
-from ..compile import compile_system
+from ..compile import compile_system, compiled_problem
 from ._assumptions import declare_domains
 from ._fractional import mittag_leffler
 
@@ -129,9 +129,6 @@ def _equations_of_problem(problem: Problem) -> dict[str, Expression]:
     """Return the equations of a compiled problem as relations between functions of time, in their written order."""
     if problem.form is Form.JUMP:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
-        raise AnalysisError(error_msg)
-    if problem.form is Form.QUANTUM:
-        error_msg = 'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` instead.'
         raise AnalysisError(error_msg)
     return _written(problem)[0]
 
@@ -263,7 +260,11 @@ def equations_of(system: System) -> dict[str, Expression]:
         >>> equations_of(system)['rabbits.n']
         diff(n_rabbits(t), t) == -r_growth*(n_rabbits(t)/K_growth - 1)*n_rabbits(t)
     """
-    return _equations_of_problem(compile_system(system))
+    problem = compile_system(system)
+    if problem.form is Form.QUANTUM:
+        error_msg = 'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` instead.'
+        raise AnalysisError(error_msg)
+    return _equations_of_problem(compiled_problem(problem, 'The equations of a system'))
 
 
 def solve_symbolically(system: System, *, use_initial_state: bool = False) -> dict[str, Expression]:
@@ -306,7 +307,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         >>> solve_symbolically(system, use_initial_state=True)['a.n']
         n_a(t) == 2*e^(r_g*t)
     """
-    problem = compile_system(system)
+    problem = compiled_problem(system, 'Symbolic solving')
     _check_solvable(problem)
     if problem.form is Form.FRACTIONAL:
         return _fractional_solution(problem, use_initial_state=use_initial_state)

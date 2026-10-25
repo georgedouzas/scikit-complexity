@@ -5,8 +5,7 @@
 
 import numpy as np
 
-from ...core.base import SimulationError, Vector
-from ...core.problems import Problem
+from ...core.base import BaseProblem, SimulationError, Vector
 from ._frames import Frame
 from ._trajectories import Trajectory
 
@@ -17,7 +16,7 @@ class BaseObserver:
     Subclasses override any of `on_start`, `on_frame`, and `on_stop`.
     """
 
-    def on_start(self, problem: Problem) -> None:
+    def on_start(self, problem: BaseProblem) -> None:
         """Receive the compiled problem before the first frame.
 
         Args:
@@ -51,13 +50,13 @@ class RecorderObserver(BaseObserver):
     """
 
     def __init__(self) -> None:
-        self._problem: Problem | None = None
+        self._problem: BaseProblem | None = None
         self._times: list[float] = []
         self._states: list[Vector] = []
         self._parameters: list[Vector] = []
         self._frames: list[Frame] = []
 
-    def on_start(self, problem: Problem) -> None:
+    def on_start(self, problem: BaseProblem) -> None:
         """Forget earlier frames and keep the problem.
 
         Args:

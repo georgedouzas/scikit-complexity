@@ -16,7 +16,7 @@ from scipy.optimize import root
 from ...core.base import AnalysisError, Expression, Form, components_of
 from ...core.problems import Problem
 from ...core.system import System
-from ..compile import compile_system
+from ..compile import compiled_problem
 from ._assumptions import declare_domains
 from ._groups import expand_groups
 
@@ -130,7 +130,7 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
             The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
             or has a group of more than 64 members.
     """
-    problem = system if isinstance(system, Problem) else compile_system(system)
+    problem = compiled_problem(system, 'Linear stability')
     if problem.form not in {Form.ODE, Form.DISCRETE}:
         error_msg = (
             f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form.value}.'

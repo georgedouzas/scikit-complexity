@@ -16,7 +16,7 @@ from ...core.base import AnalysisError, ConservationError, Expression, symbols_o
 from ...core.laws._flows import delay_parts
 from ...core.problems import LoopTerm, Problem, StockFlow, numpy_function
 from ...core.system import System
-from ..compile import compile_system
+from ..compile import compiled_problem
 from ..runtime import Trajectory
 
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
@@ -222,7 +222,7 @@ def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tupl
 
 def _problem_of(system: System | Problem) -> Problem:
     """Return the compiled problem of a system, or the problem itself."""
-    return system if isinstance(system, Problem) else compile_system(system)
+    return compiled_problem(system, 'The feedback loop analysis')
 
 
 def loops(system: System | Problem, at: npt.ArrayLike | None = None) -> Loops:
@@ -288,7 +288,7 @@ def loop_dominance(trajectory: Trajectory) -> LoopDominance:
         >>> loop_dominance(trajectory).gains.shape
         (3, 2)
     """
-    problem = trajectory.problem
+    problem = compiled_problem(trajectory.problem, 'Loop dominance')
     graph = _Graph(problem)
     states, parameters = np.atleast_2d(trajectory.states), np.atleast_2d(trajectory.parameters)
     times = np.asarray(trajectory.times, dtype=float)
@@ -378,7 +378,7 @@ def flow_matrix(trajectory: Trajectory, frame: int = -1, quantity: str | None = 
         >>> flow_matrix(trajectory).values.sum(axis=1).tolist()
         [0.0, 0.0]
     """
-    stock_flow = _stock_flow(trajectory.problem)
+    stock_flow = _stock_flow(compiled_problem(trajectory.problem, 'The flow matrix'))
     flows = [flow for flow in stock_flow.flows if quantity is None or flow.quantity == quantity]
     holders = list(dict.fromkeys(name for flow in flows for name in (flow.source_label, flow.sink_label)))
     values = np.zeros((len(flows), len(holders)))

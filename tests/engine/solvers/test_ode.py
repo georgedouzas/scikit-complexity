@@ -10,14 +10,22 @@ import pytest
 from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, ValidationError, parameter, role
+from skcomplex.core.base import (
+    BaseInteraction,
+    BaseSolver,
+    NumericDomain,
+    SolverError,
+    ValidationError,
+    parameter,
+    role,
+)
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import EventLaw, RateLaw, delayed, mean, step, total, where
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.solvers import RK4Solver, ScipyODESolver, VelocityVerletSolver
+from skcomplex.engine.solvers import RK4Solver, ScipyODESolver, Solver, VelocityVerletSolver
 from skcomplex.formalisms.fields import CrankNicolsonSolver, FieldComponent, laplacian
 from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
 from skcomplex.models import create, run
@@ -600,3 +608,9 @@ def test_adaptive_explicit_method_warns_once_on_stiff_field():
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         stepper.advance(2.0, x, problem.initial_parameters, 4.0)
+
+
+def test_ode_solvers_derive_from_the_solver_base():
+    """Test that the solvers of the compiler's problem derive from the solver base through the engine's solver."""
+    assert issubclass(RK4Solver, Solver)
+    assert issubclass(RK4Solver, BaseSolver)

@@ -14,7 +14,7 @@ from scipy.linalg import solve_continuous_are
 from ...core.base import AnalysisError, Expression, Form, ValidationError
 from ...core.problems import Problem
 from ...core.system import System
-from ..compile import compile_system
+from ..compile import compiled_problem
 from ._stability import dynamics_of
 
 type Matrix = npt.NDArray[np.float64]
@@ -222,7 +222,7 @@ def linearize(
         >>> model.B.tolist(), controllability(model.A, model.B)
         ([[0.0], [1.0]], 2)
     """
-    problem = compile_system(system)
+    problem = compiled_problem(system, 'Linearization')
     if problem.form is not Form.ODE:
         error_msg = f'linearize takes systems under continuous time, but the system is a {problem.form.value}.'
         raise ValidationError(error_msg)

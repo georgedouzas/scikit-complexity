@@ -8,13 +8,13 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp
 
-from skcomplex.core.base import BackendError, Form, NumericDomain, parameter
+from skcomplex.core.base import BackendError, BaseSolver, Form, NumericDomain, parameter
 from skcomplex.core.laws import where
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import SOLVERS, compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.solvers import VelocityVerletSolver
+from skcomplex.engine.solvers import ExternalSolver, VelocityVerletSolver
 from skcomplex.formalisms import registered_formalisms
 from skcomplex.formalisms.particles import LammpsSolver, PairPotentialInteraction, ParticleComponent
 from skcomplex.models.biology.ecology import (
@@ -277,3 +277,9 @@ def test_lammps_backend_is_registered_from_particles():
     assert LammpsSolver.__module__ == 'skcomplex.formalisms.particles._backends'
     assert particles.solvers['lammps'] is LammpsSolver
     assert SOLVERS.resolve((Form.SDE, 'lammps')) is LammpsSolver
+
+
+def test_lammps_solver_is_an_external_solver():
+    """Test that the LAMMPS solver derives from the external solver and the solver base."""
+    assert issubclass(LammpsSolver, ExternalSolver)
+    assert issubclass(LammpsSolver, BaseSolver)

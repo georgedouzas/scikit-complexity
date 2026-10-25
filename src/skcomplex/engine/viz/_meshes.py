@@ -11,7 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _phase_colors, palette_colors
 from ._utils import MODULUS, PHASE
@@ -101,7 +102,7 @@ class MeshVisual(BaseVisual):
             self._log_mesh(recording, f'{path}/{MODULUS}', mesh, modulus, self._colors(modulus))
             self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, _phase_colors(phase))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
 
         Args:

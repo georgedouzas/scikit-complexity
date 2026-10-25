@@ -24,7 +24,7 @@
   `BaseBackend` with its registry, moved from `engine/compile`, and replace the run-time import of the backends with
   a loader the engine registers. Verify with the scenarios "Backend base", "Backends load on demand", and "Unrelated
   bases".
-- [ ] 2.5 Make the runtime read the compiler's fields only of a `Problem`, and derive the quantum and rewriting
+- [x] 2.5 Make the runtime read the compiler's fields only of a `Problem`, and derive the quantum and rewriting
   problems from `BaseProblem` with the fields they use. Verify with the scenarios "Problem of a formalism", "Derived
   classes", and "Solver over a base problem".
 

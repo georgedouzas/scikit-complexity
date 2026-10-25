@@ -7,14 +7,13 @@ import dataclasses
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from ...core.base import ValidationError
-from ...core.problems import Problem
+from ...core.base import BaseProblem, ValidationError
 from ...core.system import Observable, System
 from ..compile import compile_system
 from ..runtime import MODELS
 
 type Source = str | Callable[..., System] | System
-PROBLEMS: dict[tuple[Any, ...], Problem] = {}
+PROBLEMS: dict[tuple[Any, ...], BaseProblem] = {}
 
 
 def _problem(
@@ -22,7 +21,7 @@ def _problem(
     arguments: Mapping[str, Any],
     system: System | None,
     observables: Sequence[Observable] | str | None = None,
-) -> Problem:
+) -> BaseProblem:
     """Return the compiled problem of a source with factory arguments, compiled once per process and arguments."""
     if system is not None:
         key: tuple[Any, ...] = ('system', id(system))
@@ -103,7 +102,7 @@ def observables_for(observables: Sequence[Observable] | str | None, system: Syst
     return list(observables or ())
 
 
-def with_values(problem: Problem, paths: Mapping[str, Any]) -> Problem:
+def with_values[P: BaseProblem](problem: P, paths: Mapping[str, Any]) -> P:
     """Return a problem whose initial states and parameters take values by dotted path.
 
     Args:

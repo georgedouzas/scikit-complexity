@@ -9,16 +9,17 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.problems import CompiledAgents, CompiledElement, Problem
+from ...core.base import BaseProblem
+from ...core.problems import CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import SERIES_COLORS
 from ._utils import PARTS, log_scalars
 from ._visuals import BaseVisual, register_visual
 
 
-def _series_index(problem: Problem, path: str, state: str) -> int:
+def _series_index(problem: BaseProblem, path: str, state: str) -> int:
     """Return the position of a state among the states of every element of a problem, in declaration order."""
-    names = [(element.path, name) for element in problem.elements for name in element.states]
+    names = [(element.path, name) for element in getattr(problem, 'elements', ()) for name in element.states]
     return names.index((path, state)) if (path, state) in names else 0
 
 
@@ -77,7 +78,7 @@ class ScalarsVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            if frame.problem.companions.get(name, ('',))[0] == 'lag':
+            if getattr(frame.problem, 'companions', {}).get(name, ('',))[0] == 'lag':
                 continue
             path, value = f'{element.path}/{state}', self._value(frame.value(name))
             if path not in self._styled:
@@ -85,7 +86,7 @@ class ScalarsVisual(BaseVisual):
                 self._styled.add(path)
             log_scalars(recording, path, value)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
+    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:

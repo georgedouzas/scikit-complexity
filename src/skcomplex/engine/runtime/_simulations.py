@@ -12,7 +12,16 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ...core.base import Entry, Form, NumericDomain, ParameterError, SimulationError, ValidationError, Vector
+from ...core.base import (
+    BaseProblem,
+    Entry,
+    Form,
+    NumericDomain,
+    ParameterError,
+    SimulationError,
+    ValidationError,
+    Vector,
+)
 from ...core.problems import BaseBackend, Problem, with_initial_state
 from ...core.system import Observable, System
 from ..compile import ObservableEvaluator, compile_system, validate
@@ -27,6 +36,11 @@ DEFAULT_DT = 0.01
 MAX_FRAMES = 1000
 FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
+
+
+def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
+    """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
+    return tuple(partition.problem for partition in problem.partitions) if isinstance(problem, Problem) else ()
 
 
 def _default_dt(until: float) -> float:
@@ -130,7 +144,7 @@ class Simulation(BaseEstimator):
 
     def __init__(
         self,
-        system: System | Problem,
+        system: System | BaseProblem,
         *,
         solver: str | Solver = 'auto',
         backend: str | BaseBackend = 'auto',
@@ -157,9 +171,9 @@ class Simulation(BaseEstimator):
         self.observables = observables
         self.initial_state = initial_state
 
-    def _check_dt(self, problem: Problem, until: float) -> float:
+    def _check_dt(self, problem: BaseProblem, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
-        forms = {problem.form, *(partition.problem.form for partition in problem.partitions)}
+        forms = {problem.form, *(item.form for item in _partition_problems(problem))}
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else _default_dt(until)
         dt = default if self.dt is None else self.dt
@@ -175,22 +189,22 @@ class Simulation(BaseEstimator):
         """Return the parameter names and values of the previous run of the same system, or `None` without one."""
         if getattr(self, '_prepared_system', None) is not self.system or not hasattr(self, 'parameters_'):
             return None
-        problem: Problem = self.problem_
+        problem: BaseProblem = self.problem_
         return problem.parameters.names, self.parameters_.copy()
 
     def _prepare(self, until: float) -> None:
         """Compile the system, build the stepper, and notify the observers of the start."""
         previous = self._previous_parameters()
-        if not isinstance(self.system, Problem):
+        if not isinstance(self.system, BaseProblem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
         initial = dict(self.initial_state or {})
         self.problem_ = (
             with_initial_state(self.system, initial)
-            if isinstance(self.system, Problem)
+            if isinstance(self.system, BaseProblem)
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
-        self._adaptive = self.problem_.adaptive_parameters
+        self._adaptive = self.problem_.adaptive_parameters if isinstance(self.problem_, Problem) else {}
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)
@@ -199,7 +213,8 @@ class Simulation(BaseEstimator):
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
-        invariants = self.problem_.stock_flow is not None and self.problem_.stock_flow.invariants
+        stock_flow = self.problem_.stock_flow if isinstance(self.problem_, Problem) else None
+        invariants = stock_flow is not None and stock_flow.invariants
         monitors = [InvariantObserver()] if invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.time_ = 0.0
@@ -220,8 +235,9 @@ class Simulation(BaseEstimator):
 
     def _compile_functions(self) -> None:
         """Call every numeric function of the problem and its partitions once, before the clock starts."""
-        for problem in (self.problem_, *(partition.problem for partition in self.problem_.partitions)):
-            self._compile_problem(problem)
+        for problem in (self.problem_, *_partition_problems(self.problem_)):
+            if isinstance(problem, Problem):
+                self._compile_problem(problem)
 
     def _compile_problem(self, problem: Problem) -> None:
         """Call every numeric function of one problem once, so compiled backends finish compiling."""
@@ -356,8 +372,8 @@ class Simulation(BaseEstimator):
 
     def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
         """Raise an error when parameter changes would break a transition or emission matrix."""
-        problems = (self.problem_, *(partition.problem for partition in self.problem_.partitions))
-        matrices = [matrix for problem in problems for matrix in problem.matrices]
+        problems = (self.problem_, *_partition_problems(self.problem_))
+        matrices = [matrix for problem in problems if isinstance(problem, Problem) for matrix in problem.matrices]
         if not matrices:
             return
         candidate = self.parameters_.copy()

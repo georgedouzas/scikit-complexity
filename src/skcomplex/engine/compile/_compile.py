@@ -8,7 +8,7 @@ from typing import cast
 
 import numpy as np
 
-from ...core.base import Form
+from ...core.base import BaseProblem, Form, ValidationError
 from ...core.problems import BaseBackend, Partition, Problem, with_initial_state
 from ...core.system import Observable, System
 from ._compilation import Compilation
@@ -82,6 +82,40 @@ def _planned_problem(compilation: Compilation) -> Problem:
     return _partitioned(compilation, owners)
 
 
+def compiled_problem(system: 'System | BaseProblem', purpose: str) -> Problem:
+    """Return the compiler's problem of a system, or the problem itself, for work that reads the compiler's fields.
+
+    Args:
+        system:
+            A system, or a problem compiled from one.
+
+        purpose:
+            What needs the compiler's problem, such as `'Linear stability'`, for the error message.
+
+    Returns:
+        problem:
+            The compiler's problem.
+
+    Raises:
+        ValidationError:
+            A formalism compiles the system to a problem of its own, which the work cannot read.
+
+    Examples:
+        >>> from skcomplex.engine.compile import compiled_problem
+        >>> from skcomplex.models import create
+        >>> compiled_problem(create('lotka_volterra'), 'Linear stability').form.name
+        'ODE'
+    """
+    problem = system if isinstance(system, BaseProblem) else compile_system(system)
+    if isinstance(problem, Problem):
+        return problem
+    error_msg = (
+        f'{purpose} reads the problem of the general compiler, but the system compiles to a '
+        f'{type(problem).__name__} of the {problem.form.value} form.'
+    )
+    raise ValidationError(error_msg)
+
+
 def compile_system(
     system: System,
     backend: str | BaseBackend = 'auto',
@@ -89,7 +123,7 @@ def compile_system(
     *,
     solver: object = 'auto',
     initial_state: Mapping[str, object] | None = None,
-) -> Problem:
+) -> BaseProblem:
     """Compile a system into a problem of the form its law kinds determine.
 
     Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
@@ -163,9 +197,9 @@ def compile_system(
     report.raise_errors()
     observed = _with_observables(system, observables)
     initial = dict(initial_state or {})
-    system_pass = claiming_compiler(observed)
-    if system_pass is not None:
-        return system_pass.compile(observed, backend=backend, solver=solver, initial_state=initial)
+    compiler = claiming_compiler(observed)
+    if compiler is not None:
+        return compiler.compile(observed, backend=backend, solver=solver, initial_state=initial)
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
     check_held_reads(problem, list(compilation.held))

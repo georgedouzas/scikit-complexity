@@ -7,12 +7,12 @@ import math
 import warnings
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 from numba.extending import register_jitable
 
-from ...core.base import BackendError, BaseSolver, Form, LawKind, SolverError, Vector
+from ...core.base import BackendError, BaseProblem, BaseSolver, Form, LawKind, SolverError, Vector
 from ...core.problems import Problem, Record
 from ..compile import SOLVERS, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
@@ -183,7 +183,7 @@ def register_solver(name: str, stepper: type[Solver], *, default: bool = False) 
         SOLVERS.register((stepper.form, 'auto'), stepper)
 
 
-def resolve_solver(problem: Problem, solver: str | BaseSolver[Problem]) -> Solver:
+def resolve_solver(problem: BaseProblem, solver: str | BaseSolver[Any]) -> BaseSolver[Any]:
     """Return a stepper for a problem from a registered name or an instance.
 
     Args:
@@ -202,7 +202,7 @@ def resolve_solver(problem: Problem, solver: str | BaseSolver[Problem]) -> Solve
             No stepper of the problem's form is registered under the name.
     """
     if isinstance(solver, BaseSolver):
-        return solver  # type: ignore[return-value]
+        return solver
     solver_registry()
     try:
         return SOLVERS.resolve((problem.form, solver))()

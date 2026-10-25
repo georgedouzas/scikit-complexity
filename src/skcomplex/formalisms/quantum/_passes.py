@@ -17,6 +17,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseInteraction,
+    BaseProblem,
     Entry,
     Expression,
     Form,
@@ -24,6 +25,7 @@ from ...core.base import (
     Layout,
     NumericDomain,
     SkcomplexError,
+    SymbolicVector,
     ValidationError,
     VariableKind,
     Vector,
@@ -33,7 +35,7 @@ from ...core.base import (
 )
 from ...core.components import GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import CompiledElement, CompiledInteraction, Getter, Problem, numpy_function
+from ...core.problems import CompiledElement, CompiledInteraction, Getter, numpy_function
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import Observable, System, reduce_values
 from ...engine.compile import BaseSystemCompiler, Node, coerce_value, flatten_system, spectral_multiplier
@@ -601,7 +603,7 @@ def _compiled_interaction(node: Node) -> CompiledInteraction:
 
 
 @dataclass(frozen=True)
-class QuantumProblem(Problem):
+class QuantumProblem(BaseProblem):
     """Problem of the quantum form, whose state is a pure state or a density matrix stored as complex pairs.
 
     Args:
@@ -636,6 +638,10 @@ class QuantumProblem(Problem):
             The matrices of local operators computed so far.
     """
 
+    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
+    elements: tuple[CompiledElement, ...] = ()
+    interactions: tuple[CompiledInteraction, ...] = ()
+    system: System | None = field(default=None, repr=False)
     dimensions: tuple[int, ...] = ()
     subsystems: tuple[str, ...] = ()
     hamiltonian: tuple[QuantumTerm, ...] = field(default=(), repr=False)
@@ -973,10 +979,6 @@ def compile_quantum(
         initial_parameters=p,
         time=time,
         symbols=symbols,
-        equations={},
-        equation_symbols={},
-        has_callables=False,
-        has_group_sums=False,
         elements=elements,
         interactions=interactions,
         system=system,
@@ -1052,7 +1054,7 @@ class QuantumCompiler(BaseSystemCompiler):
         backend: object,
         solver: object,
         initial_state: Mapping[str, object],
-    ) -> Problem:
+    ) -> BaseProblem:
         """Compile a quantum system into a problem of the quantum form.
 
         Args:

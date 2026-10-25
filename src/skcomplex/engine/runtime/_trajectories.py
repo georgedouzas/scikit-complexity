@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ...core.base import BaseProblem
 from ...core.problems import NetworkSnapshot, Problem, Record
 from ..solvers import AgentSnapshot
 
@@ -63,7 +64,7 @@ class Trajectory:
 
     def __init__(
         self,
-        problem: Problem,
+        problem: BaseProblem,
         times: npt.NDArray[np.float64],
         states: npt.NDArray[np.float64],
         parameters: npt.NDArray[np.float64],
@@ -90,7 +91,7 @@ class Trajectory:
 
     def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
-        topology = self.problem.topology
+        topology = self.problem.topology if isinstance(self.problem, Problem) else None
         if topology is None or topology.presence(name, self.parameters[0]) is None:
             return values
         present = np.array([topology.presence(name, row) for row in self.parameters])
@@ -130,7 +131,7 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
-    def member(self, index: int, problem: Problem) -> 'Trajectory':
+    def member(self, index: int, problem: BaseProblem) -> 'Trajectory':
         """Return the trajectory of one member of a replicated system, as a trajectory of the original system.
 
         Args:
@@ -218,7 +219,7 @@ class Trajectory:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name)
+        shape = self.problem.lattice_shape(name) if isinstance(self.problem, Problem) else None
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
@@ -269,7 +270,7 @@ class Trajectory:
             KeyError:
                 The system has no network whose topology changes.
         """
-        topology = self.problem.topology
+        topology = self.problem.topology if isinstance(self.problem, Problem) else None
         if topology is None:
             error_msg = 'The system has no network whose topology changes. Give its groups `variable=True`.'
             raise KeyError(error_msg)
