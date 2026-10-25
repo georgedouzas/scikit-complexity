@@ -18,6 +18,7 @@ class RewritingError(SkcomplexError):
     """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
+@dataclass(frozen=True)
 class Module:
     """Symbol of a word with numeric or symbolic parameters, such as `A(x)` or `F(1.0)`.
 
@@ -25,32 +26,24 @@ class Module:
         name:
             The name of the symbol.
 
-        *parameters:
+        parameters:
             The parameters, numbers in a word and symbols or expressions in a production.
 
     Examples:
         >>> from skcomplex.formalisms.rewriting import Module
-        >>> Module('F', 0.5)
-        F(0.5)
+        >>> Module('F', (0.5,)).text
+        'F(0.5)'
     """
 
-    def __init__(self, name: str, *parameters: Any) -> None:  # noqa: ANN401
-        self.name = name
-        self.parameters = parameters
+    name: str
+    parameters: tuple[Any, ...] = ()
 
-    def __repr__(self) -> str:
-        """Return the module as written, such as `A(x, 2)`."""
+    @property
+    def text(self) -> str:
+        """Module as written, such as `A(x, 2)`."""
         if not self.parameters:
             return self.name
         return f'{self.name}({", ".join(str(item) for item in self.parameters)})'
-
-    def __eq__(self, other: object) -> bool:
-        """Check that two modules have the same name and parameters."""
-        return isinstance(other, Module) and (self.name, self.parameters) == (other.name, other.parameters)
-
-    def __hash__(self) -> int:
-        """Return the hash of the name."""
-        return hash(self.name)
 
 
 type Letters = str | Module | Sequence[str | Module]
@@ -76,8 +69,8 @@ def parse_word(value: Letters, names: Sequence[str] = ()) -> list[Module]:
     Examples:
         >>> from skcomplex.formalisms.rewriting import Module
         >>> from skcomplex.formalisms.rewriting._laws import parse_word
-        >>> parse_word(['F', Module('A', 1.0), '+-'])
-        [F, A(1.0), +, -]
+        >>> [module.text for module in parse_word(['F', Module('A', (1.0,)), '+-'])]
+        ['F', 'A(1.0)', '+', '-']
     """
     if isinstance(value, Module):
         return [value]
@@ -120,8 +113,8 @@ class ProductionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.formalisms.rewriting import ProductionLaw
-        >>> ProductionLaw('F', 'F+F--F+F')
-        F → F+F--F+F
+        >>> ProductionLaw('F', 'F+F--F+F').text
+        'F → F+F--F+F'
     """
 
     law_kind: ClassVar[LawKind] = LawKind.REWRITE
@@ -135,16 +128,17 @@ class ProductionLaw(BaseLaw):
     condition: Any = None
     probability: Any = None
 
-    def __repr__(self) -> str:
-        """Return the production as written, such as `B < A → B`."""
-        head = repr(self.predecessor if isinstance(self.predecessor, Module) else Module(self.predecessor))
+    @property
+    def text(self) -> str:
+        """Production as written, such as `B < A → B`."""
+        head = (self.predecessor if isinstance(self.predecessor, Module) else Module(self.predecessor)).text
         if self.left is not None:
-            head = f'{"".join(map(repr, parse_word(self.left)))} < {head}'
+            head = f'{"".join(module.text for module in parse_word(self.left))} < {head}'
         if self.right is not None:
-            head = f'{head} > {"".join(map(repr, parse_word(self.right)))}'
+            head = f'{head} > {"".join(module.text for module in parse_word(self.right))}'
         modules = parse_word(self.successor)
         separator = ' ' if any(module.parameters for module in modules) else ''
-        text = f'{head} → {separator.join(map(repr, modules))}'
+        text = f'{head} → {separator.join(module.text for module in modules)}'
         if self.condition is not None:
             text += f' : {self.condition}'
         if self.probability is not None:
@@ -280,8 +274,9 @@ class SubstitutionLaw(BaseLaw):
     prototile: str
     pieces: Sequence[tuple[str, Affine]]
 
-    def __repr__(self) -> str:
-        """Return the substitution as written."""
+    @property
+    def text(self) -> str:
+        """Substitution as written, such as `interval → interval, interval`."""
         return f'{self.prototile} → {", ".join(name for name, _ in self.pieces)}'
 
 
@@ -330,11 +325,6 @@ class GraphProductionLaw(BaseLaw):
                 The nodes of the right graph outside the interface.
         """
         return set(self.right.nodes) - set(self.interface.nodes)
-
-    def __repr__(self) -> str:
-        """Return the sizes of the three graphs."""
-        sizes = ' ← '.join(f'{graph.number_of_nodes()} nodes' for graph in (self.left, self.interface))
-        return f'GraphProduction({sizes} → {self.right.number_of_nodes()} nodes)'
 
 
 type RewritingLaw = ProductionLaw | SubstitutionLaw | GraphProductionLaw

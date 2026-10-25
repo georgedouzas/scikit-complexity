@@ -12,8 +12,8 @@ from typing import Any, ClassVar
 import numpy as np
 from numba.extending import register_jitable
 
-from ...core.base import BackendError, BaseProblem, BaseSolver, Form, LawKind, SolverError, Vector
-from ...core.problems import Problem
+from ...core.base import BackendError, Form, LawKind, SolverError, Vector
+from ...core.problems import BaseProblem, BaseSolver, Problem
 from ..compile import SOLVERS, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
@@ -114,8 +114,33 @@ class Solver(BaseSolver[Problem]):
             time = bound
         return state
 
+    def _warm(self, problem: Problem) -> None:
+        """Call every numeric function of the problem once, so compiled backends finish compiling before a run."""
+        x, p = self.initial_state_.copy(), problem.initial_parameters.copy()
+        rng = np.random.default_rng(0)
+        drawn = (rng,) if problem.stochastic else ()
+        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
+            if function is not None:
+                function(0.0, x, p)
+        if problem.update is not None:
+            problem.update(0.0, x, p, *drawn)
+        accelerated = problem.accelerated
+        if accelerated is None:
+            return
+        if accelerated.rk4 is not None:
+            accelerated.rk4(0.0, x, p, 0.0, 1.0)
+        if accelerated.velocity_verlet is not None:
+            empty = np.zeros(0, dtype=np.int64)
+            accelerated.velocity_verlet(0.0, x, p, 0.0, 1.0, empty, empty)
+        if accelerated.euler_maruyama is not None:
+            accelerated.euler_maruyama(0.0, x, p, 0.0, 1.0, rng)
+        if accelerated.gillespie is not None:
+            accelerated.gillespie(0.0, x, p, 0.0, rng)
+        if accelerated.iterate is not None:
+            accelerated.iterate(0.0, x, p, 0.0, *drawn)
+
     def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
-        """Prepare the stepper for a problem.
+        """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
 
         Args:
             problem:
@@ -138,7 +163,7 @@ class Solver(BaseSolver[Problem]):
         self.renewals_ = RenewalClock(problem, rng, self.locator_) if problem.renewals else None
         self.history_: History | None = None
         step = getattr(self, 'dt', None)
-        limit = getattr(problem, 'stable_step', None)
+        limit = problem.stable_step
         if limit is not None and step is not None and step > limit and not self.implicit:
             warning_msg = (
                 f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
@@ -147,6 +172,7 @@ class Solver(BaseSolver[Problem]):
                 'spectral fields.'
             )
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
+        self._warm(problem)
 
     def _collect(self) -> None:
         """Set the events recorded since the last run, and forget them, and the time of a terminal event."""

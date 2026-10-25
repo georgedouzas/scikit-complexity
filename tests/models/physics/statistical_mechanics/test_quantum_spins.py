@@ -6,10 +6,9 @@ import rerun.blueprint as rrb
 from scipy.special import jv
 
 from skcomplex.core.base import ValidationError
-from skcomplex.engine.analysis import purity, spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
-from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver
+from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver, purity, spectrum
 from skcomplex.models import create, run
 
 
@@ -64,4 +63,4 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')
     Simulation(system, dt=0.5, observers=[observer]).run(until=2.0)
     assert observer.logged_frames_ == 5
-    assert repr(ExpectationVisual()) == 'ExpectationVisual(states=None, low=None, high=None, history=None)'
+    assert repr(ExpectationVisual()) == 'ExpectationVisual()'

@@ -34,7 +34,7 @@ coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
     late = Simulation(create(MODEL, n=float(n)), dt=0.1).run(until=200).trajectory_
-    product = late['x3.x'][late.times >= 150.0]
+    product = late.values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 trajectory = simulation.trajectory_
 fig, (series, threshold) = plt.subplots(1, 2, figsize=(10, 4))

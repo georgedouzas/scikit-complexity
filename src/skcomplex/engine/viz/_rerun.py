@@ -13,8 +13,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
 
-from ...core.base import BaseProblem, ValidationError
-from ...core.problems import RenewalRecord
+from ...core.base import ValidationError
+from ...core.problems import BaseProblem, RenewalRecord
 from ...core.space import NetworkSpace
 from ..runtime import BaseObserver, Frame
 from ._blueprints import default_blueprint, save_blueprint
@@ -57,8 +57,8 @@ def _renewal_text(record: RenewalRecord) -> str:
 class RerunObserver(BaseObserver):
     """Observer that logs frames to Rerun, with entity paths that follow the system tree.
 
-    `prepare(problem)` creates the recording and prepares the visual of every element and agent group, `run(frame)` logs a
-    frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines,
+    `prepare(problem)` creates the recording and prepares the visual of every element and agent group, `run(frame)` logs
+    a frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines,
     logs every element with the visual its type declares, logs every parameter under `parameters/<name>`, and logs
     the renewals of renewal laws since the previous frame as text entries under `renewals/<label>`. A subclass logs
     entities of its own apart from the system's with `_log_extra`.
@@ -164,12 +164,12 @@ class RerunObserver(BaseObserver):
             rr.spawn(executable_path=_viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_)
         elif self.connect:
             self.recording_.connect_grpc(default_blueprint=self.blueprint_)
-        agents = getattr(problem, 'agents', ())
+        agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(resolve_visual(element.visual).prepare(element, problem) for element in getattr(problem, 'elements', ())),
+            *(resolve_visual(element.visual).prepare(element, problem) for element in problem.elements),
             *(agents_visual_of(group, problem).prepare(group, problem) for group in agents),
         ]
-        space = getattr(problem, 'agent_space', None)
+        space = problem.agent_space
         if isinstance(space, NetworkSpace):
             edges = [(str(first), str(second)) for first, second in space.graph.edges]
             for group in agents:
@@ -186,7 +186,7 @@ class RerunObserver(BaseObserver):
             visual.run(frame, self.recording_)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
-        owners = {element.path for element in getattr(frame.problem, 'elements', ())}
+        owners = {element.path for element in frame.problem.elements}
         for name, value in frame.observables.items():
             values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
             self.recording_.log(_entity_path(name, owners), rr.Scalars(values))

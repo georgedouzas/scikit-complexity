@@ -61,7 +61,7 @@ def heat_diffusion(
 
     Examples:
         >>> from skcomplex.models.physics.heat import heat_diffusion
-        >>> heat_diffusion((10, 10)).elements[0].size
+        >>> heat_diffusion((10, 10)).elements[0].prepare().size_
         100
     """
     shape = tuple(shape)
@@ -130,7 +130,7 @@ def heat_l_shape(
 
     Examples:
         >>> from skcomplex.models.physics.heat import heat_l_shape
-        >>> heat_l_shape(1).elements[0].size
+        >>> heat_l_shape(1).elements[0].prepare().size_
         21
     """
     mesh = MeshSpace.l_shape(refine)

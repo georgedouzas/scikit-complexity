@@ -26,7 +26,7 @@ from ...core.base import (
     has_trait,
 )
 from ...core.components import ElementComponent, GroupComponent, probe_laws
-from ...core.space import LatticeSpace, NetworkSpace, part_count
+from ...core.space import LatticeSpace, NetworkSpace
 from ...core.system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -118,15 +118,12 @@ def _check_children(system: System, scope: str) -> None:
 
 
 def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) -> ElementComponent | GroupComponent:
-    """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
-    if not isinstance(element, GroupComponent) or element.size is not None:
+    """Return a group prepared with its size, a copy when the size counts the parts of the space it inherits."""
+    if not isinstance(element, GroupComponent):
         return element
-    if space is None:
-        error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
-        raise SpaceError(error_msg)
-    sized = copy.copy(element)
-    sized.size = part_count(space, element.on or 'sites', element.label, element.layer)
-    return sized
+    if element.size is None and element.space is None:
+        return copy.copy(element).prepare(space)
+    return element.prepare(space)
 
 
 def _with_capacity(
@@ -137,7 +134,7 @@ def _with_capacity(
     if not is_topology_group(element, space):
         return element, None
     group = cast('GroupComponent', element)
-    initial = int(group.size) if group.size is not None else 0
+    initial = group.size_
     capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
     if capacity < initial:
         error_msg = (
@@ -146,12 +143,12 @@ def _with_capacity(
         )
         raise ValidationError(error_msg)
     sized = copy.copy(group)
-    sized.size = capacity
+    sized.size_ = capacity
     return sized, initial
 
 
 def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
-    """Check whether two prepared network spaces have the same nodes, edges, and layers, such as clones of one network."""
+    """Check whether two prepared network spaces have the same nodes, edges, and layers, such as clones of a network."""
     if list(first.graphs_) != list(second.graphs_):
         return False
     if (first.capacity, first.fill, list(first.hyperedges)) != (second.capacity, second.fill, list(second.hyperedges)):
@@ -167,8 +164,8 @@ def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
 def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
     """Return a prepared space, or the first network space seen that equals it, so clones of a network share one.
 
-    A space is prepared here unless it was prepared before, such as a group space whose ball was enumerated once. A space
-    whose arguments are not valid stays unprepared, and validation reports it from its check.
+    A space is prepared here unless it was prepared before, such as a group space whose ball was enumerated once. A
+    space whose arguments are not valid stays unprepared, and validation reports it from its check.
     """
     if space is None:
         return None
@@ -223,7 +220,7 @@ class Node:
     @property
     def members(self) -> int | None:
         """Size of a group, or `None` for a single element or an interaction."""
-        return self.component.size if isinstance(self.component, GroupComponent) else None
+        return self.component.size_ if isinstance(self.component, GroupComponent) else None
 
     @property
     def is_agent(self) -> bool:

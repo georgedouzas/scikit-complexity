@@ -322,7 +322,7 @@ def decaying_turbulence(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import decaying_turbulence
-        >>> decaying_turbulence((16, 16)).elements[0].size
+        >>> decaying_turbulence((16, 16)).elements[0].prepare().size_
         256
     """
     shape = tuple(shape)
@@ -413,7 +413,7 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
 
     Examples:
         >>> from skcomplex.models.physics.fluids import burgers
-        >>> burgers(16).elements[0].size
+        >>> burgers(16).elements[0].prepare().size_
         16
     """
     spacing = 2 * math.pi / n

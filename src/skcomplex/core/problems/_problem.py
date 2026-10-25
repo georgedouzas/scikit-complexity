@@ -5,7 +5,7 @@
 
 import itertools
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import KW_ONLY, dataclass, field, replace
 from typing import Any, Protocol
 
 import numpy as np
@@ -15,9 +15,9 @@ from sage.all__sagemath_symbolics import I
 from ..base import (
     BaseInteraction,
     BaseLaw,
-    BaseProblem,
     BaseSpace,
     Expression,
+    Form,
     Layout,
     SpaceKind,
     SymbolicVector,
@@ -562,6 +562,145 @@ class Accelerated:
 
 
 @dataclass(frozen=True)
+class BaseProblem:
+    """Base of the problems a system compiles to: what every solver, observer, and visual reads of one.
+
+    A problem is a value. Its fields hold what the runtime reads, with trivial defaults for what a form does not have,
+    and its readers answer the runtime's questions, trivially by default. A formalism's problem adds the fields its
+    own solver reads.
+
+    Args:
+        form:
+            The mathematical form.
+
+        states:
+            The layout of the state vector.
+
+        parameters:
+            The layout of the parameter vector.
+
+        initial_state:
+            The initial state vector.
+
+        initial_parameters:
+            The initial parameter vector.
+
+        time:
+            The time symbol.
+
+        symbols:
+            A mapping from dotted name to the symbol of a scalar or the column of symbols of a vector. The symbols
+            of a group stand for one member.
+
+        elements:
+            The compiled elements and groups.
+
+        interactions:
+            The compiled interactions in tree order.
+
+        system:
+            The system the problem was compiled from, or `None`.
+
+        agents:
+            The agent elements and groups of an agent-based problem.
+
+        agent_space:
+            The space the agents of an agent-based problem live in, or `None`.
+
+        partitions:
+            The partitions of a co-simulation problem, in system order.
+
+        companions:
+            A mapping from the name of every companion state to its kind, `'derivative'` or `'lag'`, the name of the
+            state it belongs to, and the order of the derivative or the number of steps back.
+
+        renewals:
+            The renewal laws, whose members renew on their own clocks.
+
+        matrices:
+            The transition and emission matrices of the Markov laws, checked when their parameters change.
+
+        stock_flow:
+            The quantities, flows, auxiliaries, and feedback terms of the system, or `None` without them.
+
+        topology:
+            The topology requests of the laws and the networks they change, or `None` for a problem without them.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.base import Form, Layout, symbol
+        >>> from skcomplex.core.problems import BaseProblem
+        >>> problem = BaseProblem(Form.ODE, Layout([]), Layout([]), np.zeros(0), np.zeros(0), symbol('t'))
+        >>> problem.stochastic, problem.objectives, problem.adaptive_parameters, problem.lattice_shape('a.n')
+        (False, (), {}, None)
+    """
+
+    form: Form
+    states: Layout
+    parameters: Layout
+    initial_state: Vector
+    initial_parameters: Vector
+    time: Expression
+    _: KW_ONLY
+    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
+    elements: tuple[CompiledElement, ...] = ()
+    interactions: tuple[CompiledInteraction, ...] = ()
+    system: System | None = field(default=None, repr=False)
+    agents: tuple[CompiledAgents, ...] = ()
+    agent_space: BaseSpace | None = None
+    partitions: tuple['Partition', ...] = ()
+    companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
+    renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
+    matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
+    stock_flow: StockFlow | None = field(default=None, repr=False)
+    topology: _TopologyChanges | None = field(default=None, repr=False)
+
+    @property
+    def stochastic(self) -> bool:
+        """Whether the problem draws random values, so its solver takes the random number generator."""
+        return False
+
+    @property
+    def objectives(self) -> tuple[_CompiledObjective, ...]:
+        """Objectives of the system, which optimal control solvers optimise."""
+        return () if self.stock_flow is None else self.stock_flow.objectives
+
+    @property
+    def adaptive_parameters(self) -> dict[str, Variable]:
+        """Declarations of the adaptive parameters, states that a schedule may set, by dotted state name."""
+        return {}
+
+    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+        """Return the lattice shape of a state that lives on the sites of a lattice, or `None` for other states.
+
+        Args:
+            name:
+                The dotted name of the state.
+
+        Returns:
+            shape:
+                The number of sites along every dimension, or `None`; no state is on a lattice by default.
+        """
+        del name
+        return None
+
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
+        """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
+
+        Args:
+            observables:
+                The path of the declaring system and the observable, for every observable of the system tree.
+
+        Returns:
+            getters:
+                The getters by observable path, or `None` for the shared evaluator, which reads the fields of the
+                problem.
+        """
+        del observables
+        return None
+
+
+@dataclass(frozen=True)
 class Problem(BaseProblem):
     """System compiled to one mathematical form with flat state and parameter vectors.
 
@@ -740,20 +879,12 @@ class Problem(BaseProblem):
             or `None` for a problem without them.
     """
 
-    symbols: Mapping[str, Expression | SymbolicVector]
     equations: Mapping[str, Expression]
     equation_symbols: Mapping[str, Expression]
     has_callables: bool
     has_group_sums: bool
-    elements: tuple[CompiledElement, ...]
-    interactions: tuple[CompiledInteraction, ...] = ()
-    system: System | None = field(default=None, repr=False)
-    agents: tuple[CompiledAgents, ...] = ()
     model_rules: tuple[tuple[str, BaseLaw], ...] = ()
     model_invariants: tuple[tuple[str, Invariant], ...] = ()
-    agent_space: BaseSpace | None = None
-    partitions: tuple['Partition', ...] = ()
-    companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
     breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
@@ -777,25 +908,16 @@ class Problem(BaseProblem):
     update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
-    matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
-    renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 
-    stock_flow: StockFlow | None = field(default=None, repr=False)
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
     accelerated: Accelerated | None = field(default=None, repr=False)
-    topology: _TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout.entries for item in real_components_of(self.symbols[entry.name])]
-
-    @property
-    def objectives(self) -> tuple[_CompiledObjective, ...]:
-        """Objectives of the system, which optimal control solvers optimise."""
-        return () if self.stock_flow is None else self.stock_flow.objectives
 
     @property
     def adaptive_parameters(self) -> dict[str, Variable]:
@@ -823,20 +945,6 @@ class Problem(BaseProblem):
     def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
-
-    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
-        """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
-
-        Args:
-            observables:
-                The path of the declaring system and the observable, for every observable of the system tree.
-
-        Returns:
-            getters:
-                The getters by observable path, or `None` for the evaluator of the shared core.
-        """
-        del observables
-        return None
 
     def max_speed(self, x: Vector, p: Vector) -> float | None:
         """Return the largest wave speed of the conservation laws, or `None` without them.

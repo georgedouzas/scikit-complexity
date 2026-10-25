@@ -91,7 +91,7 @@ def _is_number(value: object) -> bool:
     return True
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class Call:
     """Law value computed by a function of time and scalar arguments, called once per member or pair.
 
@@ -103,24 +103,20 @@ class Call:
         function:
             The function `f(t, *arguments)`.
 
-        *arguments:
+        arguments:
             The symbolic expressions whose values are passed to the function.
 
     Examples:
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import Call, RateLaw
         >>> n = symbol('n')
-        >>> law = RateLaw(n, Call(lambda t, n: 2 * n, n))
+        >>> law = RateLaw(n, Call(lambda t, n: 2 * n, (n,)))
         >>> law.value.arguments
         (n,)
     """
 
     function: object
-    arguments: tuple[object, ...]
-
-    def __init__(self, function: object, *arguments: object) -> None:
-        object.__setattr__(self, 'function', function)
-        object.__setattr__(self, 'arguments', arguments)
+    arguments: tuple[object, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -649,7 +645,7 @@ class RenewalLaw(BaseLaw):
         return replace(self, **changes) if changes else self
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class EquationLaw(BaseLaw):
     """Implicit relation in which the highest time derivatives of states appear, such as Newton's second law.
 
@@ -668,7 +664,7 @@ class EquationLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import EquationLaw, derivative
         >>> theta, g, l = symbol('theta'), symbol('g'), symbol('l')
-        >>> EquationLaw(l * derivative(theta, 2) == -g * sin(theta)).rhs
+        >>> EquationLaw(l * derivative(theta, 2) == -g * sin(theta)).check().rhs
         -g*sin(theta)
     """
 
@@ -681,17 +677,17 @@ class EquationLaw(BaseLaw):
     )
 
     lhs: object
-    rhs: object
+    rhs: object = None
 
-    def __init__(self, lhs: object, rhs: object = None) -> None:
-        relation: Any = lhs
-        if rhs is None and hasattr(relation, 'is_relational') and relation.is_relational():
-            lhs, rhs = relation.lhs(), relation.rhs()
-        if rhs is None:
+    def _check(self) -> Self:
+        """Return the equation with its relation split into its two sides, raising an error for a missing side."""
+        relation: Any = self.lhs
+        if self.rhs is None and hasattr(relation, 'is_relational') and relation.is_relational():
+            return replace(self, lhs=relation.lhs(), rhs=relation.rhs())
+        if self.rhs is None:
             error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
-            raise ValueError(error_msg)
-        object.__setattr__(self, 'lhs', lhs)
-        object.__setattr__(self, 'rhs', rhs)
+            raise ValidationError(error_msg)
+        return self
 
 
 register_laws(

@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, BaseSpace
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import BaseSpace
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
@@ -79,7 +79,7 @@ def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisu
     visual: Any = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
-    if getattr(problem, 'agent_space', None) is None and type(visual) is AgentsVisual and visual.position is None:
+    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
         return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual
 

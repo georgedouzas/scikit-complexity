@@ -217,8 +217,8 @@ def test_group_wrong_number_of_values_raises_error():
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and lattice-shaped arrays pass the checks of group creation."""
-    assert ParticleComponent.group('gas', 3, x=[0.5, 0.5]).size == 3
-    assert PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0]).size == 3
+    assert ParticleComponent.group('gas', 3, x=[0.5, 0.5]).prepare().size_ == 3
+    assert PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0]).prepare().size_ == 3
     assert (
         GroupComponent(
             'cells',
@@ -226,7 +226,9 @@ def test_group_shared_and_lattice_values_are_accepted():
             space=LatticeSpace((2, 3)),
             on='sites',
             values={'n': np.ones((2, 3))},
-        ).size
+        )
+        .prepare()
+        .size_
         == 6
     )
 

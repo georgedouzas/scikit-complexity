@@ -7,7 +7,8 @@ import dataclasses
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from ...core.base import BaseProblem, ValidationError
+from ...core.base import ValidationError
+from ...core.problems import BaseProblem
 from ...core.system import Observable, System
 from ..compile import compile_system
 from ..runtime import MODELS

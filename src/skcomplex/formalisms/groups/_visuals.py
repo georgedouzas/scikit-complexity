@@ -9,8 +9,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import NODE_SPACING, UPWARD, BaseVisual
 from ._spaces import CayleySpace

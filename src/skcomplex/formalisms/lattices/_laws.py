@@ -221,7 +221,7 @@ class Energy(BaseLaw):
         >>> from skcomplex.core.space import Neighborhood
         >>> spin, J = symbol('spin'), symbol('J')
         >>> nearest = Neighborhood.von_neumann()
-        >>> len(Energy(-J * spin * sum(neighbors(spin, nearest, reduce='each')), nearest).over)
+        >>> len(Energy(-J * spin * sum(neighbors(spin, nearest, reduce='each')), nearest).over.offsets)
         4
     """
 

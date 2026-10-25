@@ -5,7 +5,7 @@
 
 import dataclasses
 from collections.abc import Collection, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..base import BaseLaw, SymbolicVector
 from ._laws import Call
@@ -15,7 +15,8 @@ class Symbols:
     """Namespace of the symbols a law can use.
 
     An element's namespace holds the symbols of its states and parameters. An interaction's namespace holds the
-    symbols of its parameters, one element namespace per role, and the time symbol `t`.
+    symbols of its parameters, one element namespace per role, and the time symbol `t`. Every symbol is a plain
+    attribute, so reading an unknown name raises Python's own `AttributeError`, which suggests close names.
 
     Args:
         **symbols:
@@ -30,17 +31,13 @@ class Symbols:
     """
 
     def __init__(self, **symbols: Any) -> None:  # noqa: ANN401
-        self.__dict__.update(symbols)
+        for name, value in symbols.items():
+            setattr(self, name, value)
 
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Raise an error that lists the available names."""
-        available = ', '.join(sorted(self.__dict__))
-        error_msg = f'No symbol named {name!r}. Available names are: {available}.'
-        raise AttributeError(error_msg)
-
-    def __repr__(self) -> str:
-        """Return the names held by the namespace."""
-        return f'Symbols({", ".join(sorted(self.__dict__))})'
+    if TYPE_CHECKING:
+        # Declared for type checkers only, which cannot see the attributes set from the keywords. At runtime the
+        # namespace defines no `__getattr__`, so an unknown name raises Python's own `AttributeError`.
+        def __getattr__(self, name: str) -> Any: ...  # noqa: ANN401
 
 
 def values_of(law: BaseLaw, *, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:

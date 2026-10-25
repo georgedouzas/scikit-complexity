@@ -255,8 +255,8 @@ class CompiledWord:
         arity = self.arities.get(module.name)
         if arity is None or len(module.parameters) > arity:
             error_msg = (
-                f'{module!r} in {where} of word {self.path!r} does not fit the alphabet, whose symbols and numbers of '
-                f'parameters are {self.arities}.'
+                f'{module.text} in {where} of word {self.path!r} does not fit the alphabet, whose symbols and numbers '
+                f'of parameters are {self.arities}.'
             )
             raise RewritingError(error_msg)
         return self.names.index(module.name)
@@ -264,10 +264,10 @@ class CompiledWord:
     def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
         modules = parse_word(production.successor, self.names)
-        codes = np.array([self._code(module, repr(production)) for module in modules], dtype=np.int64)
+        codes = np.array([self._code(module, production.text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
-        values = self.parameters.function(variables, expressions, repr(production)) if slots else None
+        values = self.parameters.function(variables, expressions, production.text) if slots else None
         self.successors.append(_Successor(codes, slots, values, len(variables)))
         return len(self.successors) - 1
 
@@ -279,24 +279,29 @@ class CompiledWord:
             module = predecessor if isinstance(predecessor, Module) else Module(predecessor)
             variables = [SR(item) for item in module.parameters]
             if any(not item.is_symbol() for item in variables) or len(set(variables)) < len(variables):
-                error_msg = f'The predecessor of {production!r} must have distinct symbols as parameters.'
+                error_msg = f'The predecessor of {production.text} must have distinct symbols as parameters.'
                 raise RewritingError(error_msg)
-            code = self._code(module, repr(production))
+            code = self._code(module, production.text)
             left = parse_word(production.left, self.names) if production.left is not None else []
             right = parse_word(production.right, self.names) if production.right is not None else []
             condition = production.condition
             key: tuple[str, ...] | int = (
-                (module.name, repr(left), repr(right), str(condition)) if production.probability is not None else -order
+                (
+                    module.name,
+                    ' '.join(item.text for item in left),
+                    ' '.join(item.text for item in right),
+                    str(condition),
+                )
+                if production.probability is not None
+                else -order
             )
             if key not in groups:
                 groups[key] = _Group(
                     code=code,
-                    left=tuple(self._code(item, repr(production)) for item in left),
-                    right=tuple(self._code(item, repr(production)) for item in right),
+                    left=tuple(self._code(item, production.text) for item in left),
+                    right=tuple(self._code(item, production.text) for item in right),
                     condition=(
-                        None
-                        if condition is None
-                        else self.parameters.function(variables, [condition], repr(production))
+                        None if condition is None else self.parameters.function(variables, [condition], production.text)
                     ),
                     variables=len(variables),
                     rank=(0 if left or right else 1, 0 if condition is not None else 1, order),
@@ -305,7 +310,7 @@ class CompiledWord:
             group.successors.append(self._successor(production, variables))
             probability = production.probability
             group.probabilities.append(
-                None if probability is None else self.parameters.function([], [probability], repr(production)),
+                None if probability is None else self.parameters.function([], [probability], production.text),
             )
         return sorted(groups.values(), key=lambda group: group.rank)
 
@@ -353,7 +358,7 @@ class CompiledWord:
                 The counts, in the order of the states.
         """
         totals = np.bincount(word.codes, minlength=len(self.names))
-        return [float(totals[self.names.index(name)]) for name in self.counted] + [float(len(word))]
+        return [float(totals[self.names.index(name)]) for name in self.counted] + [float(word.parts)]
 
     def _context(
         self,

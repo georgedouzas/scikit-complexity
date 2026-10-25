@@ -1,7 +1,8 @@
-"""Quantum dynamics: operators, Hamiltonian and dissipator laws, quantum elements, and QuTiP solvers."""
+"""Quantum dynamics: operators, Hamiltonian and dissipator laws, quantum elements, QuTiP solvers, and analyses."""
 
 from ...core.base import Form
 from .._formalism import Formalism, register
+from ._analysis import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from ._components import HilbertDomain, HilbertFamilyDomain, QuantumView, hilbert_state, is_quantum, view_of
 from ._laws import DissipatorLaw, GeneratorLaw, LocalOperator, Operator, sparse_matrix
 from ._observables import expectation
@@ -33,12 +34,18 @@ __all__: list[str] = [
     'QuantumTerm',
     'QuantumTrajectoriesSolver',
     'QuantumView',
+    'Spectrum',
     'UnitarySolver',
     'contains_quantum',
+    'entanglement_entropy',
     'expectation',
+    'ground_state',
+    'hamiltonian_of',
     'hilbert_state',
     'is_quantum',
+    'purity',
     'sparse_matrix',
+    'spectrum',
     'view_of',
 ]
 

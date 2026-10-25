@@ -10,8 +10,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import BaseVisual, colors_of, log_scalars
 from ._components import PatchComponent, WordComponent

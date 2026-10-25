@@ -9,24 +9,21 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ._errors import SolverError
-from ._estimator import BaseEstimator
-from ._kinds import Form, Supports
-from ._problems import BaseProblem
-from ._utils import Vector
+from ..base import BaseEstimator, Form, SolverError, Supports, Vector
+from ._problem import BaseProblem
 
 
 class BaseSolver[P: BaseProblem](BaseEstimator):
     """Base of the solvers, which advance a problem of one form through time.
 
-    A solver is prepared for a problem with `prepare(problem, rng, until)` and advances a state with `run(t, x, p, until)`,
-    which returns the state at time `until`. The last call `run(..., final=True)` releases what preparing acquired, such
-    as an external process. Subclasses set the class variable `form` and implement `_advance`, and solvers that keep
-    events, agents, or other state outside the state vector also implement `_collect`. Solvers that also solve other
-    forms list them in `forms`. Solvers that treat diffusion implicitly set `implicit`, so they do not warn about the
-    stability limit of explicit steps. Solvers that fire renewal laws set `renews`, solvers that integrate fractional
-    noise set `fractional`, and solvers that read external inputs set `reads_inputs`. A solver is generic over the
-    problem it advances, so one written for the compiler's problem reads its fields.
+    A solver is prepared for a problem with `prepare(problem, rng, until)` and advances a state with `run(t, x, p,
+    until)`, which returns the state at time `until`. The last call `run(..., final=True)` releases what preparing
+    acquired, such as an external process. Subclasses set the class variable `form` and implement `_advance`, and
+    solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers that
+    also solve other forms list them in `forms`. Solvers that treat diffusion implicitly set `implicit`, so they do not
+    warn about the stability limit of explicit steps. Solvers that fire renewal laws set `renews`, solvers that
+    integrate fractional noise set `fractional`, and solvers that read external inputs set `reads_inputs`. A solver is
+    generic over the problem it advances, so one written for the compiler's problem reads its fields.
 
     Attributes:
         problem_:

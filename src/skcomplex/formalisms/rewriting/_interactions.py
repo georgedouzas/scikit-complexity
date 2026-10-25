@@ -37,7 +37,7 @@ class Rewriting(BaseInteraction):
         ...
         ...     def productions(self, s):
         ...         x = symbol('x')
-        ...         return [ProductionLaw(Module('A', x), [Module('F', x), Module('A', s.ratio * x)])]
+        ...         return [ProductionLaw(Module('A', (x,)), [Module('F', (x,)), Module('A', (s.ratio * x,))])]
         >>> HalvingInteraction('halving', target='plant').ratio
         0.5
     """
@@ -78,8 +78,8 @@ class Rewrite(Rewriting):
     Examples:
         >>> from skcomplex.formalisms.rewriting import Rewrite
         >>> from skcomplex.formalisms.rewriting import ProductionLaw
-        >>> Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]).rules[1]
-        B → A
+        >>> Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]).rules[1].text
+        'B → A'
     """
 
     def __init__(

@@ -42,7 +42,7 @@ simulation = Simulation(
 uncontrolled = Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver']).run(until=30).trajectory_
 trajectory = simulation.trajectory_
 fig, (infected, rate) = plt.subplots(1, 2, figsize=(10, 4))
-infected.plot(uncontrolled.times, uncontrolled['population.I'], label='without vaccination')
+infected.plot(uncontrolled.times, uncontrolled.values('population.I'), label='without vaccination')
 infected.plot(trajectory.times, trajectory.values('population.I'), label='optimal vaccination')
 infected.set_xlabel('time')
 infected.set_ylabel('infected fraction I')

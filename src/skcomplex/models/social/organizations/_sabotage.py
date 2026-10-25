@@ -67,8 +67,9 @@ class SupervisorComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import SupervisorComponent
-        >>> SupervisorComponent.group('supervisors', 3)
-        GroupComponent('supervisors', element=SupervisorComponent, size=3)
+        >>> group = SupervisorComponent.group('supervisors', 3)
+        >>> group.label, group.element.__name__, group.size
+        ('supervisors', 'SupervisorComponent', 3)
     """
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
@@ -169,8 +170,9 @@ class EmployeeComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import EmployeeComponent
-        >>> EmployeeComponent.group('employees', 10, affect=0.5)
-        GroupComponent('employees', element=EmployeeComponent, size=10)
+        >>> group = EmployeeComponent.group('employees', 10, affect=0.5)
+        >>> group.label, group.element.__name__, group.size
+        ('employees', 'EmployeeComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)})

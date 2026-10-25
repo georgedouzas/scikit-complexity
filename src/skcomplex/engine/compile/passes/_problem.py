@@ -129,7 +129,8 @@ def visual_of(node: Node) -> VisualSpec:
     if isinstance(node.component, GroupComponent):
         if node.component.visual is not None:
             return node.component.visual
-        default: VisualSpec = node.component.prepare().default_visual_
+        prepared = 'default_visual_' in vars(node.component)
+        default: VisualSpec = (node.component if prepared else node.component.prepare()).default_visual_
         return default
     declared: VisualSpec = node.component_type.visual
     return declared

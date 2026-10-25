@@ -24,7 +24,7 @@ class BaseEstimator(SklearnEstimator):
         ...
         ...     def _run(self, value):
         ...         return self.factor * value
-        >>> DoublingEstimator().fit().run(3)
+        >>> DoublingEstimator().prepare().run(3)
         6
     """
 

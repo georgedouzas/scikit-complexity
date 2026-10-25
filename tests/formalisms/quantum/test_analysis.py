@@ -5,16 +5,10 @@ import pytest
 
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import (
-    entanglement_entropy,
-    equations_of,
-    ground_state,
-    hamiltonian_of,
-    purity,
-    spectrum,
-)
+from skcomplex.engine.analysis import equations_of
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.quantum import entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationComponent
 from skcomplex.models.physics.realizations.quantum import SpinComponent
@@ -89,6 +83,6 @@ def test_purity_of_pure_and_dephased_runs():
 def test_hamiltonian_of_prints_operators_and_equations_of_refuses():
     """Test that a quantum system prints its Hamiltonian and has no state equations."""
     system = create('quantum_heisenberg', n_sites=2, boundary='open')
-    assert repr(hamiltonian_of(compile_system(system))).startswith('J_exchange*chain[0].x*chain[1].x')
+    assert hamiltonian_of(compile_system(system)).text.startswith('J_exchange*chain[0].x*chain[1].x')
     with pytest.raises(AnalysisError, match='hamiltonian_of'):
         equations_of(system)

@@ -66,7 +66,7 @@ for floating, color in ((False, 'C0'), (True, 'C1')):
     stages.plot(trajectory.times, trajectory.values('balance'), 'o-', color=color, label=name)
     sign.plot(
         -elasticities,
-        [run(elasticity, floating)['balance'][-1] for elasticity in elasticities],
+        [run(elasticity, floating).values('balance')[-1] for elasticity in elasticities],
         'o',
         color=color,
     )

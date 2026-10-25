@@ -5,7 +5,8 @@
 
 from collections.abc import Mapping
 
-from ...core.base import BaseEstimator, BaseProblem, Registry
+from ...core.base import BaseEstimator, Registry
+from ...core.problems import BaseProblem
 from ...core.system import System
 
 SYSTEM_COMPILERS = Registry['BaseSystemCompiler']('system compiler')
@@ -48,10 +49,10 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
 class BaseSystemCompiler(BaseEstimator):
     """Compiler of a formalism that compiles a whole system it claims into a problem of the formalism's form.
 
-    `prepare(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=..., solver=...,
-    initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_prepare` and `_run`.
-    Validation of a claimed system checks its structure and leaves the rest to the compiler, which raises an error for a
-    system it cannot compile.
+    `prepare(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=...,
+    solver=..., initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_prepare`
+    and `_run`. Validation of a claimed system checks its structure and leaves the rest to the compiler, which raises an
+    error for a system it cannot compile.
 
     Attributes:
         claims_:

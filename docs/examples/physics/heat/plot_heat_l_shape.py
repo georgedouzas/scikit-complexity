@@ -38,7 +38,7 @@ simulation = Simulation(system, dt=0.1, solver=IMEXEulerSolver(dt=0.05), observe
 # reaches the discretization error of the mesh, and at the last frame the temperature at every node should lie on the
 # line of the exact solution.
 
-nodes = system.elements[0].space.nodes
+nodes = system.elements[0].space.prepare().positions_
 exact = describe(MODEL).parameters['temperature'](nodes[:, 0], nodes[:, 1])
 temperature = simulation.trajectory_.values('plate.u')
 fig, (agreement, decay) = plt.subplots(1, 2, figsize=(10, 4))

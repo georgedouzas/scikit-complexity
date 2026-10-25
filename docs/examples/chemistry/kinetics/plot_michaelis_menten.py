@@ -34,7 +34,7 @@ fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
     jumps = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=seed).run(until=50).trajectory_
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
-        curves.step(jumps.times, jumps[f'{species}.n'], where='post', color=color, alpha=0.3, linewidth=0.8)
+        curves.step(jumps.times, jumps.values(f'{species}.n'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
     curves.plot(trajectory.times, trajectory.values(f'{species}.n'), color=color, linewidth=2, label=species)
 curves.set_xlabel('time')

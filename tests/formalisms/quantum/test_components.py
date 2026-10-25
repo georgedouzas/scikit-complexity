@@ -79,10 +79,10 @@ def test_operator_exchange_term_has_three_terms():
 def test_operator_arithmetic_combines_terms():
     """Test sums, differences, scalar products, divisions, and the identity of operators."""
     q = _namespace(QubitComponent('q'), 'q')
-    assert repr(q.z - q.z) == '0'
-    assert repr((1 - q.z) / 2) == '(-1/2)*q.z + 1/2'
-    assert repr(np.float64(2.0) * q.x) == '2.0*q.x'
-    assert repr(2 - q.x + q.x) == '2'
+    assert (q.z - q.z).text == '0'
+    assert ((1 - q.z) / 2).text == '(-1/2)*q.z + 1/2'
+    assert (np.float64(2.0) * q.x).text == '2.0*q.x'
+    assert (2 - q.x + q.x).text == '2'
 
 
 def test_operator_rejects_non_scalars():
@@ -98,7 +98,7 @@ def test_operator_adjoint_reverses_and_conjugates():
     """Test that the adjoint reverses products, adjoins factors, and conjugates coefficients."""
     a, m = _namespace(QubitComponent('q'), 'q'), _namespace(ModeComponent('m'), 'm')
     adjoint = (1j * a.plus * m.annihilate).adjoint()
-    assert repr(adjoint) == '(-1j)*m.create*q.minus'
+    assert adjoint.text == '(-1j)*m.create*q.minus'
     assert LocalOperator('hop').adjoint().adjoint().name == 'hop'
 
 
@@ -130,7 +130,7 @@ def test_site_namespace_has_projectors_and_diagonals():
     projector = names.projector(2)
     local = next(iter(projector.terms))[0][1]
     assert local.matrix.toarray()[2, 2] == 1
-    assert repr(names.diagonal([1, 2, 3, 4])).startswith('p.diagonal(')
+    assert names.diagonal([1, 2, 3, 4]).text.startswith('p.diagonal(')
     assert QuantumView(site).local_operators()['adjacency'].matrix.sum() == 8
     assert QuantumView(site).local_operators()['laplacian'].matrix.toarray()[0, 0] == -2
 

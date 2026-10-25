@@ -6,7 +6,7 @@
 import copy
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Self, cast
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -14,7 +14,6 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ...core.base import (
-    BaseProblem,
     Entry,
     Expression,
     Form,
@@ -31,7 +30,7 @@ from ...core.base import (
 )
 from ...core.components import Aggregate
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
-from ...core.problems import Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
+from ...core.problems import BaseProblem, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
 from ...core.problems._problem import real_components_of
 from ...core.problems._quantities import _Recorded
 from ...core.problems._reads import Read
@@ -455,18 +454,14 @@ class ObservableEvaluator:
                 reads a symbol it cannot.
         """
         self.getters_: dict[str, Getter] = {}
-        system = getattr(self.problem, 'system', None)
+        system = self.problem.system
         observables = observables_of(system) if system is not None else ()
-        if not isinstance(self.problem, Problem):
-            getters = getattr(self.problem, 'observable_getters', None)
-            self._scalars = {}
-            self.getters_ = (getters(observables) if getters is not None else None) or {}
-            return self
-        self._scalars = self._scalar_sources()
         own = self.problem.observable_getters(observables)
         if own is not None:
+            self._scalars = {}
             self.getters_ = own
             return self
+        self._scalars = self._scalar_sources()
         for scope, observable in observables_of(system) if system is not None else ():
             path = _join(scope, observable.label)
             if path in self.getters_:
@@ -487,19 +482,14 @@ class ObservableEvaluator:
             self.getters_[recorded.path] = self._recorded_getter(recorded)
         return self
 
-    @property
-    def _compiled(self) -> Problem:
-        """The problem as the compiler's problem, which the shared evaluator reads."""
-        return cast('Problem', self.problem)
-
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
         """Return the vector and flat index of every symbol of a single element or interaction."""
         sources: dict[Expression, tuple[str, int]] = {}
         for name, layout in (('x', self.problem.states), ('p', self.problem.parameters)):
             for entry in layout.entries:
-                if entry.members is not None or entry.name not in self._compiled.symbols:
+                if entry.members is not None or entry.name not in self.problem.symbols:
                     continue
-                for column, item in enumerate(real_components_of(self._compiled.symbols[entry.name])):
+                for column, item in enumerate(real_components_of(self.problem.symbols[entry.name])):
                     sources[item] = (name, entry.start + column)
         return sources
 
@@ -559,8 +549,8 @@ class ObservableEvaluator:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         items: dict[str, Any] = {
-            name[len(prefix) :]: self._compiled.symbols[name]
-            for name in self._compiled.symbols
+            name[len(prefix) :]: self.problem.symbols[name]
+            for name in self.problem.symbols
             if name.startswith(prefix) and (entry := self._entry(name)) is not None and entry.members is None
         }
         earlier = {
@@ -584,7 +574,7 @@ class ObservableEvaluator:
     def _reduction_getter(self, scope: str, path: str, observable: Observable) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""
         group = _join(scope, observable.group or '')
-        element = next((item for item in self._compiled.elements if item.path == group), None)
+        element = next((item for item in self.problem.elements if item.path == group), None)
         if element is None:
             return self._agent_getter(group, path, observable)
         names = {**element.states, **element.parameters}
@@ -612,11 +602,11 @@ class ObservableEvaluator:
         for name in names.values():
             entry = self._entry(name)
             is_state = self.problem.states.has(name)
-            for column, item in enumerate(real_components_of(self._compiled.symbols[name])):
+            for column, item in enumerate(real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
                 members[item] = Read(is_state, indices, entry, column, entry.columns)
         namespace = Symbols(
-            **{variable: self._compiled.symbols[name] for variable, name in names.items()},
+            **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
@@ -642,7 +632,7 @@ class ObservableEvaluator:
 
     def _agent_getter(self, group: str, path: str, observable: Observable) -> Getter:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""
-        if not any(spec.path == group for spec in self._compiled.agents) and not self._compiled.partitions:
+        if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partitions:
             error_msg = f'Observable {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
 

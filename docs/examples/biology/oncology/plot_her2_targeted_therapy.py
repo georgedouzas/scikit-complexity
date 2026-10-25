@@ -33,20 +33,20 @@ simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).ru
 
 untreated = Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER).run(until=10).trajectory_
 treated = simulation.trajectory_
-times, cells = treated.times, treated['tumour.A']
+times, cells = treated.times, treated.values('tumour.A')
 after = times >= 2.0
 rate = 0.83 * (1 - 2.51 * 0.2)
 logistic = 0.67 / (1 + (0.67 / cells[after][0] - 1) * np.exp(-rate * (times[after] - 2.0)))
 fig, (growth, drugs) = plt.subplots(1, 2, figsize=(10, 4))
-growth.plot(untreated.times, untreated['tumour.A'], label='untreated')
+growth.plot(untreated.times, untreated.values('tumour.A'), label='untreated')
 growth.plot(times, cells, label='trastuzumab and paclitaxel')
 growth.plot(times[after], logistic, '--', color='black', label='logistic at rate 0.41')
 growth.set_xlabel('time (days)')
 growth.set_ylabel('cells (millions)')
 growth.set_title('The antibody halves the growth rate')
 growth.legend()
-drugs.plot(times, treated['tumour.Ab'], label='bound antibody')
-drugs.plot(times, treated['tumour.Pin'], label='internalized paclitaxel (pmol)')
+drugs.plot(times, treated.values('tumour.Ab'), label='bound antibody')
+drugs.plot(times, treated.values('tumour.Pin'), label='internalized paclitaxel (pmol)')
 drugs.set_xlabel('time (days)')
 drugs.set_ylabel('amount')
 drugs.set_title('Binding is fast and uptake is slow')

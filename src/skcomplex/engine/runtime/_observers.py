@@ -5,7 +5,8 @@
 
 import numpy as np
 
-from ...core.base import BaseEstimator, BaseProblem, SimulationError
+from ...core.base import BaseEstimator, SimulationError
+from ...core.problems import BaseProblem
 from ._frames import Frame
 from ._trajectories import Trajectory
 
@@ -13,8 +14,8 @@ from ._trajectories import Trajectory
 class BaseObserver(BaseEstimator):
     """Base class of objects that receive the frames of a simulation.
 
-    A simulation calls `prepare(problem)` with the compiled problem before the first frame, `run(frame)` with every frame,
-    and `run(final=True)` without a frame once the run stops, which releases what preparing acquired. Subclasses
+    A simulation calls `prepare(problem)` with the compiled problem before the first frame, `run(frame)` with every
+    frame, and `run(final=True)` without a frame once the run stops, which releases what preparing acquired. Subclasses
     override any of the hooks `_prepare`, `_run`, and `_release`.
     """
 
@@ -58,10 +59,10 @@ class RecorderObserver(BaseObserver):
     @property
     def trajectory_(self) -> Trajectory:
         """Trajectory of the frames received so far."""
-        problem: BaseProblem | None = getattr(self, 'problem_', None)
-        if problem is None:
+        if not hasattr(self, 'problem_'):
             error_msg = 'The recorder has not received a problem. Run a simulation that observes it first.'
             raise SimulationError(error_msg)
+        problem = self.problem_
         frames = list(self.frames_)
         n_frames = len(frames)
         return Trajectory(

@@ -825,9 +825,9 @@ class ValidationReport:
                 The report holds an error.
         """
         for issue in self.warnings:
-            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
+            warnings.warn(issue.text, ValidationWarning, stacklevel=3)
         if self.errors:
-            lines = '\n'.join(f'- {issue}' for issue in self.errors)
+            lines = '\n'.join(f'- {issue.text}' for issue in self.errors)
             error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
             classes = {issue.error for issue in self.errors}
             raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)

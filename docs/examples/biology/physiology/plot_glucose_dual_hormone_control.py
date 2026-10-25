@@ -36,7 +36,7 @@ single = Simulation(create(MODEL, glucagon=False), dt=0.05).run(until=24).trajec
 times = simulation.trajectory_.times
 fig, (glucose, hormones) = plt.subplots(1, 2, figsize=(10, 4))
 glucose.plot(times, simulation.trajectory_.values('organism.G'), label='insulin and glucagon')
-glucose.plot(times, single['organism.G'], label='insulin alone')
+glucose.plot(times, single.values('organism.G'), label='insulin alone')
 glucose.axhline(1.0, color='gray', linewidth=0.8, linestyle=':')
 glucose.set_xlabel('time (hours)')
 glucose.set_ylabel('glucose relative to the norm')

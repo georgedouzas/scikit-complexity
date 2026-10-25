@@ -10,17 +10,10 @@ import pytest
 from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    BaseSolver,
-    NumericDomain,
-    SolverError,
-    ValidationError,
-    parameter,
-    role,
-)
+from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, ValidationError, parameter, role
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import EventLaw, RateLaw, delayed, mean, step, total, where
+from skcomplex.core.problems import BaseSolver
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system

@@ -700,7 +700,7 @@ The compiler keeps the count of every member in a hidden state, `<group>.<label>
 
 ### Fractional noise
 
-`FractionalNoiseLaw(target, value, hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
+`FractionalNoiseLaw(target, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
 whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to an ordinary
 noise law. For other indices the amplitude must not depend on any state. `FractionalEulerMaruyamaSolver(dt, horizon)` is the
 stepper of systems with fractional noise. It draws the increments of the whole run on its grid when it first advances,
@@ -2555,7 +2555,7 @@ print(simulation.run(until=0.5).problem_.backend)
 Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`,
 so running the same system again skips compilation.
 
-A law value can be a function called once per member with `Call(function, *arguments)`. A Numba-compiled function
+A law value can be a function called once per member with `Call(function, arguments)`. A Numba-compiled function
 runs inside the compiled kernels, and the NumPy backend calls it from Python.
 
 ```python
@@ -2580,7 +2580,7 @@ class SaturationInteraction(BaseInteraction):
     r: float = parameter(1.0)
 
     def laws(self, s):
-        return [RateLaw(s.target.n, Call(saturating, s.target.n, s.r))]
+        return [RateLaw(s.target.n, Call(saturating, (s.target.n, s.r)))]
 
 
 herds = System(
@@ -2897,7 +2897,7 @@ algae = System(
     interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
 )
 trajectory = Simulation(algae).run(until=5).trajectory_
-print(trajectory.values('algae.size').tolist(), str(trajectory.structure('algae', 5)))
+print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
 
 A production can be stochastic, with probabilities that sum to one per predecessor and context and draws from the
@@ -2922,14 +2922,14 @@ class Shrinking(Rewriting):
     ratio: float = parameter(0.5)
 
     def productions(self, s):
-        return [ProductionLaw(Module('A', x), [Module('F', x), Module('A', s.ratio * x)], condition=x > 0.1)]
+        return [ProductionLaw(Module('A', (x,)), [Module('F', (x,)), Module('A', (s.ratio * x,))], condition=x > 0.1)]
 
 
 plant = System(
-    components=[WordComponent('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})],
+    components=[WordComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})],
     interactions=[Shrinking('growth', target='plant')],
 )
-print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5))
+print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
@@ -3058,12 +3058,13 @@ state for a closed system and a density matrix for an open one. Its solvers hand
 the Schrödinger equation, `lindblad`, the default, for the master equation, and `quantum_trajectories` for quantum
 jumps drawn from the run's random stream. `expectation` makes observables of operators, one value per member for a
 group, and every quantum run also records its `energy`, and its `purity` when it is open. Groups on a lattice stream
-the space-time image of their local expectations to Rerun. `spectrum` and `ground_state` diagonalise the Hamiltonian
-exactly, optionally in the sector of a conserved diagonal operator, `purity` and `entanglement_entropy` read
-trajectories, and `hamiltonian_of` prints the Hamiltonian in operator notation.
+the space-time image of their local expectations to Rerun. The quantum formalism also holds its analyses: `spectrum`
+and `ground_state` diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator,
+`purity` and `entanglement_entropy` read trajectories, and `hamiltonian_of` prints the Hamiltonian in operator
+notation.
 
 ```python
-from skcomplex.engine.analysis import spectrum
+from skcomplex.formalisms.quantum import spectrum
 from skcomplex.models import create
 
 print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())

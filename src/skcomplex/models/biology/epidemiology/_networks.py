@@ -41,7 +41,7 @@ class DegreeClassComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import DegreeClassComponent
-        >>> DegreeClassComponent.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).size
+        >>> DegreeClassComponent.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).prepare().size_
         2
     """
 
@@ -168,7 +168,7 @@ def heterogeneous_mean_field_sis(
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import heterogeneous_mean_field_sis
-        >>> heterogeneous_mean_field_sis(k_min=2, k_max=5).elements[0].size
+        >>> heterogeneous_mean_field_sis(k_min=2, k_max=5).elements[0].prepare().size_
         4
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
@@ -223,7 +223,7 @@ def metapopulation(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.biology.epidemiology import metapopulation
-        >>> metapopulation(nx.path_graph(4)).elements[0].size
+        >>> metapopulation(nx.path_graph(4)).elements[0].prepare().size_
         4
     """
     graph = nx.barabasi_albert_graph(30, 2, seed=0) if graph is None else graph

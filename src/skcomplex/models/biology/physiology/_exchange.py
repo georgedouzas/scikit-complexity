@@ -167,7 +167,7 @@ def closed_contour_cell_exchange(
 
     Examples:
         >>> from skcomplex.models.biology.physiology import closed_contour_cell_exchange
-        >>> closed_contour_cell_exchange(5).elements[0].size
+        >>> closed_contour_cell_exchange(5).elements[0].prepare().size_
         5
     """
     rng = np.random.default_rng(random_state)
@@ -238,7 +238,7 @@ def nanotube_gap_junction_exchange(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.biology.physiology import nanotube_gap_junction_exchange
-        >>> nanotube_gap_junction_exchange(nx.cycle_graph(6), xi=0.01).elements[0].size
+        >>> nanotube_gap_junction_exchange(nx.cycle_graph(6), xi=0.01).elements[0].prepare().size_
         6
     """
     rng = np.random.default_rng(random_state)
