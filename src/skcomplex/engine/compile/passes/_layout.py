@@ -18,7 +18,7 @@ class LayoutPass(BasePass):
     reads = ('nodes',)
     writes = ('layout',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Declare the components of the nodes.
 
         Args:

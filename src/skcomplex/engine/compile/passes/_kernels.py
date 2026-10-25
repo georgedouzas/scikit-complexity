@@ -165,7 +165,7 @@ class KernelsPass(BasePass):
     reads = ('reduced', 'layout', 'outputs')
     writes = ('kernels',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the reduced laws into kernels.
 
         Args:

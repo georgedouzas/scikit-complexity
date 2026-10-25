@@ -300,7 +300,7 @@ class OrdersPass(BasePass):
     reads = ('lowered', 'layout')
     writes = ('ordered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the orders and lags of the laws and solve their equations.
 
         Args:

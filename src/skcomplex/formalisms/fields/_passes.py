@@ -312,7 +312,7 @@ class LowerFieldsPass(BasePass):
     reads = ('corrected', 'layout')
     writes = ('corrected', 'written', 'limits', 'volume_limits', 'linear')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the differential operators of the corrected laws.
 
         Args:
@@ -333,7 +333,7 @@ class FieldFunctionsPass(BasePass):
     reads = ('functions', 'written', 'reduced', 'layout')
     writes = ('functions', 'volumes', 'symmetries', 'constrained')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the numeric functions.
 
         Args:
@@ -357,7 +357,7 @@ class FieldJacobianPass(BasePass):
     reads = ('jacobian', 'volumes', 'symmetries', 'constrained')
     writes = ('jacobian',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the Jacobian.
 
         Args:
@@ -380,7 +380,7 @@ class FieldProblemPass(BasePass):
     reads = ('problem', 'limits', 'volume_limits', 'linear', 'volumes', 'constrained')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the problem.
 
         Args:
@@ -408,7 +408,7 @@ class ConservedNoisePass(BasePass):
     reads = ('reduced', 'layout', 'outputs')
     writes = ('outputs',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the outputs of the conserved noise laws.
 
         Args:

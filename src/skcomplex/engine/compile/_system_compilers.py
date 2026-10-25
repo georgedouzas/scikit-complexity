@@ -40,7 +40,7 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
     """
     for key in SYSTEM_COMPILERS:
         compiler = SYSTEM_COMPILERS.resolve(key)
-        if compiler.claims(system):
+        if compiler.fit(system).claims_:
             return compiler
     return None
 
@@ -48,28 +48,32 @@ def claiming_compiler(system: System) -> 'BaseSystemCompiler | None':
 class BaseSystemCompiler(BaseEstimator):
     """Compiler of a formalism that compiles a whole system it claims into a problem of the formalism's form.
 
+    `fit(system)` sets `claims_`, whether the compiler compiles the system, and `run(system, backend=..., solver=...,
+    initial_state=...)` compiles a claimed system into a problem. Subclasses implement the hooks `_fit` and `_run`.
     Validation of a claimed system checks its structure and leaves the rest to the compiler, which raises an error for a
     system it cannot compile.
+
+    Attributes:
+        claims_:
+            Whether the compiler compiles the fitted system.
     """
 
-    def claims(self, system: System) -> bool:
-        """Check whether the pass compiles a system.
+    claims_: bool
+
+    def _fit(self, system: System) -> None:
+        """Set `claims_`, whether the compiler compiles a system.
 
         Args:
             system:
                 The system.
 
-        Returns:
-            claims:
-                Whether the pass compiles the system.
-
         Raises:
             NotImplementedError:
-                The subclass does not implement the method.
+                The subclass does not implement the hook.
         """
         raise NotImplementedError
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,
@@ -98,6 +102,6 @@ class BaseSystemCompiler(BaseEstimator):
 
         Raises:
             NotImplementedError:
-                The subclass does not implement the method.
+                The subclass does not implement the hook.
         """
         raise NotImplementedError

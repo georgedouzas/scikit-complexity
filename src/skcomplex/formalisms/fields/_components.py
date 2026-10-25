@@ -69,6 +69,8 @@ class FieldComponent(GroupComponent):
         ... )
         >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).size
         200
+        >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).fit().default_visual_.kind
+        'image'
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.SITE_GROUP
@@ -127,29 +129,19 @@ class FieldComponent(GroupComponent):
             raise ValueError(error_msg)
         return kind, value
 
-    def default_visual(self) -> VisualSpec:
-        """Return the visual of the field when it sets none: an image on a lattice and a colored mesh on a mesh.
+    def _fit(self) -> None:
+        """Set `declarations_` and `default_visual_`, the visual of the field when it sets none.
 
-        On a network the field takes the visual of its element type, or the sites of the network when the type
-        declares none.
-
-        Returns:
-            visual:
-                The visual.
-
-        Examples:
-            >>> from skcomplex.core.components import ElementComponent
-            >>> from skcomplex.formalisms.fields import FieldComponent
-            >>> from skcomplex.core.space import LatticeSpace
-            >>> HeatComponent = ElementComponent.define('HeatComponent', states={'u': 0.0})
-            >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).default_visual().kind
-            'image'
+        The default visual is an image on a lattice and a colored mesh on a mesh. On a network the field takes the
+        visual of its element type, or the sites of the network when the type declares none.
         """
-        if isinstance(self.space, LatticeSpace):
-            return VisualSpec('image')
-        if isinstance(self.space, MeshSpace):
-            return VisualSpec('mesh')
+        super()._fit()
         declared: VisualSpec = self.element.visual
-        if isinstance(self.space, NetworkSpace) and declared == VisualSpec():
-            return VisualSpec('sites')
-        return declared
+        if isinstance(self.space, LatticeSpace):
+            self.default_visual_ = VisualSpec('image')
+        elif isinstance(self.space, MeshSpace):
+            self.default_visual_ = VisualSpec('mesh')
+        elif isinstance(self.space, NetworkSpace) and declared == VisualSpec():
+            self.default_visual_ = VisualSpec('sites')
+        else:
+            self.default_visual_ = declared

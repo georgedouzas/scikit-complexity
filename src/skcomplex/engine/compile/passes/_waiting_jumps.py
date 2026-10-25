@@ -96,7 +96,7 @@ class UnpackRenewalsPass(BasePass):
     reads = ('collected',)
     writes = ('collected',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Replace the jumps on clocks of waiting times by renewals.
 
         Args:
@@ -119,7 +119,7 @@ class DeclareRenewalsPass(BasePass):
     reads = ('delayed', 'layout')
     writes = ('delayed', 'renewals')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Declare the counts of the renewal laws.
 
         Args:
@@ -137,7 +137,7 @@ class SetRenewalsApartPass(BasePass):
     reads = ('reduced',)
     writes = ('reduced',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Take the renewal laws out of the reduced laws.
 
         Args:
@@ -156,7 +156,7 @@ class RenewalProblemPass(BasePass):
     reads = ('problem', 'renewals', 'layout')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the renewal laws to the problem.
 
         Args:

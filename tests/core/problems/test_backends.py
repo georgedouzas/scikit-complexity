@@ -12,6 +12,7 @@ from skcomplex.core.base import (
     BackendError,
     BackendWarning,
     BaseInteraction,
+    Form,
     NumericDomain,
     SolverError,
     parameter,
@@ -20,7 +21,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.problems import BaseBackend
+from skcomplex.core.problems import BaseBackend, Lowering
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend, _numba
@@ -157,6 +158,16 @@ def _epidemic():
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_backend_fits_the_form_and_runs_the_kernels(backend):
+    """Test that a backend fitted to a form and a size returns the lowering of the kernels when run."""
+    fitted = backend().fit(Form.ODE, 2)
+    assert (fitted.form_, fitted.size_) == (Form.ODE, 2)
+    lowering = fitted.run({}, {})
+    assert isinstance(lowering, Lowering)
+    assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
 
 def test_compile_unknown_backend_raises_error():

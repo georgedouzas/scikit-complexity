@@ -247,30 +247,22 @@ class NumbaBackend(BaseBackend):
         _entry_function(source, label, names, mode, size, reduced=reduced)
         return label, size
 
-    def lower(
+    def _run(
         self,
-        form: Form,
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
-        size: int,
         *,
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of a form compiled with Numba.
+        """Return the numeric functions of the fitted form compiled with Numba.
 
         Args:
-            form:
-                The form of the problem.
-
             kernels:
                 The kernels of every law kind, in evaluation order.
 
             changes:
                 The changes of every jump output, keyed by the output's identity.
-
-            size:
-                The size of the state vector.
 
             reductions:
                 The reductions the kernels read, fused into one compiled function that every entry function runs
@@ -284,6 +276,7 @@ class NumbaBackend(BaseBackend):
             lowering:
                 The numeric functions.
         """
+        form, size = self.form_, self.size_
         used = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],

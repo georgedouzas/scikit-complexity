@@ -301,7 +301,7 @@ class CheckFractionalNoisePass(BasePass):
     reads = ('lowered', 'layout')
     writes = ('lowered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Check the fractional noise laws.
 
         Args:
@@ -321,7 +321,7 @@ class FractionalFormPass(BasePass):
     reads = ('form', 'nodes', 'layout')
     writes = ('form',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Give the problem the fractional form when an owned state has a fractional order.
 
         Args:
@@ -338,7 +338,7 @@ class FractionalProblemPass(BasePass):
     reads = ('problem', 'kernels', 'nodes', 'layout')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the fractional noise rows and the state orders to the problem.
 
         Args:

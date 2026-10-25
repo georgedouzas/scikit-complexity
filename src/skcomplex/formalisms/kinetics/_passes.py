@@ -64,7 +64,7 @@ class CompileEncountersPass(BasePass):
     reads = ('drawn', 'layout')
     writes = ('drawn', 'encounters')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Compile the encounter laws of the drawn laws.
 
         Args:
@@ -83,7 +83,7 @@ class EncounterFunctionsPass(BasePass):
     reads = ('functions', 'encounters', 'layout')
     writes = ('functions',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the rates of the encounter laws to the drift.
 
         Args:
@@ -103,7 +103,7 @@ class EncounterJacobianPass(BasePass):
     reads = ('jacobian', 'encounters')
     writes = ('jacobian',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Drop the Jacobian of a problem with encounter laws.
 
         Args:
@@ -120,7 +120,7 @@ class EncounterProblemPass(BasePass):
     reads = ('problem', 'encounters')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the encounter laws to the problem.
 
         Args:

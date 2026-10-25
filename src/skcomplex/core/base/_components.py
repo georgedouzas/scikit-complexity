@@ -14,6 +14,7 @@ from ._variables import (
     VariableKind,
     _argument_names,
     _caller_module,
+    _check_declared,
     _declarations,
     _declare,
     _declared_repr,
@@ -25,6 +26,29 @@ from ._variables import (
 BINDINGS = ('members', 'pairs', 'neighbors', 'hyperedges')
 
 
+def _interaction_declarations(kind: type['BaseInteraction']) -> dict[str, Variable]:
+    """Return the declarations of an interaction type, after checking its binding and that it declares no state."""
+    declarations = _declarations(kind)
+    if kind.over not in BINDINGS:
+        error_msg = f'{kind.__name__} binds its laws over {kind.over!r}. Use one of {", ".join(BINDINGS)}.'
+        raise ValidationError(error_msg)
+    states = [name for name, item in declarations.items() if item.kind == VariableKind.STATE]
+    adaptive = [name for name in states if declarations[name].adaptive]
+    if adaptive:
+        error_msg = (
+            f'{kind.__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as states, '
+            'but interactions hold no state. Declare them on the element whose parameters they are.'
+        )
+        raise ValidationError(error_msg)
+    if states:
+        error_msg = (
+            f'{kind.__name__} declares the states {", ".join(states)}, but interactions hold no state. Put state on '
+            'couplings in a group on the edges of a network space, `GroupComponent(..., on="edges")`.'
+        )
+        raise ValidationError(error_msg)
+    return declarations
+
+
 class BaseComponent(BaseEstimator):
     """Base of every part of a system: elements and groups.
 
@@ -34,6 +58,10 @@ class BaseComponent(BaseEstimator):
     with constructor settings that are not declared, such as a radius or a layer, takes them in an `__init__` of its own
     that stores them and passes the label and the remaining values on.
 
+    `check()` rejects a value the type does not declare and a declared variable without a default that is not given,
+    `fit()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from the
+    hook `laws` that a type overrides. Validation checks every component of a system.
+
     Args:
         label:
             The label of the component, unique among the children of its system.
@@ -41,21 +69,19 @@ class BaseComponent(BaseEstimator):
         **values:
             The values of the declared states, parameters, and roles, by name.
 
-    Raises:
-        ArgumentError:
-            A value names a variable the type does not declare, or a declared variable without a default is not given.
-
-        LabelError:
-            The type declares a variable whose name is reserved.
+    Attributes:
+        declarations_:
+            The declarations of the states, parameters, and roles of the type, with the derived companions, by name in
+            declaration order.
 
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import ElementComponent
         >>> class PendulumComponent(ElementComponent):
         ...     theta: float = state(0.0, order=2)
-        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5)
-        >>> bob.theta_d1, hasattr(PendulumComponent, 'theta_d1')
-        (0.5, False)
+        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5).fit()
+        >>> list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1')
+        (['theta', 'theta_d1'], 0.5, False)
     """
 
     reserved_names: ClassVar[frozenset[str]] = frozenset({'label'})
@@ -69,25 +95,39 @@ class BaseComponent(BaseEstimator):
         return cast('type[Self]', _define_type(cls, name, _caller_module(), **declarations))
 
     @classmethod
-    def declarations(cls) -> dict[str, Variable]:
-        """Return the declarations of the states, parameters, and roles of the type, with the derived companions.
+    def _declarations(cls) -> dict[str, Variable]:
+        """Return the declarations of the type, after rejecting the names it reserves."""
+        return _declarations(cls)
 
-        Returns:
-            declarations:
-                A mapping from name to declaration, in declaration order.
+    def _check(self) -> None:
+        """Raise an error for a value the type does not declare, or a declared variable without a default not given.
 
         Raises:
+            ArgumentError:
+                A value names a variable the type does not declare, or a declared variable without a default is not
+                given.
+
             LabelError:
                 The type declares a variable whose name is reserved.
-
-        Examples:
-            >>> from skcomplex.core.base import state
-            >>> from skcomplex.core.components import ElementComponent
-            >>> LaggedComponent = ElementComponent.define('LaggedComponent', states={'x': state(0.0, lags=2)})
-            >>> list(LaggedComponent.declarations())
-            ['x', 'x_lag1', 'x_lag2']
         """
-        return _declarations(cls)
+        _check_declared(self, BaseComponent)
+
+    def _fit(self) -> None:
+        """Set `declarations_`, the declarations of the type."""
+        self.declarations_ = type(self)._declarations()
+
+    def _run(self, s: Any) -> list[Any]:  # noqa: ANN401
+        """Return the laws of the component for a namespace of symbols, from the hook `laws`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return self.laws(s)
 
     @classmethod
     def get_default(cls, name: str) -> Any:  # noqa: ANN401
@@ -207,9 +247,13 @@ class BaseInteraction(BaseEstimator):
     an undirected graph the source comes first in node order. Rate, noise, and jump laws may target any of them, and
     update laws the edge member.
 
-    Raises:
-        ValidationError:
-            The type declares a state, or an unknown binding, or an interaction not over neighbours takes a layer.
+    `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a
+    type that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `fit()` sets
+    `declarations_`, and `run(s)` returns the laws of the interaction for a namespace of symbols, from the hook `laws`.
+
+    Attributes:
+        declarations_:
+            The declarations of the parameters and roles of the type, by name in declaration order.
     """
 
     reserved_names: ClassVar[frozenset[str]] = frozenset({'label'})
@@ -218,12 +262,6 @@ class BaseInteraction(BaseEstimator):
     def __init__(self, label: str, *, layer: str | None = None, **values: Any) -> None:  # noqa: ANN401
         _declare(self, label, values)
         self.layer = layer
-        if layer is not None and self.over != 'neighbors':
-            error_msg = (
-                f'{type(self).__name__} {label!r} takes the layer {layer!r}, but only interactions over neighbours run '
-                'on the edges of a layer.'
-            )
-            raise ValidationError(error_msg)
 
     @classmethod
     def _define(cls, name: str, **declarations: Any) -> type[Self]:  # noqa: ANN401
@@ -231,41 +269,47 @@ class BaseInteraction(BaseEstimator):
         return cast('type[Self]', _define_type(cls, name, _caller_module(), **declarations))
 
     @classmethod
-    def declarations(cls) -> dict[str, Variable]:
-        """Return the declarations of the parameters and roles of the type, after checking its binding.
+    def _declarations(cls) -> dict[str, Variable]:
+        """Return the declarations of the type, after checking its binding and that it declares no state."""
+        return _interaction_declarations(cls)
 
-        Returns:
-            declarations:
-                A mapping from name to declaration, in declaration order.
+    def _check(self) -> None:
+        """Raise an error for a value or a layer the interaction cannot take, or a type that declares a state.
 
         Raises:
-            ValidationError:
-                The type binds its laws over an unknown binding, or declares states or adaptive parameters.
+            ArgumentError:
+                A value names a variable the type does not declare, or a declared variable without a default is not
+                given.
 
-        Examples:
-            >>> from skcomplex.models.biology.ecology import PredationInteraction
-            >>> list(PredationInteraction.declarations())[:2]
-            ['predator', 'prey']
+            ValidationError:
+                The type binds its laws over an unknown binding or declares states, or an interaction not over
+                neighbours takes a layer.
         """
-        declarations = _declarations(cls)
-        if cls.over not in BINDINGS:
-            error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
-            raise ValidationError(error_msg)
-        states = [name for name, item in declarations.items() if item.kind == VariableKind.STATE]
-        adaptive = [name for name in states if declarations[name].adaptive]
-        if adaptive:
+        _interaction_declarations(type(self))
+        _check_declared(self, BaseInteraction)
+        if self.layer is not None and self.over != 'neighbors':
             error_msg = (
-                f'{cls.__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as states, '
-                'but interactions hold no state. Declare them on the element whose parameters they are.'
+                f'{type(self).__name__} {self.label!r} takes the layer {self.layer!r}, but only interactions over '
+                'neighbours run on the edges of a layer.'
             )
             raise ValidationError(error_msg)
-        if states:
-            error_msg = (
-                f'{cls.__name__} declares the states {", ".join(states)}, but interactions hold no state. Put state on '
-                'couplings in a group on the edges of a network space, `GroupComponent(..., on="edges")`.'
-            )
-            raise ValidationError(error_msg)
-        return declarations
+
+    def _fit(self) -> None:
+        """Set `declarations_`, the declarations of the type."""
+        self.declarations_ = type(self)._declarations()
+
+    def _run(self, s: Any) -> list[Any]:  # noqa: ANN401
+        """Return the laws of the interaction for a namespace of symbols, from the hook `laws`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the interaction.
+        """
+        return self.laws(s)
 
     @classmethod
     def get_default(cls, name: str) -> Any:  # noqa: ANN401

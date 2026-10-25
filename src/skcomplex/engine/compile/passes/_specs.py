@@ -19,7 +19,7 @@ class SpecsPass(BasePass):
     reads = ('layout', 'nodes')
     writes = ('specs',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Build the kernel specs of the declared components.
 
         Args:

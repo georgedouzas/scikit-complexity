@@ -74,7 +74,7 @@ def _check_value_rows(group: 'GroupComponent') -> None:
     """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
     if group.size is None:
         return
-    declarations = group.element.declarations()
+    declarations = group.element._declarations()
     dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
@@ -360,11 +360,7 @@ class GroupComponent(BaseComponent):
 
     Raises:
         SpaceError:
-            The part is unknown, or the space does not have it, such as edges outside a network.
-
-        ValidationError:
-            The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value names a
-            variable the element type does not declare, or a per-member value does not have one row per member.
+            The space does not have the part, such as edges outside a network.
 
     Examples:
         >>> import networkx as nx
@@ -381,6 +377,9 @@ class GroupComponent(BaseComponent):
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
         >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').size
         6
+        >>> herds = GroupComponent('herds', element=PopulationComponent, size=3).fit()
+        >>> herds.default_visual_ == PopulationComponent.visual
+        True
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
@@ -411,8 +410,22 @@ class GroupComponent(BaseComponent):
         self.location = location
         self.layer = layer
         self.capacity = capacity
-        if on is not None and on not in PARTS:
-            error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
+
+    def _check(self) -> None:
+        """Raise an error for a part, an element type, a size, or values the group cannot take.
+
+        Raises:
+            SpaceError:
+                The part is unknown.
+
+            ValidationError:
+                The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value
+                names a variable the element type does not declare, or a per-member value does not have one row per
+                member.
+        """
+        super()._check()
+        if self.on is not None and self.on not in PARTS:
+            error_msg = f'Group {self.label!r} lives on {self.on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
         _check_group(self)
 
@@ -420,22 +433,13 @@ class GroupComponent(BaseComponent):
         """Return the label, element type, and size."""
         return f'{type(self).__name__}({self.label!r}, element={self.element.__name__}, size={self.size})'
 
-    def default_visual(self) -> VisualSpec:
-        """Return the visual of the group when it sets none, the visual of its element type.
+    def _fit(self) -> None:
+        """Set `declarations_` and `default_visual_`, the visual of the group when it sets none.
 
-        Returns:
-            visual:
-                The visual.
-
-        Examples:
-            >>> from skcomplex.core.components import GroupComponent
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> GroupComponent(
-            ...     'herds', element=PopulationComponent, size=3
-            ... ).default_visual() == PopulationComponent.visual
-            True
+        The default visual of a group is the visual of its element type.
         """
-        return self.element.visual
+        super()._fit()
+        self.default_visual_ = self.element.visual
 
 
 def probe_laws(component: object) -> list[BaseLaw] | None:
@@ -474,7 +478,7 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
             if isinstance(component, GroupComponent)
             else component
         )
-        return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
+        return list(member.run(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
     except Exception:  # noqa: BLE001
         return None
 

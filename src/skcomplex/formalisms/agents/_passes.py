@@ -176,7 +176,7 @@ class AgentsPass(BasePass):
     reads = ('nodes',)
     writes = ('nodes',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Mark the agent nodes.
 
         Args:
@@ -194,7 +194,7 @@ class UnpackMatchesPass(BasePass):
     reads = ('collected',)
     writes = ('collected',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Replace the matchings by their rules.
 
         Args:
@@ -213,7 +213,7 @@ class SetRulesApartPass(BasePass):
     reads = ('reduced',)
     writes = ('reduced', 'rules')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Take the rules out of the reduced laws.
 
         Args:
@@ -233,7 +233,7 @@ class AgentsProblemPass(BasePass):
     reads = ('problem', 'layout', 'reduced', 'rules')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the agents and the rules to the problem.
 
         Args:

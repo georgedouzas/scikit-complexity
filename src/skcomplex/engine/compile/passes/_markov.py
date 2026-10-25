@@ -42,7 +42,7 @@ class MarkovPass(BasePass):
     reads = ('lowered', 'layout')
     writes = ('lowered', 'markov', 'matrices')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Take the Markov laws out of the lowered laws.
 
         Args:

@@ -155,7 +155,7 @@ class UnpackSamplesPass(BasePass):
     reads = ('collected',)
     writes = ('collected',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Replace the samples by their parts.
 
         Args:
@@ -174,7 +174,7 @@ class LatticeProblemPass(BasePass):
     reads = ('problem', 'reduced', 'layout')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the lattice steps to the problem.
 
         Args:

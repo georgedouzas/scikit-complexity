@@ -209,9 +209,10 @@ def test_group_position_state_has_member_shape():
 
 
 def test_group_wrong_number_of_values_raises_error():
-    """Test that creating a group with the wrong number of values names the group, the variable, and both sizes."""
+    """Test that checking a group with the wrong number of values names the group, the variable, and both sizes."""
+    group = ParticleComponent.group('gas', 1000, x=np.zeros((999, 2)))
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
-        ParticleComponent.group('gas', 1000, x=np.zeros((999, 2)))
+        group.check()
 
 
 def test_group_shared_and_lattice_values_are_accepted():
@@ -232,22 +233,39 @@ def test_group_shared_and_lattice_values_are_accepted():
 
 @pytest.mark.parametrize(('size', 'match'), [(0, 'positive integer'), (2.5, 'positive integer')])
 def test_group_invalid_size_raises_error(size, match):
-    """Test that creating a group checks that its size is a positive integer."""
+    """Test that checking a group rejects a size that is not a positive integer."""
+    group = PopulationComponent.group('herds', size)
     with pytest.raises(ValidationError, match=match):
-        PopulationComponent.group('herds', size)
+        group.check()
 
 
 def test_group_unknown_value_raises_error():
-    """Test that creating a group with an undeclared value names it and lists the declared states and parameters."""
+    """Test that checking a group with an undeclared value names it and lists the declared states and parameters."""
     message = r'sets foo, which PopulationComponent does not declare\. Its states are n'
+    group = PopulationComponent.group('herds', 3, foo=1)
     with pytest.raises(ValidationError, match=message):
-        PopulationComponent.group('herds', 3, foo=1)
+        group.check()
 
 
 def test_group_non_element_type_raises_error():
-    """Test that creating a group checks that its element is an Element subclass."""
+    """Test that checking a group rejects an element that is not an Element subclass."""
+    group = GroupComponent('herds', element=int, size=3)
     with pytest.raises(ValidationError, match='not an Element subclass'):
-        GroupComponent('herds', element=int, size=3)
+        group.check()
+
+
+def test_group_with_invalid_values_fails_validation_with_its_path():
+    """Test that a group built with an invalid size is reported by compiling the system, with the path of the group."""
+    system = System(components=[System('meadow', components=[PopulationComponent.group('herds', 0)])])
+    with pytest.raises(ValidationError, match=r'meadow/herds: Group .herds. has size 0'):
+        compile_system(system)
+
+
+def test_group_default_visual_is_fitted():
+    """Test that a fitted group holds the visual of its element type as its default visual."""
+    group = PopulationComponent.group('herds', 3).fit()
+    assert group.default_visual_ == PopulationComponent.visual
+    assert list(group.declarations_) == []
 
 
 def test_role_binds_to_group_and_applies_to_every_member():

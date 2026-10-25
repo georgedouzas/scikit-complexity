@@ -101,7 +101,7 @@ class BoundaryLawsPass(BasePass):
     reads = ('collected',)
     writes = ('collected',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the boundary laws of continuous spaces.
 
         Args:

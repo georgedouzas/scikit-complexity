@@ -239,7 +239,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
         ValidationError:
             `laws` returns something other than declarable laws, or laws its binding does not take.
     """
-    declared: Any = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
     _check_registered(spec, declared)
     if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]

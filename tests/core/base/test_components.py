@@ -23,9 +23,10 @@ from skcomplex.core.base import (
     parameter,
     role,
     state,
+    symbol,
 )
 from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, neighbors
+from skcomplex.core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, neighbors
 from skcomplex.core.problems import BaseBackend
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
@@ -65,16 +66,49 @@ def test_component_stores_companions_without_class_attributes():
     assert not hasattr(PendulumComponent, 'theta_d1')
     assert (bob.theta, bob.theta_d1) == (0.1, 0.5)
     assert {'theta', 'theta_d1'} <= set(bob.get_params())
-    assert list(PendulumComponent.declarations()) == ['theta', 'theta_d1']
+    assert list(bob.fit().declarations_) == ['theta', 'theta_d1']
 
 
 def test_component_rejects_unknown_and_missing_arguments():
-    """Test that an undeclared value and a missing role raise a named error that is also a type error."""
+    """Test that an undeclared value and a missing role are stored, and checking raises a named type error."""
+    rabbits = PopulationComponent('rabbits', foo=1)
+    assert rabbits.foo == 1
     with pytest.raises(ArgumentError, match="'foo'"):
-        PopulationComponent('rabbits', foo=1)
-    growth = BaseInteraction.define('GrowthInteraction', roles=['target'])
+        rabbits.check()
+    growth = BaseInteraction.define('GrowthInteraction', roles=['target'])('growth')
     with pytest.raises(TypeError, match="'target'"):
-        growth('growth')
+        growth.check()
+
+
+def test_validation_checks_every_component_with_its_path():
+    """Test that validating a system reports a component with an undeclared value by its path."""
+    system = System(components=[System('meadow', components=[PopulationComponent('rabbits', foo=1)])])
+    report = validate(system)
+    assert not report.ok
+    assert report.errors[0].message.startswith("meadow/rabbits: PopulationComponent got 'foo'")
+
+
+def test_interaction_rejects_a_layer_when_checked():
+    """Test that an interaction not over neighbours takes a layer but rejects it when checked."""
+    interaction = PredationInteraction('hunt', predator='foxes', prey='rabbits', layer='work')
+    assert interaction.layer == 'work'
+    with pytest.raises(ValidationError, match='only interactions over neighbours'):
+        interaction.check()
+
+
+def test_component_runs_its_laws_and_fits_its_declarations():
+    """Test that `run` returns the laws of the `laws` hook and `fit` sets the declarations."""
+    growth = BaseInteraction.define(
+        'GrowthInteraction',
+        roles=['target'],
+        parameters={'r': 1.0},
+        laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
+    )('growth', target='rabbits').fit()
+    assert list(growth.declarations_) == ['target', 'r']
+    n, r = symbol('n'), symbol('r')
+    (law,) = growth.run(Symbols(target=Symbols(n=n), r=r))
+    assert isinstance(law, RateLaw)
+    assert law.value == r * n
 
 
 def test_component_parameters_list_settings_and_declared_names():
@@ -206,9 +240,9 @@ def _hebbian(space, activities):
 
 
 def test_interaction_requires_roles():
-    """Test that an interaction without its roles cannot be created."""
+    """Test that an interaction without its roles is created but does not pass its check."""
     with pytest.raises(TypeError, match='predator'):
-        PredationInteraction('hunt', prey='rabbits')
+        PredationInteraction('hunt', prey='rabbits').check()
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
