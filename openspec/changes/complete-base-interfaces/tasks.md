@@ -10,10 +10,10 @@
 
 ## 2. Verbs
 
-- [ ] 2.1 Add `check`, `prepare`, and `run` with their trivial hooks to every configurable base, and make every
+- [x] 2.1 Add `check`, `prepare`, and `run` with their trivial hooks to every configurable base, and make every
   `__init__` store its arguments only, moving its checks to `_check` and its derived values to `_prepare`. Verify with the
   scenarios "Invalid argument" and "Facts are prepared".
-- [ ] 2.2 Move every family to the verbs with a codemod kept in the scratchpad:
+- [x] 2.2 Move every family to the verbs with a codemod kept in the scratchpad:
   - spaces, removing `SiteSpace`;
   - times;
   - solvers;
@@ -31,7 +31,7 @@
 
 ## 3. Magic methods
 
-- [ ] 3.1 Replace every magic method except `__init__` and the quantum operator arithmetic:
+- [x] 3.1 Replace every magic method except `__init__` and the quantum operator arithmetic:
   - `run` or `evaluate` for `__call__`;
   - parameter or field printing for `__repr__`;
   - named properties for `__str__`;
@@ -44,7 +44,7 @@
 
 ## 4. Rules and gate
 
-- [ ] 4.1 Amend the constitution with the three verbs, trivial constructors and prepared attributes, the split between
+- [x] 4.1 Amend the constitution with the three verbs, trivial constructors and prepared attributes, the split between
   values and configurable objects, and the allowed magic methods. Update the user guide, the README, and the gallery
   for the new verbs.
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.
