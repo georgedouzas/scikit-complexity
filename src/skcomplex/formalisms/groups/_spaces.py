@@ -220,7 +220,7 @@ class CayleySpace(BaseSpace):
             return
         prepares = len(sizes) - 2
         error_msg = (
-            f'The ball of radius {self.ball} exceeds the limit of {self.max_sites} sites. The largest radius that prepares '
+            f'The ball of radius {self.ball} exceeds the limit of {self.max_sites} sites. The largest radius that fits '
             f'is {prepares}, with at most {sizes[prepares]} sites.'
         )
         raise SpaceTooLargeError(error_msg)

@@ -68,4 +68,4 @@ def test_filled_and_graph_visuals(tmp_path):
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
         Simulation(create(name, **options), observers=[observer]).run(until=3)
         assert observer.logged_frames_ == 4
-    assert repr(GeometryVisual()) == 'GeometryVisual(filled=None, resolution=512)'
+    assert repr(GeometryVisual()) == 'GeometryVisual()'

@@ -64,4 +64,4 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')
     Simulation(system, dt=0.5, observers=[observer]).run(until=2.0)
     assert observer.logged_frames_ == 5
-    assert repr(ExpectationVisual()) == 'ExpectationVisual(states=None, low=None, high=None, history=None)'
+    assert repr(ExpectationVisual()) == 'ExpectationVisual()'
