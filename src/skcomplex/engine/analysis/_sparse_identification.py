@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -13,7 +12,6 @@ import numpy.typing as npt
 from ...core.base import BaseLaw, Expression
 from ...core.laws import RateLaw, Symbols
 from ...core.space import ContinuousTime
-from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
     BaseSurrogate,
@@ -62,62 +60,15 @@ def _derivatives(model: Any, parts: list[Array], dt: float) -> tuple[list[Array]
     return predicted, measured
 
 
-@dataclass(frozen=True)
-class SparseSurrogate(BaseSurrogate):
-    """Sparse symbolic surrogate fitted by sparse identification of nonlinear dynamics.
-
-    Args:
-        system:
-            The system of one surrogate element under continuous time, with one rate law per variable.
-
-        labels:
-            The variables the surrogate was fitted to, in the order of its states.
-
-        states:
-            The names of the states of the surrogate element.
-
-        dt:
-            The time between the samples it was fitted to.
-
-        training_error:
-            The relative error of the predicted derivatives on the training samples.
-
-        validation_error:
-            The relative error on the held-out samples, NaN when none are held out.
-
-        features:
-            The candidate monomials of the states, such as `x y`.
-
-        coefficients:
-            The coefficient of every monomial in the rate of every state, one row per state and one column per
-            monomial, zero where the term is absent.
-    """
-
-    features: list[str]
-    coefficients: Array
-
-
-@analysis(DataKind.SERIES)
-def fit_sindy(
-    data: SurrogateData,
-    names: Sequence[str] | None = None,
-    *,
-    degree: int = 2,
-    threshold: float = 0.1,
-    alpha: float = 0.05,
-    validation: float = 0.2,
-    label: str = 'surrogate',
-) -> SparseSurrogate:
-    """Return the sparse symbolic surrogate that SINDy fits to series, computed with PySINDy.
+class SINDySurrogate(BaseSurrogate):
+    """Sparse symbolic surrogate fitted by sparse identification of nonlinear dynamics, computed with PySINDy.
 
     SINDy writes the derivative of every variable as a sparse sum of the monomials of the variables up to a degree. It
     estimates the derivatives by centred finite differences and selects the terms by sequentially thresholded least
-    squares. The surrogate holds one rate law per variable and starts at the first sample of the first series.
+    squares. The surrogate holds one rate law per variable under continuous time and starts at the first sample of the
+    first series, and a forecast simulates it from the last sample of the last series.
 
     Args:
-        data:
-            A trajectory, a series, or a sequence of them, sampled at one uniform step.
-
         names:
             The variables of trajectories, or `None` for every scalar state or observable.
 
@@ -136,42 +87,88 @@ def fit_sindy(
         label:
             The label of the surrogate element.
 
-    Returns:
-        model:
-            The surrogate system, its errors, its candidate monomials, and their coefficients.
+    Attributes:
+        system_:
+            The system of one surrogate element under continuous time, with one rate law per variable.
+
+        labels_:
+            The variables the surrogate was fitted to, in the order of its states.
+
+        states_:
+            The names of the states of the surrogate element.
+
+        last_state_:
+            The values of the states at the last sample of the last series, where forecasts start.
+
+        dt_:
+            The time between the samples it was fitted to.
+
+        training_error_:
+            The relative error of the predicted derivatives on the training samples.
+
+        validation_error_:
+            The relative error on the held-out samples, NaN when none are held out.
+
+        features_:
+            The candidate monomials of the states, such as `x y`.
+
+        coefficients_:
+            The coefficient of every monomial in the rate of every state, one row per state and one column per
+            monomial, zero where the term is absent.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.analysis import Series, fit_sindy
+        >>> from skcomplex.engine.analysis import SINDySurrogate, Series
         >>> times = np.arange(0.0, 2.0, 0.001)
-        >>> model = fit_sindy(Series(times, np.exp(-2 * times)[:, None], ['x']), degree=1)
-        >>> model.features, model.coefficients.round(3).tolist()
+        >>> surrogate = SINDySurrogate(degree=1).fit(Series(times, np.exp(-2 * times)[:, None], ['x']))
+        >>> surrogate.features_, surrogate.coefficients_.round(3).tolist()
         (['1', 'x'], [[0.0, -2.0]])
     """
-    samples = samples_of(data, names)
-    states = state_names(samples.labels)
-    training, held = split_samples(samples.series, validation)
-    sindy = module('pysindy')
-    model = sindy.SINDy(
-        optimizer=sindy.STLSQ(threshold=threshold, alpha=alpha),
-        feature_library=sindy.PolynomialLibrary(degree=degree),
-    ).fit(training, t=samples.dt, feature_names=states)
-    coefficients = np.asarray(model.coefficients(), dtype=float)
-    powers = np.asarray(model.feature_library.powers_, dtype=int)
-    system = surrogate_system(
-        'SparseSurrogate',
-        label,
-        dict(zip(states, map(float, samples.series[0][0]), strict=True)),
-        _sparse_laws(states, coefficients, powers),
-        ContinuousTime(),
-    )
-    return SparseSurrogate(
-        system,
-        samples.labels,
-        states,
-        samples.dt,
-        relative_error(*_derivatives(model, training, samples.dt)),
-        relative_error(*_derivatives(model, held, samples.dt)),
-        [str(name) for name in model.get_feature_names()],
-        coefficients,
-    )
+
+    features_: list[str]
+    coefficients_: Array
+
+    def __init__(
+        self,
+        names: Sequence[str] | None = None,
+        *,
+        degree: int = 2,
+        threshold: float = 0.1,
+        alpha: float = 0.05,
+        validation: float = 0.2,
+        label: str = 'surrogate',
+    ) -> None:
+        self.names = names
+        self.degree = degree
+        self.threshold = threshold
+        self.alpha = alpha
+        self.validation = validation
+        self.label = label
+
+    def _fit(self, data: SurrogateData) -> None:
+        """Fit the sparse model to the series and set the surrogate system, its errors, and its coefficients."""
+        samples = samples_of(data, self.names)
+        states = state_names(samples.labels)
+        training, held = split_samples(samples.series, self.validation)
+        sindy = module('pysindy')
+        model = sindy.SINDy(
+            optimizer=sindy.STLSQ(threshold=self.threshold, alpha=self.alpha),
+            feature_library=sindy.PolynomialLibrary(degree=self.degree),
+        ).fit(training, t=samples.dt, feature_names=states)
+        coefficients = np.asarray(model.coefficients(), dtype=float)
+        powers = np.asarray(model.feature_library.powers_, dtype=int)
+        self.system_ = surrogate_system(
+            'SparseSurrogate',
+            self.label,
+            dict(zip(states, map(float, samples.series[0][0]), strict=True)),
+            _sparse_laws(states, coefficients, powers),
+            ContinuousTime(),
+        )
+        self.labels_ = samples.labels
+        self.states_ = states
+        self.last_state_ = np.asarray(samples.series[-1][-1], dtype=float)
+        self.dt_ = samples.dt
+        self.training_error_ = relative_error(*_derivatives(model, training, samples.dt))
+        self.validation_error_ = relative_error(*_derivatives(model, held, samples.dt))
+        self.features_ = [str(name) for name in model.get_feature_names()]
+        self.coefficients_ = coefficients

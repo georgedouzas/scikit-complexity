@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -13,7 +12,6 @@ import numpy.typing as npt
 from ...core.base import AnalysisError, BaseLaw, vector
 from ...core.laws import Call, Symbols, UpdateLaw
 from ...core.space import DiscreteTime
-from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
     BaseSurrogate,
@@ -46,16 +44,13 @@ def _reservoir_node(
     nodes = module('reservoirpy.nodes')
     if kind == 'next_generation':
         return nodes.NVAR(delay=delay, order=order, strides=1)
-    if kind == 'echo_state':
-        return nodes.Reservoir(
-            units=units,
-            sr=spectral_radius,
-            lr=leak,
-            input_scaling=input_scaling,
-            seed=random_state,
-        )
-    error_msg = f'The reservoir kind {kind!r} is unknown. Choose one of {RESERVOIR_KINDS}.'
-    raise AnalysisError(error_msg)
+    return nodes.Reservoir(
+        units=units,
+        sr=spectral_radius,
+        lr=leak,
+        input_scaling=input_scaling,
+        seed=random_state,
+    )
 
 
 class _ReservoirStep:
@@ -125,7 +120,7 @@ class _ReservoirStep:
             return np.zeros((0, len(self.scale)))
         return np.asarray(self.readout.run(features), dtype=float) * self.scale
 
-    def __call__(self, t: float, *values: float) -> Array:
+    def evaluate(self, t: float, *values: float) -> Array:
         """Return the variables and the memory one sample later, applying the readout once.
 
         Args:
@@ -174,100 +169,22 @@ def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Sym
     def laws(s: Symbols) -> list[BaseLaw]:
         """Return the update law."""
         symbols = symbols_of(s, names)
-        return [UpdateLaw(vector(symbols), Call(step, *symbols))]
+        return [UpdateLaw(vector(symbols), Call(step.evaluate, *symbols))]
 
     return laws
 
 
-@dataclass(frozen=True)
 class ReservoirSurrogate(BaseSurrogate):
-    """Reservoir surrogate whose readout gives the increments of the variables over one sample.
-
-    Args:
-        system:
-            The system of one surrogate element under discrete time, one step per sample, whose states are the
-            variables and then the memory of the reservoir.
-
-        labels:
-            The variables the surrogate was fitted to.
-
-        states:
-            The names of the states of the surrogate element, the variables first.
-
-        dt:
-            The time between the samples it was fitted to, which one step of the system stands for.
-
-        training_error:
-            The relative error of the predicted increments on the training samples, with the reservoir driven by the
-            series.
-
-        validation_error:
-            The relative error on the held-out samples, NaN when none are held out.
-
-        step:
-            The map from the states to the states one step later, which the update law calls.
-    """
-
-    step: Callable[..., Array]
-
-    def forecast(self, steps: int) -> Array:
-        """Return the autonomous forecast of the variables, from the last sample of the last series.
-
-        Args:
-            steps:
-                The number of steps.
-
-        Returns:
-            variables:
-                One row per step, the last sample first, and one column per variable.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.engine.analysis import Series, fit_reservoir
-            >>> times = np.arange(400.0)
-            >>> model = fit_reservoir(Series(times, np.sin(0.1 * times)[:, None], ['x']))
-            >>> bool(abs(model.forecast(10)[-1, 0] - np.sin(0.1 * 409)) < 0.01)
-            True
-        """
-        element = self.system.elements[0]
-        current = np.asarray([getattr(element, name) for name in self.states], dtype=float)
-        rows = [current]
-        for _ in range(steps):
-            current = self.step(0.0, *current)
-            rows.append(current)
-        return np.asarray(rows)[:, : len(self.labels)]
-
-
-@analysis(DataKind.SERIES)
-def fit_reservoir(
-    data: SurrogateData,
-    names: Sequence[str] | None = None,
-    *,
-    kind: str = 'next_generation',
-    delay: int = 2,
-    order: int = 2,
-    units: int = 300,
-    spectral_radius: float = 0.9,
-    leak: float = 1.0,
-    input_scaling: float = 0.5,
-    ridge: float = 1e-4,
-    warmup: int | None = None,
-    validation: float = 0.2,
-    random_state: int | None = 0,
-    label: str = 'surrogate',
-) -> ReservoirSurrogate:
-    """Return the reservoir surrogate fitted to series, with a reservoir and a ridge readout from ReservoirPy.
+    """Reservoir surrogate whose ridge readout gives the increments of the variables over one sample, from ReservoirPy.
 
     The reservoir is driven by the standardized variables, and a ridge regression from its features to the increments
     of the variables over one sample is fitted on the training samples. A next-generation reservoir takes as features
     the variables at `delay` consecutive samples and their monomials of degree `order`. An echo state network takes
     the activities of `units` leaky tanh units with random recurrent weights. The surrogate runs under discrete time,
-    one step per sample, and starts at the last sample of the last series with the memory the series left.
+    one step per sample, and starts at the last sample of the last series with the memory the series left, so a run of
+    the system is the autonomous forecast.
 
     Args:
-        data:
-            A trajectory, a series, or a sequence of them, sampled at one uniform step.
-
         names:
             The variables of trajectories, or `None` for every scalar state or observable.
 
@@ -308,9 +225,32 @@ def fit_reservoir(
         label:
             The label of the surrogate element.
 
-    Returns:
-        model:
-            The surrogate system, its errors, and its map over one step.
+    Attributes:
+        system_:
+            The system of one surrogate element under discrete time, one step per sample, whose states are the
+            variables and then the memory of the reservoir.
+
+        labels_:
+            The variables the surrogate was fitted to.
+
+        states_:
+            The names of the states of the surrogate element, the variables first.
+
+        last_state_:
+            The variables at the last sample of the last series and the memory the series left, where forecasts start.
+
+        dt_:
+            The time between the samples it was fitted to, which one step of the system stands for.
+
+        training_error_:
+            The relative error of the predicted increments on the training samples, with the reservoir driven by the
+            series.
+
+        validation_error_:
+            The relative error on the held-out samples, NaN when none are held out.
+
+        step_:
+            The map from the states to the states one step later, which the update law calls.
 
     Raises:
         AnalysisError:
@@ -318,48 +258,100 @@ def fit_reservoir(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.analysis import Series, fit_reservoir
+        >>> from skcomplex.engine.analysis import ReservoirSurrogate, Series
         >>> times = np.arange(400.0)
-        >>> model = fit_reservoir(Series(times, np.sin(0.1 * times)[:, None], ['x']))
-        >>> model.states
+        >>> surrogate = ReservoirSurrogate().fit(Series(times, np.sin(0.1 * times)[:, None], ['x']))
+        >>> surrogate.states_
         ['x', 'memory_0', 'memory_1']
+        >>> bool(abs(surrogate.run(10)[-1, 0] - np.sin(0.1 * 409)) < 0.01)
+        True
     """
-    samples = samples_of(data, names)
-    node = _reservoir_node(
-        kind,
-        delay=delay,
-        order=order,
-        units=units,
-        spectral_radius=spectral_radius,
-        leak=leak,
-        input_scaling=input_scaling,
-        random_state=random_state,
-    )
-    training, _ = split_samples(samples.series, validation)
-    joined = np.concatenate(training)
-    step = _ReservoirStep(
-        kind,
-        node,
-        module('reservoirpy.nodes').Ridge(ridge=ridge),
-        joined.mean(axis=0),
-        np.where(joined.std(axis=0) > 0, joined.std(axis=0), 1.0),
-    )
-    skipped = (delay if kind == 'next_generation' else ECHO_STATE_WARMUP) if warmup is None else warmup
-    errors = _fit_readout(step, samples.series, training, skipped)
-    memory = step.memory()
-    states = state_names([*samples.labels, *(f'memory[{index}]' for index in range(len(memory)))])
-    system = surrogate_system(
-        'ReservoirSurrogate',
-        label,
-        dict(zip(states, map(float, [*samples.series[-1][-1], *memory]), strict=True)),
-        _reservoir_laws(states, step),
-        DiscreteTime(),
-    )
-    return ReservoirSurrogate(
-        system,
-        samples.labels,
-        states,
-        samples.dt,
-        *errors,
-        step,
-    )
+
+    step_: _ReservoirStep
+
+    def __init__(
+        self,
+        names: Sequence[str] | None = None,
+        *,
+        kind: str = 'next_generation',
+        delay: int = 2,
+        order: int = 2,
+        units: int = 300,
+        spectral_radius: float = 0.9,
+        leak: float = 1.0,
+        input_scaling: float = 0.5,
+        ridge: float = 1e-4,
+        warmup: int | None = None,
+        validation: float = 0.2,
+        random_state: int | None = 0,
+        label: str = 'surrogate',
+    ) -> None:
+        self.names = names
+        self.kind = kind
+        self.delay = delay
+        self.order = order
+        self.units = units
+        self.spectral_radius = spectral_radius
+        self.leak = leak
+        self.input_scaling = input_scaling
+        self.ridge = ridge
+        self.warmup = warmup
+        self.validation = validation
+        self.random_state = random_state
+        self.label = label
+
+    def _check(self) -> None:
+        """Raise an error for an unknown reservoir kind or a validation share outside `[0, 1)`."""
+        super()._check()
+        if self.kind not in RESERVOIR_KINDS:
+            error_msg = f'The reservoir kind {self.kind!r} is unknown. Choose one of {RESERVOIR_KINDS}.'
+            raise AnalysisError(error_msg)
+
+    def _fit(self, data: SurrogateData) -> None:
+        """Drive the reservoir by the series, fit its readout, and set the surrogate system and its errors."""
+        samples = samples_of(data, self.names)
+        node = _reservoir_node(
+            self.kind,
+            delay=self.delay,
+            order=self.order,
+            units=self.units,
+            spectral_radius=self.spectral_radius,
+            leak=self.leak,
+            input_scaling=self.input_scaling,
+            random_state=self.random_state,
+        )
+        training, _ = split_samples(samples.series, self.validation)
+        joined = np.concatenate(training)
+        step = _ReservoirStep(
+            self.kind,
+            node,
+            module('reservoirpy.nodes').Ridge(ridge=self.ridge),
+            joined.mean(axis=0),
+            np.where(joined.std(axis=0) > 0, joined.std(axis=0), 1.0),
+        )
+        default_warmup = self.delay if self.kind == 'next_generation' else ECHO_STATE_WARMUP
+        skipped = default_warmup if self.warmup is None else self.warmup
+        self.training_error_, self.validation_error_ = _fit_readout(step, samples.series, training, skipped)
+        memory = step.memory()
+        states = state_names([*samples.labels, *(f'memory[{index}]' for index in range(len(memory)))])
+        self.last_state_ = np.asarray([*samples.series[-1][-1], *memory], dtype=float)
+        self.system_ = surrogate_system(
+            'ReservoirSurrogate',
+            self.label,
+            dict(zip(states, map(float, self.last_state_), strict=True)),
+            _reservoir_laws(states, step),
+            DiscreteTime(),
+        )
+        self.labels_ = samples.labels
+        self.states_ = states
+        self.dt_ = samples.dt
+        self.step_ = step
+
+    def _run(self, steps: int) -> Array:
+        """Return the autonomous forecast of the variables, applying the map once per sample after the last one."""
+        current = self.last_state_
+        rows = []
+        for _ in range(steps):
+            current = self.step_.evaluate(0.0, *current)
+            rows.append(current[: len(self.labels_)])
+        return np.asarray(rows).reshape(steps, len(self.labels_))

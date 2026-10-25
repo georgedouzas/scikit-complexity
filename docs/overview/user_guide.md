@@ -3184,8 +3184,9 @@ stocks = Experiment('harvesting', scenarios=policies, until=80, outputs=['land/s
 print([round(float(row['land/stock.n'])) for row in stocks.rows])
 ```
 
-- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. They cross with `*` and
-  concatenate with `+`, and their bounds are pairs or SciPy distributions.
+- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. `fit` sets their
+  rows in `rows_` and `run` returns them. They cross with `product` and concatenate with `concat`, and their bounds are
+  pairs or SciPy distributions.
 - `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars. Results
   give one row per run, `series`, `summary` with means, standard deviations, and quantiles across replicates, and
   `to_frame` for pandas.
@@ -3475,37 +3476,40 @@ print(round(recurrence_quantification(sine).determinism, 2))
 
 ### Surrogates fitted to data
 
-`fit_dmd`, `fit_sindy`, and `fit_reservoir` fit a model to one or more trajectories or series sampled at a uniform step
-and return it as a `System` of one surrogate element, which `validate` checks and `Simulation` runs like a hand-written
-system. Each result also holds the relative errors of the fit on the training samples and on the end of every series
-held out by `validation`.
+`DMDSurrogate`, `SINDySurrogate`, and `ReservoirSurrogate` are estimators: they take their settings when built,
+`fit` them to one or more trajectories or series sampled at a uniform step, and `run(steps)` forecasts the variables
+over that many samples after the last sample. `fit` sets `system_`, a `System` of one surrogate element, which
+`validate` checks and `Simulation` runs like a hand-written system, and `training_error_` and `validation_error_`, the
+relative errors of the fit on the training samples and on the end of every series held out by `validation`. A forecast
+simulates `system_` from the last sample, and the DMD and reservoir surrogates compute it directly.
 
-- `fit_dmd` fits dynamic mode decomposition with PyDMD and returns the continuous eigenvalues `ln(mu) / dt`, the modes,
-  their amplitudes, and a surrogate under continuous time with the matrix rate law `dg/dt = L g`. A scikit-learn
-  transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the variables to observables first, which
-  is extended DMD.
-- `fit_sindy` fits sparse identification of nonlinear dynamics with PySINDy and returns the coefficients of the
-  monomials of the variables and a surrogate under continuous time with one symbolic rate law per variable.
-- `fit_reservoir` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout of
-  the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of the
-  reservoir as states, and starts at the last sample, so a run is the autonomous forecast.
+- `DMDSurrogate` fits dynamic mode decomposition with PyDMD and sets the continuous eigenvalues `ln(mu) / dt` in
+  `eigenvalues_`, the modes, their amplitudes, and a surrogate under continuous time with the matrix rate law
+  `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
+  variables to observables first, which is extended DMD.
+- `SINDySurrogate` fits sparse identification of nonlinear dynamics with PySINDy and sets the monomials of the
+  variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
+  symbolic rate law per variable.
+- `ReservoirSurrogate` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout
+  of the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of
+  the reservoir as states, and starts at the last sample, so a run of `system_` is the autonomous forecast.
 
 ```python
 import numpy as np
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.engine.analysis import Series, fit_dmd, fit_reservoir, fit_sindy
+from skcomplex.engine.analysis import DMDSurrogate, ReservoirSurrogate, Series, SINDySurrogate
 from skcomplex.engine.compile import validate
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = Series(times, np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-decomposition = fit_dmd(spiral)
-print(np.sort(decomposition.eigenvalues.imag).round(3), validate(decomposition.system).ok)
-sparse = fit_sindy(spiral, degree=1, threshold=0.05)
-print(sparse.features, sparse.coefficients.round(2).tolist())
-reservoir = fit_reservoir(spiral)
-forecast = Simulation(reservoir.system).run(until=50).trajectory_
-print(type(reservoir.system.time).__name__, np.allclose(forecast['surrogate.x'], reservoir.forecast(50)[:, 0]))
+decomposition = DMDSurrogate().fit(spiral)
+print(np.sort(decomposition.eigenvalues_.imag).round(3), validate(decomposition.system_).ok)
+sparse = SINDySurrogate(degree=1, threshold=0.05).fit(spiral)
+print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.run(50).shape)
+reservoir = ReservoirSurrogate().fit(spiral)
+forecast = Simulation(reservoir.system_).run(until=50).trajectory_
+print(type(reservoir.system_.time).__name__, np.allclose(forecast['surrogate.x'][1:], reservoir.run(50)[:, 0]))
 ```
 
 ### Stochastic processes

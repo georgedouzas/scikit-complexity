@@ -15,8 +15,9 @@ import numpy.typing as npt
 from ...core.base import AnalysisError, BaseEstimator, BaseLaw, BaseTime, Expression
 from ...core.components import ElementComponent
 from ...core.laws import Symbols
+from ...core.space import DiscreteTime
 from ...core.system import System
-from ..runtime import Trajectory
+from ..runtime import Simulation, Trajectory
 from ._adapters import Series, series_of
 
 type Array = npt.NDArray[np.float64]
@@ -103,6 +104,22 @@ def samples_of(data: SurrogateData, names: Sequence[str] | None = None) -> Sampl
     return Samples([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])
 
 
+def check_validation(validation: float) -> None:
+    """Raise an error for a validation share outside `[0, 1)`.
+
+    Args:
+        validation:
+            The share of the samples of every series held out at its end.
+
+    Raises:
+        AnalysisError:
+            The share is outside `[0, 1)`.
+    """
+    if not 0.0 <= validation < 1.0:
+        error_msg = f'The validation share must lie in [0, 1), but got {validation}.'
+        raise AnalysisError(error_msg)
+
+
 def split_samples(series: list[Array], validation: float) -> tuple[list[Array], list[Array]]:
     """Return the leading training part and the trailing validation part of every series.
 
@@ -121,9 +138,7 @@ def split_samples(series: list[Array], validation: float) -> tuple[list[Array], 
         AnalysisError:
             The share is outside `[0, 1)`.
     """
-    if not 0.0 <= validation < 1.0:
-        error_msg = f'The validation share must lie in [0, 1), but got {validation}.'
-        raise AnalysisError(error_msg)
+    check_validation(validation)
     cuts = [len(values) - math.floor(validation * (len(values) - 1)) for values in series]
     return [values[:cut] for values, cut in zip(series, cuts, strict=True)], [
         values[cut - 1 :] for values, cut in zip(series, cuts, strict=True)
@@ -220,33 +235,77 @@ def symbols_of(s: Symbols, names: Sequence[str]) -> list[Expression]:
     return [getattr(s, name) for name in names]
 
 
-@dataclass(frozen=True)
 class BaseSurrogate(BaseEstimator):
-    """Surrogate system fitted to series, with its errors.
+    """Base class of the surrogate systems fitted to series, which forecast by simulating the fitted system.
+
+    `fit(data)` fits the surrogate to a trajectory, a series, or a sequence of them, sampled at one uniform step, and
+    `run(steps)` forecasts the variables over a number of samples after the last sample of the last series. This base
+    runs the fitted system from that sample, and a child may forecast faster.
 
     Args:
-        system:
+        names:
+            The variables of trajectories, or `None` for every scalar state or observable.
+
+        validation:
+            The share of the samples of every series held out at its end to measure the validation error.
+
+        label:
+            The label of the surrogate element.
+
+    Attributes:
+        system_:
             The system of one surrogate element, which `Simulation` runs.
 
-        labels:
+        labels_:
             The variables the surrogate was fitted to, in the order of its states.
 
-        states:
+        states_:
             The names of the states of the surrogate element.
 
-        dt:
+        last_state_:
+            The values of the states at the last sample of the last series, where forecasts start.
+
+        dt_:
             The time between the samples it was fitted to.
 
-        training_error:
+        training_error_:
             The relative error of the predicted increments or derivatives on the training samples.
 
-        validation_error:
+        validation_error_:
             The relative error on the held-out samples, NaN when none are held out.
     """
 
-    system: System
-    labels: list[str]
-    states: list[str]
-    dt: float
-    training_error: float
-    validation_error: float
+    system_: System
+    labels_: list[str]
+    states_: list[str]
+    last_state_: Array
+    dt_: float
+    training_error_: float
+    validation_error_: float
+
+    def __init__(
+        self,
+        names: Sequence[str] | None = None,
+        *,
+        validation: float = 0.2,
+        label: str = 'surrogate',
+    ) -> None:
+        self.names = names
+        self.validation = validation
+        self.label = label
+
+    def _check(self) -> None:
+        """Raise an error for a validation share outside `[0, 1)`."""
+        check_validation(self.validation)
+
+    def _run(self, steps: int) -> Array:
+        """Return the variables of the fitted system simulated from the last sample, one row per sample."""
+        dt = 1.0 if isinstance(self.system_.time, DiscreteTime) else self.dt_
+        names = [f'{self.label}.{name}' for name in self.states_]
+        simulation = Simulation(
+            self.system_,
+            dt=dt,
+            initial_state=dict(zip(names, map(float, self.last_state_), strict=True)),
+        )
+        trajectory = simulation.run(until=steps * dt).trajectory_
+        return np.column_stack([trajectory[name] for name in names[: len(self.labels_)]])[1 : steps + 1]

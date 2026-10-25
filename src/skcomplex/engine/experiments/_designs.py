@@ -15,39 +15,64 @@ from ...core.base import BaseEstimator, ValidationError
 type Row = dict[str, Any]
 
 
-def _scale(name: str, bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
+def _scale(bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
     """Return uniform samples in [0, 1) mapped to a pair of bounds or through a distribution's quantile function."""
     if hasattr(bound, 'ppf'):
         return np.asarray(bound.ppf(uniform), dtype=float)
-    if isinstance(bound, Sequence) and len(bound) == 2:  # noqa: PLR2004
-        low, high = (float(item) for item in bound)
-        return low + uniform * (high - low)
-    error_msg = f'The bounds of {name} must be a pair (low, high) or a SciPy distribution, not {bound!r}.'
-    raise ValidationError(error_msg)
+    low, high = (float(item) for item in bound)
+    return low + uniform * (high - low)
 
 
 class BaseDesign(BaseEstimator):
     """Base class of designs, which give rows of values by factory argument or dotted path.
 
-    Designs concatenate with `+`, which runs the rows of both, and cross with `*`, which runs every pair of rows.
+    Fitting a design sets its rows, and running it returns them. Designs concatenate with `concat`, which runs the rows
+    of both, and cross with `product`, which runs every pair of rows.
+
+    Attributes:
+        rows_:
+            One mapping from factory argument or dotted path to value per row, set by `fit`.
     """
 
-    def rows(self) -> list[Row]:
-        """Return the rows of the design.
+    rows_: list[Row]
 
-        Returns:
-            rows:
-                One mapping from factory argument or dotted path to value per row.
-        """
+    def _rows(self) -> list[Row]:
+        """Return the rows of the design, one empty row by default."""
         return [{}]
 
-    def __add__(self, other: 'BaseDesign') -> 'BaseDesign':
-        """Return the design that runs the rows of both designs."""
-        return RowsDesign([*self.rows(), *other.rows()])
+    def _fit(self) -> None:
+        """Set the rows of the design."""
+        self.rows_ = self._rows()
 
-    def __mul__(self, other: 'BaseDesign') -> 'BaseDesign':
-        """Return the design that runs every combination of a row of each design."""
-        return RowsDesign([{**first, **second} for first in self.rows() for second in other.rows()])
+    def _run(self) -> list[Row]:
+        """Return a copy of the fitted rows."""
+        return [dict(row) for row in self.rows_]
+
+    def concat(self, other: 'BaseDesign') -> 'RowsDesign':
+        """Return the design that runs the rows of this design and then the rows of another.
+
+        Args:
+            other:
+                The design whose rows follow.
+
+        Returns:
+            design:
+                The design of the rows of both designs.
+        """
+        return RowsDesign([*self.fit().run(), *other.fit().run()])
+
+    def product(self, other: 'BaseDesign') -> 'RowsDesign':
+        """Return the design that runs every combination of a row of this design and a row of another.
+
+        Args:
+            other:
+                The design whose rows combine with the rows of this design.
+
+        Returns:
+            design:
+                The design of every combination, the values of `other` overriding shared names.
+        """
+        return RowsDesign([{**first, **second} for first in self.fit().run() for second in other.fit().run()])
 
 
 class _SampledDesign(BaseDesign):
@@ -63,21 +88,25 @@ class _SampledDesign(BaseDesign):
         del deep
         return {'n': self.n, 'random_state': self.random_state, **self.bounds}
 
+    def _check(self) -> None:
+        """Raise an error for a negative size or a bound that is neither a pair nor a distribution."""
+        if isinstance(self.n, bool) or not isinstance(self.n, int | np.integer) or self.n < 0:
+            error_msg = f'The number of rows of a design must be a nonnegative integer, not {self.n!r}.'
+            raise ValidationError(error_msg)
+        for name, bound in self.bounds.items():
+            if hasattr(bound, 'ppf') or (isinstance(bound, Sequence) and len(bound) == 2):  # noqa: PLR2004
+                continue
+            error_msg = f'The bounds of {name} must be a pair (low, high) or a SciPy distribution, not {bound!r}.'
+            raise ValidationError(error_msg)
+
     def _uniform(self) -> np.ndarray:
         """Return `n` uniform points in the unit cube of the bounds' dimension."""
         return np.random.default_rng(self.random_state).random((self.n, len(self.bounds)))
 
-    def rows(self) -> list[Row]:
-        """Return the sampled rows.
-
-        Returns:
-            rows:
-                One row per sample.
-        """
+    def _rows(self) -> list[Row]:
+        """Return one sampled row per sample."""
         uniform = self._uniform()
-        columns = {
-            name: _scale(name, bound, uniform[:, index]) for index, (name, bound) in enumerate(self.bounds.items())
-        }
+        columns = {name: _scale(bound, uniform[:, index]) for index, (name, bound) in enumerate(self.bounds.items())}
         return [{name: float(column[row]) for name, column in columns.items()} for row in range(self.n)]
 
 
@@ -90,27 +119,23 @@ class RowsDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import RowsDesign
-        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).rows()
+        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).fit().run()
         [{'growth.r': 0.5}, {'growth.r': 1.0}]
     """
 
     def __init__(self, rows: Sequence[Mapping[str, Any]]) -> None:
-        self.rows_ = [dict(row) for row in rows]
-        self.rows_given = rows
+        self.rows = rows
 
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        """Return the rows as the design's only parameter."""
-        del deep
-        return {'rows': self.rows_given}
+    def _check(self) -> None:
+        """Raise an error for a row that is not a mapping."""
+        for row in self.rows:
+            if not isinstance(row, Mapping):
+                error_msg = f'Every row of a design must be a mapping from name to value, not {row!r}.'
+                raise ValidationError(error_msg)
 
-    def rows(self) -> list[Row]:
-        """Return the rows of the design.
-
-        Returns:
-            rows:
-                The rows.
-        """
-        return [dict(row) for row in self.rows_]
+    def _rows(self) -> list[Row]:
+        """Return a copy of the given rows."""
+        return [dict(row) for row in self.rows]
 
 
 class GridDesign(BaseDesign):
@@ -122,7 +147,7 @@ class GridDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import GridDesign
-        >>> len(GridDesign(r=[0.5, 1.0], K=[100, 200, 300]).rows())
+        >>> len(GridDesign(r=[0.5, 1.0], K=[100, 200, 300]).fit().run())
         6
     """
 
@@ -134,13 +159,8 @@ class GridDesign(BaseDesign):
         del deep
         return dict(self.values)
 
-    def rows(self) -> list[Row]:
-        """Return every combination of the values.
-
-        Returns:
-            rows:
-                One row per combination.
-        """
+    def _rows(self) -> list[Row]:
+        """Return one row per combination of the values."""
         names = list(self.values)
         return [dict(zip(names, combination, strict=True)) for combination in itertools.product(*self.values.values())]
 
@@ -160,7 +180,7 @@ class RandomDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import RandomDesign
-        >>> len(RandomDesign(5, r=(0.1, 1.0), random_state=0).rows())
+        >>> len(RandomDesign(5, r=(0.1, 1.0), random_state=0).fit().run())
         5
     """
 
@@ -180,7 +200,7 @@ class LatinHypercubeDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import LatinHypercubeDesign
-        >>> rows = LatinHypercubeDesign(4, r=(0.0, 1.0), random_state=0).rows()
+        >>> rows = LatinHypercubeDesign(4, r=(0.0, 1.0), random_state=0).fit().run()
         >>> sorted(int(row['r'] * 4) for row in rows)
         [0, 1, 2, 3]
     """
@@ -205,7 +225,7 @@ class SobolDesign(_SampledDesign):
 
     Examples:
         >>> from skcomplex.engine.experiments import SobolDesign
-        >>> len(SobolDesign(8, r=(0.0, 1.0), random_state=0).rows())
+        >>> len(SobolDesign(8, r=(0.0, 1.0), random_state=0).fit().run())
         8
     """
 

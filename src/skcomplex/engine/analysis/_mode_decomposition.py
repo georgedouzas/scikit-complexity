@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -14,7 +13,6 @@ from sklearn.base import TransformerMixin, clone
 from ...core.base import BaseLaw, vector
 from ...core.laws import RateLaw, Symbols
 from ...core.space import ContinuousTime
-from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
     BaseSurrogate,
@@ -63,91 +61,16 @@ def _linear_laws(names: Sequence[str], generator: Array) -> Callable[[Symbols], 
     return laws
 
 
-@dataclass(frozen=True)
-class ModeDecompositionSurrogate(BaseSurrogate):
-    """Linear surrogate fitted by dynamic mode decomposition, with its modes and continuous eigenvalues.
-
-    Args:
-        system:
-            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g`.
-
-        labels:
-            The variables, or the observables of the dictionary, in the order of the states.
-
-        states:
-            The names of the states of the surrogate element.
-
-        dt:
-            The time between the samples it was fitted to.
-
-        training_error:
-            The relative error of the predicted increments over one sample on the training samples.
-
-        validation_error:
-            The relative error on the held-out samples, NaN when none are held out.
-
-        eigenvalues:
-            The continuous eigenvalues `ln(mu) / dt` of the modes, from the eigenvalues `mu` of the one-sample map.
-
-        modes:
-            The modes, one column per mode and one row per state.
-
-        amplitudes:
-            The amplitudes of the modes at the first sample of the first series.
-
-        generator:
-            The matrix `L` of the rate law, one row and one column per state.
-    """
-
-    eigenvalues: ComplexArray
-    modes: ComplexArray
-    amplitudes: ComplexArray
-    generator: Array
-
-    def forecast(self, times: npt.ArrayLike) -> Array:
-        """Return the states the modes give at times after the first sample of the first series.
-
-        Args:
-            times:
-                The times since the first sample.
-
-        Returns:
-            states:
-                One row per time and one column per state.
-
-        Examples:
-            >>> import numpy as np
-            >>> from skcomplex.engine.analysis import Series, fit_dmd
-            >>> times = np.arange(0.0, 5.0, 0.1)
-            >>> series = Series(times, np.exp(-times)[:, None], ['x'])
-            >>> fit_dmd(series).forecast([0.0, 1.0]).round(4).tolist()
-            [[1.0], [0.3679]]
-        """
-        growth = np.exp(np.outer(np.asarray(times, dtype=float), self.eigenvalues))
-        return np.real((growth * self.amplitudes) @ self.modes.T)
-
-
-@analysis(DataKind.SERIES)
-def fit_dmd(
-    data: SurrogateData,
-    names: Sequence[str] | None = None,
-    *,
-    rank: float | None = None,
-    dictionary: TransformerMixin | None = None,
-    validation: float = 0.2,
-    label: str = 'surrogate',
-) -> ModeDecompositionSurrogate:
-    """Return the linear surrogate that dynamic mode decomposition fits to series, computed with PyDMD.
+class DMDSurrogate(BaseSurrogate):
+    """Linear surrogate fitted by dynamic mode decomposition, computed with PyDMD.
 
     The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the pairs of consecutive samples
     of every series. With a dictionary, `g` holds the observables the dictionary computes from the variables, which is
     extended DMD, and the dictionary should keep the variables among its observables. The surrogate follows the rate
-    law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` and starts at the first sample of the first series.
+    law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at the first sample of the
+    first series. A forecast sums the modes from the last sample of the last series.
 
     Args:
-        data:
-            A trajectory, a series, or a sequence of them, sampled at one uniform step.
-
         names:
             The variables of trajectories, or `None` for every scalar state or observable.
 
@@ -165,48 +88,106 @@ def fit_dmd(
         label:
             The label of the surrogate element.
 
-    Returns:
-        decomposition:
-            The surrogate system, its errors, its continuous eigenvalues, modes, and amplitudes, and its generator.
+    Attributes:
+        system_:
+            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g`.
+
+        labels_:
+            The variables, or the observables of the dictionary, in the order of the states.
+
+        states_:
+            The names of the states of the surrogate element.
+
+        last_state_:
+            The values of the states at the last sample of the last series, where forecasts start.
+
+        dt_:
+            The time between the samples it was fitted to.
+
+        training_error_:
+            The relative error of the predicted increments over one sample on the training samples.
+
+        validation_error_:
+            The relative error on the held-out samples, NaN when none are held out.
+
+        eigenvalues_:
+            The continuous eigenvalues `ln(mu) / dt` of the modes, from the eigenvalues `mu` of the one-sample map.
+
+        modes_:
+            The modes, one column per mode and one row per state.
+
+        amplitudes_:
+            The amplitudes of the modes at the last sample of the last series.
+
+        generator_:
+            The matrix `L` of the rate law, one row and one column per state.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.engine.analysis import Series, fit_dmd
+        >>> from skcomplex.engine.analysis import DMDSurrogate, Series
         >>> times = np.arange(0.0, 10.0, 0.1)
         >>> series = Series(times, np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-        >>> np.sort(fit_dmd(series).eigenvalues.imag).round(6).tolist()
+        >>> surrogate = DMDSurrogate().fit(series)
+        >>> np.sort(surrogate.eigenvalues_.imag).round(6).tolist()
         [-1.0, 1.0]
+        >>> bool(np.allclose(surrogate.run(5)[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
+        True
     """
-    samples = samples_of(data, names)
-    lifted, labels, states = _lift(samples, dictionary)
-    training, held = split_samples(lifted, validation)
-    before = np.concatenate([values[:-1] for values in training]).T
-    after = np.concatenate([values[1:] for values in training]).T
-    decomposition = module('pydmd').DMD(svd_rank=-1 if rank is None else rank, exact=True).fit(before, after)
-    modes = np.asarray(decomposition.modes, dtype=complex)
-    eigenvalues: ComplexArray = np.asarray(
-        np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt,
-        dtype=complex,
-    )
-    generator = np.real(modes @ np.diag(eigenvalues) @ np.linalg.pinv(modes))
-    amplitudes = np.linalg.lstsq(modes, lifted[0][0].astype(complex), rcond=None)[0]
 
-    system = surrogate_system(
-        'LinearSurrogate',
-        label,
-        dict(zip(states, map(float, lifted[0][0]), strict=True)),
-        _linear_laws(states, generator),
-        ContinuousTime(),
-    )
-    return ModeDecompositionSurrogate(
-        system,
-        labels,
-        states,
-        samples.dt,
-        relative_error(*_increments(decomposition, training)),
-        relative_error(*_increments(decomposition, held)),
-        eigenvalues,
-        modes,
-        amplitudes,
-        generator,
-    )
+    eigenvalues_: ComplexArray
+    modes_: ComplexArray
+    amplitudes_: ComplexArray
+    generator_: Array
+
+    def __init__(
+        self,
+        names: Sequence[str] | None = None,
+        *,
+        rank: float | None = None,
+        dictionary: TransformerMixin | None = None,
+        validation: float = 0.2,
+        label: str = 'surrogate',
+    ) -> None:
+        self.names = names
+        self.rank = rank
+        self.dictionary = dictionary
+        self.validation = validation
+        self.label = label
+
+    def _fit(self, data: SurrogateData) -> None:
+        """Fit the decomposition to the series and set the surrogate system, its errors, and its modes."""
+        samples = samples_of(data, self.names)
+        lifted, labels, states = _lift(samples, self.dictionary)
+        training, held = split_samples(lifted, self.validation)
+        before = np.concatenate([values[:-1] for values in training]).T
+        after = np.concatenate([values[1:] for values in training]).T
+        rank = -1 if self.rank is None else self.rank
+        decomposition = module('pydmd').DMD(svd_rank=rank, exact=True).fit(before, after)
+        modes = np.asarray(decomposition.modes, dtype=complex)
+        eigenvalues: ComplexArray = np.asarray(
+            np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt,
+            dtype=complex,
+        )
+        generator = np.real(modes @ np.diag(eigenvalues) @ np.linalg.pinv(modes))
+        self.system_ = surrogate_system(
+            'LinearSurrogate',
+            self.label,
+            dict(zip(states, map(float, lifted[0][0]), strict=True)),
+            _linear_laws(states, generator),
+            ContinuousTime(),
+        )
+        self.labels_ = labels
+        self.states_ = states
+        self.last_state_ = np.asarray(lifted[-1][-1], dtype=float)
+        self.dt_ = samples.dt
+        self.training_error_ = relative_error(*_increments(decomposition, training))
+        self.validation_error_ = relative_error(*_increments(decomposition, held))
+        self.eigenvalues_ = eigenvalues
+        self.modes_ = modes
+        self.amplitudes_ = np.linalg.lstsq(modes, self.last_state_.astype(complex), rcond=None)[0]
+        self.generator_ = generator
+
+    def _run(self, steps: int) -> Array:
+        """Return the states the modes give at every sample after the last one, one row per sample."""
+        growth = np.exp(np.outer(self.dt_ * np.arange(1, steps + 1), self.eigenvalues_))
+        return np.real((growth * self.amplitudes_) @ self.modes_.T)
