@@ -95,7 +95,7 @@ def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
         edges = {
             layer: capacity_rows(block, declarations) for layer, block in declarations.changing_edges(space).items()
         }
-        directed = {layer: cast('NetworkSpace', space).resolve_graph(layer).is_directed() for layer in edges}
+        directed = {layer: cast('NetworkSpace', space).graphs_[layer].is_directed() for layer in edges}
         networks[key] = NetworkRows(nodes, edges, directed)
     return networks
 

@@ -7,9 +7,8 @@ import itertools
 from dataclasses import replace
 from typing import cast
 
-from ...core.base import BaseLaw, Form, Trait, ValidationError, has_trait
+from ...core.base import BaseLaw, Form, SpaceKind, Trait, ValidationError, has_trait
 from ...core.problems import Problem, Source, resolve_backend
-from ...core.space import NetworkSpace, SiteSpace
 from ...engine.compile import (
     BasePass,
     BlockLaws,
@@ -44,7 +43,7 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, SiteSpace | NetworkSpace)
+            getattr(space, 'space_kind', None) in {SpaceKind.LATTICE, SpaceKind.NETWORK}
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent

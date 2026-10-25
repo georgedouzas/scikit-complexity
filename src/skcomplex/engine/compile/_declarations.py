@@ -251,7 +251,7 @@ class Declarations:
             return
         space = cast('NetworkSpace', node.space)
         padding = np.zeros(rows - active, dtype=np.intp)
-        for variable, ends in zip(ENDS, space.list_edges(group.layer), strict=True):
+        for variable, ends in zip(ENDS, space.edges_[group.layer], strict=True):
             self._declare_hidden(block, variable, np.concatenate([ends, padding]))
 
     def declare_state(

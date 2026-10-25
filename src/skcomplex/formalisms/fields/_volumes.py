@@ -284,7 +284,7 @@ def compile_volumes(
         error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
         raise ValidationError(error_msg)
     states = [_symbol(law.target, references) for law, _ in laws]
-    n_dim = space.n_dim
+    n_dim = space.n_dim_
     expressions = []
     for law, _ in laws:
         components = law.fluxes
@@ -332,8 +332,8 @@ def compile_volumes(
     return FiniteVolume(
         owner,
         tuple(reference.entry.start for _, reference in laws),
-        space.dimensions,
-        space.spacings,
+        space.shape_,
+        space.spacings_,
         boundaries,
         fluxes,
         jacobians,

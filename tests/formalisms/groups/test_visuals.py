@@ -37,8 +37,8 @@ class Logs:
 
 def _simulation():
     """Return a simulation of the parity rule on a ball of radius 3 of the free group of rank 2."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3)
-    cells = np.zeros(space.size)
+    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).fit()
+    cells = np.zeros(space.size_)
     cells[0] = 1.0
     return Simulation(System(components=[ParityComponent.lattice('cells', space, alive=cells)])).run(until=2)
 
@@ -56,8 +56,8 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
     assert len(edges) == 1
     positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())
     space = problem.elements[0].element.space
-    np.testing.assert_allclose(np.linalg.norm(positions, axis=1) / 40.0, space.lengths)
-    assert len(edges[0].edges.as_arrow_array().to_pylist()) == len(space.edges)
+    np.testing.assert_allclose(np.linalg.norm(positions, axis=1) / 40.0, space.lengths_)
+    assert len(edges[0].edges.as_arrow_array().to_pylist()) == len(space.edges_)
 
 
 def test_cayley_visual_views_are_graph_views():

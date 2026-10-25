@@ -45,14 +45,14 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).neighbors((0, 0), Neighborhood.moore())
-    assert sorted(neighbours) == [(0, 1), (0, 9), (1, 0), (1, 1), (1, 9), (9, 0), (9, 1), (9, 9)]
+    neighbours = LatticeSpace((10, 10)).fit().run(0, Neighborhood.moore())
+    assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
-    assert LatticeSpace((5,), boundary='fixed').neighbors((0,), Neighborhood.radius()) == [None, (0,), (1,)]
-    assert LatticeSpace((5,), boundary='reflecting').neighbors((0,), Neighborhood.radius(2))[:2] == [(1,), (0,)]
+    assert LatticeSpace((5,), boundary='fixed').fit().run(0, Neighborhood.radius()).tolist() == [0, 1]
+    assert LatticeSpace((5,), boundary='reflecting').fit().run(0, Neighborhood.radius(2))[:2].tolist() == [1, 0]
     EdgeComponent = ElementComponent.define(
         'EdgeComponent',
         states={'value': 0.0},
@@ -71,9 +71,9 @@ def test_fixed_and_reflecting_edges():
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
     assert Neighborhood.moore(center=True).offsets[0] == (0, 0)
-    assert len(Neighborhood.moore(2)) == 24
-    assert len(Neighborhood.von_neumann(2)) == 12
-    assert len(Neighborhood.moore(n_dim=3)) == 26
+    assert len(Neighborhood.moore(2).offsets) == 24
+    assert len(Neighborhood.von_neumann(2).offsets) == 12
+    assert len(Neighborhood.moore(n_dim=3).offsets) == 26
     with pytest.raises(ValueError, match='same number of dimensions'):
         Neighborhood(((0, 1), (1,))).check()
 

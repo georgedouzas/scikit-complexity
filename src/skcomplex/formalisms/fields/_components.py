@@ -87,7 +87,7 @@ class FieldComponent(GroupComponent):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[str | None]] | None = None,
     ) -> None:
-        size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
+        size = space.fit().size_
         super().__init__(label, element=element, size=size, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization

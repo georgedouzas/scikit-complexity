@@ -34,11 +34,11 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 # there.
 
 alive = simulation.trajectory_['cells.alive']
-quotient = CayleySpace(lamplighter(), quotient=3)
+quotient = CayleySpace(lamplighter(), quotient=3).fit()
 parity = LinearAutomaton(quotient, Memory(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')
 ax.set_ylabel('number of ones')
-ax.set_title(f'Invertible on the quotient of {quotient.size} elements: {parity.is_invertible()}')
+ax.set_title(f'Invertible on the quotient of {quotient.size_} elements: {parity.is_invertible()}')
 plt.show()

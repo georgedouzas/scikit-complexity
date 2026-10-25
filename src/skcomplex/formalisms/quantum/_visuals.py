@@ -22,7 +22,7 @@ def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
     space = getattr(element.element, 'space', None)
     if element.members is None and view_of(element.element).display is not None:
         return None
-    return space.dimensions if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
+    return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
 
 def _profile_name(element: CompiledElement) -> str:

@@ -252,7 +252,7 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
     weights = simulation.run(until=1.0).trajectory_['synapses.w'][-1]
-    sources, targets = space.list_edges()
+    sources, targets = space.fit().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
     assert np.allclose(weights[~coactive], 0.1, atol=1e-12)
@@ -360,7 +360,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
-    sources, targets = space.list_edges()
+    sources, targets = space.fit().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     assert np.allclose(drift, expected, atol=1e-12)

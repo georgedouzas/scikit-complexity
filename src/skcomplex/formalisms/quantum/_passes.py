@@ -66,7 +66,7 @@ def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
 
 def _laplacian_of(space: Any) -> sp.csr_array:  # noqa: ANN401
     """Return the Laplacian of a lattice, spectral when it is periodic and of finite differences otherwise."""
-    dimensions, spacings = space.dimensions, space.spacings
+    dimensions, spacings = space.shape_, space.spacings_
     size = math.prod(dimensions)
     if space.boundary == 'periodic':
         multiplier = spectral_multiplier('laplacian', 0, dimensions, spacings).real

@@ -13,17 +13,17 @@ from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 
 def test_ordered_phases_are_a_schedule():
     """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = DiscreteTime(schedule=PhasesSchedule([Phase('produce'), Phase('trade'), Phase('consume')]))
-    assert isinstance(time.schedule, Schedule)
-    assert [phase.name for phase in time.schedule.phases] == ['produce', 'trade', 'consume']
+    time = DiscreteTime(schedule=PhasesSchedule([Phase('produce'), Phase('trade'), Phase('consume')])).fit()
+    assert isinstance(time.schedule_, Schedule)
+    assert [phase.name for phase in time.schedule_.phases] == ['produce', 'trade', 'consume']
     with pytest.raises(ValidationError, match='repeat a name'):
-        PhasesSchedule([Phase('trade'), Phase('trade')])
+        DiscreteTime(schedule=PhasesSchedule([Phase('trade'), Phase('trade')])).fit()
 
 
 def test_phase_rejects_unknown_activation():
-    """Test that a schedule of phases rejects an activation policy it does not know."""
+    """Test that a phase rejects an activation policy it does not know."""
     with pytest.raises(ValidationError, match='Unknown activation'):
-        PhasesSchedule([Phase('trade', activation='parallel')])
+        PhasesSchedule([Phase('trade', activation='parallel')]).check()
 
 
 class EmployerComponent(ElementComponent):
@@ -126,6 +126,6 @@ def test_sequential_and_by_type_order():
 def test_phase_checks_arguments():
     """A schedule rejects a phase with an unknown activation or fewer than one round."""
     with pytest.raises(ValidationError, match='activation'):
-        PhasesSchedule([Phase('x', activation='parallel')])
+        PhasesSchedule([Phase('x', activation='parallel')]).check()
     with pytest.raises(ValidationError, match='round'):
-        PhasesSchedule([Phase('x', repeat=0)])
+        PhasesSchedule([Phase('x', repeat=0)]).check()

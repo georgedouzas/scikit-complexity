@@ -19,6 +19,7 @@ from ..base import (
     BaseSpace,
     Expression,
     Layout,
+    SpaceKind,
     SymbolicVector,
     ValidationError,
     Variable,
@@ -888,8 +889,8 @@ class Problem(BaseProblem):
         owner = name.rpartition('.')[0]
         for element in self.elements:
             space = getattr(element.element, 'space', None)
-            if element.path == owner and hasattr(space, 'dimensions'):
-                return space.dimensions  # type: ignore[union-attr]
+            if element.path == owner and getattr(space, 'space_kind', None) == SpaceKind.LATTICE:
+                return space.shape_  # type: ignore[union-attr]
         return None
 
     def draw_increments(self, rng: np.random.Generator, scale: float) -> Vector:

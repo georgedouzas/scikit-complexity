@@ -8,8 +8,8 @@ from dataclasses import dataclass, replace
 from typing import Any, ClassVar, Protocol, Self
 
 from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceKind, ValidationError
-from ._networks import NetworkSpace
-from ._spaces import SiteSpace
+
+SITE_KINDS = frozenset({SpaceKind.LATTICE, SpaceKind.NETWORK})
 
 
 def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
@@ -17,7 +17,7 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
 
     Args:
         space:
-            The space of sites or the network.
+            The space of sites or the network, fitted here unless it was fitted before.
 
         size:
             The number of members, one per site or node.
@@ -38,15 +38,12 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
         >>> neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3)
         [(0, 1), (1, 2)]
     """
-    if isinstance(space, NetworkSpace):
-        sources, targets = space.list_edges(layer)
-        return [
-            (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
-        ]
-    if not isinstance(space, SiteSpace):
+    if space is None or space.space_kind not in SITE_KINDS:
         error_msg = f'Neighbours are defined on a space of sites, such as a lattice, or on a network, not on {space!r}.'
         raise ValidationError(error_msg)
-    return space.list_neighbor_pairs()
+    if not hasattr(space, 'size_'):
+        space.fit()
+    return space._neighbor_pairs(layer)
 
 
 @dataclass(frozen=True)
@@ -203,7 +200,7 @@ class Memory(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.space import Memory
-        >>> len(Memory(('1', 'a', 'a^-1')))
+        >>> len(Memory(('1', 'a', 'a^-1')).elements)
         3
     """
 
@@ -216,10 +213,6 @@ class Memory(BaseNeighborhood):
         changes: dict[str, Any] = {}
         changes['elements'] = tuple(str(element) for element in self.elements)
         return replace(self, **changes) if changes else self
-
-    def __len__(self) -> int:
-        """Return the number of elements."""
-        return len(self.elements)
 
     @classmethod
     def generators(

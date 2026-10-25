@@ -185,7 +185,7 @@ def test_l_shaped_steady_state_converges_at_second_order():
     errors = []
     for refine in (2, 3, 4, 5):
         simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEulerSolver(dt=10.0)).run(until=500)
-        nodes = MeshSpace.l_shape(refine).nodes
+        nodes = MeshSpace.l_shape(refine).fit().positions_
         away = np.hypot(nodes[:, 0], nodes[:, 1]) > 0.25
         errors.append(np.abs(simulation.state_ - harmonic(nodes[:, 0], nodes[:, 1]))[away].max())
     ratios = np.asarray(errors[:-1]) / np.asarray(errors[1:])

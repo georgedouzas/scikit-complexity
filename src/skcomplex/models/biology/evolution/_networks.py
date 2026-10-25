@@ -343,10 +343,10 @@ def sole_manrubia(
     for node in range(n):
         others = rng.choice(np.delete(np.arange(n), node), size=k, replace=False)
         graph.add_edges_from((node, int(other)) for other in others)
-    space = NetworkSpace(graph)
+    space = NetworkSpace(graph).fit()
     edges = graph.number_of_edges()
     couplings = rng.uniform(-1, 1, edges)
-    sources, _ = space.list_edges()
+    sources, _ = space.edges_[None]
     fields = np.bincount(sources, weights=couplings, minlength=n)
     species = GroupComponent(
         'species',

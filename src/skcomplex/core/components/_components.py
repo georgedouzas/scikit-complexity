@@ -24,17 +24,17 @@ from ..base import (
     symbol,
 )
 from ..laws import Symbols
-from ..space import LatticeSpace, NetworkSpace, SiteSpace, part_count
+from ..space import LatticeSpace, NetworkSpace, part_count
 
 PARTS = ('sites', 'edges', 'hyperedges')
 
 
-def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
+def _lattice_visual(element: type, visual: VisualSpec | None, default: str | None) -> VisualSpec:
     """Return the visual of a lattice group: the given one, the element type's, or the default kind."""
     if visual is not None:
         return visual
     declared: VisualSpec = getattr(element, 'visual', VisualSpec())
-    return VisualSpec(default) if declared == VisualSpec() else declared
+    return VisualSpec(default or 'sites') if declared == VisualSpec() else declared
 
 
 def _check_element(label: str, element: object) -> None:
@@ -75,7 +75,7 @@ def _check_value_rows(group: 'GroupComponent') -> None:
     if group.size is None:
         return
     declarations = group.element._declarations()
-    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
+    dimensions = group.space.fit().shape_ if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
         if declaration is None or not isinstance(declaration.domain, NumericDomain):
@@ -245,7 +245,7 @@ class ElementComponent(BaseComponent):
     def lattice(
         cls,
         label: str,
-        space: SiteSpace | NetworkSpace,
+        space: BaseSpace,
         /,
         *,
         visual: VisualSpec | None = None,
@@ -290,27 +290,16 @@ class ElementComponent(BaseComponent):
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
+        space.fit()
         if isinstance(space, NetworkSpace):
             nodes = list(space.graph.nodes)
-            by_node = {
+            values = {
                 name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
                 for name, value in values.items()
             }
-            visual = _lattice_visual(cls, visual, 'sites')
-            return GroupComponent(
-                label,
-                element=cls,
-                size=len(nodes),
-                values=by_node,
-                visual=visual,
-                space=space,
-                on='sites',
-            )
-        flat = {
-            name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
-        }
-        visual = _lattice_visual(cls, visual, space.default_visual)
-        return GroupComponent(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
+        flat = {name: np.ravel(value) if np.shape(value) == space.shape_ else value for name, value in values.items()}
+        visual = _lattice_visual(cls, visual, space.default_visual_)
+        return GroupComponent(label, element=cls, size=space.size_, values=flat, visual=visual, space=space, on='sites')
 
 
 class GroupComponent(BaseComponent):

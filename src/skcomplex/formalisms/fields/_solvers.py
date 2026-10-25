@@ -62,8 +62,8 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
     kind, _ = place.boundary_of(reference.entry.name.rpartition('.')[2])
 
     def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
-        lattice = LatticeSpace(space.dimensions, boundary=LATTICE_BOUNDARIES[kind])
-        table = lattice.index_table(Neighborhood((offset,)))[:, 0]
+        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).fit()
+        table = lattice._index_table(Neighborhood((offset,)))[:, 0]
         inside = table < size
         return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
 
@@ -73,8 +73,8 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
             error_msg = f'Only Laplacians act on fields on networks, but a term takes the {name}.'
             raise SolverError(error_msg)
         return adjacency - diags(np.asarray(adjacency.sum(axis=1)).ravel())
-    units = [tuple(int(other == index) for other in range(space.n_dim)) for index in range(space.n_dim)]
-    spacings = space.spacings
+    units = [tuple(int(other == index) for other in range(space.n_dim_)) for index in range(space.n_dim_)]
+    spacings = space.spacings_
     if name == 'laplacian':
         total = csr_matrix((size, size))
         for unit, step in zip(units, spacings, strict=True):
@@ -128,7 +128,7 @@ def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
         for reference in (term.target, term.source):
             states.setdefault((reference.entry.name, reference.column), reference)
     order = {key: index for index, key in enumerate(states)}
-    dimensions, spacings = place.space.dimensions, place.space.spacings
+    dimensions, spacings = place.space.shape_, place.space.spacings_
     matrix = np.zeros((*np.fft.rfftn(np.zeros(dimensions)).shape, len(states), len(states)), dtype=complex)
     for term, coefficient in terms:
         multiplier: Any = 1.0

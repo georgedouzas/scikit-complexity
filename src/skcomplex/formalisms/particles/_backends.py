@@ -358,7 +358,7 @@ class LammpsSolver(ExternalSolver):
         box = _box(problem)
         positions = x[atoms.positions]
         if box is not None:
-            low, high = np.zeros(atoms.n_dim), np.asarray(box.extent)
+            low, high = np.zeros(atoms.n_dim), np.asarray(box.extent_)
             boundary = ['p' if box.boundary == 'periodic' else 'f'] * atoms.n_dim
         else:
             cutoffs = [
@@ -421,7 +421,7 @@ class LammpsSolver(ExternalSolver):
         box = _box(problem)
         if box is not None and box.boundary == 'reflecting':
             walls = ' '.join(
-                f'{name}lo 0.0 {name}hi {side}' for name, side in zip(DIMENSIONS, box.extent, strict=False)
+                f'{name}lo 0.0 {name}hi {side}' for name, side in zip(DIMENSIONS, box.extent_, strict=False)
             )
             commands.append(f'fix walls all wall/reflect {walls}')
         for index, item in enumerate(problem.interactions):

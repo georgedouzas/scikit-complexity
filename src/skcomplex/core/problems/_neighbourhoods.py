@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ..base import Entry, Expression, Indices, ValidationError, Variable, Vector
+from ..base import BaseSpace, Entry, Expression, Indices, ValidationError, Variable, Vector
 from ..space import (
     Adjacency,
     Cone,
@@ -66,11 +66,11 @@ def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices,
         >>> import networkx as nx
         >>> from skcomplex.core.problems._neighbourhoods import network_rows
         >>> from skcomplex.core.space import Adjacency, NetworkSpace
-        >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)), Adjacency())]
+        >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)).fit(), Adjacency())]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
     """
-    indptr, others, edges = space.compute_adjacency(neighborhood.layer)
-    size = space.size
+    indptr, others, edges = space.adjacency_[neighborhood.layer]
+    size = space.size_
     if not neighborhood.center:
         return indptr, others, edges
     readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(indptr))
@@ -83,15 +83,15 @@ def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices,
     return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
 
-def lattice_rows(space: LatticeSpace, neighborhood: Neighborhood) -> Rows:
-    """Return the neighbours of every site of a lattice in CSR form, in neighbourhood order, without outside sites.
+def lattice_rows(space: BaseSpace, neighborhood: Neighborhood | Memory) -> Rows:
+    """Return the neighbours of every site of a space in CSR form, in neighbourhood order, without outside sites.
 
     Args:
         space:
-            The lattice space.
+            The fitted lattice or other space of sites.
 
         neighborhood:
-            The neighbourhood of offsets.
+            The neighbourhood of offsets, or the memory set of a group space.
 
     Returns:
         rows:
@@ -100,12 +100,12 @@ def lattice_rows(space: LatticeSpace, neighborhood: Neighborhood) -> Rows:
     Examples:
         >>> from skcomplex.core.problems._neighbourhoods import lattice_rows
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
-        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed'), Neighborhood(((-1,), (1,))))
+        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').fit(), Neighborhood(((-1,), (1,))))
         >>> [item.tolist() for item in rows]
         [[0, 1, 3, 4], [1, 0, 2, 1]]
     """
-    table = space.index_table(neighborhood)
-    inside = table < space.size
+    table = space._index_table(neighborhood)
+    inside = table < len(table)
     indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(inside.sum(axis=1))]).astype(np.intp)
     return indptr, table[inside].astype(np.intp)
 
@@ -115,7 +115,7 @@ def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
 
     Args:
         space:
-            The space of the group.
+            The fitted space of the group.
 
     Returns:
         neighbourhood:
@@ -124,18 +124,12 @@ def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
     Examples:
         >>> from skcomplex.core.problems._neighbourhoods import default_neighborhood
         >>> from skcomplex.core.space import LatticeSpace
-        >>> len(default_neighborhood(LatticeSpace((4, 4))))
+        >>> len(default_neighborhood(LatticeSpace((4, 4)).fit()).offsets)
         8
     """
-    if isinstance(space, NetworkSpace):
-        return Adjacency()
-    if not isinstance(space, LatticeSpace):
-        return None
-    if space.geometry == 'triangular':
-        return Neighborhood.triangular()
-    if space.neighborhood == 'von_neumann':
-        return Neighborhood.von_neumann(n_dim=space.n_dim)
-    return Neighborhood.moore(n_dim=space.n_dim)
+    if isinstance(space, NetworkSpace | LatticeSpace):
+        return space._default_neighborhood()
+    return None
 
 
 def position_state(states: Mapping[str, Variable]) -> str | None:
@@ -517,10 +511,10 @@ def neighbor_search(
         raise ValidationError(error_msg)
     if isinstance(over, Adjacency) and changing is not None and over.layer in changing:
         source, target, active = changing[over.layer]
-        directed = cast('NetworkSpace', space).resolve_graph(over.layer).is_directed()
+        directed = cast('NetworkSpace', space).graphs_[over.layer].is_directed()
         return EdgeRows(source, target, active, rows, directed, over.center)
     if isinstance(over, Adjacency | Neighborhood | Memory):
-        size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size  # type: ignore[attr-defined]
+        size = getattr(space, 'size_', None)
         if rows != size:
             error_msg = (
                 f'A reduction over the neighbours of {space!r} needs one member per node or site, {size}, but the '
@@ -538,10 +532,10 @@ def neighbor_search(
         )
         raise ValidationError(error_msg)
     continuous: ContinuousSpace = space  # type: ignore[assignment]
-    periods = tuple(continuous.extent) if continuous.boundary == 'periodic' else None
+    periods = continuous.extent_ if continuous.periodic_ else None
     heading = None
     if isinstance(over, Cone):
-        name = cone_heading(over, states, continuous.n_dim)
+        name = cone_heading(over, states, continuous.n_dim_)
         heading = Heading(entries[name], not states[name].vector) if name in entries else None
         if heading is None:
             error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'

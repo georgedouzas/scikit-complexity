@@ -11,19 +11,17 @@ from typing import Any, ClassVar, Self
 import numpy as np
 import numpy.typing as npt
 
-from ..base import BaseNeighborhood, Requires, SpaceKind
-from ._spaces import SiteSpace
+from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceKind, ValidationError
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')
 TRIANGULAR_OFFSETS = ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
 TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
 
-type Cell = tuple[int, ...]
 type Offset = tuple[int, ...]
 
 
-class LatticeSpace(SiteSpace['Neighborhood']):
+class LatticeSpace(BaseSpace):
     """Box of the integer lattice `Z^d`, or of the triangular lattice in 2D, whose sites hold lattice group members.
 
     Sites are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A
@@ -54,15 +52,26 @@ class LatticeSpace(SiteSpace['Neighborhood']):
         capacity:
             The largest number of agents in a cell, or `None` for no limit.
 
+    Attributes:
+        spacings_:
+            The distance between neighbouring sites along every dimension.
+
     Examples:
         >>> from skcomplex.core.space import LatticeSpace
-        >>> space = LatticeSpace((10, 20))
-        >>> space.size, space.n_dim
-        (200, 2)
+        >>> space = LatticeSpace((10, 20)).fit()
+        >>> space.size_, space.n_dim_, space.shape_
+        (200, 2, (10, 20))
+        >>> space.run(0).tolist()
+        [199, 180, 181, 19, 1, 39, 20, 21]
+        >>> LatticeSpace((2, 2), geometry='triangular').fit().positions_.round(3).tolist()
+        [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.LATTICE
     boundaries: ClassVar[tuple[str, ...]] = BOUNDARIES
+
+    size_: int
+    spacings_: tuple[float, ...]
 
     def __init__(
         self,
@@ -83,163 +92,74 @@ class LatticeSpace(SiteSpace['Neighborhood']):
         self.neighborhood = neighborhood
         self.capacity = capacity
 
-    @property
-    def width(self) -> int:
-        """Return the number of sites along the first dimension."""
-        return self.dimensions[0]
-
-    @property
-    def height(self) -> int:
-        """Return the number of sites along the second dimension."""
-        return self.dimensions[1]
-
-    @property
-    def torus(self) -> bool:
-        """Check whether opposite edges are joined."""
-        return self.boundary == 'periodic'
-
-    @property
-    def dimensions(self) -> tuple[int, ...]:
-        """Number of sites along every dimension."""
-        return (int(self.shape),) if np.ndim(self.shape) == 0 else tuple(int(size) for size in self.shape)  # type: ignore[arg-type, union-attr]
-
-    @property
-    def spacings(self) -> tuple[float, ...]:
-        """Distance between neighbouring sites along every dimension."""
-        if np.ndim(self.spacing) == 0:
-            return (float(self.spacing),) * self.n_dim  # type: ignore[arg-type]
-        return tuple(float(item) for item in self.spacing)  # type: ignore[union-attr]
-
-    @property
-    def n_dim(self) -> int:  # type: ignore[override]
-        """Number of dimensions."""
-        return len(self.dimensions)
-
-    @property
-    def size(self) -> int:
-        """Number of sites."""
-        return int(np.prod(self.dimensions))
-
-    @property
-    def default_visual(self) -> str:
-        """Name of the visual of groups on the lattice, an image on a square lattice and sites otherwise."""
-        return 'image' if self.geometry == 'square' else 'sites'
-
-    @property
-    def positions(self) -> npt.NDArray[np.float64]:
-        """Position of every site in space, one row per site in member order, scaled by the spacing.
-
-        Examples:
-            >>> from skcomplex.core.space import LatticeSpace
-            >>> LatticeSpace((2, 2), geometry='triangular').positions.round(3).tolist()
-            [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
-        """
-        coordinates = np.indices(self.dimensions).reshape(self.n_dim, -1).T.astype(float)
-        if self.geometry == 'triangular':
-            rows, columns = coordinates.T
-            coordinates = np.column_stack([columns + rows / 2, rows * TRIANGULAR_ROW_HEIGHT])
-        return coordinates * np.asarray(self.spacings)
-
-    def check(self) -> None:
+    def _check(self) -> None:
         """Raise an error when the shape, the geometry, or the boundary is not valid.
 
         Raises:
-            ValueError:
+            ValidationError:
                 The shape has a size that is not a positive integer, the geometry or the boundary is unknown, or a
                 triangular lattice does not have two dimensions.
         """
-        if not self.dimensions or any(size < 1 for size in self.dimensions):
+        shape = tuple(np.ravel(self.shape).tolist())
+        if not shape or any(int(size) != size or size < 1 for size in shape):
             error_msg = (
                 f'A lattice has a positive number of sites along every dimension, but its shape is {self.shape}.'
             )
-            raise ValueError(error_msg)
+            raise ValidationError(error_msg)
         if self.boundary not in BOUNDARIES:
             error_msg = f'Unknown lattice boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
-            raise ValueError(error_msg)
+            raise ValidationError(error_msg)
         if self.geometry not in GEOMETRIES:
             error_msg = f'Unknown lattice geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
-            raise ValueError(error_msg)
-        if self.geometry == 'triangular' and self.n_dim != 2:  # noqa: PLR2004
+            raise ValidationError(error_msg)
+        if self.geometry == 'triangular' and len(shape) != 2:  # noqa: PLR2004
             error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
-            raise ValueError(error_msg)
+            raise ValidationError(error_msg)
 
-    def neighbor(self, cell: Cell, offset: Offset) -> Cell | None:
-        """Return the site at an offset from a site, or `None` outside a lattice with fixed edges.
+    def _fit(self) -> None:
+        """Set the shape, the size, the spacings, and the position of every site."""
+        shape = tuple(np.ravel(self.shape).tolist())
+        self.shape_ = tuple(int(size) for size in shape)
+        self.n_dim_ = len(self.shape_)
+        self.size_ = int(np.prod(self.shape_))
+        if np.ndim(self.spacing) == 0:
+            self.spacings_ = (float(self.spacing),) * self.n_dim_  # type: ignore[arg-type]
+        else:
+            self.spacings_ = tuple(float(item) for item in self.spacing)  # type: ignore[union-attr]
+        coordinates = np.indices(self.shape_).reshape(self.n_dim_, -1).T.astype(float)
+        if self.geometry == 'triangular':
+            rows, columns = coordinates.T
+            coordinates = np.column_stack([columns + rows / 2, rows * TRIANGULAR_ROW_HEIGHT])
+        self.positions_ = coordinates * np.asarray(self.spacings_)
+        self.periodic_ = self.boundary == 'periodic'
+        self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
 
-        Args:
-            cell:
-                The coordinates of the site.
+    def _default_neighborhood(self) -> 'Neighborhood':
+        """Return the neighbourhood agents query, the von Neumann or the Moore neighbourhood of radius 1."""
+        if self.geometry == 'triangular':
+            return Neighborhood.triangular()
+        if self.neighborhood == 'von_neumann':
+            return Neighborhood.von_neumann(n_dim=self.n_dim_)
+        return Neighborhood.moore(n_dim=self.n_dim_)
 
-            offset:
-                The offset along every dimension.
-
-        Returns:
-            neighbor:
-                The coordinates of the neighbouring site, wrapped or mirrored at the edges.
-        """
-        coordinates = []
-        for position, step, size in zip(cell, offset, self.dimensions, strict=True):
-            value = position + step
-            if self.boundary == 'periodic':
-                value %= size
-            elif self.boundary == 'reflecting':
-                period = 2 * size
-                value %= period
-                value = value if value < size else period - 1 - value
-            elif not 0 <= value < size:
-                return None
-            coordinates.append(int(value))
-        return tuple(coordinates)
-
-    def neighbors(self, cell: Cell, neighborhood: 'Neighborhood') -> list[Cell | None]:
-        """Return the sites of a neighbourhood of a site, in the neighbourhood's order.
-
-        Args:
-            cell:
-                The coordinates of the site.
-
-            neighborhood:
-                The neighbourhood.
-
-        Returns:
-            neighbors:
-                The coordinates of every neighbouring site, or `None` outside a lattice with fixed edges.
-
-        Examples:
-            >>> from skcomplex.core.space import LatticeSpace, Neighborhood
-            >>> LatticeSpace((10, 10)).neighbors((0, 0), Neighborhood.moore())
-            [(9, 9), (9, 0), (9, 1), (0, 9), (0, 1), (1, 9), (1, 0), (1, 1)]
-        """
-        return [self.neighbor(cell, offset) for offset in neighborhood.offsets]
-
-    def index_table(self, neighborhood: 'Neighborhood') -> npt.NDArray[np.intp]:
-        """Return the member index of every neighbour of every site, with `size` for sites outside fixed edges.
-
-        Args:
-            neighborhood:
-                The neighbourhood.
-
-        Returns:
-            table:
-                One row per site and one column per offset.
-        """
-        self.check()
+    def _index_table(self, neighborhood: 'Neighborhood') -> npt.NDArray[np.intp]:
+        """Return the member index of every neighbour of every site, with `size_` for sites outside fixed edges."""
         if not isinstance(neighborhood, Neighborhood):
             error_msg = f'A lattice reads a neighbourhood of offsets, but it was given {neighborhood!r}.'
-            raise ValueError(error_msg)  # noqa: TRY004
+            raise ValidationError(error_msg)
         neighborhood = neighborhood.check()
-        if neighborhood.offsets and len(neighborhood.offsets[0]) != self.n_dim:
+        if neighborhood.offsets and len(neighborhood.offsets[0]) != self.n_dim_:
             error_msg = (
                 f'The neighbourhood has offsets of dimension {len(neighborhood.offsets[0])}, but the lattice has '
-                f'{self.n_dim} dimensions.'
+                f'{self.n_dim_} dimensions.'
             )
-            raise ValueError(error_msg)
-        coordinates = np.indices(self.dimensions).reshape(self.n_dim, -1)
-        sizes = np.asarray(self.dimensions)[:, None]
-        table = np.empty((self.size, len(neighborhood.offsets)), dtype=np.intp)
+            raise ValidationError(error_msg)
+        coordinates = np.indices(self.shape_).reshape(self.n_dim_, -1)
+        sizes = np.asarray(self.shape_)[:, None]
+        table = np.empty((self.size_, len(neighborhood.offsets)), dtype=np.intp)
         for column, offset in enumerate(neighborhood.offsets):
             shifted = coordinates + np.asarray(offset)[:, None]
-            outside = np.zeros(self.size, dtype=bool)
+            outside = np.zeros(self.size_, dtype=bool)
             if self.boundary == 'periodic':
                 shifted %= sizes
             elif self.boundary == 'reflecting':
@@ -248,48 +168,23 @@ class LatticeSpace(SiteSpace['Neighborhood']):
             else:
                 outside = ((shifted < 0) | (shifted >= sizes)).any(axis=0)
                 shifted = np.clip(shifted, 0, sizes - 1)
-            flat = np.ravel_multi_index(tuple(shifted), self.dimensions)
-            table[:, column] = np.where(outside, self.size, flat)
+            flat = np.ravel_multi_index(tuple(shifted), self.shape_)
+            table[:, column] = np.where(outside, self.size_, flat)
         return table
 
-    def compute_ball(self, radius: int) -> 'Neighborhood':
-        """Return the box of offsets within a radius along every dimension, the site itself included.
+    def _ball(self, radius: int) -> 'Neighborhood':
+        """Return the box of offsets within a radius along every dimension, the site itself included."""
+        return Neighborhood.radius(radius, n_dim=self.n_dim_)
 
-        Args:
-            radius:
-                The largest offset along any dimension.
-
-        Returns:
-            neighborhood:
-                The neighbourhood.
-
-        Examples:
-            >>> from skcomplex.core.space import LatticeSpace
-            >>> LatticeSpace(5).compute_ball(1).offsets
-            ((-1,), (0,), (1,))
-        """
-        return Neighborhood.radius(radius, n_dim=self.n_dim)
-
-    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
-        """Return the pairs of distinct sites one step apart along a dimension, each pair once.
-
-        Returns:
-            pairs:
-                The sites of every pair of neighbours.
-
-        Examples:
-            >>> from skcomplex.core.space import LatticeSpace
-            >>> LatticeSpace(3, boundary='fixed').list_neighbor_pairs()
-            [(0, 1), (1, 2)]
-        """
-        dimensions = self.dimensions
-        sites = np.arange(self.size).reshape(dimensions)
+    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+        """Return the pairs of distinct sites one step apart along a dimension, each pair once."""
+        sites = np.arange(self.size_).reshape(self.shape_)
         found: dict[frozenset[int], tuple[int, int]] = {}
-        for axis, length in enumerate(dimensions):
+        for axis, length in enumerate(self.shape_):
             shifted = np.roll(sites, -1, axis=axis)
             pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
             if self.boundary != 'periodic':
-                edge = np.indices(dimensions)[axis].ravel() == length - 1
+                edge = np.indices(self.shape_)[axis].ravel() == length - 1
                 pairs = pairs[~edge]
             for first, second in pairs.tolist():
                 if first != second:
@@ -309,7 +204,7 @@ class Neighborhood(BaseNeighborhood):
         >>> from skcomplex.core.space import Neighborhood
         >>> Neighborhood.von_neumann().offsets
         ((-1, 0), (0, -1), (0, 1), (1, 0))
-        >>> len(Neighborhood.moore(center=True))
+        >>> len(Neighborhood.moore(center=True).offsets)
         9
     """
 
@@ -326,10 +221,6 @@ class Neighborhood(BaseNeighborhood):
             raise ValueError(error_msg)
         changes['offsets'] = offsets
         return replace(self, **changes) if changes else self
-
-    def __len__(self) -> int:
-        """Return the number of offsets."""
-        return len(self.offsets)
 
     @classmethod
     def _of(cls, radius: int, n_dim: int, keep: Callable[[Offset], bool], center: bool) -> 'Neighborhood':

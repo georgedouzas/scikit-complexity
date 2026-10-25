@@ -49,16 +49,6 @@ class Phase:
     groups: Sequence[str] | None = None
 
 
-def _check_phase(phase: Phase) -> None:
-    """Check the activation policy and the number of rounds of a phase."""
-    if phase.activation not in ACTIVATIONS:
-        error_msg = f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {ACTIVATIONS}.'
-        raise ValidationError(error_msg)
-    if phase.repeat < 1:
-        error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'
-        raise ValidationError(error_msg)
-
-
 class PhasesSchedule(Schedule):
     """Schedule of a discrete time that runs named phases in order in every step.
 
@@ -73,14 +63,20 @@ class PhasesSchedule(Schedule):
     """
 
     def __init__(self, phases: Sequence[Phase]) -> None:
-        self.phases = tuple(phases)
-        for phase in self.phases:
-            _check_phase(phase)
+        self.phases = phases
+
+    def _check(self) -> None:
+        """Raise an error for a phase with an unknown activation or no round, or for a repeated name."""
         names = [phase.name for phase in self.phases]
         if len(names) != len(set(names)):
             error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'
             raise ValidationError(error_msg)
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the names of the phases."""
-        return f'Phases({[phase.name for phase in self.phases]!r})'
+        for phase in self.phases:
+            if phase.activation not in ACTIVATIONS:
+                error_msg = (
+                    f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {ACTIVATIONS}.'
+                )
+                raise ValidationError(error_msg)
+            if phase.repeat < 1:
+                error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'
+                raise ValidationError(error_msg)

@@ -222,7 +222,7 @@ def _coevolving(element: type[ElementComponent], space: NetworkSpace, opinions: 
         element=element,
         on='sites',
         variable=True,
-        capacity=space.size,
+        capacity=space.fit().size_,
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )

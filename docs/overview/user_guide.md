@@ -1697,6 +1697,19 @@ Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(sh
 with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `ElementComponent.lattice(label, space, **values)` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
 
+Every space speaks the verbs of the framework. `space.fit()` checks its arguments and derives its facts, which end in
+`_`: the number of sites `size_`, the dimension `n_dim_`, the shape of the arrays of its sites `shape_`, the position
+of every site `positions_`, whether it wraps `periodic_`, and the visual of its groups `default_visual_`.
+`space.run(site, neighborhood=None)` returns the sites around a site, in the order of a neighbourhood or of the
+space's own. Compiling a system fits its spaces, so a space needs `fit()` only when its facts are read before.
+
+```python
+from skcomplex.core.space import LatticeSpace
+
+space = LatticeSpace((4, 3), neighborhood='von_neumann').fit()
+print(space.size_, space.shape_, space.periodic_, space.run(0).tolist())
+```
+
 **Local rules.** `LocalRuleLaw(target, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
 a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, a rule code whose `table()` returns a table, such
@@ -1898,10 +1911,11 @@ change edge states, laws reduce over the neighbours of a node, and topology requ
 
 The class methods of `NetworkSpace` wrap the generators of NetworkX: `erdos_renyi`, `watts_strogatz`,
 `barabasi_albert`, `configuration_model`, `stochastic_block_model`, `grid`, `complete`, and the spatially embedded
-`waxman` and `random_geometric`, whose node positions `read_positions` returns. A random generator takes a seed or a
-NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
-relation over the same nodes, such as work next to contacts. Every layer lowers to arrays: `list_edges` gives the
-source and target of every edge, and `compute_adjacency` the neighbours of every node in compressed sparse row form.
+`waxman` and `random_geometric`, whose node positions are the fitted `positions_`. A random generator takes a seed or
+a NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
+relation over the same nodes, such as work next to contacts. Fitting a network lowers every layer to arrays by its
+label: `graphs_` holds its graph, `edges_` the source and target of every edge, and `adjacency_` the neighbours of
+every node in compressed sparse row form.
 
 ```python
 import networkx as nx
@@ -1912,8 +1926,8 @@ first = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 second = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 print(sorted(first.graph.edges) == sorted(second.graph.edges))
 
-space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))])
-print(space.layer_labels, [item.tolist() for item in space.list_edges('work')])
+space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))]).fit()
+print(list(space.graphs_), [item.tolist() for item in space.edges_['work']])
 ```
 
 ### Interactions over edges
@@ -2275,8 +2289,8 @@ the elements `s` of a finite memory set (Ceccherini-Silberstein and Coornaert 20
 Cayley graph of a finitely generated group on the ball of radius `r` in its generators and their inverses, and
 `CayleySpace(group, quotient=q)` on a finite quotient, where configurations are periodic. A group space is a space of the
 lattice kind, so `LocalRuleLaw`, `SampleLaw`, and the other lattice laws run on it with the NumPy and Numba backends, and a
-run reads only its neighbour table. Its sites are numbered by word length, `words` names their shortest words,
-`ball_sizes()` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
+run reads only its neighbour table. Fitting the space enumerates its sites, numbered by word length: `words_` names
+their shortest words, `ball_sizes_` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
 `Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
 gives the identity followed by every generator and its inverse.
 
@@ -2313,17 +2327,17 @@ from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
-tree = CayleySpace(free, ball=4)
+tree = CayleySpace(free, ball=4).fit()
 memory = Memory.generators(free)
 MajorityComponent = ElementComponent.define(
     'MajorityComponent',
     states={'alive': state(0, domain=NumericDomain.BOOLEAN)},
     laws=lambda s: [LocalRuleLaw(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))],
 )
-cells = (np.random.default_rng(0).random(tree.size) < 0.5).astype(float)
+cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(components=[MajorityComponent.lattice('cells', tree, alive=cells)])
-print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
-print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).words)
+print(tree.ball_sizes_, Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
+print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).fit().words_)
 ```
 
 Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
@@ -2336,7 +2350,8 @@ from skcomplex.formalisms.groups import CayleySpace
 
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
-print(CayleySpace(grigorchuk_group(), ball=6).ball_sizes(), CayleySpace(grigorchuk_group(), quotient=3).size)
+ball, quotient = CayleySpace(grigorchuk_group(), ball=6).fit(), CayleySpace(grigorchuk_group(), quotient=3).fit()
+print(ball.ball_sizes_, quotient.size_)
 ```
 
 **Theory of automata.** `skcomplex.engine.analysis` decides the properties the theory studies on finite universes, where

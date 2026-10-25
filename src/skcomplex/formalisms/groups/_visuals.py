@@ -62,7 +62,7 @@ class CayleyVisual(BaseVisual):
 
     def _log_edges(self, recording: rr.RecordingStream, path: str, space: CayleySpace) -> None:
         """Log the edges of every generator once, as static data."""
-        edges = [(str(site), str(neighbour)) for site, neighbour, _ in space.edges if site != neighbour]
+        edges = [(str(site), str(neighbour)) for site, neighbour, _ in space.edges_ if site != neighbour]
         recording.log(path, rr.GraphEdges(edges), static=True)
         self.edges_.add(path)
 
@@ -82,8 +82,8 @@ class CayleyVisual(BaseVisual):
         space = getattr(element.element, 'space', None)
         if not isinstance(space, CayleySpace):
             return
-        positions = space.positions * NODE_SPACING * UPWARD
-        nodes = [str(site) for site in range(space.size)]
+        positions = space.positions_ * NODE_SPACING * UPWARD
+        nodes = [str(site) for site in range(space.size_)]
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
@@ -117,7 +117,7 @@ class CayleyVisual(BaseVisual):
         space = getattr(getattr(element, 'element', None), 'space', None)
         if not isinstance(element, CompiledElement) or not isinstance(space, CayleySpace):
             return []
-        extent = (float(space.lengths.max(initial=0)) + 1.0) * NODE_SPACING
+        extent = (float(space.lengths_.max(initial=0)) + 1.0) * NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(-extent, extent), y_range=(-extent, extent))
         states = [state for state in element.states if self.states is None or state in self.states]
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]

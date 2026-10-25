@@ -147,9 +147,9 @@ def _unwrap(positions: Array, box: Array | None, *, periodic: bool) -> Array:
 def _space_box(space: object) -> tuple[Array | None, bool]:
     """Return the sides of a continuous or grid space and whether it is periodic."""
     if isinstance(space, ContinuousSpace):
-        return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
+        return np.asarray(space.extent_[:2], dtype=float), space.periodic_
     if isinstance(space, LatticeSpace):
-        return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
+        return np.asarray(space.shape_[:2], dtype=float), space.periodic_
     return None, False
 
 
@@ -242,8 +242,8 @@ def _positions_of(ids: npt.NDArray[np.int64], wanted: npt.NDArray[np.int64]) -> 
 def _particle_box(trajectory: Trajectory, group: str) -> Array | None:
     """Return the sides of the periodic box a particle group lives in, or `None` without one."""
     space = getattr(getattr(trajectory.problem, 'system', None), 'space', None)
-    if isinstance(space, ContinuousSpace) and space.boundary == 'periodic':
-        return np.asarray(space.extent, dtype=float)
+    if isinstance(space, ContinuousSpace) and space.periodic_:
+        return np.asarray(space.extent_, dtype=float)
     return None
 
 

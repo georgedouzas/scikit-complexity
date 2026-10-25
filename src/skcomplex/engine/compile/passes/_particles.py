@@ -28,15 +28,15 @@ from .._tree import Node
 def _space_period(node: Node) -> float | None:
     """Return the side of the periodic box that a pair interaction measures minimum image distances in, or `None`."""
     space = node.space
-    if not isinstance(space, ContinuousSpace) or space.boundary != 'periodic':
+    if not isinstance(space, ContinuousSpace) or not space.periodic_:
         return None
-    if len(set(space.extent)) > 1:
+    if len(set(space.extent_)) > 1:
         error_msg = (
-            f'Pair interaction {node.path} lives in the periodic box {space.extent}, whose sides differ. Pair searches '
-            'measure minimum image distances in boxes with equal sides.'
+            f'Pair interaction {node.path} lives in the periodic box {space.extent_}, whose sides differ. Pair '
+            'searches measure minimum image distances in boxes with equal sides.'
         )
         raise ValidationError(error_msg)
-    return space.extent[0]
+    return space.extent_[0]
 
 
 def _pair_spec(block: Block, elements: dict[str, Block], time: Expression) -> KernelSpec:
@@ -84,7 +84,7 @@ def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
         )
         positions = components_of(getattr(spec.namespace, name))
         velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
-        for position, velocity, side in zip(positions, velocities, space.extent, strict=True):
+        for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
             if space.boundary == 'periodic':
                 laws.append(BoundaryLaw(position, mod(position, side)))
                 continue

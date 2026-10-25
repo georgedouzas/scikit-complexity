@@ -122,7 +122,7 @@ def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
 
 def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
-    spacings = np.asarray(lattice.spacings, dtype=float)
+    spacings = np.asarray(lattice.spacings_, dtype=float)
     if field.discretization == 'spectral':
         return -np.sum(waves**2, axis=1)
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
@@ -138,7 +138,7 @@ def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
     if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
         error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
         raise AnalysisError(error_msg)
-    return field, field.space
+    return field, field.space.fit()
 
 
 def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -594,7 +594,7 @@ def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -
     start = [float(np.mean((at or {}).get(name, values.get(name, 0.0)))) for name in order]
     uniform = start if at is not None else _fixed_point(rates, variables)(start)
     substitution = dict(zip(variables, uniform, strict=True))
-    axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.dimensions, lattice.spacings, strict=True)]
+    axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.shape_, lattice.spacings_, strict=True)]
     waves = np.stack([grid.ravel() for grid in np.meshgrid(*axes, indexing='ij')], axis=1)
     eigenvalues = _laplacian_eigenvalues(field, lattice, waves)
     matrices = np.zeros((len(waves), len(order), len(order)))

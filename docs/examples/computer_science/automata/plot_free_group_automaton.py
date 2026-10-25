@@ -30,7 +30,7 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 
 space = system.elements[0].space
 alive = simulation.trajectory_['cells.alive']
-edges = np.asarray([(first, second) for first, second, _ in space.edges])
+edges = np.asarray([(first, second) for first, second, _ in space.edges_])
 agreement = (alive[:, edges[:, 0]] == alive[:, edges[:, 1]]).mean(axis=1)
 changed = (np.diff(alive, axis=0) != 0).mean(axis=1)
 fig, ax = plt.subplots(figsize=(6, 4))

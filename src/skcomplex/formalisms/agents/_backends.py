@@ -75,12 +75,12 @@ def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> M
     """Return the Mesa space of a framework space."""
     if isinstance(space, LatticeSpace):
         grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
-        return grid((space.width, space.height), torus=space.torus, capacity=space.capacity, random=model.random)
+        return grid(space.shape_[:2], torus=space.periodic_, capacity=space.capacity, random=model.random)
     if isinstance(space, NetworkSpace):
         return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
     if isinstance(space, ContinuousSpace):
-        bounds = [[0.0, space.width], [0.0, space.height]]
-        return MesaContinuousSpace(bounds, torus=space.torus, random=model.random, n_agents=max(n_agents, 1))
+        bounds = [[0.0, space.extent_[0]], [0.0, space.extent_[1]]]
+        return MesaContinuousSpace(bounds, torus=space.periodic_, random=model.random, n_agents=max(n_agents, 1))
     return None
 
 
@@ -853,7 +853,7 @@ class MesaSolver(Solver):
             for owner, invariant in problem.model_invariants
         ]
         time = getattr(problem.system, 'time', None)
-        schedule = time.schedule if isinstance(time, DiscreteTime) else None
+        schedule = time.schedule_ if isinstance(time, DiscreteTime) else None
         self._phases = _phase_plan(schedule.phases if isinstance(schedule, PhasesSchedule) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element))
@@ -898,7 +898,7 @@ class MesaSolver(Solver):
         """Place a new agent at a location, or at a random place that respects the space's capacity."""
         space = self.problem_.agent_space
         if isinstance(space, ContinuousSpace):
-            point = location if location is not None else self.model_.rng.uniform([0, 0], [space.width, space.height])
+            point = location if location is not None else self.model_.rng.uniform([0, 0], space.extent_[:2])
             agent.position = np.asarray(point, dtype=float)
         elif space is not None:
             if location is not None:
