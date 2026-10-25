@@ -17,10 +17,10 @@ from ._utils import wrap_angle
 class BaseDomain:
     """Base of the domains, the sets of values a variable takes.
 
-    A domain names its kind, which decides the laws that may target a variable of it, checks that a value belongs to
-    it, and turns values to and from the stored numbers of a state vector. Its methods raise `NotImplementedError`
-    rather than being abstract, so an enumeration of domains can derive from it. Its `value`, the name or parameters
-    of the domain, is declared and not defined, so it does not hide the value of an enumeration member.
+    A domain names its kind, which decides the laws that may target a variable of it, checks that a value belongs to it,
+    and turns values to and from the stored numbers of a state vector. Its methods raise `NotImplementedError` rather
+    than being abstract, so an enumeration of domains can derive from it. Its `value`, the name or parameters of the
+    domain, is declared and not defined, so it does not hide the value of an enumeration member.
     """
 
     value: Any
