@@ -2,6 +2,10 @@
 
 ## Context
 
+The names below are the ones this change gives the classes; today they lack their suffix, such as `Invariant`,
+`Rewriting`, and `Wiener`.
+
+
 - **Five quantities, three roots:**
   - `ObservableQuantity(BaseEstimator)` lives in `core/system`. Its docstring calls it a "named quantity of a system".
   - `AuxiliaryQuantity`, `InvariantQuantity`, and `ObjectiveQuantity` derive from `BaseLaw`, and are returned from a component's `laws`.
