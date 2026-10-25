@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ...core.base import (
+    BaseLaw,
     Expression,
     LawClass,
     LawKind,
@@ -16,7 +17,7 @@ from ...core.base import (
     TimeKind,
     Trait,
 )
-from ...core.laws import BaseLaw, OuterTotalistic, Table, Totalistic
+from ...core.laws import OuterTotalistic, Table, Totalistic
 from ...core.space import Adjacency, Memory, Neighborhood
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')

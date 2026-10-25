@@ -17,7 +17,6 @@ from ._functions import (
     step,
     where,
 )
-from ._law import BaseLaw, has_trait, is_registered, law_classes, register_laws
 from ._laws import (
     BoundaryLaw,
     Call,
@@ -43,7 +42,6 @@ from ._values import values_of
 __all__: list[str] = [
     'NEIGHBOR_REDUCTIONS',
     'Auxiliary',
-    'BaseLaw',
     'BoundaryLaw',
     'Call',
     'Draw',
@@ -80,11 +78,8 @@ __all__: list[str] = [
     'draws_in',
     'either',
     'has_reductions',
-    'has_trait',
     'is_draw',
-    'is_registered',
     'lag',
-    'law_classes',
     'lookup',
     'maximum',
     'mean',
@@ -97,7 +92,6 @@ __all__: list[str] = [
     'pulse_train',
     'ramp',
     'reductions_in',
-    'register_laws',
     'series',
     'shift_member',
     'step',

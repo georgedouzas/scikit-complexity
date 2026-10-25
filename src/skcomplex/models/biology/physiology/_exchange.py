@@ -8,9 +8,9 @@ from collections.abc import Sequence
 import networkx as nx
 import numpy as np
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, shift_member
+from ....core.laws import RateLaw, Symbols, UpdateLaw, shift_member
 from ....core.space import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

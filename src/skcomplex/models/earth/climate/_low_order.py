@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import state, vector
+from ....core.base import BaseLaw, state, vector
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model

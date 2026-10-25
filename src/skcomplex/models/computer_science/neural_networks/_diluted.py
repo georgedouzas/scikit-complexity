@@ -9,9 +9,9 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, total, uniform, where
+from ....core.laws import Symbols, UpdateLaw, total, uniform, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 

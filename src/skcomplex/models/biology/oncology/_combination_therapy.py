@@ -7,9 +7,9 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import exp, log, sin
 
-from ....core.base import Expression, NumericDomain, ParameterError, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, ParameterError, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, pulse, where
+from ....core.laws import RateLaw, Symbols, pulse, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver

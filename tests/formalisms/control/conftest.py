@@ -7,9 +7,9 @@ import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import exp
 
-from skcomplex.core.base import NumericDomain, parameter, state
+from skcomplex.core.base import BaseLaw, NumericDomain, parameter, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import BaseLaw, Objective, RateLaw, Symbols
+from skcomplex.core.laws import Objective, RateLaw, Symbols
 from skcomplex.core.system import System
 
 HORIZON = 1.0

@@ -5,8 +5,8 @@
 
 from typing import Any
 
-from ..base import VariableKind, declarations_of, symbol
-from ..laws import BaseLaw, Symbols
+from ..base import BaseLaw, VariableKind, declarations_of, symbol
+from ..laws import Symbols
 from ._component import BaseComponent
 from ._components import GroupComponent
 

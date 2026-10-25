@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...core.base import (
+    BaseLaw,
+    BaseSpace,
     ComponentKind,
     Expression,
     Registry,
@@ -21,26 +23,14 @@ from ...core.base import (
     VariableKind,
     components_of,
     declarations_of,
+    has_trait,
+    is_registered,
+    law_classes,
     symbol,
     symbols_of,
 )
 from ...core.components import GroupComponent
-from ...core.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    EquationLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    Objective,
-    RateLaw,
-    UpdateLaw,
-    has_trait,
-    is_registered,
-    law_classes,
-    values_of,
-)
-from ...core.space import BaseSpace
+from ...core.laws import BoundaryLaw, EquationLaw, EventLaw, JumpLaw, NoiseLaw, Objective, RateLaw, UpdateLaw, values_of
 from ...core.system import System
 from ._declarations import Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, PairSearch

@@ -12,9 +12,9 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Expression, SymbolicVector, ValidationError, components_of
+from ....core.base import BaseLaw, Expression, SymbolicVector, ValidationError, components_of
 from ....core.components import Wiener
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.laws import NoiseLaw, RateLaw
 from ....core.laws._laws import NOISE_CONVENTIONS
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

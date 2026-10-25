@@ -9,9 +9,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
+from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model

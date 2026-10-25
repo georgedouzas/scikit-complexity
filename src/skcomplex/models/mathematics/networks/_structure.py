@@ -8,9 +8,9 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import NetworkSpace
 from ....core.system import Observable, System
 from ....engine.analysis import assortativity, centrality, communities, motif_zscores, summarize_network

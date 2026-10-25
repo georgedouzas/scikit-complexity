@@ -11,8 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Requires, SpaceError, SpaceKind, ValidationError
-from ._spaces import BaseSpace
+from ..base import BaseSpace, Requires, SpaceError, SpaceKind, ValidationError
 
 type Seed = int | np.random.Generator | None
 type Indices = npt.NDArray[np.intp]

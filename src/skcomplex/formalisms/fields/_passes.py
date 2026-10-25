@@ -12,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, ValidationError, VariableKind, declarations_of
-from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.base import BaseLaw, Expression, ValidationError, VariableKind, declarations_of
+from ...core.laws import BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.space import LatticeSpace
 from ...engine.compile import (
     BasePass,

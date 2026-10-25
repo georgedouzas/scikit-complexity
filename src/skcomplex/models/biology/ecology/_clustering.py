@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, JumpLaw, Symbols
+from ....core.laws import JumpLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

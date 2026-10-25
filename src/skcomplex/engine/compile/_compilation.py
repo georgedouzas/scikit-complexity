@@ -7,8 +7,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...core.base import Expression, Form
-from ...core.laws import BaseLaw, EventLaw
+from ...core.base import BaseLaw, Expression, Form
+from ...core.laws import EventLaw
 from ...core.system import System
 from ._backends import BaseBackend
 from ._census import Census

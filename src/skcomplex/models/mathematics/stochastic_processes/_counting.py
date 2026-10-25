@@ -5,9 +5,9 @@
 
 from typing import ClassVar
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, JumpLaw, Symbols
+from ....core.laws import JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw

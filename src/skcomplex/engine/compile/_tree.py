@@ -13,6 +13,7 @@ import numpy.typing as npt
 
 from ...core.base import (
     BaseDomain,
+    BaseSpace,
     LabelError,
     NumericDomain,
     SpaceError,
@@ -20,11 +21,11 @@ from ...core.base import (
     Trait,
     ValidationError,
     Variable,
+    has_trait,
 )
 from ...core.components import ElementComponent, GroupComponent, probe_laws
 from ...core.interactions import BaseInteraction
-from ...core.laws import has_trait
-from ...core.space import BaseSpace, LatticeSpace, NetworkSpace, part_count
+from ...core.space import LatticeSpace, NetworkSpace, part_count
 from ...core.system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')

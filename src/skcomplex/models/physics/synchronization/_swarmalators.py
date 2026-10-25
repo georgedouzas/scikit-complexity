@@ -9,10 +9,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
-from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model

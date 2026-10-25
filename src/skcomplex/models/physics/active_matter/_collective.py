@@ -11,10 +11,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
+from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

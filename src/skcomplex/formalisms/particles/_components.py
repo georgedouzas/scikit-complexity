@@ -7,9 +7,9 @@ from typing import ClassVar
 
 import numpy.typing as npt
 
-from ...core.base import NumericDomain, Requires, SpaceKind, VisualSpec, parameter, state
+from ...core.base import BaseLaw, NumericDomain, Requires, SpaceKind, VisualSpec, parameter, state
 from ...core.components import ElementComponent
-from ...core.laws import BaseLaw, RateLaw, Symbols
+from ...core.laws import RateLaw, Symbols
 
 
 class ParticleComponent(ElementComponent):

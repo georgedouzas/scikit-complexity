@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, matrix
 
 from ....core.base import (
+    BaseLaw,
     Expression,
     SymbolicVector,
     Trait,
@@ -21,22 +22,11 @@ from ....core.base import (
     VariableKind,
     components_of,
     declarations_of,
+    has_trait,
     symbol,
     vector,
 )
-from ....core.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    Call,
-    EquationLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    Symbols,
-    UpdateLaw,
-    has_trait,
-)
+from ....core.laws import BoundaryLaw, Call, EquationLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw
 from ....core.laws._laws import RenewalLaw
 from .._compilation import BlockLaws, Compilation
 from .._complex import split_law

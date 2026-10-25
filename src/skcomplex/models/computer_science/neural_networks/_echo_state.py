@@ -9,9 +9,9 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import sin, tanh
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, total
+from ....core.laws import Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
 

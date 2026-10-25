@@ -7,9 +7,9 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

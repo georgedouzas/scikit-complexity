@@ -7,9 +7,9 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import cos, pi
 
-from ....core.base import Expression, NumericDomain, state
+from ....core.base import BaseLaw, Expression, NumericDomain, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 

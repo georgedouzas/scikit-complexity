@@ -6,10 +6,10 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ....core.base import Expression, parameter, role, state
+from ....core.base import BaseLaw, Expression, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, BoundaryLaw, RateLaw, Symbols, derivative, where
+from ....core.laws import BoundaryLaw, RateLaw, Symbols, derivative, where
 
 
 def _limited(value: Expression, limits: tuple[float, float] | None) -> Expression:

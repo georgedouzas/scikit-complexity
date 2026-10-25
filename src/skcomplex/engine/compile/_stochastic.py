@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import SR
 from scipy import stats
 
 from ...core.base import (
+    BaseLaw,
     CategoricalDomain,
     Expression,
     IncompatibleLawsError,
@@ -27,7 +28,6 @@ from ...core.base import (
     vector,
 )
 from ...core.laws import (
-    BaseLaw,
     BoundaryLaw,
     Call,
     Draw,

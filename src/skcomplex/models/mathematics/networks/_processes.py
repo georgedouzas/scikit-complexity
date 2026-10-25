@@ -8,9 +8,9 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw
+from ....core.laws import RateLaw, Symbols, UpdateLaw
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

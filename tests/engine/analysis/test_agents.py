@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from scipy.spatial import cKDTree
 
-from skcomplex.core.base import AnalysisError, NumericDomain, VisualSpec, state
+from skcomplex.core.base import AnalysisError, BaseLaw, NumericDomain, VisualSpec, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import BaseLaw, Symbols
+from skcomplex.core.laws import Symbols
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import (

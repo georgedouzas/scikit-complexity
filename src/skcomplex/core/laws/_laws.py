@@ -11,6 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ..base import (
+    BaseLaw,
     DomainKind,
     Expression,
     LawClass,
@@ -20,8 +21,8 @@ from ..base import (
     TimeKind,
     Trait,
     ValidationError,
+    register_laws,
 )
-from ._law import BaseLaw, register_laws
 
 type Target = Expression | SymbolicVector
 type Process = str | tuple[str, ...] | Expression | SymbolicVector | None

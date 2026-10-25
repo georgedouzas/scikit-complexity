@@ -42,6 +42,8 @@ from ._kinds import (
     Trait,
     vocabulary,
 )
+from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
+from ._spaces import BaseSpace, BaseTime
 from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
 from ._utils import Registry, VisualSpec, wrap_angle
 from ._variables import Variable, VariableKind, declaration_of, declarations_of, declared_fields, parameter, role, state
@@ -53,6 +55,9 @@ __all__: list[str] = [
     'BackendError',
     'BackendWarning',
     'BaseDomain',
+    'BaseLaw',
+    'BaseSpace',
+    'BaseTime',
     'Binding',
     'CapacityError',
     'CategoricalDomain',
@@ -98,7 +103,11 @@ __all__: list[str] = [
     'declarations_of',
     'declared_fields',
     'domain_of',
+    'has_trait',
+    'is_registered',
+    'law_classes',
     'parameter',
+    'register_laws',
     'role',
     'state',
     'symbol',

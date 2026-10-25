@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import exp, sqrt
 
-from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, bernoulli, normal, where
+from ....core.laws import Symbols, UpdateLaw, bernoulli, normal, where
 from ....core.system import System
 from ....engine.runtime import register_model
 

@@ -6,7 +6,8 @@
 from dataclasses import replace
 from typing import cast
 
-from ....core.laws import Auxiliary, BaseLaw, Invariant, TransferLaw
+from ....core.base import BaseLaw
+from ....core.laws import Auxiliary, Invariant, TransferLaw
 from .._census import Census
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations

@@ -9,9 +9,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, JumpLaw, Symbols, count, mean, total, where
+from ....core.laws import JumpLaw, Symbols, count, mean, total, where
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

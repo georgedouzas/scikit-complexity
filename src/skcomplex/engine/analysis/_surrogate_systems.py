@@ -12,10 +12,9 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnalysisError, Expression
+from ...core.base import AnalysisError, BaseLaw, BaseTime, Expression
 from ...core.components import ElementComponent
-from ...core.laws import BaseLaw, Symbols
-from ...core.space import BaseTime
+from ...core.laws import Symbols
 from ...core.system import System
 from ..runtime import Trajectory
 from ._adapters import Series, series_of

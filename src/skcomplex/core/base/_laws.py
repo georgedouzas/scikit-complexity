@@ -1,4 +1,4 @@
-"""Define the base of every law, which declares its kind, its time class, and its traits, and the registry of laws."""
+"""Define the base of the laws, the rules by which the states of a system change, and their registry."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,7 +6,9 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ..base import LawClass, LawKind, Registry, RegistryError, Requires, Trait
+from ._errors import RegistryError
+from ._kinds import LawClass, LawKind, Requires, Trait
+from ._utils import Registry
 
 
 def _check_declarations(cls: type) -> None:
@@ -44,7 +46,8 @@ def register_laws(*classes: type['BaseLaw']) -> None:
             A class is not a law class, or does not declare its kind, its time class, or its requirements.
 
     Examples:
-        >>> from skcomplex.core.laws import RateLaw, law_classes, register_laws
+        >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.base import law_classes, register_laws
         >>> register_laws(RateLaw)
         >>> law_classes().count(RateLaw)
         1
@@ -69,7 +72,7 @@ def law_classes(trait: Trait | None = None) -> tuple[type['BaseLaw'], ...]:
     Examples:
         >>> from skcomplex.core.base import Trait
         >>> from skcomplex.formalisms.fields import FluxLaw
-        >>> from skcomplex.core.laws import law_classes
+        >>> from skcomplex.core.base import law_classes
         >>> FluxLaw in law_classes(Trait.FORMLESS)
         True
     """
@@ -90,7 +93,8 @@ def is_registered(law: object) -> bool:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import RateLaw, is_registered
+        >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.base import is_registered
         >>> is_registered(RateLaw(symbol('x'), 1)), is_registered(object())
         (True, False)
     """
@@ -115,7 +119,8 @@ def has_trait(law: object, trait: Trait) -> bool:
 
     Examples:
         >>> from skcomplex.core.base import Trait, symbol
-        >>> from skcomplex.core.laws import BoundaryLaw, RateLaw, has_trait
+        >>> from skcomplex.core.laws import BoundaryLaw, RateLaw
+        >>> from skcomplex.core.base import has_trait
         >>> x = symbol('x')
         >>> has_trait(BoundaryLaw(x, 0), Trait.FORMLESS), has_trait(RateLaw(x, 1), Trait.FORMLESS)
         (True, False)
@@ -134,7 +139,8 @@ class BaseLaw:
 
     Examples:
         >>> from skcomplex.core.base import LawClass, LawKind
-        >>> from skcomplex.core.laws import BaseLaw, RateLaw
+        >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.base import BaseLaw
         >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
         (True, True, True)
     """

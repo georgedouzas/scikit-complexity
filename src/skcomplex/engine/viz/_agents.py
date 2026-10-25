@@ -10,7 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.space import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.base import BaseSpace
+from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot

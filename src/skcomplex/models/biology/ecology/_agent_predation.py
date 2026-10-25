@@ -7,9 +7,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, parameter
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

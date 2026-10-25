@@ -10,9 +10,20 @@ from typing import ClassVar
 
 import pytest
 
-from skcomplex.core.base import LawClass, LawKind, NumericDomain, RegistryError, Requires, Trait, state
+from skcomplex.core.base import (
+    BaseLaw,
+    LawClass,
+    LawKind,
+    NumericDomain,
+    RegistryError,
+    Requires,
+    Trait,
+    is_registered,
+    register_laws,
+    state,
+)
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import BaseLaw, Symbols, is_registered, register_laws
+from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
 from skcomplex.formalisms import Formalism, register
@@ -83,7 +94,7 @@ def test_register_adds_contributions_to_their_registries():
         'import json\n'
         'from tests.formalisms import outside\n'
         'from skcomplex.formalisms import register, registered_formalisms\n'
-        'from skcomplex.core.laws import law_classes\n'
+        'from skcomplex.core.base import law_classes\n'
         'from skcomplex.engine.compile import SOLVERS\n'
         'register(outside.FORMALISM)\n'
         'print(json.dumps({\n'

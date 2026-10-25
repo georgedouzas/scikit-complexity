@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter
+from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, where
+from ....core.laws import EventLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 

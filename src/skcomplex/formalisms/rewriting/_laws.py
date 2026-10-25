@@ -11,8 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import DomainKind, LawClass, LawKind, Requires, SkcomplexError, TimeKind
-from ...core.laws import BaseLaw
+from ...core.base import BaseLaw, DomainKind, LawClass, LawKind, Requires, SkcomplexError, TimeKind
 
 
 class RewritingError(SkcomplexError):

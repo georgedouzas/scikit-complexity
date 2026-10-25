@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnalysisError, vector
-from ...core.laws import BaseLaw, Call, Symbols, UpdateLaw
+from ...core.base import AnalysisError, BaseLaw, vector
+from ...core.laws import Call, Symbols, UpdateLaw
 from ...core.space import DiscreteTime
 from ._kinds import DataKind, analysis
 from ._lazy import module

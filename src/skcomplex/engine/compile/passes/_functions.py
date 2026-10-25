@@ -12,8 +12,8 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import BackendWarning, Expression, Form, NumericDomain, wrap_angle
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.base import BackendWarning, BaseLaw, Expression, Form, NumericDomain, wrap_angle
+from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._arrays import Vector
 from .._backends import BaseBackend, Lowering, resolve_backend
 from .._compilation import Compilation

@@ -2,10 +2,8 @@
 
 import dataclasses
 
-import pytest
-
-from skcomplex.core.base import LawClass, LawKind, Trait, ValidationError, symbol
-from skcomplex.core.laws import BaseLaw, BoundaryLaw, Invariant, JumpLaw, RateLaw, draw, has_trait, law_classes
+from skcomplex.core.base import BaseLaw, LawClass, LawKind, Trait, has_trait, law_classes, symbol
+from skcomplex.core.laws import BoundaryLaw, Invariant, RateLaw
 from skcomplex.formalisms.agents import MatchLaw
 from skcomplex.formalisms.lattices import LocalRuleLaw
 from skcomplex.formalisms.quantum import DissipatorLaw, GeneratorLaw
@@ -46,18 +44,4 @@ def test_has_trait_reads_laws_and_classes():
 def test_law_is_importable_at_run_time():
     """Test that the law base is a class that introspection can evaluate."""
     assert isinstance(BaseLaw, type)
-    assert BaseLaw.__module__ == 'skcomplex.core.laws._law'
-
-
-@pytest.mark.parametrize(
-    ('arguments', 'message'),
-    [
-        ({'waiting': draw('wait', 'expon'), 'changes': {symbol('n'): 1}}, 'changes belong to the exponential clock'),
-        ({'rate': 1.0, 'changes': {symbol('n'): 1}, 'reset': {symbol('n'): 0}}, 'resets and labels to the waiting'),
-        ({'rate': 1.0, 'changes': {symbol('n'): 1}, 'label': 'fires'}, 'takes a label'),
-    ],
-)
-def test_jump_rejects_option_of_other_clock(arguments, message):
-    """Test that a jump rejects at construction an option of the clock it does not use."""
-    with pytest.raises(ValidationError, match=message):
-        JumpLaw(**arguments)
+    assert BaseLaw.__module__ == 'skcomplex.core.base._laws'

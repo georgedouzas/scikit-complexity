@@ -7,8 +7,7 @@ import itertools
 from dataclasses import replace
 from typing import cast
 
-from ...core.base import Form, Trait, ValidationError
-from ...core.laws import BaseLaw, has_trait
+from ...core.base import BaseLaw, Form, Trait, ValidationError, has_trait
 from ...core.space import NetworkSpace, SiteSpace
 from ...engine.compile import (
     BasePass,

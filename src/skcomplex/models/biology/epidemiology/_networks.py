@@ -7,9 +7,9 @@
 import networkx as nx
 import numpy as np
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, total
+from ....core.laws import RateLaw, Symbols, total
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

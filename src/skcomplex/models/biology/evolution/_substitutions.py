@@ -9,10 +9,10 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, JumpLaw, Symbols, total
+from ....core.laws import JumpLaw, Symbols, total
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

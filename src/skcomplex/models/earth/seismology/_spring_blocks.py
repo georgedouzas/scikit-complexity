@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import NumericDomain, state
+from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, both, where
+from ....core.laws import RateLaw, Symbols, both, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

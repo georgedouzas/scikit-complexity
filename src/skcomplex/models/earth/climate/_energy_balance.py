@@ -8,9 +8,9 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from ....core.base import Expression, NumericDomain, state
+from ....core.base import BaseLaw, Expression, NumericDomain, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, where
+from ....core.laws import RateLaw, Symbols, where
 from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

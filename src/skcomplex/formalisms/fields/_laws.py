@@ -11,6 +11,7 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ...core.base import (
+    BaseLaw,
     DomainKind,
     Expression,
     LawClass,
@@ -23,7 +24,6 @@ from ...core.base import (
     components_of,
     vector,
 )
-from ...core.laws import BaseLaw
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 LIMITERS = ('minmod', 'van-leer', None)

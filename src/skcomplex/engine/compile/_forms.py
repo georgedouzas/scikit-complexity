@@ -6,8 +6,8 @@
 from collections.abc import Iterable, Mapping
 from typing import cast
 
-from ...core.base import Form, IncompatibleLawsError, Registry, Trait
-from ...core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw, has_trait
+from ...core.base import Form, IncompatibleLawsError, Registry, Trait, has_trait
+from ...core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 
 CORE_FORMS: Mapping[frozenset[type], Form] = {
     frozenset(): Form.ODE,

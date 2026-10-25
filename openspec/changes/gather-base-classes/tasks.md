@@ -9,7 +9,7 @@
   and `BaseInteraction`, derive the element and group classes from `BaseComponent`, and remove `Interaction` and
   `core/interactions`. Detach `System`, and rewrite every `isinstance` check against the base it means. Verify with
   the scenario "System and interaction".
-- [ ] 1.3 Move `Law` with its registry helpers, `Space`, and `Time` into `core/base` as `BaseLaw`, `BaseSpace`, and
+- [x] 1.3 Move `Law` with its registry helpers, `Space`, and `Time` into `core/base` as `BaseLaw`, `BaseSpace`, and
   `BaseTime`.
 
 ## 2. Problem, solver, and backend bases

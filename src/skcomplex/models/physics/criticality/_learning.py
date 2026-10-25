@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, total, uniform, where
+from ....core.laws import Symbols, UpdateLaw, total, uniform, where
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 

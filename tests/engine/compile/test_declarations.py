@@ -17,9 +17,10 @@ from skcomplex.core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    law_classes,
     vocabulary,
 )
-from skcomplex.core.laws import RateLaw, UpdateLaw, law_classes
+from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.engine.compile import BACKENDS, SOLVERS, missing_declarations
 from skcomplex.engine.solvers import Solver

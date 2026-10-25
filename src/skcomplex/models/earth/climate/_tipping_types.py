@@ -8,9 +8,9 @@ from typing import Any
 
 import numpy as np
 
-from ....core.base import NumericDomain, ValidationError, parameter, state
+from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols, ramp
+from ....core.laws import NoiseLaw, RateLaw, Symbols, ramp
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver

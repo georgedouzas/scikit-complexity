@@ -11,6 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
+    BaseLaw,
     DomainKind,
     Expression,
     LawClass,
@@ -21,7 +22,6 @@ from ...core.base import (
     Trait,
     ValidationError,
 )
-from ...core.laws import BaseLaw
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 

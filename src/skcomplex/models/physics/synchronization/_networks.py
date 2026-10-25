@@ -9,10 +9,10 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, RateLaw, Symbols, UpdateLaw, neighbors
+from ....core.laws import RateLaw, Symbols, UpdateLaw, neighbors
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

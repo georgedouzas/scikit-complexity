@@ -7,9 +7,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, bernoulli, normal
+from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, bernoulli, normal
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw

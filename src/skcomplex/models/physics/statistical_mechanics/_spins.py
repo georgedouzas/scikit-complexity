@@ -9,9 +9,9 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, neighbors, where
+from ....core.laws import Symbols, neighbors, where
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
 from ....engine.runtime import register_model

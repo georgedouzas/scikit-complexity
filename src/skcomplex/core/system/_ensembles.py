@@ -9,9 +9,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Trait, ValidationError
+from ..base import Trait, ValidationError, has_trait
 from ..components import ElementComponent, GroupComponent, probe_laws
-from ..laws import has_trait
 from ._systems import System
 
 

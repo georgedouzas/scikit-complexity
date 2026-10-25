@@ -8,9 +8,9 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import ElementComponent, GroupComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, uniform, where
+from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

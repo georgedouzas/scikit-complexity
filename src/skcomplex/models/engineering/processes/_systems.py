@@ -7,9 +7,9 @@ import math
 
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, BaseLaw, RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
+from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._delays import delay3, smooth

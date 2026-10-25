@@ -12,8 +12,7 @@ import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
-from ...core.laws import BaseLaw
+from ...core.base import BaseLaw, DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'

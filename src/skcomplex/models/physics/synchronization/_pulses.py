@@ -6,10 +6,10 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Expression, NumericDomain, parameter
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, EventLaw, RateLaw, Symbols, maximum, mean, where
+from ....core.laws import EventLaw, RateLaw, Symbols, maximum, mean, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._utils import _order_parameter

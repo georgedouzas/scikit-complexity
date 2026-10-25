@@ -13,6 +13,7 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
+    BaseSpace,
     DomainKind,
     Form,
     LabelError,
@@ -35,17 +36,12 @@ from ...core.base import (
     ValidationError,
     VariableKind,
     declarations_of,
+    law_classes,
 )
 from ...core.components import ElementComponent, GroupComponent, Wiener
-from ...core.laws import (
-    JumpLaw,
-    NoiseLaw,
-    law_classes,
-    neighborhoods_in,
-    values_of,
-)
+from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
 from ...core.laws._neighbourhoods import NeighborReduction
-from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace, SiteSpace
+from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace
 from ...core.system import Observable, System
 from ._backends import BACKENDS, BaseBackend
 from ._census import Census, CensusRecord

@@ -8,9 +8,9 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

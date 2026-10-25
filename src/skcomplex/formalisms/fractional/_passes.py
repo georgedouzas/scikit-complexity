@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BackendError,
+    BaseLaw,
     Expression,
     Form,
     OrderKind,
@@ -26,7 +27,7 @@ from ...core.base import (
     declarations_of,
     symbols_of,
 )
-from ...core.laws import BaseLaw, NoiseLaw
+from ...core.laws import NoiseLaw
 from ...engine.compile import (
     BACKENDS,
     BasePass,

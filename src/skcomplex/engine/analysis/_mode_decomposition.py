@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
-from ...core.base import vector
-from ...core.laws import BaseLaw, RateLaw, Symbols
+from ...core.base import BaseLaw, vector
+from ...core.laws import RateLaw, Symbols
 from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module

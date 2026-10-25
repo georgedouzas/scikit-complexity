@@ -13,6 +13,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
+    BaseLaw,
+    BaseSpace,
     Expression,
     LabelError,
     NumericDomain,
@@ -27,8 +29,8 @@ from ...core.base import (
     vector,
 )
 from ...core.components import GroupComponent
-from ...core.laws import BaseLaw, JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
-from ...core.space import BaseSpace, NetworkSpace, SiteSpace, neighbor_pairs
+from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
+from ...core.space import NetworkSpace, SiteSpace, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
 from ._real_parts import real_components_of

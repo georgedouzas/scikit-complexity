@@ -7,7 +7,7 @@ from typing import ClassVar
 
 from sklearn.base import BaseEstimator
 
-from ..base import TimeKind, ValidationError
+from ..base import BaseTime, TimeKind, ValidationError
 
 SCHEDULES = ('synchronous', 'random-sequential')
 
@@ -17,19 +17,6 @@ class Schedule(BaseEstimator):
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the name of the schedule."""
-        return f'{type(self).__name__}()'
-
-
-class BaseTime(BaseEstimator):
-    """Base class of the time of a system, which decides the laws the system may hold.
-
-    Subclasses set the class variable `kind`.
-    """
-
-    kind: ClassVar[TimeKind]
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the name of the time."""
         return f'{type(self).__name__}()'
 
 

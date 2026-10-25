@@ -13,8 +13,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ...core.base import Expression, ValidationError, symbols_of
-from ...core.laws import BaseLaw, NumericFunction
+from ...core.base import BaseLaw, Expression, ValidationError, symbols_of
+from ...core.laws import NumericFunction
 from ._arrays import Indices, Vector
 from ._layout import Entry, Layout
 from ._printing import numpy_function

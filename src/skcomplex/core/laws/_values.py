@@ -6,8 +6,7 @@
 import dataclasses
 from collections.abc import Collection, Mapping
 
-from ..base import SymbolicVector
-from ._law import BaseLaw
+from ..base import BaseLaw, SymbolicVector
 from ._laws import Call
 
 

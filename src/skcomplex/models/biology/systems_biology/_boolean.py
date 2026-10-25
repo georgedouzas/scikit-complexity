@@ -10,10 +10,10 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Expression, NumericDomain, ValidationError, parameter, role, state
+from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, where
+from ....core.laws import Symbols, UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 

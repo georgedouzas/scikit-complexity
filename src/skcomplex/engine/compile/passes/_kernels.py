@@ -6,8 +6,8 @@
 from collections import defaultdict
 from typing import cast
 
-from ....core.base import Expression, Trait, ValidationError, components_of, symbols_of
-from ....core.laws import BaseLaw, BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, has_trait
+from ....core.base import BaseLaw, Expression, Trait, ValidationError, components_of, has_trait, symbols_of
+from ....core.laws import BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

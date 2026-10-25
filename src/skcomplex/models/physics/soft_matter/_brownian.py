@@ -8,9 +8,9 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import cos, sqrt
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, Symbols
+from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 

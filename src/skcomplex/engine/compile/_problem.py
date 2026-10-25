@@ -12,6 +12,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import (
+    BaseLaw,
+    BaseSpace,
     Expression,
     Form,
     SymbolicVector,
@@ -23,8 +25,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.interactions import BaseInteraction
-from ...core.laws import BaseLaw, Invariant
-from ...core.space import BaseSpace
+from ...core.laws import Invariant
 from ...core.system import Observable, System
 from ._arrays import Vector
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay

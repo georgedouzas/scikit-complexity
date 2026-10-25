@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import NumericDomain, parameter
+from ....core.base import BaseLaw, NumericDomain, parameter
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols, both, pulse_train, where
+from ....core.laws import NoiseLaw, RateLaw, Symbols, both, pulse_train, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

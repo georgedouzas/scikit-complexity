@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.base import NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, total, uniform, where
+from ....core.laws import Symbols, UpdateLaw, neighbors, total, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

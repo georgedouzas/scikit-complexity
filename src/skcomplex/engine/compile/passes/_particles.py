@@ -5,9 +5,9 @@
 
 from typing import cast
 
-from ....core.base import Expression, ValidationError, VariableKind, components_of, declarations_of
+from ....core.base import BaseLaw, Expression, ValidationError, VariableKind, components_of, declarations_of
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, BoundaryLaw, Symbols, either, mod, where
+from ....core.laws import BoundaryLaw, Symbols, either, mod, where
 from ....core.space import ContinuousSpace
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction

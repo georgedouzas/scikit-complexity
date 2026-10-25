@@ -9,23 +9,8 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
-from ..base import SpaceKind, ValidationError
-
-
-class BaseSpace(BaseEstimator):
-    """Base class of spaces, which give vector states and parameters their dimension.
-
-    Subclasses expose the number of dimensions as `n_dim`, and name in `lacks` the options of their kind they do not
-    offer, such as `'regular-geometry'` for the checkerboard schedule of a square lattice and `'image'` for image
-    visuals.
-    """
-
-    space_kind: ClassVar[SpaceKind]
-    lacks: ClassVar[frozenset[str]] = frozenset()
-
-    n_dim: int
+from ..base import BaseSpace, SpaceKind, ValidationError
 
 
 class SiteSpace[Reach](BaseSpace, ABC):

@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, BaseLaw, RateLaw, Sink, Source, Symbols, TransferLaw
+from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 

@@ -6,9 +6,9 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ....core.base import NumericDomain, state
+from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, EmissionLaw, Symbols, TransitionLaw
+from ....core.laws import EmissionLaw, Symbols, TransitionLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 

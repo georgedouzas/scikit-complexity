@@ -6,9 +6,9 @@
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import NumericDomain, VisualSpec, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

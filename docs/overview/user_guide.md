@@ -128,7 +128,8 @@ registered classes, optionally only those with a trait.
 from skcomplex.core.laws import RateLaw
 
 from skcomplex.core.base import LawKind, Trait
-from skcomplex.core.laws import BoundaryLaw, BaseLaw, law_classes
+from skcomplex.core.laws import BoundaryLaw
+from skcomplex.core.base import BaseLaw, law_classes
 
 print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class)
 print(Trait.FORMLESS in BoundaryLaw.traits, RateLaw in law_classes(Trait.DECLARABLE))
@@ -1218,7 +1219,7 @@ from skcomplex.core.base import (
 from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass
 from skcomplex.core.components import ElementComponent
 from skcomplex.formalisms import Formalism, register
-from skcomplex.core.laws import BaseLaw
+from skcomplex.core.base import BaseLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import Solver
 from skcomplex.core.system import System

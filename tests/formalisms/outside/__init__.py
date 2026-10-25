@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from skcomplex.core.base import (
+    BaseLaw,
     ComponentKind,
     DomainKind,
     Form,
@@ -24,7 +25,7 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import BaseLaw, Symbols
+from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
 from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass, Vector
 from skcomplex.engine.solvers import Solver

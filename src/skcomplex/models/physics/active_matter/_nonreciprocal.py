@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, state, vector
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, uniform
+from ....core.laws import Symbols, UpdateLaw, neighbors, uniform
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

@@ -10,20 +10,8 @@ from collections.abc import Callable
 import numpy as np
 from sage.all__sagemath_symbolics import SR, I, arctan2, sqrt
 
-from ...core.base import Expression, SymbolicVector, Trait, ValidationError, components_of
-from ...core.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    Call,
-    EquationLaw,
-    EventLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    UpdateLaw,
-    has_trait,
-    values_of,
-)
+from ...core.base import BaseLaw, Expression, SymbolicVector, Trait, ValidationError, components_of, has_trait
+from ...core.laws import BoundaryLaw, Call, EquationLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
 from ._lowering import SHIFT, symbolic_components
 
 LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})

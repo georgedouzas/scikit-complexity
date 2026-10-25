@@ -14,6 +14,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ....core.base import (
+    BaseLaw,
     Expression,
     NumericDomain,
     RoleError,
@@ -26,7 +27,6 @@ from ....core.base import (
     vector,
 )
 from ....core.laws import (
-    BaseLaw,
     BoundaryLaw,
     Call,
     JumpLaw,

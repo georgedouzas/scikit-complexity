@@ -10,10 +10,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import KDTree
 
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

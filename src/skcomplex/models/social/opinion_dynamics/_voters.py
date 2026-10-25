@@ -10,9 +10,9 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, Totalistic
+from ....core.laws import Symbols, Totalistic
 from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

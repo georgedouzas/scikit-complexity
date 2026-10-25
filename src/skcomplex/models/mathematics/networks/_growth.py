@@ -5,9 +5,9 @@
 
 from typing import ClassVar
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
+from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import ElementComponent, GroupComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, neighbors, total, where
+from ....core.laws import Symbols, UpdateLaw, neighbors, total, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model

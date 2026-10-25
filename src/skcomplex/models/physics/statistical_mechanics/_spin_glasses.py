@@ -8,9 +8,9 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, neighbors
+from ....core.laws import Symbols, neighbors
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

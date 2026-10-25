@@ -8,8 +8,8 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import ValidationError
-from ...core.laws import BaseLaw, JumpLaw, UpdateLaw
+from ...core.base import BaseLaw, ValidationError
+from ...core.laws import JumpLaw, UpdateLaw
 from ...core.space import NetworkSpace
 from ...engine.compile import (
     BasePass,

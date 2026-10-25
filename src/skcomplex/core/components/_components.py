@@ -9,6 +9,8 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ..base import (
+    BaseLaw,
+    BaseSpace,
     ComponentKind,
     NumericDomain,
     Requires,
@@ -18,8 +20,7 @@ from ..base import (
     VisualSpec,
     declarations_of,
 )
-from ..laws import BaseLaw
-from ..space import BaseSpace, LatticeSpace, NetworkSpace, SiteSpace, part_count
+from ..space import LatticeSpace, NetworkSpace, SiteSpace, part_count
 from ._component import BaseComponent
 
 PARTS = ('sites', 'edges', 'hyperedges')

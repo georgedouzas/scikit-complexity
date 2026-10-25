@@ -17,6 +17,8 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
 from ...core.base import (
+    BaseLaw,
+    BaseSpace,
     ComponentKind,
     ConservationError,
     DomainKind,
@@ -32,8 +34,7 @@ from ...core.base import (
     declarations_of,
 )
 from ...core.components import GroupComponent
-from ...core.laws import BaseLaw
-from ...core.space import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ...core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem, Vector
 from ...engine.solvers import AgentSnapshot, AgentState, Solver
 from ._laws import RuleLaw

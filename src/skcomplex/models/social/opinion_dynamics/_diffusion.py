@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, role, state
+from ....core.base import BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

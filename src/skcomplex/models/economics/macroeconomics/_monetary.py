@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, parameter, state
+from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import Auxiliary, BaseLaw, Sink, Source, Symbols, TransferLaw, UpdateLaw
+from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 

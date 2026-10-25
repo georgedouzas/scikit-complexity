@@ -9,9 +9,9 @@ from typing import Any, ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.base import Expression, ValidationError, VisualSpec, state, vector
+from ....core.base import BaseLaw, Expression, ValidationError, VisualSpec, state, vector
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, Symbols, UpdateLaw, categorical, where
+from ....core.laws import Symbols, UpdateLaw, categorical, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model

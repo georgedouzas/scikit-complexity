@@ -9,10 +9,10 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Expression, NumericDomain, parameter, role, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent, GroupComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model

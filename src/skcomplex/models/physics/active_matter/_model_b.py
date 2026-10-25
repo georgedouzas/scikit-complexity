@@ -8,9 +8,9 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import NumericDomain, parameter
+from ....core.base import BaseLaw, NumericDomain, parameter
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw, Symbols
+from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model

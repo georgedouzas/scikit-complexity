@@ -5,9 +5,9 @@
 
 import numpy as np
 
-from ....core.base import Expression, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import BaseLaw, RateLaw, Symbols, total
+from ....core.laws import RateLaw, Symbols, total
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 

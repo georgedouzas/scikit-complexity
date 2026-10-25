@@ -7,9 +7,9 @@ import math
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ..base import Requires, SpaceKind, ValidationError
+from ..base import BaseSpace, Requires, SpaceKind, ValidationError
 from ._networks import NetworkSpace
-from ._spaces import BaseSpace, SiteSpace
+from ._spaces import SiteSpace
 
 
 def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:

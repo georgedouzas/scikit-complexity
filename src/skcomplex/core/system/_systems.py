@@ -6,10 +6,9 @@
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
-from ..base import ComponentKind
+from ..base import BaseSpace, BaseTime, ComponentKind
 from ..components import BaseComponent, ElementComponent, GroupComponent
 from ..interactions import BaseInteraction
-from ..space import BaseSpace, BaseTime
 
 LEGACY_ARGUMENTS = {
     'elements': 'Pass elements and groups in `components`.',

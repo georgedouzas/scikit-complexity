@@ -9,9 +9,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
+from ...core.base import BaseLaw, LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
 from ...core.components import ElementComponent, GroupComponent, probe_laws
-from ...core.laws import BaseLaw
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 

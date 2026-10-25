@@ -10,9 +10,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseDomain, DomainKind, ValidationError, VariableKind, declarations_of
+from ...core.base import BaseDomain, BaseLaw, DomainKind, ValidationError, VariableKind, declarations_of
 from ...core.components import ElementComponent, GroupComponent
-from ...core.laws import BaseLaw, Symbols
+from ...core.laws import Symbols
 from ._laws import LocalOperator, Operator, sparse_matrix
 
 NORM_TOLERANCE = 1e-8

@@ -5,9 +5,7 @@ from collections.abc import Iterable
 from importlib import import_module
 
 from skcomplex.core import formalisms
-from skcomplex.core.base import LawKind
-from skcomplex.core.laws import law_classes
-from skcomplex.core.space import BaseSpace
+from skcomplex.core.base import BaseSpace, LawKind, law_classes
 from skcomplex.engine.compile import BACKENDS, SOLVERS
 from skcomplex.formalisms import registered_formalisms
 

@@ -6,9 +6,8 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
-from ..base import ValidationError, Variable, VariableKind
+from ..base import BaseLaw, ValidationError, Variable, VariableKind
 from ..components import BaseComponent
-from ..laws import BaseLaw
 
 BINDINGS = ('members', 'pairs', 'neighbors', 'hyperedges')
 

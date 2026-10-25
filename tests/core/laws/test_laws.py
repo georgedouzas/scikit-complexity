@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
+import skcomplex.formalisms.control  # noqa: F401  # registers the optimal control solvers objectives compile for
 from skcomplex.core.base import (
     ConservationError,
     LawKind,
@@ -20,11 +21,13 @@ from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import (
     EquationLaw,
     Invariant,
+    JumpLaw,
     NoiseLaw,
     Objective,
     RateLaw,
     UpdateLaw,
     derivative,
+    draw,
     lag,
     step,
     where,
@@ -379,3 +382,17 @@ def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
         compile_system(System(components=[LeakyComponent('leaky')]))
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'message'),
+    [
+        ({'waiting': draw('wait', 'expon'), 'changes': {symbol('n'): 1}}, 'changes belong to the exponential clock'),
+        ({'rate': 1.0, 'changes': {symbol('n'): 1}, 'reset': {symbol('n'): 0}}, 'resets and labels to the waiting'),
+        ({'rate': 1.0, 'changes': {symbol('n'): 1}, 'label': 'fires'}, 'takes a label'),
+    ],
+)
+def test_jump_rejects_option_of_other_clock(arguments, message):
+    """Test that a jump rejects at construction an option of the clock it does not use."""
+    with pytest.raises(ValidationError, match=message):
+        JumpLaw(**arguments)

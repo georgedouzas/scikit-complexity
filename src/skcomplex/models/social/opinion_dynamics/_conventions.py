@@ -6,10 +6,10 @@
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import role, state
+from ....core.base import BaseLaw, role, state
 from ....core.components import ElementComponent
 from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, Symbols
+from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw

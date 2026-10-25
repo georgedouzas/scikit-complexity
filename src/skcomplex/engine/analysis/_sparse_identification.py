@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import Expression
-from ...core.laws import BaseLaw, RateLaw, Symbols
+from ...core.base import BaseLaw, Expression
+from ...core.laws import RateLaw, Symbols
 from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module

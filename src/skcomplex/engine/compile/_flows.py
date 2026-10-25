@@ -14,6 +14,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
+    BaseLaw,
     ConservationError,
     Expression,
     LabelError,
@@ -26,7 +27,6 @@ from ...core.base import (
 )
 from ...core.laws import (
     Auxiliary,
-    BaseLaw,
     BoundaryLaw,
     EventLaw,
     Invariant,

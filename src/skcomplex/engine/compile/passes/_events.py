@@ -14,6 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import (
+    BaseLaw,
     Expression,
     NumericDomain,
     SymbolicVector,
@@ -23,7 +24,7 @@ from ....core.base import (
     symbols_of,
     vector,
 )
-from ....core.laws import BaseLaw, BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
+from ....core.laws import BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
 from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
+    BaseLaw,
     ConservationError,
     DomainKind,
     Expression,
@@ -22,10 +23,10 @@ from ..base import (
     SymbolicVector,
     Trait,
     ValidationError,
+    register_laws,
     symbol,
 )
 from ._functions import series
-from ._law import BaseLaw, register_laws
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
