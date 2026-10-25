@@ -52,7 +52,7 @@ def test_design_prepare_sets_rows():
 
 @pytest.mark.parametrize(
     'design',
-    [RandomDesign(-1, r=(0.0, 1.0)), RandomDesign(4, r=(0.0, 1.0, 2.0)), RowsDesign([1.0])],  # type: ignore[list-item]
+    [RandomDesign(-1, r=(0.0, 1.0)), RandomDesign(4, r=(0.0, 1.0, 2.0)), RowsDesign([1.0])],  # type: ignore[list-item,unused-ignore]
     ids=['negative-size', 'bad-bounds', 'bad-row'],
 )
 def test_design_check_rejects_invalid_arguments(design):
