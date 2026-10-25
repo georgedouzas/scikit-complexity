@@ -27,7 +27,6 @@ class Logs:
     """Recording stand-in that keeps the entity paths, archetypes, and static flags it receives."""
 
     def __init__(self):
-        """Start with no logs."""
         self.logs = []
 
     def log(self, path, archetype, static=False):

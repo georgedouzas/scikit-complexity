@@ -58,7 +58,6 @@ class EventsObserver(BaseObserver):
     """Observer that keeps the events of every frame and checks a condition on the frames."""
 
     def __init__(self, condition: Callable[[Frame], object] | None = None) -> None:
-        """Keep the condition."""
         self.condition = condition
 
     def _prepare(self, problem: BaseProblem) -> None:

@@ -12,7 +12,6 @@ class RingSpace(BaseSpace):
     space_kind = SpaceKind.LATTICE
 
     def __init__(self, n=4):
-        """Store the number of sites."""
         self.n = n
 
     def _prepare(self):

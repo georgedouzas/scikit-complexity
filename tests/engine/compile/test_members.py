@@ -39,7 +39,6 @@ class LookAheadInteraction(BaseInteraction):
         fill: float = 0.0,
         **values: Any,
     ) -> None:
-        """Store the settings and pass the values on."""
         super().__init__(label, **values)
         self.offset = offset
         self.boundary = boundary
@@ -128,7 +127,6 @@ class HopInteraction(BaseInteraction):
         boundary: str = 'periodic',
         **values: Any,
     ) -> None:
-        """Store the settings and pass the values on."""
         super().__init__(label, **values)
         self.boundary = boundary
 

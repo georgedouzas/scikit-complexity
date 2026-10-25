@@ -14,7 +14,6 @@ class Images:
     """Recording stand-in that keeps the images logged to it."""
 
     def __init__(self):
-        """Start with no images."""
         self.images = []
 
     def log(self, path, archetype):

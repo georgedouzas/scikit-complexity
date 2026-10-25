@@ -49,7 +49,6 @@ class LoggedPaths:
     """Recording stand-in that keeps the entity paths it receives."""
 
     def __init__(self):
-        """Start with no logs."""
         self.paths = []
 
     def log(self, path, archetype):
