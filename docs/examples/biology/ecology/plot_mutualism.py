@@ -38,7 +38,8 @@ ax.axhline(50.0, color='grey', linestyle=':', label='carrying capacity')
 ax.set_xlabel('time')
 ax.set_ylabel('population')
 ax.set_title(
-    f'Mutualists settle at {trajectory.values("first.n")[-1]:.0f} and {trajectory.values("second.n")[-1]:.0f}, above 50'
+    f'Mutualists settle at {trajectory.values("first.n")[-1]:.0f} and '
+    f'{trajectory.values("second.n")[-1]:.0f}, above 50',
 )
 ax.legend()
 plt.show()

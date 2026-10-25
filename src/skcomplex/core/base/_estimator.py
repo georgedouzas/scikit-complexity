@@ -14,7 +14,8 @@ class BaseEstimator(SklearnEstimator):
     The constructor of a child stores every argument unmodified under its own name. `check` validates the arguments,
     `prepare` prepares the object against what it works on and sets every attribute that ends in `_`, and `run` performs
     the object's one action. Each verb calls a private hook that a child overrides, and the hooks of this base do
-    nothing, so every object answers every verb. A last call `run(..., final=True)` also releases what `prepare` acquired.
+    nothing, so every object answers every verb. A last call `run(..., final=True)` also releases what `prepare`
+    acquired.
 
     Examples:
         >>> from skcomplex.core.base import BaseEstimator

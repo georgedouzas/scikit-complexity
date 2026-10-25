@@ -51,7 +51,7 @@ urns = np.array(
     ],
 )
 counts = np.asarray(
-    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).run(20000).trajectory_.values('urn.n')
+    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1).run(20000).trajectory_.values('urn.n'),
 )
 relaxed = counts[400:].astype(int)
 values = np.arange(BALLS + 1)

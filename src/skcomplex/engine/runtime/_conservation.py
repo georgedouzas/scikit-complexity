@@ -69,6 +69,10 @@ class ConservationObserver(BaseObserver):
     def _prepare(self, problem: BaseProblem) -> None:
         """Keep the quantities of the problem.
 
+        Args:
+            problem:
+                The compiled problem the run advances.
+
         Raises:
             SimulationError:
                 The problem has no stock-flow description, such as a partitioned problem.
@@ -85,6 +89,10 @@ class ConservationObserver(BaseObserver):
 
     def _run(self, frame: Frame | None = None) -> None:
         """Check the totals of a frame against the first frame.
+
+        Args:
+            frame:
+                The recorded frame, or `None` at the last run, which checks nothing.
 
         Raises:
             ConservationError:
@@ -128,6 +136,10 @@ class InvariantObserver(BaseObserver):
 
     def _run(self, frame: Frame | None = None) -> None:
         """Check the invariants of a frame against the first frame.
+
+        Args:
+            frame:
+                The recorded frame, or `None` at the last run, which checks nothing.
 
         Raises:
             ConservationError:

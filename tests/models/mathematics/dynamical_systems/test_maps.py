@@ -79,7 +79,9 @@ def test_newton_raphson_map_finds_the_cube_roots_of_unity():
     np.testing.assert_allclose([first.values('map.x')[-1], first.values('map.y')[-1]], [1.0, 0.0], atol=1e-10)
     second = _run(newton_raphson_map(-1.0, 1.0), 50)
     np.testing.assert_allclose(
-        [second.values('map.x')[-1], second.values('map.y')[-1]], [-0.5, math.sqrt(3) / 2], atol=1e-10
+        [second.values('map.x')[-1], second.values('map.y')[-1]],
+        [-0.5, math.sqrt(3) / 2],
+        atol=1e-10,
     )
 
 

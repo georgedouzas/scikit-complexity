@@ -43,7 +43,12 @@ fig, (paths, golden) = plt.subplots(1, 2, figsize=(10, 4))
 for index, k0 in enumerate((1.0, 4.0, 12.0)):
     trajectory = Simulation(create(MODEL, k=k0, s=0.2), dt=1.0).run(until=UNTIL).trajectory_
     paths.plot(
-        trajectory.times[::5], trajectory.values('economy.k')[::5], 'o', ms=3, color=f'C{index}', label=f'k(0) = {k0}'
+        trajectory.times[::5],
+        trajectory.values('economy.k')[::5],
+        'o',
+        ms=3,
+        color=f'C{index}',
+        label=f'k(0) = {k0}',
     )
     paths.plot(trajectory.times, exact(k0, 0.2, trajectory.times), color=f'C{index}', lw=0.8)
 paths.axhline((0.2 / DELTA) ** (1 / (1 - ALPHA)), color='grey', linestyle=':', label='k*')

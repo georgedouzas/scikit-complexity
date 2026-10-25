@@ -136,7 +136,7 @@ def test_local_rule_free_group_majority(backend):
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=6).prepare()
     cells = (np.random.default_rng(0).random(space.size_) < 0.5).astype(float)
     alive = _run(System(components=[CellComponent.lattice('cells', space, alive=cells)]), 1, backend).values(
-        'cells.alive'
+        'cells.alive',
     )
     table = space._index_table(FREE_MEMORY)
     interior = (table < space.size_).all(axis=1)

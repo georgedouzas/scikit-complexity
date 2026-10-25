@@ -17,7 +17,7 @@ from skcomplex.models import create
 
 @pytest.fixture(scope='module')
 def log_agents() -> Callable[..., BaseVisual]:
-    """Return a function that prepares a visual to agents at a path in a space and logs one frame per snapshot of them."""
+    """Return a function that prepares a visual for agents in a space and logs one frame per snapshot."""
     problem = compile_system(create('moran_process'))
     assert isinstance(problem, Problem)
 

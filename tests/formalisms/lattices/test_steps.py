@@ -66,7 +66,6 @@ class Recording:
     """Recording stand-in that keeps what is logged to it."""
 
     def __init__(self):
-        """Start with no entries."""
         self.entries = []
 
     def log(self, path, archetype, static=False):

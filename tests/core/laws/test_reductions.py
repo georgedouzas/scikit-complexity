@@ -397,7 +397,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
     below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
     above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
     weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
-        above.trajectory_.values('oscillators.theta')
+        above.trajectory_.values('oscillators.theta'),
     )
     assert weak[-5:].max() < 0.1
     assert strong[-5:].min() > 0.7

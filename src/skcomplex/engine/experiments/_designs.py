@@ -26,8 +26,8 @@ def _scale(bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
 class BaseDesign(BaseEstimator):
     """Base class of designs, which give rows of values by factory argument or dotted path.
 
-    Preparing a design sets its rows, and running it returns them. Designs concatenate with `concat`, which runs the rows
-    of both, and cross with `product`, which runs every pair of rows.
+    Preparing a design sets its rows, and running it returns them. Designs concatenate with `concat`, which runs the
+    rows of both, and cross with `product`, which runs every pair of rows.
 
     Attributes:
         rows_:

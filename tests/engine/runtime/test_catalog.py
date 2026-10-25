@@ -146,7 +146,7 @@ def test_model_conforms(entry, tmp_path):
         assert len(trajectory.values(name)) == len(trajectory.times)
     for scope, observable in observables_of(system):
         assert len(trajectory.values(f'{scope}/{observable.label}' if scope else observable.label)) == len(
-            trajectory.times
+            trajectory.times,
         )
     copy = clone(system)
     assert copy is not system

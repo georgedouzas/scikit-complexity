@@ -38,7 +38,11 @@ for a0 in np.linspace(0.05, 1.0, 6):
         run = Simulation(create(MODEL, a=a0, b=b0, F=F, k=k), dt=2.0).run(until=800).trajectory_
         reacting = run.values('reactor.b')[-1] > 0.1
         ax.plot(
-            run.values('reactor.a'), run.values('reactor.b'), color='C1' if reacting else 'C0', linewidth=0.7, alpha=0.7
+            run.values('reactor.a'),
+            run.values('reactor.b'),
+            color='C1' if reacting else 'C0',
+            linewidth=0.7,
+            alpha=0.7,
         )
 ax.plot(1.0, 0.0, 'o', color='C0', markersize=10, label='washout (stable)')
 ax.plot((F + k) / roots.max(), roots.max(), 'o', color='C1', markersize=10, label='reacting (stable)')

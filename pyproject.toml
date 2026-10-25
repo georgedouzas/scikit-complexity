@@ -159,7 +159,9 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
-"test_*" = ["ANN", "PLR2004"]
+# Test modules are public, so ruff asks for `__init__` docstrings that pydoclint forbids beside a class docstring.
+"test_*" = ["ANN", "PLR2004", "D107"]
+"conftest.py" = ["D107"]
 "src/skcomplex/core/base/_variables.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
 "src/skcomplex/engine/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]

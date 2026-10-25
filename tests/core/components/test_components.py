@@ -92,7 +92,6 @@ class AttractionInteraction(BaseInteraction):
         period: float | None = None,
         **values: Any,
     ) -> None:
-        """Store the settings and pass the values on."""
         super().__init__(label, **values)
         self.period = period
 

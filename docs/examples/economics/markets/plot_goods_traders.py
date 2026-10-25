@@ -72,7 +72,8 @@ totals.set_ylim(-1e-9, 1e-9)
 totals.set_xlabel('step')
 totals.set_ylabel('relative change of the total')
 totals.set_title(
-    f'Totals conserved, largest change {np.max(np.abs(trajectory.values("sugar") - trajectory.values("sugar")[0])):.0e}'
+    'Totals conserved, largest change '
+    f'{np.max(np.abs(trajectory.values("sugar") - trajectory.values("sugar")[0])):.0e}',
 )
 totals.legend()
 fig.tight_layout()

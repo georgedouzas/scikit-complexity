@@ -327,7 +327,6 @@ class CensusInteraction(BaseInteraction):
         looked_up: str = 'counted',
         **values: Any,
     ) -> None:
-        """Store the settings and pass the values on."""
         super().__init__(label, **values)
         self.looked_up = looked_up
 

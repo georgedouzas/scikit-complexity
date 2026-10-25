@@ -38,7 +38,7 @@ settled = []
 for coupling in couplings:
     run = Simulation(create(MODEL, r=0.1, K=coupling, Delta=0.5), dt=0.5).run(until=200)
     settled.append(
-        np.hypot(np.ravel(run.trajectory_.values('field.x'))[-1], np.ravel(run.trajectory_.values('field.y'))[-1])
+        np.hypot(np.ravel(run.trajectory_.values('field.x'))[-1], np.ravel(run.trajectory_.values('field.y'))[-1]),
     )
 grid = np.linspace(1.0, 5.0, 200)
 fig, (growth, diagram) = plt.subplots(1, 2, figsize=(10, 4))

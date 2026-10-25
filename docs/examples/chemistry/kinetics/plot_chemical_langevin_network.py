@@ -39,7 +39,11 @@ substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.val
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))
 amounts.plot(trajectory.times, trajectory.values('C.n'), label='complex, Langevin')
 amounts.plot(
-    deterministic.times, deterministic.values('C.n'), color='black', linestyle='--', label='complex, rate equations'
+    deterministic.times,
+    deterministic.values('C.n'),
+    color='black',
+    linestyle='--',
+    label='complex, rate equations',
 )
 amounts.set_xlabel('time')
 amounts.set_ylabel('amount')

@@ -31,7 +31,9 @@ def test_collocation_trapezoidal_matches_riccati_solution_inside_the_run(linear_
     trajectory = Simulation(linear_quadratic, solver=solver, dt=0.05).run(until=1.0).trajectory_
     inside = slice(1, -1)
     np.testing.assert_allclose(
-        trajectory.values('plant.u')[inside], riccati_control(trajectory.times[inside]), atol=1e-3
+        trajectory.values('plant.u')[inside],
+        riccati_control(trajectory.times[inside]),
+        atol=1e-3,
     )
 
 

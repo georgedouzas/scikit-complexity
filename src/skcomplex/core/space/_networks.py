@@ -270,8 +270,8 @@ class NetworkSpace(BaseSpace):
     def _index_table(self, neighborhood: Adjacency) -> npt.NDArray[np.intp]:
         """Return the node index of every neighbour of every node, padded with the number of nodes.
 
-        The table has one row per node and one column per neighbour slot, as wide as the largest degree, plus one
-        column for the node itself when the neighbourhood includes it.
+        The table has one row per node and one column per neighbour slot, as wide as the largest degree, plus one column
+        for the node itself when the neighbourhood includes it.
         """
         if not isinstance(neighborhood, Adjacency):
             error_msg = f'A network reads the neighbourhood Adjacency(), but it was given {neighborhood!r}.'
@@ -557,7 +557,8 @@ class NetworkSpace(BaseSpace):
         """Return a spatial network of nodes placed at random, joined with a probability that decays with distance.
 
         Two nodes at distance `d` join with probability `beta exp(-d / (alpha L))`, where `L` is the largest distance
-        in the domain. Every node stores its position in the node attribute `pos`, which gives the prepared `positions_`.
+        in the domain. Every node stores its position in the node attribute `pos`, which gives the prepared
+        `positions_`.
 
         Args:
             n:
