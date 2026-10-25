@@ -13,6 +13,7 @@ import pytest
 
 from skcomplex.core.base import (
     BaseLaw,
+    Expression,
     LawClass,
     LawKind,
     NumericDomain,
@@ -55,7 +56,7 @@ class StrayLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
-    target: object
+    targets: Expression | tuple[Expression, ...]
     value: object
 
 

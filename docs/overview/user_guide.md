@@ -119,6 +119,11 @@ compiler and validation read instead of lists of their own.
 - `requires` states what the law needs from the system: the time, the space, and the domains of the states it
   targets.
 
+Every law also has the field `targets`, the states it changes, which `BaseLaw` defines. A law of one state, such as
+`RateLaw`, takes the state as its first argument, alone or in a one-element tuple, and checking the law turns it into a
+tuple. A law that updates several states together, such as `LocalRuleLaw`, takes a tuple of them. Laws that name their
+states in other values, such as the increments of a `JumpLaw`, leave it empty.
+
 A system holds only laws of registered classes. The shared core registers its general laws, which are `RateLaw`, `NoiseLaw`,
 `JumpLaw`, `UpdateLaw`, `TransitionLaw`, `EmissionLaw`, `EventLaw`, `BoundaryLaw`, `EquationLaw`, `TransferLaw`, `Auxiliary`, `Invariant`, and
 `Objective`. Each formalism registers its own law classes when it is imported. `law_classes(trait)` lists the
@@ -133,6 +138,11 @@ from skcomplex.core.base import BaseLaw, law_classes
 
 print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class)
 print(Trait.FORMLESS in BoundaryLaw.traits, RateLaw in law_classes(Trait.DECLARABLE))
+
+from skcomplex.core.base import symbol
+
+x = symbol('x')
+print(RateLaw(x, -x).check().targets)
 ```
 
 A law can also be a Python function of time and current values, which covers rules that have no closed form.
@@ -499,7 +509,7 @@ convention, and validation reports laws of different conventions on one process,
 that reads a state another component drives through its process, a covariance that is not symmetric positive
 semidefinite, and a handle `dW` used anywhere but as the process of a noise law.
 
-**Conserved noise.** `NoiseLaw(target, value, conserved=True)` on a state of a field on a lattice adds the
+**Conserved noise.** `NoiseLaw(targets, value, conserved=True)` on a state of a field on a lattice adds the
 divergence of a random flux, `div(value eta)`, the thermal noise of Model B and of active field theories. Every link
 between neighbouring sites draws one Wiener process, and site `i` gains `value / h` times the increment of the link
 from its previous neighbour and loses the same amount on the link to its next one, along every dimension of spacing
@@ -591,9 +601,9 @@ the trajectory does not record them, and a model that wants to keep a draw assig
 
 ### Markov chains and hidden Markov sources
 
-`TransitionLaw(target, matrix)` is the step of a discrete-time Markov chain. The target is a state over a finite alphabet,
+`TransitionLaw(targets, matrix)` is the step of a discrete-time Markov chain. The target is a state over a finite alphabet,
 a categorical domain or the integers from 0 to `n - 1`, and its current value selects the row of the transition matrix
-that the next value is drawn from. `EmissionLaw(target, source, matrix)` draws an observed state from the row of an
+that the next value is drawn from. `EmissionLaw(targets, source, matrix)` draws an observed state from the row of an
 emission matrix that the hidden state `source` selects, reading the hidden state after the same step, so the two
 sequences align frame by frame. Both are update laws, so they combine with other update laws.
 
@@ -700,7 +710,7 @@ The compiler keeps the count of every member in a hidden state, `<group>.<label>
 
 ### Fractional noise
 
-`FractionalNoiseLaw(target, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
+`FractionalNoiseLaw(targets, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
 whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to an ordinary
 noise law. For other indices the amplitude must not depend on any state. `FractionalEulerMaruyamaSolver(dt, horizon)` is the
 stepper of systems with fractional noise. It draws the increments of the whole run on its grid when it first advances,
@@ -1206,6 +1216,7 @@ from skcomplex.core.base import (
     ComponentKind,
     NumericDomain,
     DomainKind,
+    Expression,
     Form,
     LawClass,
     LawKind,
@@ -1240,7 +1251,7 @@ class DecayLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
-    target: object
+    targets: Expression | tuple[Expression, ...]
     rate: object
 
 
@@ -1710,7 +1721,7 @@ space = LatticeSpace((4, 3), neighborhood='von_neumann').prepare()
 print(space.size_, space.shape_, space.periodic_, space.run(0).tolist())
 ```
 
-**Local rules.** `LocalRuleLaw(target, over, rule)` computes a cell's next value from the ordered values of its
+**Local rules.** `LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
 a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, a rule code whose `table()` returns a table, such
 as `Wolfram` of the automata models, or a function of NumPy arrays,
@@ -1744,7 +1755,7 @@ print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 
   `'random-site'`, or `'checkerboard'` update cells one at a time or one sublattice at a time.
 - One unit of time is one application of every rule, so `dt` is an integer, and `trajectory.lattice(name)` returns
   the states in lattice shape.
-- `DriveLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
+- `DriveLaw(targets, function)` changes a whole lattice at once, such as dropping a grain on a random site.
 
 **Relaxation.** `RelaxationLaw(drive, relax, stable)` separates a slow drive from a fast relaxation, as in
 self-organised criticality. Every step applies the drive laws once and the relax laws until `stable` holds, and each
@@ -1862,7 +1873,7 @@ spins = System(components=[GraphSpinComponent.lattice('spins', NetworkSpace(grap
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
-**Extremal updates.** `ExtremalLaw(target, over, rule, key=None, extremum='min', repeat=1)` finds the site with
+**Extremal updates.** `ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with
 the smallest or largest value of a key state, breaking ties with the simulation's random stream, and applies
 `rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step. Every application
 is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and extremal value. On the Numba

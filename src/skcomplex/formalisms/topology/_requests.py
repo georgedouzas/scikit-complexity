@@ -241,10 +241,10 @@ def request_of(law: object) -> TopologyRequest | None:
     Examples:
         >>> from skcomplex.core.laws import UpdateLaw
         >>> from skcomplex.formalisms.topology import remove_node, request_of
-        >>> request_of(UpdateLaw(remove_node(), 0.1)).kind
+        >>> request_of(UpdateLaw(remove_node(), 0.1).check()).kind
         'remove-node'
     """
-    target = getattr(law, 'target', None)
+    target = next(iter(getattr(law, 'targets', ())), None)
     if isinstance(target, TopologyRequest):
         return _checked(target)
     changes = getattr(law, 'changes', None) or {}

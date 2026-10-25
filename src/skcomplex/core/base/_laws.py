@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
-from typing import ClassVar, Self
+from dataclasses import dataclass, field, replace
+from typing import Any, ClassVar, Self
 
 from ._errors import RegistryError
 from ._kinds import LawClass, LawKind, Requires, Trait
@@ -131,11 +131,19 @@ def has_trait(law: object, trait: Trait) -> bool:
 
 @dataclass(frozen=True)
 class BaseLaw:
-    """Base of every law, a frozen dataclass that declares its kind, its time class, and its traits.
+    """Base of every law, a frozen dataclass of the states it changes, with its kind, its time class, and its traits.
 
     A law class declares as class variables its `law_kind`, its `time_class` among continuous, event, discrete,
     constraint, and any, the `traits` the compiler and validation read, and what it `requires` of the system. A system
     holds only laws of registered classes, which the shared core and the formalisms register.
+
+    Every law has the field `targets`, the states it changes. A law that changes given states redeclares it as its
+    first field, which takes one state or a tuple of states, and checking turns it into a tuple. Other laws leave it
+    empty, or set it from their other values when they are checked.
+
+    Args:
+        targets:
+            The states the law changes, one state or a tuple of them, a tuple once the law is checked.
 
     Examples:
         >>> from skcomplex.core.base import LawClass, LawKind
@@ -143,12 +151,18 @@ class BaseLaw:
         >>> from skcomplex.core.base import BaseLaw
         >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
         (True, True, True)
+        >>> from skcomplex.core.base import symbol
+        >>> x = symbol('x')
+        >>> RateLaw(x, -x).check().targets
+        (x,)
     """
 
     law_kind: ClassVar[LawKind]
     time_class: ClassVar[LawClass]
     traits: ClassVar[frozenset[Trait]] = frozenset()
     requires: ClassVar[Requires] = Requires()
+
+    targets: tuple[Any, ...] = field(default_factory=tuple, kw_only=True)
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, the law itself by default."""
@@ -162,12 +176,16 @@ class BaseLaw:
 
         Returns:
             law:
-                The checked law, with its values as Sage expressions.
+                The checked law, with its targets as a tuple and its values as Sage expressions.
 
         Raises:
             ValidationError:
                 A value of the law is invalid, such as a NumPy array or a SymPy expression.
         """
+        targets = self.targets
+        if not isinstance(targets, tuple):
+            targets = tuple(targets) if isinstance(targets, list) else (targets,)
+            return replace(self, targets=targets)._check()
         return self._check()
 
 

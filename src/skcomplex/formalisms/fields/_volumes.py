@@ -283,7 +283,7 @@ def compile_volumes(
     if place.discretization != 'finite-volume' or not isinstance(space, LatticeSpace):
         error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
         raise ValidationError(error_msg)
-    states = [_symbol(law.target, references) for law, _ in laws]
+    states = [_symbol(law.targets[0], references) for law, _ in laws]
     n_dim = space.n_dim_
     expressions = []
     for law, _ in laws:

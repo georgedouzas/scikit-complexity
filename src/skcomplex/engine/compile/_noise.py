@@ -35,7 +35,7 @@ def _process_key(spec: KernelSpec, item: object, declarations: Declarations) -> 
 
 def process_keys(spec: KernelSpec, law: NoiseLaw, declarations: Declarations) -> list[ProcessKey | None]:
     """Return the process of every component of the target of a noise law, `None` for an independent process."""
-    count = len(components_of(law.target))
+    count = len(components_of(law.targets[0]))
     process = law.process
     if process is None:
         return [None] * count

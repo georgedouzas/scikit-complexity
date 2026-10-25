@@ -147,9 +147,9 @@ def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Ex
     each = time / len(stages)
     if _delay_parts(kind)[0]:
         inflows = [value, *(stage / each for stage in stages[:-1])]
-        return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
+        return [RateLaw((stage,), inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
     inputs = [value, *stages[:-1]]
-    return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
+    return [RateLaw((stage,), (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
 
 
 def _holder(
@@ -173,9 +173,9 @@ def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[BaseLaw]]]) -
     """Return the laws holding the update law of a state component and its index, or `None`."""
     for spec, laws in specs:
         for index, law in enumerate(laws):
-            if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression):
+            if not isinstance(law, UpdateLaw) or not isinstance(law.targets[0], Expression):
                 continue
-            reference = spec.references.get(law.target)
+            reference = spec.references.get(law.targets[0])
             if reference is None:
                 continue
             found: tuple[Any, ...] = (reference.entry.name, reference.column)
@@ -292,7 +292,7 @@ class StockFlowPass:
                 JumpLaw(_substituted(flow.rate, mapping), {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [RateLaw(item, sign * amount) for item, sign in holders]
+            laws = [RateLaw((item,), sign * amount) for item, sign in holders]
         sign = 1 if source is None else -1 if sink is None else 0
         born = _Born(spec, compiled, amount, sign)
         self._flows.append(born)
@@ -356,9 +356,9 @@ class StockFlowPass:
                 if (
                     isinstance(law, RateLaw)
                     and isinstance(law.value, Expression)
-                    and isinstance(law.target, Expression)
+                    and isinstance(law.targets[0], Expression)
                 ):
-                    target, _ = self._quantity_of(law.target, spec)
+                    target, _ = self._quantity_of(law.targets[0], spec)
                     self._terms.append((spec, 'rate', target, law.value, names, None, None))
                 expanded.append(_with_auxiliaries(law, mapping))
         return expanded
@@ -368,15 +368,15 @@ class StockFlowPass:
         if id(law) in self._born:
             return
         targets: list[tuple[object, object]] = []
-        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.target, Expression):
-            targets = [(law.target, law.value)]
+        if isinstance(law, RateLaw | NoiseLaw) and isinstance(law.targets[0], Expression):
+            targets = [(law.targets[0], law.value)]
         elif isinstance(law, JumpLaw):
             targets = list(law.changes.items())
-        elif isinstance(law, UpdateLaw) and isinstance(law.target, Expression):
+        elif isinstance(law, UpdateLaw) and isinstance(law.targets[0], Expression):
             value = law.value
-            if isinstance(value, Expression) and bool((value - law.target).is_trivial_zero()):
+            if isinstance(value, Expression) and bool((value - law.targets[0]).is_trivial_zero()):
                 return
-            targets = [(law.target, value)]
+            targets = [(law.targets[0], value)]
         for target, value in targets:
             name, quantity = self._quantity_of(target, spec)
             if quantity is not None:
@@ -393,7 +393,7 @@ class StockFlowPass:
         for spec, laws in specs:
             for law in [law for law in laws if id(law) in self._born and isinstance(law, RateLaw)]:
                 laws.remove(law)
-                target: Any = law.target
+                target: Any = law.targets[0]
                 reference = spec.references[target]
                 key: tuple[Any, ...] = (reference.entry.name, reference.column)
                 if reference.entry.members is not None:
@@ -406,15 +406,15 @@ class StockFlowPass:
                 host = next(laws for spec, laws in specs if spec is host_spec)
                 value: Expression = target
                 index = len(host)
-                host.append(UpdateLaw(target, target))
+                host.append(UpdateLaw((target,), target))
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found: Any = host[index]
-                target, value = found.target, SR(found.value)
+                target, value = found.targets[0], SR(found.value)
             for spec, _, increment in items:
                 _merge_references(host_spec, spec, increment)
                 value += increment
-            host[index] = UpdateLaw(target, value)
+            host[index] = UpdateLaw((target,), value)
 
     def _accumulate(
         self,
@@ -442,7 +442,7 @@ class StockFlowPass:
                 total = sum((born.sign * born.amount for born in items), SR(0))
                 for born in items[1:]:
                     _merge_references(items[0].spec, born.spec, born.amount)
-                laws_of[id(items[0].spec)].append(UpdateLaw(accumulator, accumulator + total))
+                laws_of[id(items[0].spec)].append(UpdateLaw((accumulator,), accumulator + total))
                 continue
             for born in items:
                 self._add_boundary(laws_of[id(born.spec)], born, accumulator)
@@ -454,7 +454,7 @@ class StockFlowPass:
             if isinstance(law, JumpLaw) and self._born.get(id(law)) is born:
                 laws[index] = JumpLaw(law.rate, {**law.changes, accumulator: born.sign * born.amount})
                 return
-        laws.append(RateLaw(accumulator, born.sign * born.amount))
+        laws.append(RateLaw((accumulator,), born.sign * born.amount))
 
     def _expand_delays(self, spec: _Spec, laws: list[BaseLaw], declarations: _Declared, discrete: bool) -> None:
         """Replace the delays and smoothings in a spec's rate laws and records by hidden stocks with their own laws."""

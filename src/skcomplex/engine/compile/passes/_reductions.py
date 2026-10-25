@@ -73,7 +73,7 @@ def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseL
         value = reductions.lower(value, spec)
     if isinstance(law, RateLaw | NoiseLaw):
         return replace(law, value=value)
-    return type(law)(law.target, value)
+    return type(law)(law.targets, value)
 
 
 def _prune_foreign(spec: KernelSpec, declarations: Declarations) -> None:

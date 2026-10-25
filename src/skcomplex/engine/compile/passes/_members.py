@@ -34,7 +34,7 @@ def _with_member_shifts(spec: KernelSpec, laws: list[BaseLaw], time: Expression)
         elif isinstance(law, RateLaw | NoiseLaw):
             result.append(replace(law, value=shifts.lower(law.value)))
         elif isinstance(law, UpdateLaw | BoundaryLaw):
-            result.append(type(law)(law.target, shifts.lower(law.value)))
+            result.append(type(law)(law.targets, shifts.lower(law.value)))
         else:
             result.append(law)
     return result

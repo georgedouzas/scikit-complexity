@@ -22,7 +22,7 @@ def test_encounter_keeps_numeric_tables_as_floats():
     law = EncounterLaw(f, g, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check()
     assert law.rate.dtype == float
     assert law.transition.dtype == float
-    assert law.target is f
+    assert law.targets[0] is f
     assert law.outcomes is law.transition
 
 
@@ -55,7 +55,15 @@ def test_proliferation_and_destruction_keep_their_rates():
     assert ProliferationLaw(f, g, 0.5).outcomes is None
     assert ProliferationLaw(f, g, 0.5, np.ones((1, 1, 1)), test=g).test is g
     assert float(DestructionLaw(f, g, 0.2).check().rate) == 0.2
-    assert DestructionLaw(f, g, 0.2).target is f
+    assert DestructionLaw(f, g, 0.2).check().targets[0] is f
+
+
+def test_encounters_target_the_candidate_and_the_test():
+    """Test that an encounter targets the candidate, whose group owns it, and a test density other than it."""
+    f, g, h = symbol('f'), symbol('g'), symbol('h')
+    assert ProliferationLaw(f, g, 0.5).check().targets == (f,)
+    assert ProliferationLaw(f, g, 0.5, np.ones((1, 1, 1)), test=h).check().targets == (f, h)
+    assert EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5), test=f).check().targets == (f,)
 
 
 def test_outcome_sums_add_over_outcomes():

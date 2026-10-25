@@ -86,12 +86,12 @@ def _space_boundary_laws(block: Block, spec: KernelSpec) -> list[BaseLaw]:
         velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
         for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
             if space.boundary == 'periodic':
-                laws.append(BoundaryLaw(position, mod(position, side)))
+                laws.append(BoundaryLaw((position,), mod(position, side)))
                 continue
             below, above = position < 0, position > side
-            laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
+            laws.append(BoundaryLaw((position,), where(below, -position, where(above, 2 * side - position, position))))
             if velocity is not None:
-                laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
+                laws.append(BoundaryLaw((velocity,), where(either(below, above), -velocity, velocity)))
     return laws
 
 

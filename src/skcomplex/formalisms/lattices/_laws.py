@@ -30,9 +30,11 @@ EXTREMA = ('min', 'max')
 type RuleSpec = Table | Totalistic | OuterTotalistic | Callable[..., Any] | Any
 
 
-def _targets(target: object) -> tuple[Expression, ...]:
-    """Return the target symbols of a lattice law as a tuple."""
-    return tuple(target) if isinstance(target, tuple | list) else (target,)
+def _check_one_target(law: BaseLaw) -> None:
+    """Raise an error for a lattice law of one state that is given no state or several."""
+    if len(law.targets) != 1:
+        error_msg = f'A {type(law).__name__} changes one lattice state, but its targets are {law.targets!r}.'
+        raise ValueError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -46,7 +48,7 @@ class LocalRuleLaw(BaseLaw):
     returns the next values of the target, or a tuple with one array per target.
 
     Args:
-        target:
+        targets:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
         over:
@@ -83,7 +85,7 @@ class LocalRuleLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
-    target: Expression | tuple[Expression, ...]
+    targets: Expression | tuple[Expression, ...]
     over: Neighborhood | Adjacency | Memory
     rule: RuleSpec
     reads: tuple[Expression, ...] | None = None
@@ -98,11 +100,6 @@ class LocalRuleLaw(BaseLaw):
             raise ValueError(error_msg)
         return replace(self, **changes) if changes else self
 
-    @property
-    def targets(self) -> tuple[Expression, ...]:
-        """Target symbols."""
-        return _targets(self.target)
-
 
 @dataclass(frozen=True)
 class DriveLaw(BaseLaw):
@@ -112,8 +109,8 @@ class DriveLaw(BaseLaw):
     component that it names, and `random`, the simulation's random generator, and returns the new array.
 
     Args:
-        target:
-            The symbol of a lattice state.
+        targets:
+            The symbol of a lattice state, alone or in a one-element tuple.
 
         function:
             The function `f(values, *, random, **parameters)`.
@@ -121,8 +118,8 @@ class DriveLaw(BaseLaw):
     Examples:
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.formalisms.lattices import DriveLaw
-        >>> DriveLaw(symbol('height'), lambda values, *, random: values + 1).target
-        height
+        >>> DriveLaw(symbol('height'), lambda values, *, random: values + 1).check().targets
+        (height,)
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
@@ -130,13 +127,13 @@ class DriveLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
-    target: Expression
+    targets: Expression | tuple[Expression, ...]
     function: Callable[..., Any]
 
-    @property
-    def targets(self) -> tuple[Expression, ...]:
-        """Target symbols."""
-        return (self.target,)
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
+        return self
 
 
 @dataclass(frozen=True)
@@ -192,10 +189,12 @@ class RelaxationLaw(BaseLaw):
     label: str | None = None
     activity: Callable[..., Any] | None = None
 
-    @property
-    def targets(self) -> tuple[Expression, ...]:
-        """Target symbols of the relaxation laws, in order of first appearance."""
-        return tuple(dict.fromkeys(item for law in self.relax for item in law.targets))
+    def _check(self) -> Self:
+        """Return the law with its drive and relaxation laws checked, and the targets of the relaxation laws."""
+        drive = tuple(law.check() for law in self.drive)
+        relax = tuple(law.check() for law in self.relax)
+        targets = tuple(dict.fromkeys(item for law in relax for item in law.targets))
+        return replace(self, drive=drive, relax=relax, targets=targets)
 
 
 @dataclass(frozen=True)
@@ -239,8 +238,8 @@ class MoveLaw(BaseLaw):
     """Proposed change of the value of a lattice site.
 
     Args:
-        target:
-            The symbol of the lattice state the move changes.
+        targets:
+            The symbol of the lattice state the move changes, alone or in a one-element tuple.
 
         kind:
             `'flip'` for the negative value, `'random-value'` for a value drawn from `values`, or `'rotate'` for the
@@ -264,13 +263,14 @@ class MoveLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
-    target: Expression
+    targets: Expression | tuple[Expression, ...]
     kind: str = 'flip'
     values: tuple[float, ...] = ()
     width: float = 0.0
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
         if self.kind not in MOVES:
             error_msg = f'Unknown move {self.kind!r}. Use one of {", ".join(MOVES)}.'
@@ -406,6 +406,12 @@ class SampleLaw(BaseLaw):
     move: MoveLaw
     sampler: SamplerLaw | None = None
 
+    def _check(self) -> Self:
+        """Return the law with its move and sampler checked, and the targets of its move."""
+        move = self.move.check()
+        sampler = None if self.sampler is None else self.sampler.check()
+        return replace(self, move=move, sampler=sampler, targets=move.targets)
+
     @property
     def parts(self) -> list[Energy | MoveLaw | SamplerLaw]:
         """Energy, move, and sampler, as the compiler reads them."""
@@ -422,7 +428,7 @@ class ExtremalLaw(BaseLaw):
     one array per target. Every application is recorded as an event with its time, its site, and the extremal value.
 
     Args:
-        target:
+        targets:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
         over:
@@ -457,7 +463,7 @@ class ExtremalLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
-    target: Expression | tuple[Expression, ...]
+    targets: Expression | tuple[Expression, ...]
     over: Neighborhood | Adjacency | Memory
     rule: Callable[..., Any]
     key: Expression | None = None
@@ -475,11 +481,6 @@ class ExtremalLaw(BaseLaw):
             error_msg = f'An extremal law applies at least once per step, but its repeat is {self.repeat}.'
             raise ValueError(error_msg)
         return replace(self, **changes) if changes else self
-
-    @property
-    def targets(self) -> tuple[Expression, ...]:
-        """Target symbols."""
-        return _targets(self.target)
 
     @property
     def key_state(self) -> Expression:
