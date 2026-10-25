@@ -33,9 +33,9 @@ oscillating = simulation.trajectory_
 second = Simulation(create(MODEL, E=0.4, I=0.3, P=1.25), dt=0.2).run(until=100).trajectory_
 resting = Simulation(create(MODEL, E=0.4, I=0.3, P=0.0), dt=0.2).run(until=100).trajectory_
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(oscillating['cortex.E'], oscillating['cortex.I'], label='P = 1.25, from (0.1, 0.05)')
+ax.plot(oscillating.values('cortex.E'), oscillating.values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
 ax.plot(second.values('cortex.E'), second.values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')
-ax.plot(resting['cortex.E'], resting['cortex.I'], ':', color='black', label='P = 0, decays to rest')
+ax.plot(resting.values('cortex.E'), resting.values('cortex.I'), ':', color='black', label='P = 0, decays to rest')
 ax.set_xlabel('excitatory activity E')
 ax.set_ylabel('inhibitory activity I')
 ax.set_title('An input turns rest into a limit cycle')

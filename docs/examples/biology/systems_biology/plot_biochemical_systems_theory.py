@@ -39,7 +39,7 @@ trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):
     ax.plot(trajectory.times, trajectory.values(f'X{index}.x'), color=color, label=f'X{index}, S-system')
-    ax.plot(gma.times, gma[f'X{index}.x'], ':', color='black')
+    ax.plot(gma.times, gma.values(f'X{index}.x'), ':', color='black')
     ax.axhline(steady[index - 1], color=color, linestyle='--', alpha=0.5)
 ax.plot([], [], ':', color='black', label='generalized mass action')
 ax.set_xlabel('time')

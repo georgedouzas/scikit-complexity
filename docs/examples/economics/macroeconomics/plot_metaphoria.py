@@ -68,7 +68,7 @@ net_money = sum(np.sum(values['money']) for values in holders)
 trajectory = simulation.trajectory_
 fig, (populations, money) = plt.subplots(1, 2, figsize=(11, 4))
 populations.plot(trajectory.times[:151], trajectory.values('population')[:151], label='hunter-gatherers')
-populations.plot(scarce.times, scarce['population'], label='monetary')
+populations.plot(scarce.times, scarce.values('population'), label='monetary')
 populations.plot(abundant.times, abundant.values('population'), label='monetary, abundant food')
 populations.set_xlabel('step')
 populations.set_ylabel('population')

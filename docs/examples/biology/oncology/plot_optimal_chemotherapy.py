@@ -44,7 +44,7 @@ untreated = (
 )
 trajectory = simulation.trajectory_
 fig, (tumour, dose) = plt.subplots(1, 2, figsize=(10, 4))
-tumour.plot(untreated.times, untreated['patient.A'], label='untreated')
+tumour.plot(untreated.times, untreated.values('patient.A'), label='untreated')
 tumour.plot(trajectory.times, trajectory.values('patient.A'), label='optimal infusion')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour cells A')

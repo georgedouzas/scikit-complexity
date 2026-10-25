@@ -41,7 +41,7 @@ tumour.set_title('Weakly antigenic tumours escape')
 tumour.legend()
 default = simulation.trajectory_
 for state, name in (('E', 'cytotoxic T cells'), ('EH', 'helper T cells'), ('ER', 'regulatory T cells')):
-    cells.semilogy(default.times, default[f'site.{state}'].clip(1e-6), label=name)
+    cells.semilogy(default.times, default.values(f'site.{state}').clip(1e-6), label=name)
 cells.set_xlabel('time (days)')
 cells.set_ylabel('cells')
 cells.set_title('The response at alpha_a = 0.001')
