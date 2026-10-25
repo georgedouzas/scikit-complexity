@@ -1,7 +1,7 @@
 """Test the `_kinds` module of `skcomplex.core.base`."""
 
 import copy
-import pickle
+import pickle  # nosec B403: the test loads only the pickles it makes
 
 import pytest
 
