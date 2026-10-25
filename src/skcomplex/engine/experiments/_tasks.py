@@ -12,13 +12,89 @@ import numpy as np
 from ...core.problems import BaseProblem
 from ...core.system import Observable, System
 from ..compile import observables_of
-from ..runtime import BaseObserver, Frame, Simulation, Trajectory
+from ..runtime import Simulation, Trajectory
 from ._designs import Row
 from ._results import RunResult
 from ._scenarios import Scenario
 from ._sources import _problem, split_overrides, with_values
 
 type Output = str | Callable[[Trajectory], Any]
+
+
+def _scalars(name: str, value: Any) -> dict[str, Any]:  # noqa: ANN401
+    """Return the scalar columns of a callable output's value."""
+    if isinstance(value, Mapping):
+        return {f'{name}.{key}': item for key, item in value.items()}
+    return {name: value}
+
+
+def _default_outputs(problem: BaseProblem) -> list[str]:
+    """Return every observable of a problem's system, or every state when it declares none."""
+    system = problem.system
+    observables = [
+        f'{scope}/{observable.label}' if scope else observable.label
+        for scope, observable in (observables_of(system) if system is not None else ())
+    ]
+    return observables or list(problem.states.names)
+
+
+def _step_function(initial: Any, changes: list[tuple[float, Any]]) -> Callable[[float], Any]:  # noqa: ANN401
+    """Return the function of time that takes the value of the last change at or before a time, else the initial one."""
+
+    def value_at(time: float) -> Any:  # noqa: ANN401
+        due = [value for start, value in changes if start <= time + 1e-12]
+        return due[-1] if due else initial
+
+    return value_at
+
+
+def _initial_value(problem: BaseProblem, path: str) -> Any:  # noqa: ANN401
+    """Return the initial value of a parameter or an adaptive parameter, or `None` for a name the problem lacks."""
+    layout, vector = (
+        (problem.states, problem.initial_state)
+        if path in problem.adaptive_parameters
+        else (problem.parameters, problem.initial_parameters)
+    )
+    try:
+        entry, indices = layout.locate(path)
+    except KeyError:
+        return None
+    return entry.decode(vector[indices]).reshape(entry.shape)
+
+
+class _Schedule:
+    """Scheduled parameter changes of a task, each in force from the first frame at or after its time.
+
+    Args:
+        changes:
+            The changes, each a time, a parameter path, and a value.
+    """
+
+    def __init__(self, changes: Sequence[tuple[float, str, Any]]) -> None:
+        self.changes = changes
+
+    def functions(self, problem: BaseProblem) -> dict[str, Callable[[float], Any]]:
+        """Return the value of every scheduled parameter as a function of time, which a simulation reads every frame.
+
+        Before its first change a parameter keeps its initial value in the problem.
+
+        Args:
+            problem:
+                The problem whose parameters change.
+
+        Returns:
+            functions:
+                The function of time of every scheduled parameter, by path.
+        """
+        ordered = sorted(self.changes, key=lambda change: change[0])
+        paths = dict.fromkeys(path for _, path, _ in ordered)
+        return {
+            path: _step_function(
+                _initial_value(problem, path),
+                [(time, value) for time, name, value in ordered if name == path],
+            )
+            for path in paths
+        }
 
 
 @dataclass(frozen=True)
@@ -72,22 +148,10 @@ class Task:
     warmup: float
     observables: Sequence[Observable] | str | None = None
 
-
-def _scalars(name: str, value: Any) -> dict[str, Any]:  # noqa: ANN401
-    """Return the scalar columns of a callable output's value."""
-    if isinstance(value, Mapping):
-        return {f'{name}.{key}': item for key, item in value.items()}
-    return {name: value}
-
-
-def _default_outputs(problem: BaseProblem) -> list[str]:
-    """Return every observable of a problem's system, or every state when it declares none."""
-    system = problem.system
-    observables = [
-        f'{scope}/{observable.label}' if scope else observable.label
-        for scope, observable in (observables_of(system) if system is not None else ())
-    ]
-    return observables or list(problem.states.names)
+    @property
+    def schedule(self) -> _Schedule:
+        """Scheduled parameter changes of the scenario, which the run reads at every frame."""
+        return _Schedule(self.scenario.schedule)
 
 
 def run_task(task: Task) -> RunResult:
@@ -103,14 +167,12 @@ def run_task(task: Task) -> RunResult:
     """
     arguments, paths = split_overrides({**task.row, **(task.scenario.overrides or {})})
     problem = with_values(_problem(task.source, arguments, task.scenario.system, task.observables), paths)
-    schedule = _Schedule(task.scenario.schedule)
     simulation = Simulation(
         problem,
-        observers=[schedule],
         random_state=np.random.default_rng(task.seed),
+        schedule=task.schedule.functions(problem),
         **task.settings,
     )
-    schedule.set_params(simulation=simulation)
     trajectory = simulation.run(until=task.until).trajectory_
     keep = trajectory.times >= task.warmup - 1e-12
     names = list(task.outputs) if task.outputs is not None else _default_outputs(problem)
@@ -133,36 +195,3 @@ def run_task(task: Task) -> RunResult:
         series=series,
         scalars=scalars,
     )
-
-
-class _Schedule(BaseObserver):
-    """Observer that applies scheduled parameter changes from the first frame at or after their time.
-
-    Args:
-        schedule:
-            The changes, each a time, a parameter path, and a value.
-
-        simulation:
-            The simulation whose parameters change, or `None` to apply no change.
-
-    Attributes:
-        pending_:
-            The changes not applied yet, in time order.
-    """
-
-    def __init__(self, schedule: Sequence[tuple[float, str, Any]], simulation: Simulation | None = None) -> None:
-        self.schedule = schedule
-        self.simulation = simulation
-
-    def _prepare(self, problem: BaseProblem) -> None:
-        """Sort the changes by time."""
-        self.pending_ = sorted(self.schedule, key=lambda change: change[0])
-
-    def _run(self, frame: Frame | None = None) -> None:
-        """Queue every change whose time has come."""
-        if frame is None:
-            return
-        due = [change for change in self.pending_ if change[0] <= frame.time + 1e-12]
-        if due and self.simulation is not None:
-            self.simulation.update_parameters({path: value for _, path, value in due})
-            self.pending_ = self.pending_[len(due) :]
