@@ -31,13 +31,16 @@
 
 ## 3. Magic methods
 
-- [ ] 3.1 Replace every remaining magic method outside the allowed four:
+- [ ] 3.1 Replace every magic method except `__init__` and the quantum operator arithmetic:
   - `run` or `evaluate` for `__call__`;
   - parameter or field printing for `__repr__`;
   - named properties for `__str__`;
-  - value records or explicit keys for `__eq__` and `__hash__`.
+  - value records or explicit keys for `__eq__` and `__hash__`;
+  - `values`, `size`, `entries`, `offsets`, and `frames` for the collection protocol, rewriting every
+    `trajectory[...]` in the library, the tests, the models, and the documents;
+  - plain attributes for the symbol namespace, and a namespace of declared names for probing laws.
 
-  Verify with the scenario "Magic methods".
+  Verify with the scenarios "Magic methods", "Reading a trajectory", and "Unknown symbol".
 
 ## 4. Rules and gate
 

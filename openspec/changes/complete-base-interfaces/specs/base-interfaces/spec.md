@@ -42,12 +42,21 @@ compared by value, whose base defines the fields every child has and the method 
 - **THEN** it equals the registered kind with `==`
 
 ### Requirement: Behaviour is named, not magic
-No class of `core`, `engine`, or `formalisms` SHALL define a magic method except `__init__`, the arithmetic of the
-quantum operators, the collection protocol of collections, and `__getattr__` of the symbol namespace of laws.
+No class of `core`, `engine`, or `formalisms` SHALL define a magic method except `__init__` and the arithmetic of
+the quantum operators. Collections SHALL be read with named methods and properties, and the symbol namespace of laws
+SHALL store its symbols as plain attributes.
 
 #### Scenario: Magic methods
 - **WHEN** every class of `core`, `engine`, and `formalisms` is listed with the magic methods it defines itself
-- **THEN** none defines one outside the four allowed
+- **THEN** none defines one besides `__init__` and the quantum operator arithmetic
+
+#### Scenario: Reading a trajectory
+- **WHEN** a user runs a Lotka-Volterra model and reads `trajectory.values('rabbits.n')`
+- **THEN** the values of every frame return, and `trajectory['rabbits.n']` raises `TypeError`
+
+#### Scenario: Unknown symbol
+- **WHEN** a law reads `s.rabit` in a component that declares `rabbit`
+- **THEN** Python raises `AttributeError`, which suggests `rabbit`
 
 #### Scenario: Designs combine by name
 - **WHEN** a user combines a grid design and a rows design with `product`

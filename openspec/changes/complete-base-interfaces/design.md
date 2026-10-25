@@ -112,12 +112,18 @@
 - **Terms are value records.** `Term(name, value)` becomes a frozen dataclass with `Term.register(name, value)`. It
   pickles, copies, and compares by value without hooks, and every `is` comparison of a term becomes `==`.
 
-- **The magic methods that stay.** No class defines a magic method except these:
-  - `__init__`;
-  - the arithmetic of the quantum operators, which the modeller writes as mathematics;
-  - the collection protocol of collections the modeller indexes or iterates, `trajectory['a.n']`, `len(layout)`,
-    `for entry in layout`;
-  - `__getattr__` of the symbol namespace of laws, `s.x` and `s.target.n`.
+- **The magic methods that stay.** No class defines a magic method except `__init__` and the arithmetic of the
+  quantum operators, which the modeller writes as mathematics, `σx * σy + h σz`.
+  - **Collections:** they are read by name.
+    - A trajectory reads a variable with `values(name)`.
+    - A layout gives `size` and `entries`.
+    - A neighbourhood gives `offsets`.
+    - Sections and snapshots give `frames`.
+  - **The symbol namespace of laws:** it stores every symbol as a plain attribute in `__init__`, so `s.x` and
+    `s.target.n` read attributes with no `__getattr__`, and an unknown name raises Python's own `AttributeError`,
+    which names close matches.
+  - **Probing a component's laws before compiling:** it builds the namespace from the component's declared names and
+    roles, with `other` for the neighbour of a member, instead of inventing a symbol for any name.
 
   The rest become named methods, as follows:
   - **`__call__`:** a callable becomes a `run` method on a configurable object, or `evaluate` on a value.
@@ -134,5 +140,7 @@
   compiling, so no unchecked part reaches a solver, and the errors gain the path of the part.
 - [Fitted attributes replace methods with arguments, such as `neighbors(site)`.] → What takes an argument stays a
   `run` input, and only facts of the whole object become fitted attributes.
+- [`trajectory['a.n']` is the most-used notation in tests, models, and the guide.] → The codemod rewrites every
+  subscript of a trajectory to `values`, and the doctests and markdown tests check the documents.
 - [Code compares terms with `is`.] → The codemod rewrites every `is` comparison of a term, and mypy and the tests
   check the result.

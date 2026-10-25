@@ -36,11 +36,10 @@ The bases name their families but neither define them nor speak a common languag
 - **Values keep data, not verbs.** Laws, domains, problems, terms, and compiled records stay frozen dataclasses
   without hand-written methods. Their only shared method is `check()`, and their bases define the fields every child
   has, such as `targets` for laws.
-- **No hand-written magic methods** apart from these:
-  - `__init__`;
-  - the arithmetic of the quantum operators;
-  - the collection protocol of collections the modeller indexes, such as `trajectory['a.n']`;
-  - `__getattr__` of the symbol namespace of laws, `s.x`.
+- **No hand-written magic methods** apart from `__init__` and the arithmetic of the quantum operators:
+  - Collections are read with named methods and properties: `trajectory.values('a.n')` replaces `trajectory['a.n']`,
+    `layout.size` replaces `len(layout)`, and `layout.entries` replaces iterating the layout.
+  - The symbol namespace of laws keeps `s.x`, with every symbol stored as a plain attribute and no `__getattr__`.
 - **Terms become value records** compared with `==`.
 - **Surrogates become estimators:** `SINDySurrogate(...).fit(series).run(50)` replaces `fit_sindy(...)` and
   `forecast`.
