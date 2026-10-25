@@ -207,7 +207,7 @@ class Simulation(BaseEstimator):
         self._adaptive = self.problem_.adaptive_parameters if isinstance(self.problem_, Problem) else {}
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
-        self.observables_ = ObservableEvaluator(self.problem_)
+        self.observables_ = ObservableEvaluator(self.problem_).fit()
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
         self.stepper_.plan(until)
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())

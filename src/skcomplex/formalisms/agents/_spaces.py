@@ -48,14 +48,15 @@ class Phase:
     repeat: int = 1
     groups: Sequence[str] | None = None
 
-    def __post_init__(self) -> None:
-        """Check the activation policy and the number of rounds."""
-        if self.activation not in ACTIVATIONS:
-            error_msg = f'Unknown activation {self.activation!r} of phase {self.name!r}. Use one of {ACTIVATIONS}.'
-            raise ValueError(error_msg)
-        if self.repeat < 1:
-            error_msg = f'Phase {self.name!r} repeats {self.repeat} times. Use at least one round.'
-            raise ValueError(error_msg)
+
+def _check_phase(phase: Phase) -> None:
+    """Check the activation policy and the number of rounds of a phase."""
+    if phase.activation not in ACTIVATIONS:
+        error_msg = f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {ACTIVATIONS}.'
+        raise ValidationError(error_msg)
+    if phase.repeat < 1:
+        error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'
+        raise ValidationError(error_msg)
 
 
 class PhasesSchedule(Schedule):
@@ -73,6 +74,8 @@ class PhasesSchedule(Schedule):
 
     def __init__(self, phases: Sequence[Phase]) -> None:
         self.phases = tuple(phases)
+        for phase in self.phases:
+            _check_phase(phase)
         names = [phase.name for phase in self.phases]
         if len(names) != len(set(names)):
             error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'

@@ -177,7 +177,9 @@ def test_compile_system_starts_from_the_ground_state():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system, initial_state={'system.state': 'ground'})
-    energy = ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)['energy']
+    energy = (
+        ObservableEvaluator(problem).fit().evaluate(0.0, problem.initial_state, problem.initial_parameters)['energy']
+    )
     assert energy == pytest.approx(-2.0)
 
 
@@ -190,7 +192,7 @@ def test_observable_evaluator_reads_local_magnetization():
         expectation('total', local_z, group='chain', reduce='sum'),
     ]
     problem = compile_system(system, observables=observables)
-    values = ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)
+    values = ObservableEvaluator(problem).fit().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert values['sz'].tolist() == [0.5, -0.5] * 4
     assert values['total'] == 0.0
 
@@ -199,7 +201,7 @@ def test_observable_evaluator_rejects_non_operators():
     """Test that a quantum observable must give an operator."""
     system = System(components=[QubitComponent('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
-        ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))]))
+        ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))])).fit()
 
 
 def test_local_values_give_probabilities_and_expectations():

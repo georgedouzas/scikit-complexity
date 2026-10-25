@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -24,6 +24,26 @@ class BaseDomain:
     """
 
     value: Any
+
+    def _check(self) -> Self:
+        """Return the domain with its values checked, the domain itself by default."""
+        return self
+
+    def check(self) -> Self:
+        """Return the domain with its values checked.
+
+        Domains are values, so checking returns a domain rather than changing this one. Declaring a state or a
+        parameter checks its domain.
+
+        Returns:
+            domain:
+                The checked domain.
+
+        Raises:
+            ValidationError:
+                A value of the domain is invalid, such as an unknown kind of structure.
+        """
+        return self._check()
 
     @property
     def domain_kind(self) -> DomainKind:

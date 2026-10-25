@@ -29,7 +29,7 @@ def _solved(kinds: set[LawKind], solvers: list[Any]) -> bool:
 
     Co-simulation is left out, since it runs partitions that each need a solver of their own.
     """
-    return any(kinds <= solver.supports.laws for solver in solvers if solver.form != Form.COUPLED)
+    return any(kinds <= set(solver.supports.laws) for solver in solvers if solver.form != Form.COUPLED)
 
 
 def _listed(owners: Mapping[str, Iterable[object]]) -> str:

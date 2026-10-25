@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
@@ -665,12 +666,16 @@ class CompiledNeighborhood:
     search: Search
     reads: dict[Expression, PairRead]
     time: Expression
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        """Compile the argument and the weight into one NumPy function."""
-        self._symbols = sorted(self.reads, key=str)
-        self._function = numpy_function(self.time, self._symbols, [self.argument, self.weight])
+    @functools.cached_property
+    def _symbols(self) -> list[Expression]:
+        """Symbols the argument and the weight read, sorted by name."""
+        return sorted(self.reads, key=str)
+
+    @functools.cached_property
+    def _function(self) -> Callable[..., list[Any]]:
+        """NumPy function of the argument and the weight, compiled once."""
+        return numpy_function(self.time, self._symbols, [self.argument, self.weight])
 
     @property
     def symbols(self) -> list[Expression]:
@@ -721,7 +726,7 @@ class CompiledNeighborhood:
         size = self.size
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
-        argument, weight = self._function(t, *self._gather(x, q, readers, others, edges))  # type: ignore[misc]
+        argument, weight = self._function(t, *self._gather(x, q, readers, others, edges))
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))

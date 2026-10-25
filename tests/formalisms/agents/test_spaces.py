@@ -21,9 +21,9 @@ def test_ordered_phases_are_a_schedule():
 
 
 def test_phase_rejects_unknown_activation():
-    """Test that a phase rejects an activation policy it does not know."""
-    with pytest.raises(ValueError, match='Unknown activation'):
-        Phase('trade', activation='parallel')
+    """Test that a schedule of phases rejects an activation policy it does not know."""
+    with pytest.raises(ValidationError, match='Unknown activation'):
+        PhasesSchedule([Phase('trade', activation='parallel')])
 
 
 class EmployerComponent(ElementComponent):
@@ -124,8 +124,8 @@ def test_sequential_and_by_type_order():
 
 
 def test_phase_checks_arguments():
-    """A phase rejects an unknown activation and fewer than one round."""
-    with pytest.raises(ValueError, match='activation'):
-        Phase('x', activation='parallel')
-    with pytest.raises(ValueError, match='round'):
-        Phase('x', repeat=0)
+    """A schedule rejects a phase with an unknown activation or fewer than one round."""
+    with pytest.raises(ValidationError, match='activation'):
+        PhasesSchedule([Phase('x', activation='parallel')])
+    with pytest.raises(ValidationError, match='round'):
+        PhasesSchedule([Phase('x', repeat=0)])

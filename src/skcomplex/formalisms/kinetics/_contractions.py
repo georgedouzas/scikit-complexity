@@ -3,9 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
-from typing import Any, cast
+from dataclasses import dataclass
+from typing import Any
 
 import numba
 import numpy as np
@@ -49,19 +50,31 @@ class TableValues:
     positions: tuple[Indices, ...]
     parameters: Mapping[Expression, int]
     time: Expression
-    _constant: Vector | None = field(default=None, init=False, repr=False)
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
-    _indices: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        """Keep a constant table as an array, and compile a table of expressions into one NumPy function."""
-        selected = self.table[self.positions] if self.table.ndim else np.full(self.positions[0].size, self.table[()])
-        if selected.dtype != object:
-            self._constant = np.asarray(selected, dtype=float)
-            return
-        symbols = sorted(self.parameters, key=str)
-        self._indices = np.asarray([self.parameters[item] for item in symbols], dtype=np.intp)
-        self._function = numpy_function(self.time, symbols, list(selected))
+    @functools.cached_property
+    def _selected(self) -> npt.NDArray[Any]:
+        """Selected entries of the table."""
+        return self.table[self.positions] if self.table.ndim else np.full(self.positions[0].size, self.table[()])
+
+    @functools.cached_property
+    def _constant(self) -> Vector | None:
+        """Selected entries of a table of numbers, or `None` for a table of expressions."""
+        return np.asarray(self._selected, dtype=float) if self._selected.dtype != object else None
+
+    @functools.cached_property
+    def _symbols(self) -> list[Expression]:
+        """Parameter symbols the selected entries read, sorted by name."""
+        return sorted(self.parameters, key=str)
+
+    @functools.cached_property
+    def _indices(self) -> Indices:
+        """Flat index in the parameter vector of every symbol the selected entries read."""
+        return np.asarray([self.parameters[item] for item in self._symbols], dtype=np.intp)
+
+    @functools.cached_property
+    def _function(self) -> Callable[..., list[Any]]:
+        """NumPy function of the selected entries of a table of expressions, compiled once."""
+        return numpy_function(self.time, self._symbols, list(self._selected))
 
     def values(self, p: Vector) -> Vector:
         """Return the values of the selected entries.
@@ -76,8 +89,7 @@ class TableValues:
         """
         if self._constant is not None:
             return self._constant
-        function = cast('Callable[..., list[Any]]', self._function)
-        return np.asarray(function(0.0, *(float(value) for value in p[self._indices])), dtype=float)
+        return np.asarray(self._function(0.0, *(float(value) for value in p[self._indices])), dtype=float)
 
 
 @dataclass
