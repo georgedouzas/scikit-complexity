@@ -26,7 +26,7 @@
 - [ ] 2.3 Make the runtime call `fit` before the first frame, `run` at every frame, and `run(..., final=True)` at the
   last. Remove its `getattr` fallbacks, and move `engine/analysis/_quantum.py` to `formalisms/quantum`. Verify with
   the scenario "Quantum run through the base".
-- [ ] 2.4 Make the surrogates estimators with `fit` and `run`, replacing `fit_dmd`, `fit_sindy`, and `fit_reservoir`.
+- [x] 2.4 Make the surrogates estimators with `fit` and `run`, replacing `fit_dmd`, `fit_sindy`, and `fit_reservoir`.
   Verify with the scenario "Fit and run".
 
 ## 3. Magic methods

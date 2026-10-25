@@ -1,0 +1,35 @@
+## MODIFIED Requirements
+
+### Requirement: Linear surrogates by mode decomposition
+`DMDSurrogate` SHALL fit dynamic mode decomposition and extended DMD to trajectories with `fit(series)`, deriving modes, eigenvalues, and a system that `Simulation` runs, and SHALL forecast with `run(steps)`.
+
+#### Scenario: Linear system recovered
+- **WHEN** DMD is fitted to a trajectory of a known linear ODE
+- **THEN** its continuous eigenvalues equal those of the system matrix within 1e-6
+
+### Requirement: Sparse symbolic surrogates
+`SINDySurrogate` SHALL fit SINDy to trajectories with `fit(series)` and derive symbolic laws the compiler accepts.
+
+#### Scenario: Lorenz rediscovered
+- **WHEN** SINDy is fitted to a noise-free `lorenz` trajectory with a polynomial library of degree 2
+- **THEN** it recovers the seven nonzero terms of the Lorenz system with coefficients within 1%
+
+### Requirement: Surrogates are systems
+Every fitted surrogate SHALL set `system_`, a `System` of one element with ordinary laws and a declared time, continuous
+for mode decomposition and SINDy and discrete for reservoirs, and that system SHALL validate and run through
+`Simulation` like a hand-written system.
+
+#### Scenario: Surrogate validated
+- **WHEN** the `system_` of a SINDy surrogate fitted to `lorenz` is validated
+- **THEN** the report has no error, its time is continuous, and the automatic solver is an ODE solver
+
+#### Scenario: Reservoir under discrete time
+- **WHEN** a reservoir surrogate is simulated
+- **THEN** its system declares discrete time, and each step applies the readout once
+
+### Requirement: Reservoir surrogates
+`ReservoirSurrogate` SHALL fit echo state networks and next-generation reservoirs to trajectories with `fit(series)` and forecast autonomously with `run(steps)`.
+
+#### Scenario: Chaotic forecast
+- **WHEN** a next-generation reservoir is fitted to 40 Lyapunov times of `lorenz`
+- **THEN** its forecast from `run` stays within 10% of the attractor size for at least one Lyapunov time
