@@ -454,7 +454,7 @@ def settle_rows(spec: KernelSpec, laws: list[BaseLaw]) -> None:
     read: set[Expression] = set()
     for law, value in zip(laws, values, strict=True):
         read |= _outside_reductions(value)
-        read |= set(components_of(getattr(law, 'target', None)))
+        read |= {item for target in law.targets for item in components_of(target)}
     owners = {
         reference.entry.name.rpartition('.')[0]
         for item in read

@@ -21,10 +21,10 @@ from .._tree import Node
 
 def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
     """Return an update law that keeps the value of its target on the free rows of a capacity layout."""
-    value, kept = masked_value(law.value, mask), masked_value(law.target, 1 - mask)
+    value, kept = masked_value(law.value, mask), masked_value(law.targets[0], 1 - mask)
     if isinstance(value, SymbolicVector):
-        return UpdateLaw(law.target, vector(a + b for a, b in zip(value, cast('SymbolicVector', kept), strict=True)))
-    return UpdateLaw(law.target, SR(value) + SR(kept))
+        return UpdateLaw(law.targets, vector(a + b for a, b in zip(value, cast('SymbolicVector', kept), strict=True)))
+    return UpdateLaw(law.targets, SR(value) + SR(kept))
 
 
 def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: Declarations) -> list[BaseLaw]:

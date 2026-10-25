@@ -142,12 +142,12 @@ class MatrixLaw:
 
 def _transition(owner: str, law: TransitionLaw, references: dict[Expression, Reference]) -> tuple[UpdateLaw, MatrixLaw]:
     """Return the update law a transition law becomes and its matrix."""
-    description = f'transition law of {owner}.{law.target}'
-    size = _alphabet_size(description, references.get(law.target))
+    description = f'transition law of {owner}.{law.targets[0]}'
+    size = _alphabet_size(description, references.get(law.targets[0]))
     _check_shape(description, law.matrix, size, size)
     _check_shape(description, law.matrix, len(law.matrix), len(law.matrix))
-    value = categorical(_draw_name('transition', law.target), _selected_row(law.target, law.matrix))
-    return UpdateLaw(law.target, value), MatrixLaw(owner, description, law.matrix)
+    value = categorical(_draw_name('transition', law.targets[0]), _selected_row(law.targets[0], law.matrix))
+    return UpdateLaw(law.targets, value), MatrixLaw(owner, description, law.matrix)
 
 
 def _emission(
@@ -157,8 +157,8 @@ def _emission(
     updates: dict[str, object],
 ) -> tuple[UpdateLaw, MatrixLaw]:
     """Return the update law an emission law becomes, reading the hidden state's next value, and its matrix."""
-    description = f'emission law of {owner}.{law.target}'
-    columns = _alphabet_size(description, references.get(law.target))
+    description = f'emission law of {owner}.{law.targets[0]}'
+    columns = _alphabet_size(description, references.get(law.targets[0]))
     rows = _alphabet_size(description, references.get(law.source))
     _check_shape(description, law.matrix, rows, columns)
     hidden = updates.get(str(law.source))
@@ -168,8 +168,8 @@ def _emission(
             'sets. Give the hidden state a transition law in the same component.'
         )
         raise ValidationError(error_msg)
-    value = categorical(_draw_name('emission', law.target), _selected_row(SR(hidden), law.matrix))
-    return UpdateLaw(law.target, value), MatrixLaw(owner, description, law.matrix)
+    value = categorical(_draw_name('emission', law.targets[0]), _selected_row(SR(hidden), law.matrix))
+    return UpdateLaw(law.targets, value), MatrixLaw(owner, description, law.matrix)
 
 
 def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
@@ -407,7 +407,7 @@ def markov_laws(
             matrices.append(matrix)
         else:
             rewritten.append(law)
-    updates = {str(law.target): law.value for law in rewritten if isinstance(law, UpdateLaw)}
+    updates = {str(law.targets[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}
     for index, law in enumerate(rewritten):
         if isinstance(law, EmissionLaw):
             rewritten[index], matrix = _emission(owner, law, references, updates)
@@ -588,7 +588,7 @@ class DrawLowering:
                 continue
             values = [_lowered(SR(item), slots) for item in components_of(law.value)]
             value = vector(values) if isinstance(law.value, SymbolicVector) else values[0]
-            lowered.append(UpdateLaw(law.target, value))
+            lowered.append(UpdateLaw(law.targets, value))
         return lowered
 
     def allocate(self) -> None:

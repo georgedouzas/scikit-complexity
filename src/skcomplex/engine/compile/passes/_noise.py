@@ -30,7 +30,7 @@ def _noise_terms(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: De
         for law in laws:
             if not isinstance(law, NoiseLaw):
                 continue
-            targets = components_of(law.target)
+            targets = components_of(law.targets[0])
             values = (
                 components_of(law.value)
                 if isinstance(law.value, SymbolicVector | list | tuple)
@@ -87,7 +87,7 @@ def _noise_correction(term: _NoiseTerm, terms: list[_NoiseTerm], wieners: Mappin
     if not parts:
         return None
     correction = sum(parts[1:], parts[0])
-    return None if correction.is_zero() else RateLaw(term.target, correction)
+    return None if correction.is_zero() else RateLaw((term.target,), correction)
 
 
 def _with_noise_corrections(

@@ -65,6 +65,16 @@ def _is_process(process: object) -> bool:
     return isinstance(process, tuple) and bool(process) and all(isinstance(item, str) for item in process)
 
 
+def _check_one_target(law: BaseLaw) -> None:
+    """Raise an error for a law of one state that is given no state or several."""
+    if len(law.targets) != 1:
+        error_msg = (
+            f'A {type(law).__name__} changes one state, but its targets are {law.targets!r}. Give one state, a scalar '
+            'symbol or the column of symbols of a vector state.'
+        )
+        raise ValidationError(error_msg)
+
+
 def _check_clock_options(jump: 'JumpLaw') -> None:
     """Raise an error for a jump that takes an option of the clock it does not use."""
     if jump.waiting is not None and jump.changes:
@@ -127,8 +137,8 @@ class RateLaw(BaseLaw):
     a state of order `k`, a rate contributes to the `k`-th derivative, so independent mechanisms superpose.
 
     Args:
-        target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+        targets:
+            The symbol of a scalar state, or the column of symbols of a vector state, alone or in a one-element tuple.
 
         value:
             A symbolic expression or a callable `f(t, values)` where `values` maps dotted state and parameter names to
@@ -153,14 +163,15 @@ class RateLaw(BaseLaw):
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
     )
 
-    target: Target
+    targets: Target | tuple[Target, ...]
     value: object
     order: int | None = None
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.targets[0]}', self.value)
         return replace(self, **changes) if changes else self
 
 
@@ -178,8 +189,8 @@ class NoiseLaw(BaseLaw):
     process on their outer links.
 
     Args:
-        target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+        targets:
+            The symbol of a scalar state, or the column of symbols of a vector state, alone or in a one-element tuple.
 
         value:
             A symbolic expression or a callable `f(t, values)`. A vector target gets one Wiener process per component.
@@ -224,7 +235,7 @@ class NoiseLaw(BaseLaw):
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.VECTOR},
     )
 
-    target: Target
+    targets: Target | tuple[Target, ...]
     value: object
     order: int | None = None
     convention: str = 'ito'
@@ -233,20 +244,21 @@ class NoiseLaw(BaseLaw):
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.targets[0]}', self.value)
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
             raise ValidationError(error_msg)
         if not _is_process(self.process):
             error_msg = (
-                f'The process of the noise law of {self.target} is {self.process!r}. Give a label, a tuple of labels, '
-                'or the handle `s.<role>.dW` of a Wiener element.'
+                f'The process of the noise law of {self.targets[0]} is {self.process!r}. Give a label, a tuple of '
+                'labels, or the handle `s.<role>.dW` of a Wiener element.'
             )
             raise ValidationError(error_msg)
         if self.conserved and self.process is not None:
             error_msg = (
-                f'The conserved noise law of {self.target} names the process {self.process!r}, but it draws one '
+                f'The conserved noise law of {self.targets[0]} names the process {self.process!r}, but it draws one '
                 'process per link of the lattice. Remove the process.'
             )
             raise ValidationError(error_msg)
@@ -350,8 +362,8 @@ class UpdateLaw(BaseLaw):
     """Next value of a state after one discrete time step.
 
     Args:
-        target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+        targets:
+            The symbol of a scalar state, or the column of symbols of a vector state, alone or in a one-element tuple.
 
         value:
             A symbolic expression or a callable `f(t, values)` that gives the next value.
@@ -360,8 +372,8 @@ class UpdateLaw(BaseLaw):
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import UpdateLaw
         >>> x = symbol('x')
-        >>> UpdateLaw(x, 3.7 * x * (1 - x)).target
-        x
+        >>> UpdateLaw(x, 3.7 * x * (1 - x)).check().targets
+        (x,)
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
@@ -369,13 +381,14 @@ class UpdateLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
 
-    target: Target
+    targets: Target | tuple[Target, ...]
     value: object
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.targets[0]}', self.value)
         return replace(self, **changes) if changes else self
 
 
@@ -387,8 +400,8 @@ class TransitionLaw(BaseLaw):
     domain or the integers from 0 to `n - 1`. A transition is a kind of update law, so it combines with update laws.
 
     Args:
-        target:
-            The symbol of a scalar state.
+        targets:
+            The symbol of a scalar state, alone or in a one-element tuple.
 
         matrix:
             The square transition matrix, whose entry `(i, j)` is the probability of the step from `i` to `j`, as
@@ -414,13 +427,14 @@ class TransitionLaw(BaseLaw):
         domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
     )
 
-    target: Expression
+    targets: Expression | tuple[Expression, ...]
     matrix: Sequence[Sequence[object]]
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['matrix'] = _checked_matrix(f'transition law of {self.target}', self.matrix)
+        changes['matrix'] = _checked_matrix(f'transition law of {self.targets[0]}', self.matrix)
         return replace(self, **changes) if changes else self
 
 
@@ -431,8 +445,8 @@ class EmissionLaw(BaseLaw):
     The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
 
     Args:
-        target:
-            The symbol of the observed scalar state.
+        targets:
+            The symbol of the observed scalar state, alone or in a one-element tuple.
 
         source:
             The symbol of the hidden state, which an update or transition law of the same component sets.
@@ -461,14 +475,15 @@ class EmissionLaw(BaseLaw):
         domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
     )
 
-    target: Expression
+    targets: Expression | tuple[Expression, ...]
     source: Expression
     matrix: Sequence[Sequence[object]]
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['matrix'] = _checked_matrix(f'emission law of {self.target}', self.matrix)
+        changes['matrix'] = _checked_matrix(f'emission law of {self.targets[0]}', self.matrix)
         return replace(self, **changes) if changes else self
 
 
@@ -479,8 +494,8 @@ class BoundaryLaw(BaseLaw):
     Boundary laws do not change the form of a system, so they combine with every other law kind.
 
     Args:
-        target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+        targets:
+            The symbol of a scalar state, or the column of symbols of a vector state, alone or in a one-element tuple.
 
         value:
             A symbolic expression or a callable `f(t, values)` that gives the new value.
@@ -498,13 +513,14 @@ class BoundaryLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
-    target: Target
+    targets: Target | tuple[Target, ...]
     value: object
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        _check_one_target(self)
         changes: dict[str, Any] = {}
-        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.target}', self.value)
+        changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.targets[0]}', self.value)
         return replace(self, **changes) if changes else self
 
 

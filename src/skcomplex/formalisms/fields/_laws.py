@@ -156,8 +156,8 @@ class FluxLaw(BaseLaw):
     the flux Jacobians. Rate laws on the same states add sources.
 
     Args:
-        target:
-            The symbol of the conserved state.
+        targets:
+            The symbol of the conserved state, alone or in a one-element tuple.
 
         flux:
             The flux, an expression or one expression per dimension.
@@ -185,7 +185,7 @@ class FluxLaw(BaseLaw):
         domains={DomainKind.REAL},
     )
 
-    target: Expression
+    targets: Expression | tuple[Expression, ...]
     flux: object
     limiter: str | None = 'minmod'
     riemann: str = 'rusanov'
@@ -193,6 +193,9 @@ class FluxLaw(BaseLaw):
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
         changes: dict[str, Any] = {}
+        if len(self.targets) != 1:
+            error_msg = f'A flux law changes one conserved state, but its targets are {self.targets!r}.'
+            raise ValueError(error_msg)
         if self.limiter not in LIMITERS:
             error_msg = f"Unknown limiter {self.limiter!r}. Use 'minmod', 'van-leer', or None."
             raise ValueError(error_msg)

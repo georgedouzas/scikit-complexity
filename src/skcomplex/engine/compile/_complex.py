@@ -189,7 +189,7 @@ def _split_assignment(
 ) -> list[BaseLaw]:
     """Return the laws of one real target component each that a rate, noise, update, or boundary law stands for."""
     description = f'{type(law).__name__} of {owner}'
-    targets = components_of(law.target)
+    targets = components_of(law.targets[0])
     values = None if isinstance(law.value, Call) else symbolic_components(law.value, len(targets), description)
     if values is None:
         error_msg = (
@@ -199,8 +199,8 @@ def _split_assignment(
         raise ValidationError(error_msg)
     real_targets, real_values = _split_value(targets, values, description, state_of)
     if isinstance(law, RateLaw | NoiseLaw):
-        return [type(law)(target, value, law.order) for target, value in zip(real_targets, real_values, strict=True)]
-    return [type(law)(target, value) for target, value in zip(real_targets, real_values, strict=True)]
+        return [type(law)((target,), value, law.order) for target, value in zip(real_targets, real_values, strict=True)]
+    return [type(law)((target,), value) for target, value in zip(real_targets, real_values, strict=True)]
 
 
 def _split_event(event: EventLaw, owner: str, state_of: Callable[[Expression], str]) -> EventLaw:

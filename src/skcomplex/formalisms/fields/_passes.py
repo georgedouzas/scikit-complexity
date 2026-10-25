@@ -65,7 +65,7 @@ def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, Fi
     for law in laws:
         if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
             continue
-        for reference in target_references(law.target, spec):
+        for reference in target_references(law.targets[0], spec):
             if reference.entry.name in places and reference.source is Source.MEMBER:
                 terms += linear_terms(law.value, reference, spec.references, places)
     return terms
@@ -92,12 +92,12 @@ def _with_fields(
             lowering.note_limit(law.value)
         lowered = lowering.lower(law.value)
         if isinstance(law.value, Expression):
-            for reference in target_references(law.target, spec):
+            for reference in target_references(law.targets[0], spec):
                 facts['written'][(reference.entry.name, reference.column)].append((lowered, law.value))
         if isinstance(law, RateLaw | NoiseLaw):
             result.append(replace(law, value=lowered))
         else:
-            result.append(type(law)(law.target, lowered))
+            result.append(type(law)(law.targets, lowered))
     facts['limits'] += lowering.limits
     facts['volume_limits'] += lowering.volume_limits
     return result
@@ -127,7 +127,7 @@ def _compile_fluxes(
         fluxes = [law for law in laws if isinstance(law, FluxLaw)]
         if not fluxes:
             continue
-        targets = [(law, target_references(law.target, spec)[0]) for law in fluxes]
+        targets = [(law, target_references(law.targets[0], spec)[0]) for law in fluxes]
         owners = {reference.entry.name.rpartition('.')[0] for _, reference in targets}
         for owner in sorted(owners):
             block = declarations.blocks[owner]
@@ -301,7 +301,7 @@ def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, lis
     for spec, laws in specs:
         for law in laws:
             if isinstance(law, NoiseLaw) and law.conserved:
-                targets = target_references(law.target, spec)
+                targets = target_references(law.targets[0], spec)
                 outputs[id(law)] = conserved_outputs(spec.owner, law, targets, places, spec.references)
     return outputs
 

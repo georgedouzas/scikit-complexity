@@ -11,6 +11,7 @@ from skcomplex.core.base import (
     ComponentKind,
     DomainKind,
     Entry,
+    Expression,
     Form,
     LawClass,
     LawKind,
@@ -44,7 +45,7 @@ class DecayLaw(BaseLaw):
     """Decay of a state at a rate given by a parameter symbol.
 
     Args:
-        target:
+        targets:
             The state symbol.
 
         rate:
@@ -56,7 +57,7 @@ class DecayLaw(BaseLaw):
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
-    target: object
+    targets: Expression | tuple[Expression, ...]
     rate: object
 
 

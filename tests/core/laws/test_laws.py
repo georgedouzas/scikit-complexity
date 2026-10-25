@@ -202,6 +202,21 @@ LeakyComponent = ElementComponent.define(
 )
 
 
+@pytest.mark.parametrize('targets', [(), (symbol('n'), symbol('m'))])
+def test_law_of_one_state_rejects_other_targets(targets):
+    """Test that a law of one state rejects no target and several targets."""
+    with pytest.raises(ValidationError, match='changes one state'):
+        RateLaw(targets, 1.0).check()
+
+
+def test_law_of_one_state_takes_it_alone_or_in_a_tuple():
+    """Test that a law of one state takes the state alone or in a one-element tuple, and checks both into a tuple."""
+    n = symbol('n')
+    assert RateLaw(n, -n).check().targets[0] is n
+    assert UpdateLaw((n,), n).check().targets[0] is n
+    assert len(UpdateLaw(n, n).check().targets) == 1
+
+
 def test_noise_rejects_unknown_process():
     """Test that a noise law rejects a process that is neither a label nor a handle."""
     with pytest.raises(ValidationError, match='process'):

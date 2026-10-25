@@ -103,7 +103,7 @@ def _substitute(
 
 def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> RateLaw | NoiseLaw:
     """Return a rate or noise law that targets the highest derivative of its state, after checking its order."""
-    items = components_of(law.target)
+    items = components_of(law.targets[0])
     references = [spec.references.get(item) for item in items]
     declared = {orders.orders.get(reference.entry.name, 1) for reference in references if reference is not None}
     order = max(declared, default=1)
@@ -117,8 +117,8 @@ def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> Rat
     if order == 1:
         return law
     tops = [_companion_symbol(spec, item, f'_d{order - 1}') for item in items]
-    target = vector(tops) if isinstance(law.target, SymbolicVector) else tops[0]
-    return replace(law, target=target)
+    target = vector(tops) if isinstance(law.targets[0], SymbolicVector) else tops[0]
+    return replace(law, targets=(target,))
 
 
 def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[BaseLaw]:
@@ -127,12 +127,12 @@ def _intrinsic_laws(spec: KernelSpec, block: Block, orders: _Orders) -> list[Bas
     for variable, entry in block.entries.items():
         names = [variable, *(f'{variable}_d{index}' for index in range(1, orders.orders.get(entry.name, 1)))]
         laws += [
-            RateLaw(getattr(spec.namespace, lower), getattr(spec.namespace, upper))
+            RateLaw((getattr(spec.namespace, lower),), getattr(spec.namespace, upper))
             for lower, upper in itertools.pairwise(names)
         ]
         shifted = [variable, *(f'{variable}_lag{index}' for index in range(1, orders.lags.get(entry.name, 0) + 1))]
         laws += [
-            UpdateLaw(getattr(spec.namespace, older), getattr(spec.namespace, newer))
+            UpdateLaw((getattr(spec.namespace, older),), getattr(spec.namespace, newer))
             for newer, older in itertools.pairwise(shifted)
         ]
     return laws
@@ -172,7 +172,7 @@ def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _Orders) -> object:
     value = _substitute(law.value, spec, orders, owner)
     if isinstance(law, RateLaw | NoiseLaw):
         return _retarget(replace(law, value=value), spec, orders)
-    return type(law)(law.target, value)
+    return type(law)(law.targets, value)
 
 
 def _with_orders(spec: KernelSpec, laws: list[BaseLaw], block: Block, orders: _Orders) -> list[Any]:
@@ -250,11 +250,11 @@ def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[Ke
             error_msg = f'The highest derivatives of {descriptions} cannot be solved for: the system is singular.'
             raise ValidationError(error_msg)
         solution = system.solve_right(vector([SR(item) for item in right]), check=False)
-        laws = [RateLaw(highest[item], value) for item, value in zip(unknowns, solution, strict=True)]
+        laws = [RateLaw((highest[item],), value) for item, value in zip(unknowns, solution, strict=True)]
     else:
         entries = [entry for row in coefficients for entry in row] + right
         laws = [
-            RateLaw(highest[item], Call(_numeric_solution(rows, len(unknowns), index), tuple(entries)))
+            RateLaw((highest[item],), Call(_numeric_solution(rows, len(unknowns), index), tuple(entries)))
             for index, item in enumerate(unknowns)
         ]
     return [*kept, (merged, laws)]

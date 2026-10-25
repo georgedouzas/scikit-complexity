@@ -156,7 +156,8 @@ def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], 
     names = {name: symbol(f'_{name}_') for name in states}
     rates: dict[str, Any] = {}
     for law in member.run(Symbols(**names, **parameters, t=symbol('t'))):
-        target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
+        targets = law.check().targets if isinstance(law, RateLaw) else ()
+        target = next((name for name, item in names.items() if targets and targets[0] is item), None)
         if not isinstance(law, RateLaw) or target is None:
             error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
             raise AnalysisError(error_msg)

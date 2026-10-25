@@ -69,7 +69,7 @@ def _toward_specs(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: D
             space, _ = _request_network(spec, declarations)
             nodes = _node_block(space, declarations)
             node_spec = member_spec(nodes, declarations.time)
-            towards.append((node_spec, [UpdateLaw(_Weight(request), SR(request.toward(node_spec.namespace)))]))
+            towards.append((node_spec, [UpdateLaw((_Weight(request),), SR(request.toward(node_spec.namespace)))]))
     return towards
 
 
@@ -162,7 +162,9 @@ def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: Declar
     mask = mask_of(spec, declarations)
     if mask is None:
         return laws
-    return [UpdateLaw(law.target, masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law for law in laws]
+    return [
+        UpdateLaw(law.targets, masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law for law in laws
+    ]
 
 
 def _set_request_jumps_apart(
@@ -187,7 +189,7 @@ def _set_request_jumps_apart(
 
 def _is_weight(law: BaseLaw) -> bool:
     """Check whether a law sets the weight of the candidate nodes of a request."""
-    return isinstance(getattr(law, 'target', None), _Weight)
+    return isinstance(next(iter(law.targets), None), _Weight)
 
 
 def _topology(
@@ -204,7 +206,7 @@ def _topology(
     towards = [(spec, laws) for spec, laws in apart if all(_is_weight(law) for law in laws)]
     updates = [(spec, laws) for spec, laws in apart if not all(_is_weight(law) for law in laws)]
     weights = {
-        id(law.target.request): _request_kernel(spec, law.value, declarations)
+        id(law.targets[0].request): _request_kernel(spec, law.value, declarations)
         for spec, laws in towards
         for law in laws
         if isinstance(law, UpdateLaw)

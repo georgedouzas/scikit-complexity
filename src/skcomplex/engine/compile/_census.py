@@ -63,11 +63,10 @@ def _changed_target(spec: KernelSpec, law: BaseLaw) -> object:
     """Return the target of a law, or the first state a jump changes."""
     if isinstance(law, JumpLaw):
         return next(iter(law.changes))
-    target = getattr(law, 'target', None)
-    if target is None:
+    if not law.targets:
         error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
         raise ValidationError(error_msg)
-    return target
+    return law.targets[0]
 
 
 def _handle_uses(law: BaseLaw, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
@@ -93,7 +92,7 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
     """Return the processes, driven states, and read states of every target component of a noise law."""
     if not isinstance(law, NoiseLaw):
         return {}
-    targets = components_of(law.target)
+    targets = components_of(law.targets[0])
     values = (
         components_of(law.value) if isinstance(law.value, SymbolicVector | list | tuple) else [law.value] * len(targets)
     )
@@ -137,8 +136,7 @@ def _records_of(
     records = []
     for spec in specs_of(block, elements, declarations.time, observe.evaluate):
         for law in declared_laws(spec, component_of(block.node)):
-            target = getattr(law, 'target', None)
-            items = components_of(target) if target is not None else []
+            items = [item for target in law.targets for item in components_of(target)]
             references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
             targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
             owner = law_owner(spec, law, agents)

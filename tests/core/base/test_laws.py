@@ -3,7 +3,8 @@
 import dataclasses
 
 from skcomplex.core.base import BaseLaw, LawClass, LawKind, Trait, has_trait, law_classes, symbol
-from skcomplex.core.laws import BoundaryLaw, Invariant, RateLaw
+from skcomplex.core.laws import BoundaryLaw, Invariant, RateLaw, Totalistic
+from skcomplex.core.space import Neighborhood
 from skcomplex.formalisms.agents import MatchLaw
 from skcomplex.formalisms.lattices import LocalRuleLaw
 from skcomplex.formalisms.quantum import DissipatorLaw, GeneratorLaw
@@ -39,6 +40,17 @@ def test_has_trait_reads_laws_and_classes():
     assert has_trait(BoundaryLaw, Trait.FORMLESS)
     assert not has_trait(RateLaw(x, 1), Trait.FORMLESS)
     assert not has_trait(object(), Trait.FORMLESS)
+
+
+def test_targets_are_a_tuple_once_checked():
+    """Test that checking a law turns its targets into a tuple, and that laws without targets keep them empty."""
+    x, y = symbol('x'), symbol('y')
+    assert isinstance(RateLaw(x, 1).targets, type(x))
+    checked = RateLaw(x, 1).check()
+    assert isinstance(checked.targets, tuple)
+    assert checked.targets[0] is x
+    assert LocalRuleLaw([x, y], Neighborhood.radius(), Totalistic({2: 1})).check().targets == (x, y)
+    assert Invariant('total', x + y).check().targets == ()
 
 
 def test_law_is_importable_at_run_time():

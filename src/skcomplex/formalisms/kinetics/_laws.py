@@ -79,6 +79,13 @@ def outcome_sums(outcomes: Table) -> Table:
     return outcomes.sum(axis=2)
 
 
+def _encounter_targets(law: 'EncounterLaw | ProliferationLaw') -> tuple[Expression, ...]:
+    """Return the densities an encounter changes, the candidate, whose group owns the law, and the test."""
+    if law.test is None or law.test is law.candidate:
+        return (law.candidate,)
+    return (law.candidate, law.test)
+
+
 @dataclass(frozen=True, eq=False)
 class EncounterLaw(BaseLaw):
     """Conservative encounter of active particles, which moves a candidate particle to a new activity.
@@ -141,12 +148,7 @@ class EncounterLaw(BaseLaw):
         rate = _table(self.rate, (0, 2), f'rate of the {description}')
         transition = _table(self.transition, (3,), f'transition table of the {description}')
         _check_sizes(rate, transition, description)
-        return replace(self, rate=rate, transition=transition)
-
-    @property
-    def target(self) -> Expression:
-        """Symbol of the candidate density, whose group owns the law."""
-        return self.candidate
+        return replace(self, rate=rate, transition=transition, targets=_encounter_targets(self))
 
     @property
     def outcomes(self) -> Table:
@@ -209,12 +211,7 @@ class ProliferationLaw(BaseLaw):
         rate = _table(self.rate, (0, 2), f'rate of the {description}')
         outcomes = None if self.outcomes is None else _table(self.outcomes, (3,), f'outcome table of the {description}')
         _check_sizes(rate, outcomes, description)
-        return replace(self, rate=rate, outcomes=outcomes)
-
-    @property
-    def target(self) -> Expression:
-        """Symbol of the candidate density, whose group owns the law."""
-        return self.candidate
+        return replace(self, rate=rate, outcomes=outcomes, targets=_encounter_targets(self))
 
 
 @dataclass(frozen=True, eq=False)
@@ -259,9 +256,4 @@ class DestructionLaw(BaseLaw):
     def _check(self) -> Self:
         """Return the law with its rate as an array, raising an error for an invalid rate."""
         rate = _table(self.rate, (0, 2), f'rate of the destruction of {self.candidate} by {self.field}')
-        return replace(self, rate=rate)
-
-    @property
-    def target(self) -> Expression:
-        """Symbol of the candidate density, whose group owns the law."""
-        return self.candidate
+        return replace(self, rate=rate, targets=(self.candidate,))

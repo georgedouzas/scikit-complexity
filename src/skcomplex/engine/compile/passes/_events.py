@@ -252,7 +252,7 @@ def _with_delays(
         elif isinstance(law, RateLaw | NoiseLaw):
             result.append(replace(law, value=_substitute_delays(law.value, spec, declarations, compilation)))
         elif isinstance(law, UpdateLaw | BoundaryLaw):
-            result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, compilation)))
+            result.append(type(law)(law.targets, _substitute_delays(law.value, spec, declarations, compilation)))
         else:
             result.append(law)
     return result

@@ -52,7 +52,7 @@ from ._laws import FractionalNoiseLaw
 
 def _fractional_description(spec: KernelSpec, law: FractionalNoiseLaw) -> str:
     """Return the description of a fractional noise law by the states it drives."""
-    states = dict.fromkeys(state_name(spec, item) for item in components_of(law.target))
+    states = dict.fromkeys(state_name(spec, item) for item in components_of(law.targets[0]))
     return f'fractional noise law of {", ".join(states)}'
 
 
@@ -86,7 +86,7 @@ def _checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: Dec
         description = _fractional_description(spec, law)
         _checked_hurst(spec, law, declarations, description)
         if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == 0.5:  # noqa: PLR2004
-            result.append(NoiseLaw(law.target, law.value, law.order))
+            result.append(NoiseLaw(law.targets, law.value, law.order))
             continue
         values = [item for item in components_of(law.value) if isinstance(item, Expression)]
         if not isinstance(law.value, Expression | SymbolicVector) and not SR(law.value).is_numeric():

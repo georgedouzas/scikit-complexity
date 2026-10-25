@@ -784,7 +784,7 @@ def compile_drive(law: DriveLaw, context: LatticeContext) -> CompiledDrive:
     """
     return CompiledDrive(
         context.owner,
-        context.state(law.target, 'A drive'),
+        context.state(law.targets[0], 'A drive'),
         law.function,
         context.keywords(law.function),
     )
@@ -1099,7 +1099,7 @@ def compile_monte_carlo(
             The compiled sampling.
     """
     owner = f'The Monte Carlo laws of {context.owner}'
-    target = context.state(move.target, 'A move')
+    target = context.state(move.targets[0], 'A move')
     if sampler.kind == 'heat-bath' and move.kind == 'rotate':
         error_msg = f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
         raise ValidationError(error_msg)
@@ -1108,19 +1108,19 @@ def compile_monte_carlo(
     classes = _schedule_classes(sampler.schedule, space, energy.over, table, owner)
     neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
     masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
-    expression = _lower_neighbor_sums(SR(energy.expression), move.target, energy, context, neighbours, masks)
+    expression = _lower_neighbor_sums(SR(energy.expression), move.targets[0], energy, context, neighbours, masks)
     masked = any(item in masks for item in expression.variables())
     replacements = {}
     for call in _calls(expression, 'neighbor'):
         state, index = call.operands()
-        if state != move.target:
-            error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.target} has them.'
+        if state != move.targets[0]:
+            error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.targets[0]} has them.'
             raise ValidationError(error_msg)
         replacements[call] = neighbours[int(index)]
     proposal = symbol('_proposal')
     local = expression.subs(replacements)
-    change = local.subs({move.target: proposal}) - local
-    known = {move.target, proposal, *neighbours, *masks}
+    change = local.subs({move.targets[0]: proposal}) - local
+    known = {move.targets[0], proposal, *neighbours, *masks}
     extra = sorted(
         {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
         key=str,
@@ -1141,7 +1141,7 @@ def compile_monte_carlo(
         context.owner,
         target,
         table,
-        numpy_function(time, [move.target, *neighbours, proposal, *(masks if masked else []), *extra], [change]),
+        numpy_function(time, [move.targets[0], *neighbours, proposal, *(masks if masked else []), *extra], [change]),
         arguments,
         numpy_function(time, extra, [SR(sampler.temperature)]),
         move,
