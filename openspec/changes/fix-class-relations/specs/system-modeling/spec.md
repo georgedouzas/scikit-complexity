@@ -16,15 +16,15 @@ error.
 - **THEN** validation raises a named error that names the component and says to declare it in `quantities`
 
 #### Scenario: No quantity is a law
-- **WHEN** a test checks `Observable`, `Auxiliary`, `Invariant`, `Objective`, and `Aggregate` against `BaseLaw`,
+- **WHEN** a test checks `ObservableQuantity`, `AuxiliaryQuantity`, `InvariantQuantity`, `ObjectiveQuantity`, and `AggregateQuantity` against `BaseLaw`,
   `BaseComponent`, and `BaseQuantity`
 - **THEN** each is a subclass of `BaseQuantity` only
 
 ### Requirement: Noise processes are not elements
-`Wiener` SHALL derive from no component base, and an interaction SHALL bind it through a role that takes noise
+`WienerProcess` SHALL derive from no component base, and an interaction SHALL bind it through a role that takes noise
 processes.
 
 #### Scenario: Correlated noise
-- **WHEN** an interaction binds a `Wiener` with covariance `C` and two noise laws draw its processes
-- **THEN** the increments over a step `h` have the covariance `h C`, and `Wiener` is not a subclass of
+- **WHEN** an interaction binds a `WienerProcess` with covariance `C` and two noise laws draw its processes
+- **THEN** the increments over a step `h` have the covariance `h C`, and `WienerProcess` is not a subclass of
   `BaseComponent`
