@@ -6,7 +6,7 @@
 import copy
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -419,9 +419,10 @@ class _MemberReductions:
         return lowered
 
 
-@dataclass
 class ObservableEvaluator:
     """Evaluator of every observable of a problem from a state vector, a parameter vector, and the agents.
+
+    Fitting compiles every observable into a getter, in declaration order, the fitted `getters_`.
 
     Args:
         problem:
@@ -434,14 +435,25 @@ class ObservableEvaluator:
         >>> system = System(components=[PopulationComponent.group('herd', 2, n=[2.0, 6.0])])
         >>> total = Observable('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
-        >>> ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)
+        >>> ObservableEvaluator(problem).fit().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
     """
 
-    problem: BaseProblem
+    def __init__(self, problem: BaseProblem) -> None:
+        self.problem = problem
 
-    def __post_init__(self) -> None:
-        """Compile every observable into a getter, in declaration order."""
+    def fit(self) -> Self:
+        """Compile every observable into a getter, in declaration order.
+
+        Returns:
+            evaluator:
+                The evaluator, with the getter of every observable path in `getters_`.
+
+        Raises:
+            ValidationError:
+                Two observables share a path, an observable has neither an expression nor a group, or an expression
+                reads a symbol it cannot.
+        """
         self.getters_: dict[str, Getter] = {}
         system = getattr(self.problem, 'system', None)
         observables = observables_of(system) if system is not None else ()
@@ -449,12 +461,12 @@ class ObservableEvaluator:
             getters = getattr(self.problem, 'observable_getters', None)
             self._scalars = {}
             self.getters_ = (getters(observables) if getters is not None else None) or {}
-            return
+            return self
         self._scalars = self._scalar_sources()
         own = self.problem.observable_getters(observables)
         if own is not None:
             self.getters_ = own
-            return
+            return self
         for scope, observable in observables_of(system) if system is not None else ():
             path = _join(scope, observable.label)
             if path in self.getters_:
@@ -473,6 +485,7 @@ class ObservableEvaluator:
         stock_flow = self.problem.stock_flow
         for recorded in stock_flow.recorded if stock_flow is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
+        return self
 
     @property
     def _compiled(self) -> Problem:

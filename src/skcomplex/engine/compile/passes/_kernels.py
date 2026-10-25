@@ -154,7 +154,7 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
                     parameters,
                     spec.pairs,
                     kind_outputs,
-                ),
+                ).check(),
             )
     return lowered
 

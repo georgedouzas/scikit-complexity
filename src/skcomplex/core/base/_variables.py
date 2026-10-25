@@ -437,7 +437,7 @@ def state(
         raise ValueError(error_msg)
     declaration = Variable(
         VariableKind.STATE,
-        domain,
+        domain.check(),
         vector,
         order,
         lags,
@@ -538,11 +538,12 @@ def parameter(
             error_msg = f'A parameter takes either `adaptive=True` or `per={per!r}`, not both.'
             raise ValueError(error_msg)
         checked = None if bounds is None else (float(bounds[0]), float(bounds[1]))
-        return _declare_field(default, Variable(VariableKind.STATE, domain, vector, adaptive=True, bounds=checked))
+        declaration = Variable(VariableKind.STATE, domain.check(), vector, adaptive=True, bounds=checked)
+        return _declare_field(default, declaration)
     if vector and per is not None:
         error_msg = f'A parameter takes either `vector=True` or `per={per!r}`, not both.'
         raise ValueError(error_msg)
-    return _declare_field(default, Variable(VariableKind.PARAMETER, domain, vector, per=per))
+    return _declare_field(default, Variable(VariableKind.PARAMETER, domain.check(), vector, per=per))
 
 
 def role(*, variadic: bool = False) -> Any:

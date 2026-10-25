@@ -247,8 +247,10 @@ def test_sequence_state_is_rewritten_in_parallel():
 def test_structured_domains_name_their_kind():
     """Test that tensor and structure domains report their kinds, and an unknown structure is rejected."""
     assert TensorDomain(2, 'traceless').value == 'traceless tensor of rank 2'
-    with pytest.raises(ValueError, match='structure'):
-        StructureDomain('tree')
+    with pytest.raises(ValidationError, match='structure'):
+        StructureDomain('tree').check()
+    with pytest.raises(ValidationError, match='structure'):
+        state(domain=StructureDomain('tree'))
 
 
 def test_state_on_an_interaction_is_rejected():

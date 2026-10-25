@@ -24,7 +24,7 @@ class Table:
 
     Examples:
         >>> from skcomplex.core.laws import Table
-        >>> Table({(1, 1): 1}).states
+        >>> Table({(1, 1): 1}).n_states
         2
     """
 
@@ -32,10 +32,13 @@ class Table:
     default: float = 0.0
     states: int | None = None
 
-    def __post_init__(self) -> None:
-        if self.states is None:
-            largest = max((value for pattern in self.mapping for value in pattern), default=0)
-            object.__setattr__(self, 'states', max(int(largest) + 1, 2))
+    @property
+    def n_states(self) -> int:
+        """Number of state values, the given `states` or one more than the largest value in the patterns, at least 2."""
+        if self.states is not None:
+            return self.states
+        largest = max((value for pattern in self.mapping for value in pattern), default=0)
+        return max(int(largest) + 1, 2)
 
 
 @dataclass(frozen=True)

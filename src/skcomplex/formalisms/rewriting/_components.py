@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import networkx as nx
 import numpy as np
@@ -51,23 +51,20 @@ class StructureDomain(BaseDomain):
         kind:
             `'sequence'`, `'tiling'`, or `'graph'`.
 
-    Raises:
-        ValueError:
-            The kind is unknown.
-
     Examples:
         >>> from skcomplex.formalisms.rewriting import StructureDomain
-        >>> StructureDomain('sequence').value
+        >>> StructureDomain('sequence').check().value
         'sequence'
     """
 
     kind: str
 
-    def __post_init__(self) -> None:
-        """Check the kind of structure."""
+    def _check(self) -> Self:
+        """Return the domain, raising an error for an unknown kind of structure."""
         if self.kind not in STRUCTURES:
             error_msg = f'Unknown structure {self.kind!r}. Use one of {", ".join(STRUCTURES)}.'
-            raise ValueError(error_msg)
+            raise ValidationError(error_msg)
+        return self
 
     @property
     def value(self) -> str:

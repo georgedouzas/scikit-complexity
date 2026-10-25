@@ -113,7 +113,7 @@ def _request_kernel(spec: KernelSpec, value: object, declarations: Declarations)
         parameters,
         spec.pairs,
         [Output(None, expression)],
-    )
+    ).check()
 
 
 def _compiled_request(

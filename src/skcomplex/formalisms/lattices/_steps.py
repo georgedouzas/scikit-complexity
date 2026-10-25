@@ -178,7 +178,7 @@ class Lookup:
 def _lookup_of(rule: object, n_offsets: int, owner: str) -> Lookup | None:
     """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
     if isinstance(rule, Table):
-        base = int(rule.states)  # type: ignore[arg-type]
+        base = rule.n_states
         values = np.full(base**n_offsets, float(rule.default))
         for pattern, value in rule.mapping.items():
             if len(pattern) != n_offsets:
@@ -238,15 +238,21 @@ class LatticeState:
     name: str
     start: int
     space: Sites
-    shape: tuple[int, ...] = field(init=False, repr=False)
-    size: int = field(init=False, repr=False)
-    sites: slice = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        shape = _shape_of(self.space)
-        object.__setattr__(self, 'shape', shape)
-        object.__setattr__(self, 'size', int(np.prod(shape)))
-        object.__setattr__(self, 'sites', slice(self.start, self.start + int(np.prod(shape))))
+    @functools.cached_property
+    def shape(self) -> tuple[int, ...]:
+        """Shape of the sites of the group."""
+        return _shape_of(self.space)
+
+    @functools.cached_property
+    def size(self) -> int:
+        """Number of sites of the group."""
+        return int(np.prod(self.shape))
+
+    @functools.cached_property
+    def sites(self) -> slice:
+        """Slice of the group's components in the state vector."""
+        return slice(self.start, self.start + self.size)
 
 
 @dataclass(frozen=True)

@@ -1138,7 +1138,7 @@ class MesaSolver(Solver):
                 The problem has no such observable.
         """
         if self._evaluator is None:
-            self._evaluator = ObservableEvaluator(self.problem_)
+            self._evaluator = ObservableEvaluator(self.problem_).fit()
         values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self.agents_of)
         if name not in values:
             error_msg = f'No observable named {name!r}. Available observables are: {", ".join(values) or "none"}.'

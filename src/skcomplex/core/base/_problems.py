@@ -3,9 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import math
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -57,19 +58,6 @@ class Entry:
     domain: BaseDomain
     members: int | None = None
     is_complex: bool = False
-    _size: int = field(init=False, repr=False, compare=False)
-    _indices: slice = field(init=False, repr=False, compare=False)
-    _rows: int = field(init=False, repr=False, compare=False)
-    _columns: int = field(init=False, repr=False, compare=False)
-
-    def __post_init__(self) -> None:
-        """Compute the size, slice, rows, and columns of the variable once."""
-        parts = PARTS if self.is_complex else 1
-        size = math.prod(self.shape) * parts
-        object.__setattr__(self, '_size', size)
-        object.__setattr__(self, '_indices', slice(self.start, self.start + size))
-        object.__setattr__(self, '_rows', self.members if self.members is not None else 1)
-        object.__setattr__(self, '_columns', math.prod(self.member_shape) * parts)
 
     def _parts(self, names: list[str]) -> list[str]:
         """Return names with the suffixes of the real and imaginary parts for a complex variable."""
@@ -77,30 +65,30 @@ class Entry:
             return names
         return [f'{name}.{part}' for name in names for part in PART_NAMES]
 
-    @property
+    @functools.cached_property
     def size(self) -> int:
         """Number of components of the variable."""
-        return self._size
+        return math.prod(self.shape) * (PARTS if self.is_complex else 1)
 
-    @property
+    @functools.cached_property
     def indices(self) -> slice:
         """Slice of the variable's components in the vector."""
-        return self._indices
+        return slice(self.start, self.start + self.size)
 
     @property
     def member_shape(self) -> tuple[int, ...]:
         """Shape of the variable of one member, `()` for a scalar and `(n_dim,)` for a vector."""
         return self.shape[1:] if self.members is not None else self.shape
 
-    @property
+    @functools.cached_property
     def rows(self) -> int:
         """Number of members, 1 for a single element or an interaction."""
-        return self._rows
+        return self.members if self.members is not None else 1
 
-    @property
+    @functools.cached_property
     def columns(self) -> int:
         """Number of components of the variable of one member."""
-        return self._columns
+        return math.prod(self.member_shape) * (PARTS if self.is_complex else 1)
 
     @property
     def component_names(self) -> list[str]:
@@ -136,7 +124,7 @@ class Entry:
             view:
                 A `(rows, columns)` view that writes through to the vector.
         """
-        return vector[self._indices].reshape(self._rows, self._columns)
+        return vector[self.indices].reshape(self.rows, self.columns)
 
     def encode(self, value: object) -> npt.NDArray[np.float64]:
         """Return a value broadcast to the shape of the variable as flat floats, in pairs for a complex variable.

@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -72,13 +73,17 @@ class CompiledReduction:
     time: Expression
     members: Entry | None = None
     set_indices: Indices | None = None
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        """Compile the argument and the condition into one NumPy function."""
-        self._symbols = sorted(self.reads, key=str)
+    @functools.cached_property
+    def _symbols(self) -> list[Expression]:
+        """Symbols the argument and the condition read, sorted by name."""
+        return sorted(self.reads, key=str)
+
+    @functools.cached_property
+    def _function(self) -> Callable[..., list[Any]]:
+        """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
-        self._function = numpy_function(self.time, self._symbols, expressions)
+        return numpy_function(self.time, self._symbols, expressions)
 
     @property
     def symbols(self) -> list[Expression]:
@@ -118,7 +123,7 @@ class CompiledReduction:
             values:
                 The argument and the condition, one value per reduced member.
         """
-        argument, condition = self._function(t, *self.gather(x, q))  # type: ignore[misc]
+        argument, condition = self._function(t, *self.gather(x, q))
         return (
             np.broadcast_to(np.asarray(argument, dtype=float), (self.size,)),
             np.broadcast_to(np.asarray(condition, dtype=bool), (self.size,)),

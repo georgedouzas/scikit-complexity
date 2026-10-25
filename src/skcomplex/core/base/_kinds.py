@@ -5,18 +5,13 @@
 
 from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Self, cast
 
 from ._errors import RegistryError
 
 TERMS: dict[type, dict[str, Any]] = {}
-
-
-def _terms(values: Iterable['StrEnum | Term']) -> frozenset['StrEnum | Term']:
-    """Return the terms of a declaration as a frozen set."""
-    return frozenset(values)
 
 
 def vocabulary() -> dict[str, tuple['StrEnum | Term', ...]]:
@@ -379,11 +374,6 @@ class Requires:
     domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
     bindings: AbstractSet[Binding] = field(default_factory=frozenset)
 
-    def __post_init__(self) -> None:
-        """Freeze every field into a set of terms."""
-        for item in fields(self):
-            object.__setattr__(self, item.name, _terms(getattr(self, item.name)))
-
     def accepts(self, category: str, term: StrEnum | Term) -> bool:
         """Check whether the requirement of a category accepts a term.
 
@@ -398,7 +388,7 @@ class Requires:
             accepted:
                 Whether the field is empty or holds the term.
         """
-        terms: frozenset[StrEnum | Term] = getattr(self, category)
+        terms: AbstractSet[StrEnum | Term] = set(getattr(self, category))
         return not terms or term in terms
 
 
@@ -446,11 +436,6 @@ class Supports:
     noise: AbstractSet[NoiseKind] = field(default_factory=frozenset)
     orders: AbstractSet[OrderKind] = field(default_factory=frozenset)
 
-    def __post_init__(self) -> None:
-        """Freeze every field into a set of terms."""
-        for item in fields(self):
-            object.__setattr__(self, item.name, _terms(getattr(self, item.name)))
-
     def missing(self, category: str, terms: Iterable[StrEnum | Term]) -> list[str]:
         """Return the terms of a category that the declaration does not support.
 
@@ -465,5 +450,5 @@ class Supports:
             missing:
                 The unsupported terms, sorted.
         """
-        supported: frozenset[StrEnum | Term] = getattr(self, category)
+        supported: AbstractSet[StrEnum | Term] = set(getattr(self, category))
         return sorted(str(term) for term in set(terms) - supported)

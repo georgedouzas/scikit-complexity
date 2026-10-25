@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -100,18 +101,22 @@ class _Partials:
     arguments: list[Expression]
     expressions: list[Expression]
     by: list[Expression]
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        """Differentiate every expression by every symbol it reads and compile the derivatives."""
-        self.pairs = [
+    @functools.cached_property
+    def pairs(self) -> list[tuple[int, Expression]]:
+        """Index of the expression and symbol of every nonzero derivative, an expression by a symbol it reads."""
+        return [
             (index, item)
             for index, expression in enumerate(self.expressions)
             for item in self.by
             if item in SR(expression).variables()
         ]
+
+    @functools.cached_property
+    def _function(self) -> Callable[..., list[Any]] | None:
+        """NumPy function of the derivatives, compiled once, or `None` without derivatives."""
         derivatives = [SR(self.expressions[index]).diff(item) for index, item in self.pairs]
-        self._function = numpy_function(self.time, self.arguments, derivatives) if derivatives else None
+        return numpy_function(self.time, self.arguments, derivatives) if derivatives else None
 
     def evaluate(self, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
         """Return every derivative with the index of its expression and the symbol it is taken by."""

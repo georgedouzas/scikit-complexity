@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -143,16 +144,18 @@ class _Expansion:
     parameter_values: npt.NDArray[np.float64]
     symbols: dict[tuple[str, int, int], Expression] = field(default_factory=dict)
     values: dict[Expression, float] = field(default_factory=dict)
-    by_index: dict[tuple[bool, int], Expression] = field(default_factory=dict)
     shared: dict[tuple[Expression, int | None], Expression] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        """Name the symbols of single components by their flat index, so element sets find their elements."""
+    @functools.cached_property
+    def by_index(self) -> dict[tuple[bool, int], Expression]:
+        """Symbols of single components by their flat index, so element sets find their elements."""
+        found = {}
         for is_state, layout in ((True, self.problem.states), (False, self.problem.parameters)):
             for entry in layout:
                 if entry.members is None and entry.name in self.problem.symbols:
                     for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
-                        self.by_index[(is_state, entry.start + column)] = item
+                        found[(is_state, entry.start + column)] = item
+        return found
 
     def member_symbol(self, entry: Entry, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""
