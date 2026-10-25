@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=300)
 # `(S, I)` plane the trajectory should spiral into that point.
 
 trajectory = simulation.trajectory_
-susceptible, infected = trajectory['S.n'], trajectory['I.n']
+susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
 beta, gamma, xi, total = 0.0003, 0.1, 0.02, 1000.0
 s_star = gamma / beta
 i_star = xi * (total - s_star) / (gamma + xi)

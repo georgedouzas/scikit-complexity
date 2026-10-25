@@ -34,8 +34,8 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).run
 
 trajectory = simulation.trajectory_
 times = trajectory.times[1:]
-escapes = trajectory['escapes.renewals'][1:] / 500
-depth = np.mean(trajectory['walkers.E'][1:], axis=1)
+escapes = trajectory.values('escapes.renewals')[1:] / 500
+depth = np.mean(trajectory.values('walkers.E')[1:], axis=1)
 late = times > 500
 slope = np.polyfit(np.log(times[late]), np.log(escapes[late]), 1)[0]
 fig, (counts, aging) = plt.subplots(1, 2, figsize=(10, 4))

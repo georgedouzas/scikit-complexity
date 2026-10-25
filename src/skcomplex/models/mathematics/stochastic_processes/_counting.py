@@ -38,8 +38,9 @@ class BernoulliTrialComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrialComponent
-        >>> BernoulliTrialComponent.group('trials', 4, p=0.2)
-        GroupComponent('trials', element=BernoulliTrialComponent, size=4)
+        >>> group = BernoulliTrialComponent.group('trials', 4, p=0.2)
+        >>> group.label, group.element.__name__, group.size
+        ('trials', 'BernoulliTrialComponent', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'successes'})

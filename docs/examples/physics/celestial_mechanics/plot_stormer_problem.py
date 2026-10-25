@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=100)
 # tolerance of the integrator.
 
 trajectory = simulation.trajectory_
-x, y, z = (np.ravel(trajectory[f'charge.{name}']) for name in 'xyz')
-vx, vy, vz = (np.ravel(trajectory[f'charge.{name}_d1']) for name in 'xyz')
+x, y, z = (np.ravel(trajectory.values(f'charge.{name}')) for name in 'xyz')
+vx, vy, vz = (np.ravel(trajectory.values(f'charge.{name}_d1')) for name in 'xyz')
 speed = np.sqrt(vx**2 + vy**2 + vz**2)
 momentum = x * vy - y * vx + (x**2 + y**2) / (x**2 + y**2 + z**2) ** 1.5
 fig, (top, bottom) = plt.subplots(2, 1, figsize=(7, 5), sharex=True)

@@ -198,7 +198,7 @@ class WordStructure(Structure):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.formalisms.rewriting import WordStructure
-        >>> str(WordStructure(('A', 'B'), np.array([0, 1, 0]), np.zeros((3, 0)), 2))
+        >>> WordStructure(('A', 'B'), np.array([0, 1, 0]), np.zeros((3, 0)), 2).text
         'ABA'
     """
 
@@ -218,10 +218,6 @@ class WordStructure(Structure):
         self.parameters = _frozen(parameters, np.float64)
         self._segments = None if segments is None else _frozen(segments, np.float64)
         self.depths = None if depths is None else _frozen(depths, np.int64)
-
-    def __len__(self) -> int:
-        """Return the number of modules."""
-        return len(self.codes)
 
     @property
     def parts(self) -> int:
@@ -243,11 +239,12 @@ class WordStructure(Structure):
         modules = []
         for code, row in zip(self.codes.tolist(), self.parameters, strict=True):
             values = [float(value) for value in row if not np.isnan(value)]
-            modules.append(Module(self.alphabet[code], *values))
+            modules.append(Module(self.alphabet[code], tuple(values)))
         return modules
 
-    def __str__(self) -> str:
-        """Return the word, with modules separated by spaces when one has parameters or a long name."""
+    @property
+    def text(self) -> str:
+        """Word as written, with modules separated by spaces when one has parameters or a long name."""
         modules = self.modules()
         texts = [
             module.name if not module.parameters else f'{module.name}({", ".join(f"{v:g}" for v in module.parameters)})'
@@ -255,10 +252,6 @@ class WordStructure(Structure):
         ]
         spaced = any(module.parameters or len(module.name) > 1 for module in modules)
         return (' ' if spaced else '').join(texts)
-
-    def __repr__(self) -> str:
-        """Return the generation and the size."""
-        return f'WordStructure(generation={self.generation}, size={len(self)})'
 
     def count(self, name: str) -> int:
         """Return the number of modules of a symbol.
@@ -321,14 +314,6 @@ class PatchStructure(Structure):
         self.prototiles = tuple(prototiles)
         self.codes = _frozen(codes, np.int64)
         self.matrices = _frozen(matrices, np.float64).reshape(-1, 3, 3)
-
-    def __len__(self) -> int:
-        """Return the number of tiles."""
-        return len(self.codes)
-
-    def __repr__(self) -> str:
-        """Return the generation and the size."""
-        return f'PatchStructure(generation={self.generation}, size={len(self)})'
 
     @property
     def parts(self) -> int:
@@ -414,18 +399,10 @@ class GraphStructure(Structure):
         super().__init__(generation)
         self.graph = nx.freeze(graph.copy())
 
-    def __len__(self) -> int:
-        """Return the number of nodes."""
-        return int(self.graph.number_of_nodes())
-
-    def __repr__(self) -> str:
-        """Return the generation and the size."""
-        return f'GraphStructure(generation={self.generation}, size={len(self)})'
-
     @property
     def parts(self) -> int:
         """Number of nodes."""
-        return len(self)
+        return int(self.graph.number_of_nodes())
 
     def count(self, name: str) -> int:
         """Return the number of nodes with a label.

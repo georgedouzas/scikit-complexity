@@ -46,14 +46,14 @@
 - **Three verbs, written once on each base.** For every base on `BaseEstimator`:
   - `check()` calls `_check()`, then returns `self`. It raises a named error for an argument the object cannot
     take.
-  - `fit(*context)` calls `check()` and then `_fit(*context)`, then returns `self`. Calling it again refits from the
+  - `prepare(*context)` calls `check()` and then `_prepare(*context)`, then returns `self`. Calling it again prepares again from the
     current arguments.
   - `run(*inputs, final=False)` calls `_run(*inputs)`, and `_release()` when `final` is true, then returns the
     hook's result.
 
   The base provides trivial hooks:
   - `_check` accepts;
-  - `_fit` derives nothing;
+  - `_prepare` derives nothing;
   - `_run` returns nothing;
   - `_release` releases nothing.
 
@@ -61,24 +61,24 @@
   running in the order the family requires stays inside the base.
   - *Alternative:* a fourth verb, `close`. Rejected by the maintainer in favour of `run(..., final=True)`.
 
-- **What each family fits and runs.**
+- **What each family prepares and runs.**
 
-  | Base | `fit(context)` derives | `run(input)` does |
+  | Base | `prepare(context)` derives | `run(input)` does |
   |---|---|---|
   | `BaseComponent`, `BaseInteraction` | `declarations_` | `run(s)` returns the laws, from the user's `laws` hook |
   | `BaseSpace` | `size_`, `n_dim_`, `shape_`, `positions_`, `periodic_`, `default_visual_`, and the neighbour tables | `run(site, neighborhood=None)` returns the neighbours of a site |
   | `BaseTime` | `time_kind_`, `schedule_` | `run(until)` returns the frame times up to a time |
-  | `BaseSolver` | `fit(problem, rng, until)`: `problem_`, `rng_`, `initial_state_` | `run(t, x, p, until)` returns the state at `until` and sets `events_`, `stopped_at_`, `snapshot_`, `agents_` |
-  | `BaseBackend` | `fit(form, size)` | `run(kernels)` returns the numeric functions |
-  | `BaseSystemCompiler` | `fit(system)`: `claims_` | `run(system)` returns the problem |
+  | `BaseSolver` | `prepare(problem, rng, until)`: `problem_`, `rng_`, `initial_state_` | `run(t, x, p, until)` returns the state at `until` and sets `events_`, `stopped_at_`, `snapshot_`, `agents_` |
+  | `BaseBackend` | `prepare(form, size)` | `run(kernels)` returns the numeric functions |
+  | `BaseSystemCompiler` | `prepare(system)`: `claims_` | `run(system)` returns the problem |
   | `BasePass` | none | `run(compilation)` writes the fields it declares |
-  | `BaseVisual` | `fit(problem)`: `views_` | `run(frame)` logs the frame |
-  | `BaseObserver` | `fit(problem)` | `run(frame)` reacts to a frame, and `run(frame, final=True)` ends the run |
-  | `BaseClock` | `fit()`: `started_` | `run(time)` waits until a frame's time |
-  | `BaseDesign` | `fit()`: `rows_` | `run()` returns the rows |
-  | `BaseSurrogate` | `fit(series)`: `system_`, `labels_`, `dt_`, `training_error_`, `validation_error_` | `run(steps)` forecasts, simulating the fitted system unless the surrogate has a faster `_run` |
+  | `BaseVisual` | `prepare(element, problem)`: `element_`, `space_`, `layouts_`, `views_` | `run(frame)` logs the frame |
+  | `BaseObserver` | `prepare(problem)` | `run(frame)` reacts to a frame, and `run(frame, final=True)` ends the run |
+  | `BaseClock` | `prepare()`: `started_` | `run(time)` waits until a frame's time |
+  | `BaseDesign` | `prepare()`: `rows_` | `run()` returns the rows |
+  | `BaseSurrogate` | `prepare(series)`: `system_`, `labels_`, `dt_`, `training_error_`, `validation_error_` | `run(steps)` forecasts, simulating the prepared system unless the surrogate has a faster `_run` |
 
-  - The runtime calls `fit` before the first frame, `run` at every frame, and `run(..., final=True)` at the last.
+  - The runtime calls `prepare` before the first frame, `run` at every frame, and `run(..., final=True)` at the last.
   - `run(final=True)` releases the Rerun viewer, the LAMMPS process, and the agent model.
   - Child-only methods become private or move to their user. These include `CayleySpace.words`,
     `MeshSpace.skfem_mesh`, `MesaSolver.create_agent`, and the quantum problem's `expect`.
@@ -88,11 +88,11 @@
   - Extension hooks a user writes to define a subclass stay public on the class that calls them, as `fit` is public
     in scikit-learn. These are `laws`, `energy`, and `pair_energy`.
 
-- **Trivial constructors and fitted attributes.**
+- **Trivial constructors and prepared attributes.**
   - `__init__` assigns each argument to the attribute of the same name, `self.x = x`, and nothing else. Components
     and interactions keep their single declaration-based constructor, which stores the label and every declared value
     the same way.
-  - Every attribute that is not an argument ends in `_` and is set only by `fit` or `run`.
+  - Every attribute that is not an argument ends in `_` and is set only by `prepare` or `run`.
   - The checks of today's constructors move to `_check`. Validation calls `check()` on every part of a system before
     compiling, so an invalid part is reported with its path, and `compile_system` validates too.
 
@@ -109,8 +109,15 @@
   - `__post_init__` goes. Validation calls `check()` on every law of a system, and a builder function checks the
     records it builds.
 
-- **Terms are value records.** `Term(name, value)` becomes a frozen dataclass with `Term.register(name, value)`. It
-  pickles, copies, and compares by value without hooks, and every `is` comparison of a term becomes `==`.
+- **Terms are strings of their value.**
+  - `Term` derives from `str` and holds its value.
+  - `Term.register(name, value)` registers a term and keeps its name, which the property `name` reads back.
+  - A term pickles, copies, hashes, compares, and prints as its value with no hand-written method, so messages that
+    format a term need no change.
+  - Every `is` comparison of a term becomes `==`.
+  - A term equals a plain string of its value. Vocabularies are never mixed in one collection, so this is harmless.
+  - *Alternative:* a frozen dataclass of name and value. Rejected because it prints as its fields, so every message
+    that formats a term would change.
 
 - **The magic methods that stay.** No class defines a magic method except `__init__` and the arithmetic of the
   quantum operators, which the modeller writes as mathematics, `σx * σy + h σz`.
@@ -132,14 +139,32 @@
   - **`__eq__` and `__hash__`:** the class becomes a value record, or its dictionaries are keyed by an explicit `key`.
   - **Design arithmetic:** designs combine with `product` and `concat` instead of `*` and `+`.
 
+- **Decided during implementation.**
+  - **Prepare, not fit.** The preparing verb is `prepare`, with the hook `_prepare`, on every base, surrogates
+    included. `fit` suggested estimating from data, which most families do not do.
+  - **Problems and solvers in `core/problems`.** `BaseProblem` and `BaseSolver` live in `core/problems`, since their
+    fields name `System`, `CompiledElement`, and `StockFlow`, which `core/base` may not import.
+  - **Agent views.** The stepper generates one view class per agent group, with a property per state and parameter, so
+    rules keep `agent.food += 1`. The view classes and the symbol namespace declare `__getattr__` only under
+    `TYPE_CHECKING`, so type checkers accept `agent.food` and `s.x`. No such method exists at runtime.
+  - **Collections.**
+    - A layout gives `entries`, `size`, and `has(name)`.
+    - A registry gives `keys`.
+    - A trajectory and a section give `values(name)`, and their frames are counted by `times`.
+    - An agent snapshot is counted by its `ids`.
+  - **Callables.** Jacobians, compiled observables, member functions, composed rules, and market protocols expose
+    `evaluate`. Pairings without settings are functions, such as `neighbor_pairing`.
+  - **Printing.** Components and systems print through scikit-learn, e.g. `PopulationComponent(label='rabbits',
+    n=1.0)`. Records that appear in error messages give a `text` property.
+
 ## Risks / Trade-offs
 
 - [Every family's verbs change at once.] → A codemod in the scratchpad renames the calls by their resolved class.
   The tests, the doctests, the user guide, and the gallery check that every caller moved.
 - [Errors move from construction to validation.] → Validation runs `check()` on every part of a system before
   compiling, so no unchecked part reaches a solver, and the errors gain the path of the part.
-- [Fitted attributes replace methods with arguments, such as `neighbors(site)`.] → What takes an argument stays a
-  `run` input, and only facts of the whole object become fitted attributes.
+- [Prepared attributes replace methods with arguments, such as `neighbors(site)`.] → What takes an argument stays a
+  `run` input, and only facts of the whole object become prepared attributes.
 - [`trajectory['a.n']` is the most-used notation in tests, models, and the guide.] → The codemod rewrites every
   subscript of a trajectory to `values`, and the doctests and markdown tests check the documents.
 - [Code compares terms with `is`.] → The codemod rewrites every `is` comparison of a term, and mypy and the tests

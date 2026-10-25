@@ -29,7 +29,7 @@ from ...engine.compile import (
     Node,
     target_references,
 )
-from ._components import FieldComponent
+from ._components import FieldComponent, boundary_of
 from ._conserved import conserved_outputs
 from ._laws import FluxLaw
 from ._lowering import FieldLowering, has_operators
@@ -151,12 +151,12 @@ def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.ND
         if place.discretization != 'finite-element':
             error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
             raise ValidationError(error_msg)
-        nodes = place.space.boundary_nodes()
-        coordinates = place.space.nodes[nodes]
+        nodes = place.space.boundary_nodes_
+        coordinates = place.space.positions_[nodes]
         for variable, entry in block.entries.items():
             if variable not in declarations_of(place.element, VariableKind.STATE):
                 continue
-            kind, value = place.boundary_of(variable)
+            kind, value = boundary_of(place, variable)
             if kind != 'fixed':
                 continue
             fixed = value(*coordinates.T) if callable(value) else value
@@ -180,7 +180,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
             raise ValidationError(error_msg)
         for variable, parities in place.symmetry.items():
             entry = block.entries.get(variable)
-            if entry is None or len(parities) != space.n_dim:
+            if entry is None or len(parities) != space.n_dim_:
                 error_msg = f'The symmetry of {block.node.path}.{variable} needs a state and one parity per axis.'
                 raise ValidationError(error_msg)
             signs = []
@@ -190,8 +190,8 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
                     raise ValidationError(error_msg)
                 if parity is not None:
                     signs.append((axis, -1 if parity == 'odd' else 1))
-            indices = entry.start + np.arange(place.size or 0) * entry.columns
-            found.append((indices, space.dimensions, signs))
+            indices = entry.start + np.arange(place.size_) * entry.columns
+            found.append((indices, space.shape_, signs))
     return found
 
 
@@ -312,7 +312,7 @@ class LowerFieldsPass(BasePass):
     reads = ('corrected', 'layout')
     writes = ('corrected', 'written', 'limits', 'volume_limits', 'linear')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the differential operators of the corrected laws.
 
         Args:
@@ -333,7 +333,7 @@ class FieldFunctionsPass(BasePass):
     reads = ('functions', 'written', 'reduced', 'layout')
     writes = ('functions', 'volumes', 'symmetries', 'constrained')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the numeric functions.
 
         Args:
@@ -357,7 +357,7 @@ class FieldJacobianPass(BasePass):
     reads = ('jacobian', 'volumes', 'symmetries', 'constrained')
     writes = ('jacobian',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the Jacobian.
 
         Args:
@@ -380,7 +380,7 @@ class FieldProblemPass(BasePass):
     reads = ('problem', 'limits', 'volume_limits', 'linear', 'volumes', 'constrained')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the discretizations of the fields to the problem.
 
         Args:
@@ -408,7 +408,7 @@ class ConservedNoisePass(BasePass):
     reads = ('reduced', 'layout', 'outputs')
     writes = ('outputs',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the outputs of the conserved noise laws.
 
         Args:

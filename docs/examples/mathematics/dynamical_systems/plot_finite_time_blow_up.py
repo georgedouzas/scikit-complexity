@@ -32,7 +32,7 @@ for p in (1.5, 2.0, 3.0):
     singular = 1 / (p - 1)
     trajectory = Simulation(create(MODEL, p=p), dt=singular / 2000).run(until=0.999 * singular).trajectory_
     remaining = singular - trajectory.times
-    (line,) = ax.loglog(remaining, trajectory['growth.x'], label=f'p = {p}')
+    (line,) = ax.loglog(remaining, trajectory.values('growth.x'), label=f'p = {p}')
     ax.loglog(remaining, ((p - 1) * remaining) ** (-1 / (p - 1)), ':', color='black')
 ax.set_xlabel(r'time left to the singularity $t^* - t$')
 ax.set_ylabel('x')

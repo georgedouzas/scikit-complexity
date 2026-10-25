@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from skcomplex.core.problems import BaseProblem
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
 from skcomplex.engine.solvers import Solver
@@ -38,7 +39,7 @@ def _run_monitored(system: System, dt: float, until: float) -> Trajectory:
 
 def _peak(trajectory: Trajectory, name: str) -> float:
     """Return the time at which a recorded series peaks."""
-    return float(np.asarray(trajectory.times)[np.argmax(trajectory[name])])
+    return float(np.asarray(trajectory.times)[np.argmax(trajectory.values(name))])
 
 
 def _series(name: str, until: float, **arguments: Any) -> Trajectory:  # noqa: ANN401
@@ -56,14 +57,19 @@ def _run_seeded(system: System, until: float, dt: float) -> Trajectory:
 class EventsObserver(BaseObserver):
     """Observer that keeps the events of every frame and checks a condition on the frames."""
 
-    def __init__(self, check: Callable[[Frame], object] | None = None) -> None:
-        """Start with no events."""
-        self.events: list[object] = []
-        self.check = check
-        self.passed = True
+    def __init__(self, condition: Callable[[Frame], object] | None = None) -> None:
+        """Keep the condition."""
+        self.condition = condition
 
-    def on_frame(self, frame: Frame) -> None:
+    def _prepare(self, problem: BaseProblem) -> None:
+        """Start with no events."""
+        self.events_: list[object] = []
+        self.passed_ = True
+
+    def _run(self, frame: Frame | None = None) -> None:
         """Keep the frame's events and check the condition."""
-        self.events += list(frame.events)
-        if self.check is not None:
-            self.passed &= bool(self.check(frame))
+        if frame is None:
+            return
+        self.events_ += list(frame.events)
+        if self.condition is not None:
+            self.passed_ &= bool(self.condition(frame))

@@ -4,7 +4,7 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Self
 
 from ._errors import RegistryError
 from ._kinds import LawClass, LawKind, Requires, Trait
@@ -76,7 +76,7 @@ def law_classes(trait: Trait | None = None) -> tuple[type['BaseLaw'], ...]:
         >>> FluxLaw in law_classes(Trait.FORMLESS)
         True
     """
-    classes = [LAWS.resolve(key) for key in LAWS]
+    classes = [LAWS.resolve(key) for key in LAWS.keys]
     return tuple(cls for cls in classes if trait is None or trait in cls.traits)
 
 
@@ -100,7 +100,7 @@ def is_registered(law: object) -> bool:
     """
     cls = law if isinstance(law, type) else type(law)
     name = _qualified_name(cls)
-    return name in LAWS and LAWS.resolve(name) is cls
+    return name in LAWS.keys and LAWS.resolve(name) is cls
 
 
 def has_trait(law: object, trait: Trait) -> bool:
@@ -141,7 +141,7 @@ class BaseLaw:
         >>> from skcomplex.core.base import LawClass, LawKind
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.base import BaseLaw
-        >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
+        >>> issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class is LawClass.CONTINUOUS
         (True, True, True)
     """
 
@@ -149,6 +149,26 @@ class BaseLaw:
     time_class: ClassVar[LawClass]
     traits: ClassVar[frozenset[Trait]] = frozenset()
     requires: ClassVar[Requires] = Requires()
+
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, the law itself by default."""
+        return self
+
+    def check(self) -> Self:
+        """Return the law with its values checked and normalized.
+
+        Laws are values, so checking returns a law rather than changing this one. Validation checks every law of a
+        system before compiling it.
+
+        Returns:
+            law:
+                The checked law, with its values as Sage expressions.
+
+        Raises:
+            ValidationError:
+                A value of the law is invalid, such as a NumPy array or a SymPy expression.
+        """
+        return self._check()
 
 
 LAWS = Registry[type[BaseLaw]]('law')

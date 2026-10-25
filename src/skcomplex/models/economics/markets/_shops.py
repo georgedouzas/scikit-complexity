@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any, ClassVar, cast
 
 import numpy as np
@@ -35,67 +34,62 @@ def _shops_observables(system: System) -> list[Observable]:
     ]
 
 
-@dataclass(frozen=True)
-class DeliveredPriceChoice:
+def delivered_price_choice(
+    left: Sequence[Any],
+    right: Sequence[Any],
+    rng: np.random.Generator,
+    capacity: int,
+) -> list[Any]:
     """Pairing of shoppers, in random order, with the shop of the lowest delivered price that has units left.
 
     The delivered price is the shop's ask plus the shopper's travel cost per cell times the distance to the shop. A
     shopper buys one unit when the ask is at most its bid, so every pair is a trade of one unit at the ask. The
     shoppers choose in turn, so the matching is stable when shops do not choose among shoppers.
 
+    Args:
+        left:
+            The shoppers.
+
+        right:
+            The shops.
+
+        rng:
+            The random generator.
+
+        capacity:
+            The largest number of purchases of every shopper, which the demand limits instead.
+
+    Returns:
+        trades:
+            The purchases.
+
     Examples:
-        >>> from skcomplex.models.economics.markets import DeliveredPriceChoice
-        >>> DeliveredPriceChoice()
-        DeliveredPriceChoice()
+        >>> import numpy as np
+        >>> from skcomplex.models.economics.markets import delivered_price_choice
+        >>> delivered_price_choice([], [], np.random.default_rng(0), 1)
+        []
     """
-
-    def __call__(
-        self,
-        left: Sequence[Any],
-        right: Sequence[Any],
-        rng: np.random.Generator,
-        capacity: int,
-    ) -> list[Any]:
-        """Return the purchases of the shoppers, as a pairing of the matching law.
-
-        Args:
-            left:
-                The shoppers.
-
-            right:
-                The shops.
-
-            rng:
-                The random generator.
-
-            capacity:
-                The largest number of purchases of every shopper, which the demand limits instead.
-
-        Returns:
-            trades:
-                The purchases.
-        """
-        shoppers = [agent for agent in left if agent.demand > 0]
-        stores = [agent for agent in right if agent.supply > 0]
-        if not shoppers or not stores:
-            return []
-        here = np.array([agent.location for agent in shoppers], dtype=float)
-        there = np.array([agent.location for agent in stores], dtype=float)
-        distances = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=-1)
-        asks = np.array([agent.ask for agent in stores], dtype=float)
-        travel = np.array([agent.travel for agent in shoppers], dtype=float)
-        delivered = asks[None, :] + travel[:, None] * distances
-        supply = np.array([agent.supply for agent in stores], dtype=float)
-        trades = []
-        for index in rng.permutation(len(shoppers)):
-            shopper = shoppers[int(index)]
-            costs = np.where((supply >= 1) & (asks <= shopper.bid), delivered[index], np.inf)
-            best = int(np.argmin(costs))
-            if not np.isfinite(costs[best]):
-                continue
-            supply[best] -= 1
-            trades.append(Trade(shopper, stores[best], 1.0, float(asks[best])))
-        return trades
+    shoppers = [agent for agent in left if agent.demand > 0]
+    stores = [agent for agent in right if agent.supply > 0]
+    if not shoppers or not stores:
+        return []
+    here = np.array([agent.location for agent in shoppers], dtype=float)
+    there = np.array([agent.location for agent in stores], dtype=float)
+    distances = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=-1)
+    asks = np.array([agent.ask for agent in stores], dtype=float)
+    travel = np.array([agent.travel for agent in shoppers], dtype=float)
+    delivered = asks[None, :] + travel[:, None] * distances
+    supply = np.array([agent.supply for agent in stores], dtype=float)
+    trades = []
+    for index in rng.permutation(len(shoppers)):
+        shopper = shoppers[int(index)]
+        costs = np.where((supply >= 1) & (asks <= shopper.bid), delivered[index], np.inf)
+        best = int(np.argmin(costs))
+        if not np.isfinite(costs[best]):
+            continue
+        supply[best] -= 1
+        trades.append(Trade(shopper, stores[best], 1.0, float(asks[best])))
+    return trades
 
 
 class ResidentComponent(ElementComponent):
@@ -315,7 +309,7 @@ class ShoppingInteraction(BaseInteraction):
                 The laws of the component.
         """
         return [
-            MatchLaw('shoppers', 'shops', pairing=DeliveredPriceChoice(), label='purchases', phase='market'),
+            MatchLaw('shoppers', 'shops', pairing=delivered_price_choice, label='purchases', phase='market'),
             RuleLaw(self.buy, phase='market'),
         ]
 

@@ -24,7 +24,7 @@ def _initial_values(problem: Problem) -> dict[str, float]:
     """Return the initial value of every state component by name."""
     return {
         name: float(problem.initial_state[entry.start + column])
-        for entry in problem.states
+        for entry in problem.states.entries
         for column, name in enumerate(entry.component_names)
     }
 
@@ -223,7 +223,7 @@ def linearize(
         ([[0.0], [1.0]], 2)
     """
     problem = compiled_problem(system, 'Linearization')
-    if problem.form is not Form.ODE:
+    if problem.form != Form.ODE:
         error_msg = f'linearize takes systems under continuous time, but the system is a {problem.form.value}.'
         raise ValidationError(error_msg)
     adaptive = problem.adaptive_parameters

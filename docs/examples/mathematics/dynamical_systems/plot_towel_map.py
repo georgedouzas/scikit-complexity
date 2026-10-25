@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=24)
 simulation = Simulation(create(MODEL), dt=1, observers=[observer]).run(until=6000)
 trajectory = simulation.trajectory_
-points = np.column_stack([trajectory[f'map.{name}'] for name in 'xyz'])[50:]
+points = np.column_stack([trajectory.values(f'map.{name}') for name in 'xyz'])[50:]
 colors = plt.get_cmap('plasma')(points[:, 1] / np.ptp(points[:, 1]) - points[:, 1].min() / np.ptp(points[:, 1]))
 observer.recording_.log('attractor', rr.Points3D(points * [1, 4, 1], radii=0.004, colors=colors[:, :3]), static=True)
 observer.recording_.flush()

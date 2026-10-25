@@ -93,7 +93,7 @@ def test_scalars_visual_logs_nested_paths():
     simulation = Simulation(system).run(until=0.0)
     element = simulation.problem_.elements[0]
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    ScalarsVisual().log(recording, element, frame)
+    ScalarsVisual().prepare(element, frame.problem).run(frame, recording)
     assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
 
 
@@ -108,7 +108,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
     simulation = Simulation(system).run(until=0.0)
     recording = LoggedPaths()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    PointsVisual(position='x').log(recording, simulation.problem_.elements[0], frame)
+    PointsVisual(position='x').prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
     assert recording.logs[0][1] == archetype
     assert ('ball/v', 'Scalars') in recording.logs
 
@@ -163,8 +163,11 @@ def test_resolve_visual_builds_registered_visuals():
 
 def test_visual_base_log_is_abstract():
     """Test that the base visual must be subclassed."""
+    simulation = Simulation(create('lotka_volterra')).run(until=0.0)
+    problem = simulation.problem_
+    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
     with pytest.raises(NotImplementedError):
-        BaseVisual().log(None, None, None)
+        BaseVisual().prepare(problem.elements[0], problem).run(frame, None)
 
 
 def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
@@ -195,9 +198,10 @@ def test_points_colored_by_speed_follow_the_color_scale():
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = LoggedPaths()
     visual = PointsVisual(position='x', color_by='v', color_range=(0.0, 2.0), states=())
+    visual.prepare(simulation.problem_.elements[0], simulation.problem_)
     colors = []
     recording.log = lambda path, archetype: colors.append(archetype.colors.as_arrow_array().to_pylist())
-    visual.log(recording, simulation.problem_.elements[0], frame)
+    visual.run(frame, recording)
     rgb = [[(value >> shift) & 255 for shift in (24, 16, 8)] for value in colors[0]]
     assert rgb[0][2] > rgb[0][1]
     assert rgb[2][1] > rgb[0][1]
@@ -314,7 +318,7 @@ def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
     problem = compile_system(System(components=[FieldComponent('medium', TurningComponent, LatticeSpace((4, 4)))]))
-    views = ImageVisual().views(problem.elements[0], problem)
+    views = ImageVisual().prepare(problem.elements[0], problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 
 
@@ -344,7 +348,7 @@ def test_rerun_observer_logs_stock_flow_auxiliaries_under_their_element(monkeypa
 def test_rerun_observer_logs_extra_entities_in_their_own_sanitised_namespace(monkeypatch, tmp_path):
     """Test that entities a user logs go under `extra/`, with spaces replaced so Rerun needs no escapes."""
     logged, observer = _logged_paths(monkeypatch, tmp_path, create('lotka_volterra'), until=1, dt=0.5)
-    observer.log_extra('chain angle/left side', rr.Scalars(1.0))
+    observer._log_extra('chain angle/left side', rr.Scalars(1.0))
     assert logged[-1] == 'extra/chain_angle/left_side'
 
 
@@ -381,15 +385,15 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     simulation = Simulation(system, dt=1.0, random_state=0, record=True).run(until=3)
     trajectory, problem = simulation.trajectory_, simulation.problem_
     element = next(item for item in problem.elements if item.path == 'nodes')
-    visual, recording = SiteVisual(), _AllLogs()
-    for index in range(len(trajectory)):
+    visual, recording = SiteVisual().prepare(element, problem), _AllLogs()
+    for index in range(len(trajectory.times)):
         frame = Frame(index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem)
-        visual.log(recording, element, frame)
+        visual.run(frame, recording)
     nodes = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphNodes']
     edges = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphEdges']
     assert [len(item.node_ids.as_arrow_array()) for item in nodes] == [2, 3, 4, 5]
     assert len(edges) == 4
-    assert [type(view).__name__ for view in visual.views(element, problem)] == ['GraphView']
+    assert [type(view).__name__ for view in visual.views_] == ['GraphView']
 
 
 @pytest.mark.benchmark

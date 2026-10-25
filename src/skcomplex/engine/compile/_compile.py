@@ -8,8 +8,8 @@ from typing import cast
 
 import numpy as np
 
-from ...core.base import BaseProblem, Form, ValidationError
-from ...core.problems import BaseBackend, Partition, Problem, with_initial_state
+from ...core.base import Form, ValidationError
+from ...core.problems import BaseBackend, BaseProblem, Partition, Problem, with_initial_state
 from ...core.system import Observable, System
 from ._compilation import Compilation
 from ._declarations import is_interaction
@@ -32,7 +32,7 @@ def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]
     partitions = []
     for name, owners in plan:
         problem = _compiled(compilation.fork(owners))
-        owned = [entry.indices for entry in problem.states if entry.name.rpartition('.')[0] in owners]
+        owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
         indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
         partitions.append(Partition(name, problem, indices.astype(np.intp), owners))
     first = partitions[0].problem
@@ -199,7 +199,7 @@ def compile_system(
     initial = dict(initial_state or {})
     compiler = claiming_compiler(observed)
     if compiler is not None:
-        return compiler.compile(observed, backend=backend, solver=solver, initial_state=initial)
+        return cast('BaseProblem', compiler.run(observed, backend=backend, solver=solver, initial_state=initial))
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
     check_held_reads(problem, list(compilation.held))

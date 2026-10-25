@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=50)
 degrees = np.arange(3, 31)
 weights = degrees**-2.5 / np.sum(degrees**-2.5)
 threshold = np.sum(weights * degrees) / np.sum(weights * degrees**2)
-final = simulation.trajectory_['network.rho'][-1]
+final = simulation.trajectory_.values('network.rho')[-1]
 theta = np.sum(weights * degrees * final) / np.sum(weights * degrees)
 lam = 0.2
 fig, ax = plt.subplots(figsize=(7, 4))

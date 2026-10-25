@@ -11,10 +11,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
-from ._colors import _phase_colors, palette_colors
+from ._colors import _phase_colors
 from ._utils import MODULUS, PHASE
 from ._visuals import BaseVisual, register_visual
 
@@ -37,7 +36,7 @@ class MeshVisual(BaseVisual):
     Examples:
         >>> from skcomplex.engine.viz import MeshVisual
         >>> MeshVisual(low=0.0)
-        MeshVisual(states=None, low=0.0, high=None)
+        MeshVisual(low=0.0)
     """
 
     def __init__(
@@ -50,16 +49,6 @@ class MeshVisual(BaseVisual):
         self.low = low
         self.high = high
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return f'MeshVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
-
-    def _colors(self, values: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
-        """Return the colors of node values over the given range or the extremes of the values."""
-        low = float(values.min()) if self.low is None else float(self.low)
-        high = float(values.max()) if self.high is None else float(self.high)
-        return palette_colors(values, low, high)
-
     @staticmethod
     def _log_mesh(
         recording: rr.RecordingStream,
@@ -69,14 +58,14 @@ class MeshVisual(BaseVisual):
         colors: npt.NDArray[np.uint8],
     ) -> None:
         """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
-        nodes, cells = mesh.nodes, np.asarray(mesh.cells)
-        if mesh.n_dim != 2:  # noqa: PLR2004
+        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        if mesh.n_dim_ != 2:  # noqa: PLR2004
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
         positions = np.column_stack([nodes, values])
         recording.log(path, rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every chosen state of a finite element field under `<path>/<state>`, a complex one as modulus and phase.
 
         Args:
@@ -96,13 +85,13 @@ class MeshVisual(BaseVisual):
             values = np.ravel(frame.value(name))
             path = f'{element.path}/{state}'
             if not np.iscomplexobj(values):
-                self._log_mesh(recording, path, mesh, values, self._colors(values))
+                self._log_mesh(recording, path, mesh, values, self._colors(values, self.low, self.high))
                 continue
             modulus, phase = np.abs(values), np.angle(values)
-            self._log_mesh(recording, f'{path}/{MODULUS}', mesh, modulus, self._colors(modulus))
+            self._log_mesh(recording, f'{path}/{MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
             self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, _phase_colors(phase))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
 
         Args:
@@ -121,7 +110,7 @@ class MeshVisual(BaseVisual):
             >>> from skcomplex.engine.viz import MeshVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('heat_l_shape', refine=1))
-            >>> [type(view).__name__ for view in MeshVisual().views(problem.elements[0], problem)]
+            >>> [type(view).__name__ for view in MeshVisual().prepare(problem.elements[0], problem).views_]
             ['Spatial3DView']
         """
         if not isinstance(element, CompiledElement):

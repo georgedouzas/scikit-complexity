@@ -131,7 +131,7 @@ from skcomplex.core.base import LawKind, Trait
 from skcomplex.core.laws import BoundaryLaw
 from skcomplex.core.base import BaseLaw, law_classes
 
-print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind is LawKind.RATE, RateLaw.time_class)
+print(issubclass(RateLaw, BaseLaw), RateLaw.law_kind == LawKind.RATE, RateLaw.time_class)
 print(Trait.FORMLESS in BoundaryLaw.traits, RateLaw in law_classes(Trait.DECLARABLE))
 ```
 
@@ -254,7 +254,7 @@ PhaseComponent = ElementComponent.define(
     parameters={'omega': parameter(2.0)},
     laws=lambda s: [RateLaw(s.z, I * s.omega * s.z)],
 )
-z = Simulation(System(components=[PhaseComponent('osc')]), dt=0.5).run(until=10).trajectory_['osc.z']
+z = Simulation(System(components=[PhaseComponent('osc')]), dt=0.5).run(until=10).trajectory_.values('osc.z')
 assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
 ```
 
@@ -269,7 +269,7 @@ order for the solvers.
 
 - A companion is a constructor argument with a default of zero, so `PendulumComponent('bob', theta_d1=0.5)` starts the
   pendulum with an angular velocity.
-- A companion is not a class attribute. `PendulumComponent.declarations()` lists it after its state.
+- A companion is not a class attribute. The fitted `declarations_` of a pendulum list it after its state.
 
 ```python
 from skcomplex.core.base import NumericDomain, state
@@ -285,8 +285,8 @@ PendulumComponent = ElementComponent.define(
     parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
     laws=lambda s: [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
 )
-bob = PendulumComponent('bob', theta_d1=0.5)
-print(list(PendulumComponent.declarations()), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1'))
+bob = PendulumComponent('bob', theta_d1=0.5).prepare()
+print(list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1'))
 ```
 
 - On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up, so separate interactions
@@ -332,11 +332,11 @@ is stiff, so stiff systems also run with the default solver.
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 
 trajectory = Simulation(landscape, dt=0.1).run(until=10).trajectory_
-print(trajectory['meadow/rabbits.n'][-1])
+print(trajectory.values('meadow/rabbits.n')[-1])
 
 simulation = Simulation(landscape, dt=0.1).run(until=10)
 simulation.update_parameters({'hunt.a': 0.0})
-print(len(simulation.extend(until=20).trajectory_))
+print(len(simulation.extend(until=20).trajectory_.times))
 ```
 
 - `dt` defaults to 1 for discrete maps and agents. For other forms it defaults to 0.01, raised to the smallest of 0.02,
@@ -380,7 +380,7 @@ MackeyGlassComponent = ElementComponent.define(
     laws=lambda s: [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
 )
 cells = System(components=[MackeyGlassComponent('cells')])
-print(Simulation(cells, dt=0.5).run(until=300).trajectory_['cells.x'][-1])
+print(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1])
 ```
 
 **Events.** `EventLaw(guard, reset, direction, terminal, label)` fires when the guard crosses zero, upward for
@@ -427,7 +427,7 @@ FilterComponent = ElementComponent.define(
     parameters={'k': 1.0},
     laws=lambda s: [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))],
 )
-print(Simulation(System(components=[FilterComponent('filter')]), dt=0.5).run(until=10).trajectory_['filter.y'][-1])
+print(Simulation(System(components=[FilterComponent('filter')]), dt=0.5).run(until=10).trajectory_.values('filter.y')[-1])
 ```
 
 **Noise conventions.** `NoiseLaw(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read. The
@@ -490,7 +490,7 @@ market = System(
     interactions=[MarketInteraction('drive', first='a', second='b', noise='market')],
 )
 trajectory = Simulation(market, solver=EulerMaruyamaSolver(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
-print(np.corrcoef(np.diff(trajectory['a.n']), np.diff(trajectory['b.n']))[0, 1])
+print(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1])
 ```
 
 The Stratonovich and anti-Itô corrections of each law use the full diffusion matrix and the covariance, so a state
@@ -527,7 +527,7 @@ DensityComponent = ElementComponent.define(
     laws=lambda s: [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)],
 )
 gas = System(components=[FieldComponent('gas', DensityComponent, LatticeSpace((16, 16)))])
-density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_['gas.rho']
+density = Simulation(gas, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=5).trajectory_.values('gas.rho')
 print(density[-1].sum(), density[-1].std() > 0)
 ```
 
@@ -581,7 +581,7 @@ PersistentComponent = ElementComponent.define(
     ],
 )
 walkers = System(components=[PersistentComponent.group('walkers', 500)])
-final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_['walkers.x'][-1]
+final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
 
@@ -622,7 +622,7 @@ SourceComponent = ElementComponent.define(
     ],
 )
 simulation = Simulation(System(components=[SourceComponent('source')]), dt=1.0, random_state=0).run(until=10000)
-print(round(float((simulation.trajectory_['source.hidden'] == 'calm').mean()), 1))
+print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
 
@@ -658,7 +658,7 @@ FlierComponent = ElementComponent.define(
     laws=lambda s: [UpdateLaw(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))],
 )
 flight = Simulation(System(components=[FlierComponent.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
-print(flight.trajectory_['fliers.x'].shape)
+print(flight.trajectory_.values('fliers.x').shape)
 ```
 
 ### Jumps on clocks of waiting times
@@ -690,7 +690,7 @@ WalkerComponent = ElementComponent.define(
     laws=lambda s: [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
 )
 walk = Simulation(System(components=[WalkerComponent.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
-print(walk.problem_.form.value, walk.trajectory_['jumps.renewals'][-1] > 1000)
+print(walk.problem_.form.value, walk.trajectory_.values('jumps.renewals')[-1] > 1000)
 ```
 
 The trajectory records every renewal pass as a `RenewalRecord` among its events, with the time and the member of every
@@ -700,7 +700,7 @@ The compiler keeps the count of every member in a hidden state, `<group>.<label>
 
 ### Fractional noise
 
-`FractionalNoiseLaw(target, value, hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
+`FractionalNoiseLaw(target, value, hurst=hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
 whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to an ordinary
 noise law. For other indices the amplitude must not depend on any state. `FractionalEulerMaruyamaSolver(dt, horizon)` is the
 stepper of systems with fractional noise. It draws the increments of the whole run on its grid when it first advances,
@@ -723,7 +723,7 @@ rough = Simulation(
     dt=0.1,
     random_state=0,
 ).run(until=1)
-print(round(float(rough.trajectory_['walkers.x'][-1].var()), 1))
+print(round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1))
 ```
 
 The library has these models ready: `continuous_time_random_walk`, `levy_walk`, `annealed_transient_time_motion`,
@@ -765,7 +765,7 @@ from skcomplex.formalisms.fractional import L1Solver
 RelaxingComponent = ElementComponent.define('RelaxingComponent', states={'x': state(1.0, order=0.6)}, laws=lambda s: [RateLaw(s.x, -s.x)])
 relaxing = Simulation(System(components=[RelaxingComponent('a')]), solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).run(until=20)
 exact = mittag_leffler(0.6, 1.0, -(20.0**0.6))
-print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_['a.x'][-1]) - float(exact)) < 1e-3)
+print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
 ```
 
 Validation reports the misuses of fractional orders before compiling, each with the path of the state and a fix: an
@@ -824,7 +824,7 @@ oscillators = System(
     components=[OscillatorComponent.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
 )
 observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
-order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_['order']
+order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
@@ -865,7 +865,7 @@ coupled = System(
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
-print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_['X'][-1].round(2))
+print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1].round(2))
 ```
 
 ## Stocks and flows
@@ -900,7 +900,7 @@ PeopleComponent = ElementComponent.define(
 )
 crowd = System(components=[PeopleComponent('crowd')])
 trajectory = Simulation(crowd, dt=1.0).run(until=10).trajectory_
-print(round(float(trajectory['crowd.births'][-1]), 3), round(float(trajectory['crowd.deaths'][-1]), 3))
+print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
 ```
 
 A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
@@ -1008,7 +1008,7 @@ room = System(components=[HeaterComponent('heater')])
 print([issue.path for issue in validate(System(components=[HeaterComponent('heater', power=2.0)])).errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
 heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
-print(heated['heater.power'])
+print(heated.values('heater.power'))
 ```
 
 ### Objectives and optimal control
@@ -1046,9 +1046,9 @@ PlantComponent = ElementComponent.define(
 )
 plant = System(components=[PlantComponent('plant')])
 optimal = Simulation(plant, solver=PontryaginSolver(), dt=0.1).run(until=1.0)
-print(round(optimal.trajectory_['plant.u'][0], 3), round(optimal.stepper_.solution_.cost, 4))
+print(round(optimal.trajectory_.values('plant.u')[0], 3), round(optimal.stepper_.solution_.cost, 4))
 transcribed = Simulation(plant, solver=CollocationSolver(nodes=21), dt=0.1).run(until=1.0)
-print(round(transcribed.trajectory_['plant.u'][0], 3))
+print(round(transcribed.trajectory_.values('plant.u')[0], 3))
 ```
 
 Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate,
@@ -1186,9 +1186,12 @@ A new formalism needs no change to the shared core. It declares its contribution
 
 - A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
 - A law class derives from `BaseLaw` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
-- A `BaseSystemCompiler` claims the systems it compiles and turns each into a `Problem` of the new form.
-- A solver is a `Solver` that declares the form it advances and what it supports, and advances the state from one
-  time to the next.
+- A `BaseSystemCompiler` claims the systems it compiles, setting `claims_` when it is fitted to a system, and its `run`
+  turns each into a `Problem` of the new form.
+- A solver is a `Solver` that declares the form it advances and what it supports. It implements `_advance`, which
+  advances the state from one time to the next. The runtime calls `prepare(problem, rng, until)` before the first frame
+  and `run(t, x, p, until)` at every frame, which returns the state and sets `events_`, `stopped_at_`, `snapshot_`,
+  and `agents_`. The last run, `run(..., final=True)`, releases what fitting acquired, such as an external process.
 - `depends` names the formalisms it builds on, which must be registered first.
 
 The example below adds radioactive decay as a formalism with its own law, pass, and exact solver.
@@ -1226,8 +1229,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import Solver
 from skcomplex.core.system import System
 
-DECAY = LawKind('DECAY', 'decay')
-EXPONENTIAL_DECAY = Form('EXPONENTIAL_DECAY', 'exponential decay')
+DECAY = LawKind.register('DECAY', 'decay')
+EXPONENTIAL_DECAY = Form.register('EXPONENTIAL_DECAY', 'exponential decay')
 
 
 @dataclass(frozen=True)
@@ -1255,10 +1258,10 @@ class DecayProblem(Problem):
 
 
 class DecayCompiler(BaseSystemCompiler):
-    def claims(self, system):
-        return bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
+    def _prepare(self, system):
+        self.claims_ = bool(system.elements) and all(isinstance(item, NucleusComponent) for item in system.elements)
 
-    def compile(self, system, *, backend, solver, initial_state):
+    def _run(self, system, *, backend, solver, initial_state):
         nuclei = list(system.elements)
         states = [Entry(f'{item.label}.n', i, (), NumericDomain.NONNEGATIVE) for i, item in enumerate(nuclei)]
         rates = [Entry(f'{item.label}.k', i, (), NumericDomain.POSITIVE) for i, item in enumerate(nuclei)]
@@ -1293,7 +1296,7 @@ class ExactDecaySolver(Solver):
     )
     form: ClassVar[Form] = EXPONENTIAL_DECAY
 
-    def advance(self, t, x, p, until):
+    def _advance(self, t, x, p, until):
         return x * np.exp(-p[list(self.problem_.rates)] * (until - t))
 
 
@@ -1309,7 +1312,7 @@ register(
     ),
 )
 decayed = Simulation(System(components=[NucleusComponent('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
-print(type(decayed.stepper_).__name__, decayed.trajectory_['atom.n'][-1].round(4))
+print(type(decayed.stepper_).__name__, decayed.trajectory_.values('atom.n')[-1].round(4))
 ```
 
 The formalism packages of `skcomplex.formalisms` follow one internal layout, with the modules `_laws`,
@@ -1366,7 +1369,7 @@ print([entry.name for entry in catalog(field='biology/ecology')])
 print(sorted({entry.field for entry in catalog(field='chemistry')}))
 print(describe('lotka_volterra').formalism)
 predation = create('lotka_volterra', a=0.2)
-print(run('sir').trajectory_['I.n'].max().round())
+print(run('sir').trajectory_.values('I.n').max().round())
 ```
 
 ### Models as patterns
@@ -1440,7 +1443,7 @@ gas = System(
     space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).run(until=0.5).trajectory_
-print(trajectory['gas.x'].shape)
+print(trajectory.values('gas.x').shape)
 ```
 
 - The label and the size of a group are given by position, `ParticleComponent.group('gas', 1_000, ...)`, so a state named
@@ -1488,7 +1491,7 @@ from skcomplex.core.laws import total
 
 UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
 units = System(components=[UnitComponent.group('units', 50, x=np.linspace(-1, 1, 50))])
-print(Simulation(units, dt=0.5).run(until=2).trajectory_['units.x'][-1, :3].round(3))
+print(Simulation(units, dt=0.5).run(until=2).trajectory_.values('units.x')[-1, :3].round(3))
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
 StrategyComponent = ElementComponent.define('StrategyComponent', states={'x': 0.5})
@@ -1507,7 +1510,7 @@ game = System(
     components=[StrategyComponent.group('population', 2, x=[0.1, 0.9])],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-print(Simulation(game, dt=1.0).run(until=40).trajectory_['population.x'][-1].round(3))
+print(Simulation(game, dt=1.0).run(until=40).trajectory_.values('population.x')[-1].round(3))
 ```
 
 A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
@@ -1568,7 +1571,7 @@ summed = System(
 )
 simulation = Simulation(summed, dt=1).run(until=1)
 simulation.update_parameters({'sum.weights[2]': 0.0})
-print(simulation.trajectory_['out.x'], simulation.parameters_)
+print(simulation.trajectory_.values('out.x'), simulation.parameters_)
 ```
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
@@ -1612,7 +1615,7 @@ ring = System(
     components=[CarComponent.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
     interactions=[FollowingComponentInteraction('following', cars='cars', length=40.0)],
 )
-print(Simulation(ring, dt=1.0).run(until=50).trajectory_['cars.v'][-1].std() > 0.1)
+print(Simulation(ring, dt=1.0).run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1)
 ```
 
 ### Jacobians of reductions
@@ -1637,7 +1640,7 @@ from skcomplex.core.system import System
 UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0}, laws=lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))])
 units = System(components=[UnitComponent.group('units', 50, x=np.linspace(-1, 1, 50))])
 problem = compile_system(units)
-jacobian = problem.jacobian(0.0, problem.initial_state, problem.initial_parameters)
+jacobian = problem.jacobian.evaluate(0.0, problem.initial_state, problem.initial_parameters)
 print(jacobian.shape, problem.jacobian.pattern().nnz)
 ```
 
@@ -1693,6 +1696,19 @@ stochastic systems, jump processes, and discrete maps.
 Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(shape, boundary=...)` is a box of `Z^d`
 with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `ElementComponent.lattice(label, space, **values)` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
+
+Every space speaks the verbs of the framework. `space.prepare()` checks its arguments and derives its facts, which end in
+`_`: the number of sites `size_`, the dimension `n_dim_`, the shape of the arrays of its sites `shape_`, the position
+of every site `positions_`, whether it wraps `periodic_`, and the visual of its groups `default_visual_`.
+`space.run(site, neighborhood=None)` returns the sites around a site, in the order of a neighbourhood or of the
+space's own. Compiling a system fits its spaces, so a space needs `prepare()` only when its facts are read before.
+
+```python
+from skcomplex.core.space import LatticeSpace
+
+space = LatticeSpace((4, 3), neighborhood='von_neumann').prepare()
+print(space.size_, space.shape_, space.periodic_, space.run(0).tolist())
+```
 
 **Local rules.** `LocalRuleLaw(target, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
@@ -1895,10 +1911,11 @@ change edge states, laws reduce over the neighbours of a node, and topology requ
 
 The class methods of `NetworkSpace` wrap the generators of NetworkX: `erdos_renyi`, `watts_strogatz`,
 `barabasi_albert`, `configuration_model`, `stochastic_block_model`, `grid`, `complete`, and the spatially embedded
-`waxman` and `random_geometric`, whose node positions `read_positions` returns. A random generator takes a seed or a
-NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
-relation over the same nodes, such as work next to contacts. Every layer lowers to arrays: `list_edges` gives the
-source and target of every edge, and `compute_adjacency` the neighbours of every node in compressed sparse row form.
+`waxman` and `random_geometric`, whose node positions are the fitted `positions_`. A random generator takes a seed or
+a NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
+relation over the same nodes, such as work next to contacts. Fitting a network lowers every layer to arrays by its
+label: `graphs_` holds its graph, `edges_` the source and target of every edge, and `adjacency_` the neighbours of
+every node in compressed sparse row form.
 
 ```python
 import networkx as nx
@@ -1909,8 +1926,8 @@ first = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 second = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
 print(sorted(first.graph.edges) == sorted(second.graph.edges))
 
-space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))])
-print(space.layer_labels, [item.tolist() for item in space.list_edges('work')])
+space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))]).prepare()
+print(list(space.graphs_), [item.tolist() for item in space.edges_['work']])
 ```
 
 ### Interactions over edges
@@ -1959,7 +1976,7 @@ system = System(
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
 )
 trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).run(until=1.0).trajectory_
-print(np.round(trajectory['synapses.w'][-1], 3).tolist())
+print(np.round(trajectory.values('synapses.w')[-1], 3).tolist())
 ```
 
 ### Reductions over neighbourhoods
@@ -2141,7 +2158,7 @@ economy = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = Simulation(economy, dt=10.0).run(until=100).trajectory_['wealth.f']
+densities = Simulation(economy, dt=10.0).run(until=100).trajectory_.values('wealth.f')
 print(densities.sum(axis=1)[[0, -1]].round(12), densities[-1].round(3))
 print(validate(economy).ok)
 ```
@@ -2184,7 +2201,7 @@ welfare = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-print(Simulation(welfare, dt=10.0).run(until=100).trajectory_['wealth.f'][-1].round(3))
+print(Simulation(welfare, dt=10.0).run(until=100).trajectory_.values('wealth.f')[-1].round(3))
 ```
 
 ### Moments
@@ -2216,7 +2233,7 @@ observables = [
     Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = Simulation(economy, dt=10.0, observables=observables).run(until=100).trajectory_
-print(trajectory['mean_wealth'][-1].round(3), trajectory['wealth_variance'][[0, -1]].round(3))
+print(trajectory.values('mean_wealth')[-1].round(3), trajectory.values('wealth_variance')[[0, -1]].round(3))
 ```
 
 ### The particle solver
@@ -2238,7 +2255,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.kinetics import KineticSolver
 
 sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).run(until=100)
-print(np.abs(sampled.trajectory_['wealth.f'][-1] - densities[-1]).sum().round(2))
+print(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum().round(2))
 print(validate(welfare, solver=KineticSolver()).ok)
 ```
 
@@ -2272,8 +2289,8 @@ the elements `s` of a finite memory set (Ceccherini-Silberstein and Coornaert 20
 Cayley graph of a finitely generated group on the ball of radius `r` in its generators and their inverses, and
 `CayleySpace(group, quotient=q)` on a finite quotient, where configurations are periodic. A group space is a space of the
 lattice kind, so `LocalRuleLaw`, `SampleLaw`, and the other lattice laws run on it with the NumPy and Numba backends, and a
-run reads only its neighbour table. Its sites are numbered by word length, `words` names their shortest words,
-`ball_sizes()` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
+run reads only its neighbour table. Fitting the space enumerates its sites, numbered by word length: `words_` names
+their shortest words, `ball_sizes_` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
 `Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
 gives the identity followed by every generator and its inverse.
 
@@ -2310,17 +2327,17 @@ from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
-tree = CayleySpace(free, ball=4)
+tree = CayleySpace(free, ball=4).prepare()
 memory = Memory.generators(free)
 MajorityComponent = ElementComponent.define(
     'MajorityComponent',
     states={'alive': state(0, domain=NumericDomain.BOOLEAN)},
     laws=lambda s: [LocalRuleLaw(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))],
 )
-cells = (np.random.default_rng(0).random(tree.size) < 0.5).astype(float)
+cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(components=[MajorityComponent.lattice('cells', tree, alive=cells)])
-print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
-print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).words)
+print(tree.ball_sizes_, Simulation(majority, dt=1).run(until=3).trajectory_.values('cells.alive').shape)
+print(CayleySpace(permutation_group([[1, 0, 2], [1, 2, 0]])).prepare().words_)
 ```
 
 Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
@@ -2333,7 +2350,8 @@ from skcomplex.formalisms.groups import CayleySpace
 
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
-print(CayleySpace(grigorchuk_group(), ball=6).ball_sizes(), CayleySpace(grigorchuk_group(), quotient=3).size)
+ball, quotient = CayleySpace(grigorchuk_group(), ball=6).prepare(), CayleySpace(grigorchuk_group(), quotient=3).prepare()
+print(ball.ball_sizes_, quotient.size_)
 ```
 
 **Theory of automata.** `skcomplex.engine.analysis` decides the properties the theory studies on finite universes, where
@@ -2415,7 +2433,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 rod = FieldComponent('rod', DiffusionInteractionComponent, LatticeSpace(400, spacing=0.05), boundary={'u': 'zero-flux'}, values={'u': initial})
 trajectory = Simulation(System(components=[rod]), dt=0.1).run(until=0.5).trajectory_
-print(trajectory['rod.u'][-1].max(), trajectory['rod.u'].sum(axis=1)[[0, -1]])
+print(trajectory.values('rod.u')[-1].max(), trajectory.values('rod.u').sum(axis=1)[[0, -1]])
 ```
 
 - `laplacian(u)` lowers to the `2d + 1`-point stencil divided by the squared spacing, and to the graph Laplacian on a
@@ -2537,7 +2555,7 @@ print(simulation.run(until=0.5).problem_.backend)
 Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`,
 so running the same system again skips compilation.
 
-A law value can be a function called once per member with `Call(function, *arguments)`. A Numba-compiled function
+A law value can be a function called once per member with `Call(function, arguments)`. A Numba-compiled function
 runs inside the compiled kernels, and the NumPy backend calls it from Python.
 
 ```python
@@ -2562,14 +2580,14 @@ class SaturationInteraction(BaseInteraction):
     r: float = parameter(1.0)
 
     def laws(self, s):
-        return [RateLaw(s.target.n, Call(saturating, s.target.n, s.r))]
+        return [RateLaw(s.target.n, Call(saturating, (s.target.n, s.r)))]
 
 
 herds = System(
     components=[PopulationComponent.group('herds', 2000, n=1.0)],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-print(Simulation(herds, dt=0.1).run(until=1).trajectory_['herds.n'][-1, 0])
+print(Simulation(herds, dt=0.1).run(until=1).trajectory_.values('herds.n')[-1, 0])
 ```
 
 A plain Python callable of the values, as in `RateLaw(s.target.n, lambda t, values: ...)`, also works with the Numba
@@ -2601,7 +2619,7 @@ atoms = System(
     space=ContinuousSpace(n_dim=2),
 )
 trajectory = Simulation(atoms, solver=LammpsSolver(dt=0.005), dt=0.05, random_state=0).run(until=1).trajectory_
-print(trajectory['atoms.x'].shape)
+print(trajectory.values('atoms.x').shape)
 ```
 
 Before the first frame the backend checks the system and raises one error that lists every element, interaction, and
@@ -2667,7 +2685,7 @@ foragers = System(
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
-print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
+print(trajectory.values('foragers.count')[-1], len(trajectory.agents('foragers', 20).ids))
 ```
 
 - An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
@@ -2820,7 +2838,7 @@ auction = System(
     time=DiscreteTime(schedule=PhasesSchedule([Phase('quote'), Phase('trade', repeat=3)])),
 )
 trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
-print(trajectory['auction.price'][1:], trajectory['clerk.traded'][-1], trajectory['clerk.fee'][-1])
+print(trajectory.values('auction.price')[1:], trajectory.values('clerk.traded')[-1], trajectory.values('clerk.fee')[-1])
 ```
 
 ### Porting Mesa models
@@ -2879,7 +2897,7 @@ algae = System(
     interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
 )
 trajectory = Simulation(algae).run(until=5).trajectory_
-print(trajectory['algae.size'].tolist(), str(trajectory.structure('algae', 5)))
+print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
 
 A production can be stochastic, with probabilities that sum to one per predecessor and context and draws from the
@@ -2904,14 +2922,14 @@ class Shrinking(Rewriting):
     ratio: float = parameter(0.5)
 
     def productions(self, s):
-        return [ProductionLaw(Module('A', x), [Module('F', x), Module('A', s.ratio * x)], condition=x > 0.1)]
+        return [ProductionLaw(Module('A', (x,)), [Module('F', (x,)), Module('A', (s.ratio * x,))], condition=x > 0.1)]
 
 
 plant = System(
-    components=[WordComponent('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})],
+    components=[WordComponent('plant', axiom=[Module('A', (1.0,))], alphabet={'A': 1, 'F': 1})],
     interactions=[Shrinking('growth', target='plant')],
 )
-print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5))
+print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
@@ -2948,7 +2966,7 @@ cantor = System(
     interactions=[Rewrite('rules', target='cantor', rules=[SubstitutionLaw('interval', thirds)])],
 )
 trajectory = Simulation(cantor).run(until=5).trajectory_
-print(trajectory['cantor.size'][-1], round(trajectory['cantor.length'][-1], 6))
+print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
 print(round(box_counting_dimension(grid, [3, 9, 27]), 2))
 ```
@@ -2978,7 +2996,7 @@ ring = System(
     components=[HostGraphComponent('ring', graph=nx.cycle_graph(4))],
     interactions=[Rewrite('rules', target='ring', rules=[subdivide])],
 )
-print(Simulation(ring, random_state=0).run(until=3).trajectory_['ring.size'].tolist())
+print(Simulation(ring, random_state=0).run(until=3).trajectory_.values('ring.size').tolist())
 ```
 
 ## Quantum systems
@@ -3030,7 +3048,7 @@ chain = System(
 )
 observables = [expectation('sz', attrgetter('z'), group='chain')]
 trajectory = Simulation(chain, dt=0.5, observables=observables).run(until=2.0).trajectory_
-print(trajectory['sz'].shape, round(float(np.ptp(trajectory['energy'])), 8))
+print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 
 ### Solvers, observables, and spectra
@@ -3040,12 +3058,13 @@ state for a closed system and a density matrix for an open one. Its solvers hand
 the Schrödinger equation, `lindblad`, the default, for the master equation, and `quantum_trajectories` for quantum
 jumps drawn from the run's random stream. `expectation` makes observables of operators, one value per member for a
 group, and every quantum run also records its `energy`, and its `purity` when it is open. Groups on a lattice stream
-the space-time image of their local expectations to Rerun. `spectrum` and `ground_state` diagonalise the Hamiltonian
-exactly, optionally in the sector of a conserved diagonal operator, `purity` and `entanglement_entropy` read
-trajectories, and `hamiltonian_of` prints the Hamiltonian in operator notation.
+the space-time image of their local expectations to Rerun. The quantum formalism also holds its analyses: `spectrum`
+and `ground_state` diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator,
+`purity` and `entanglement_entropy` read trajectories, and `hamiltonian_of` prints the Hamiltonian in operator
+notation.
 
 ```python
-from skcomplex.engine.analysis import spectrum
+from skcomplex.formalisms.quantum import spectrum
 from skcomplex.models import create
 
 print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())
@@ -3067,7 +3086,7 @@ from skcomplex.models.economics.resources import harvesting
 farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
 trajectory = Simulation(farming, random_state=0).run(until=50).trajectory_
-print(round(trajectory['land/stock.n'][-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
+print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
 ```
 
 - Every partition holds the states of the other partitions as inputs, which keep their values from the last
@@ -3121,12 +3140,14 @@ with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A c
 appears as two images, its modulus under `<path>/<state>/modulus` colored over the range and its phase under
 `<path>/<state>/phase` colored by a cyclic palette over `(-π, π]`, and a complex scalar as the series
 `<path>/<state>/real` and `<path>/<state>/imag`. A group can set its own visual with
-`ParticleComponent.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual` and is registered with
-`register_visual`, and an element type selects it with its `visual` class variable.
+`ParticleComponent.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `BaseVisual`, implements the hook `_log`
+for elements or `_log_agents` for agents, and is registered with `register_visual`, and an element type selects it with
+its `visual` class variable. `visual.prepare(element, problem)` prepares a visual for one element and sets its views
+`views_`, and `visual.run(frame, recording)` logs the element at a frame.
 
 ### Layouts and blueprints
 
-Every visual declares the Rerun views that show what it logs, through its `views` method. Scalars go in time series
+Every visual declares the Rerun views that show what it logs, as its fitted attribute `views_`. Scalars go in time series
 views, points in 2D or 3D spatial views by their dimension, lattices and fields in one 2D view per state, after the
 2D views of their space-time images in one dimension, meshes in 3D views, and agents in a 2D view or, on a network, a
 graph view. Agents without a space get no spatial view. `default_blueprint` arranges these views into a Rerun
@@ -3184,8 +3205,9 @@ stocks = Experiment('harvesting', scenarios=policies, until=80, outputs=['land/s
 print([round(float(row['land/stock.n'])) for row in stocks.rows])
 ```
 
-- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. They cross with `*` and
-  concatenate with `+`, and their bounds are pairs or SciPy distributions.
+- Designs are `GridDesign`, `RandomDesign`, `LatinHypercubeDesign`, `SobolDesign`, and `RowsDesign`. `prepare` sets their
+  rows in `rows_` and `run` returns them. They cross with `product` and concatenate with `concat`, and their bounds are
+  pairs or SciPy distributions.
 - `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars. Results
   give one row per run, `series`, `summary` with means, standard deviations, and quantiles across replicates, and
   `to_frame` for pandas.
@@ -3475,37 +3497,40 @@ print(round(recurrence_quantification(sine).determinism, 2))
 
 ### Surrogates fitted to data
 
-`fit_dmd`, `fit_sindy`, and `fit_reservoir` fit a model to one or more trajectories or series sampled at a uniform step
-and return it as a `System` of one surrogate element, which `validate` checks and `Simulation` runs like a hand-written
-system. Each result also holds the relative errors of the fit on the training samples and on the end of every series
-held out by `validation`.
+`DMDSurrogate`, `SINDySurrogate`, and `ReservoirSurrogate` are estimators: they take their settings when built,
+`prepare` them to one or more trajectories or series sampled at a uniform step, and `run(steps)` forecasts the variables
+over that many samples after the last sample. `prepare` sets `system_`, a `System` of one surrogate element, which
+`validate` checks and `Simulation` runs like a hand-written system, and `training_error_` and `validation_error_`, the
+relative errors of the fit on the training samples and on the end of every series held out by `validation`. A forecast
+simulates `system_` from the last sample, and the DMD and reservoir surrogates compute it directly.
 
-- `fit_dmd` fits dynamic mode decomposition with PyDMD and returns the continuous eigenvalues `ln(mu) / dt`, the modes,
-  their amplitudes, and a surrogate under continuous time with the matrix rate law `dg/dt = L g`. A scikit-learn
-  transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the variables to observables first, which
-  is extended DMD.
-- `fit_sindy` fits sparse identification of nonlinear dynamics with PySINDy and returns the coefficients of the
-  monomials of the variables and a surrogate under continuous time with one symbolic rate law per variable.
-- `fit_reservoir` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout of
-  the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of the
-  reservoir as states, and starts at the last sample, so a run is the autonomous forecast.
+- `DMDSurrogate` fits dynamic mode decomposition with PyDMD and sets the continuous eigenvalues `ln(mu) / dt` in
+  `eigenvalues_`, the modes, their amplitudes, and a surrogate under continuous time with the matrix rate law
+  `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
+  variables to observables first, which is extended DMD.
+- `SINDySurrogate` fits sparse identification of nonlinear dynamics with PySINDy and sets the monomials of the
+  variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
+  symbolic rate law per variable.
+- `ReservoirSurrogate` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout
+  of the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of
+  the reservoir as states, and starts at the last sample, so a run of `system_` is the autonomous forecast.
 
 ```python
 import numpy as np
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.engine.analysis import Series, fit_dmd, fit_reservoir, fit_sindy
+from skcomplex.engine.analysis import DMDSurrogate, ReservoirSurrogate, Series, SINDySurrogate
 from skcomplex.engine.compile import validate
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = Series(times, np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
-decomposition = fit_dmd(spiral)
-print(np.sort(decomposition.eigenvalues.imag).round(3), validate(decomposition.system).ok)
-sparse = fit_sindy(spiral, degree=1, threshold=0.05)
-print(sparse.features, sparse.coefficients.round(2).tolist())
-reservoir = fit_reservoir(spiral)
-forecast = Simulation(reservoir.system).run(until=50).trajectory_
-print(type(reservoir.system.time).__name__, np.allclose(forecast['surrogate.x'], reservoir.forecast(50)[:, 0]))
+decomposition = DMDSurrogate().prepare(spiral)
+print(np.sort(decomposition.eigenvalues_.imag).round(3), validate(decomposition.system_).ok)
+sparse = SINDySurrogate(degree=1, threshold=0.05).prepare(spiral)
+print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.run(50).shape)
+reservoir = ReservoirSurrogate().prepare(spiral)
+forecast = Simulation(reservoir.system_).run(until=50).trajectory_
+print(type(reservoir.system_.time).__name__, np.allclose(forecast.values('surrogate.x')[1:], reservoir.run(50)[:, 0]))
 ```
 
 ### Stochastic processes

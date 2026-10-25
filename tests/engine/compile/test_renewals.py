@@ -29,7 +29,7 @@ def _renewal(waiting, reset=None):
 def test_compile_system_gives_renewal_laws_alone_the_renewal_form():
     """Test that a system of renewal laws alone compiles to the renewal form with a hidden count per member."""
     problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
-    assert problem.form is Form.RENEWAL
+    assert problem.form == Form.RENEWAL
     assert problem.states.names == ['counters.n', 'counters.counters~renewals']
     assert problem.renewals[0].label == 'counters'
     assert problem.renewals[0].members == 3
@@ -44,7 +44,7 @@ def test_compile_system_partitions_renewals_beside_an_ode():
         ],
     )
     problem = compile_system(system)
-    assert problem.form is Form.COUPLED
+    assert problem.form == Form.COUPLED
     assert [partition.problem.form for partition in problem.partitions] == [Form.RENEWAL, Form.ODE]
 
 
@@ -55,7 +55,7 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
         states={'x': 0.0, 'v': 1.0},
         laws=lambda s: [RateLaw(s.x, s.v), JumpLaw(waiting=draw('wait', 'expon'), reset={s.v: -s.v})],
     )
-    assert compile_system(System(components=[walker('w')])).form is Form.ODE
+    assert compile_system(System(components=[walker('w')])).form == Form.ODE
 
 
 def test_compile_system_rejects_an_unknown_distribution():

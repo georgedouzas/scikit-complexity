@@ -23,12 +23,12 @@ def test_michaelis_menten_conserves_enzyme_and_substrate():
     """Test that the enzyme reaction conserves the total enzyme and substrate as rate equations and as jumps."""
     for stochastic in (False, True):
         trajectory = _run(michaelis_menten(stochastic=stochastic), until=20.0, dt=1.0)
-        enzyme = trajectory['E.n'] + trajectory['C.n']
-        substrate = trajectory['S.n'] + trajectory['C.n'] + trajectory['P.n']
+        enzyme = trajectory.values('E.n') + trajectory.values('C.n')
+        substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
         assert np.allclose(enzyme, 100.0)
         assert np.allclose(substrate, 300.0)
-        assert trajectory['P.n'][-1] > 100.0
-    assert np.array_equal(trajectory['P.n'], np.round(trajectory['P.n']))
+        assert trajectory.values('P.n')[-1] > 100.0
+    assert np.array_equal(trajectory.values('P.n'), np.round(trajectory.values('P.n')))
 
 
 def test_chemical_langevin_equation_keeps_both_states():
@@ -45,9 +45,9 @@ def test_chemical_langevin_equation_keeps_both_states():
         dt=0.05,
         solver=describe('chemical_langevin_equation').defaults['solver'],
     )
-    assert abs(low['reactor.x'].mean() - 17.0) < 10.0
-    assert abs(high['reactor.x'].mean() - 113.0) < 25.0
-    assert low['reactor.x'].std() > 1.0
+    assert abs(low.values('reactor.x').mean() - 17.0) < 10.0
+    assert abs(high.values('reactor.x').mean() - 113.0) < 25.0
+    assert low.values('reactor.x').std() > 1.0
 
 
 @pytest.mark.slow
@@ -59,7 +59,7 @@ def test_chemical_langevin_equation_switches_by_noise():
         dt=0.05,
         solver=describe('chemical_langevin_equation').defaults['solver'],
     )
-    late = trajectory['reactor.x'][trajectory.times > 20]
+    late = trajectory.values('reactor.x')[trajectory.times > 20]
     assert late.min() < 30.0
     assert late.max() > 90.0
 
@@ -71,7 +71,7 @@ def test_langevin_binding_conserves_difference():
         interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
     )
     trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyamaSolver(dt=1e-3))
-    difference = trajectory['A.n'] - trajectory['B.n']
+    difference = trajectory.values('A.n') - trajectory.values('B.n')
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
         System(
@@ -81,7 +81,7 @@ def test_langevin_binding_conserves_difference():
         5.0,
         0.05,
     )
-    assert np.max(np.abs(trajectory['A.n'] - deterministic['A.n'])) > 0.5
+    assert np.max(np.abs(trajectory.values('A.n') - deterministic.values('A.n'))) > 0.5
 
 
 def test_langevin_and_stochastic_reaction_is_rejected():
@@ -100,8 +100,8 @@ def test_chemical_langevin_network_conserves_totals():
     """Test that the enzyme network under noise keeps `E + C` and `S + C + P` at every frame."""
     defaults = describe('chemical_langevin_network').defaults
     trajectory = _run(chemical_langevin_network(), defaults['until'], defaults['dt'], solver=defaults['solver'])
-    enzyme = trajectory['E.n'] + trajectory['C.n']
-    substrate = trajectory['S.n'] + trajectory['C.n'] + trajectory['P.n']
+    enzyme = trajectory.values('E.n') + trajectory.values('C.n')
+    substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
     np.testing.assert_allclose(enzyme, 100.0, rtol=1e-9)
     np.testing.assert_allclose(substrate, 300.0, rtol=1e-9)
-    assert np.std(np.diff(trajectory['C.n'])) > 0
+    assert np.std(np.diff(trajectory.values('C.n'))) > 0

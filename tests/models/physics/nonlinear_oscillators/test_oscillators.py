@@ -18,14 +18,14 @@ from ..conftest import _run, _series, _upward_crossings
 
 def test_van_der_pol_reaches_limit_cycle():
     """Test that the Van der Pol oscillator settles on a cycle of amplitude near 2."""
-    x = run('van_der_pol').trajectory_['oscillator.x']
+    x = run('van_der_pol').trajectory_.values('oscillator.x')
     assert 1.9 < np.abs(x[-200:]).max() < 2.1
 
 
 def test_henon_heiles_conserves_energy():
     """Test that the Hénon-Heiles star keeps its energy within the solver tolerance."""
     trajectory = run('henon_heiles').trajectory_
-    x, y, px, py = (trajectory[name] for name in ('star.x', 'star.y', 'star.x_d1', 'star.y_d1'))
+    x, y, px, py = (trajectory.values(name) for name in ('star.x', 'star.y', 'star.x_d1', 'star.y_d1'))
     energy = (px**2 + py**2 + x**2 + y**2) / 2 + x**2 * y - y**3 / 3
     assert np.abs(energy - energy[0]).max() < 1e-3
 

@@ -9,4 +9,4 @@ def test_tumour_recruits_vessels_and_grows():
     trajectory = Simulation(tumour_angiogenesis(), dt=1, random_state=0).run(until=120).trajectory_
     assert trajectory.agents('cells/tumour', 50).values['hypoxic'].all()
     assert trajectory.agents('cells/sprouts', 120).locations[:, 0].mean() > 15
-    assert len(trajectory.agents('cells/tumour', 120)) > 2 * len(trajectory.agents('cells/tumour', 0))
+    assert len(trajectory.agents('cells/tumour', 120).ids) > 2 * len(trajectory.agents('cells/tumour', 0).ids)

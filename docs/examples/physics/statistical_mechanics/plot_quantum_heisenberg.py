@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import jv
 
-from skcomplex.engine.analysis import spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.quantum import spectrum
 from skcomplex.models import create, describe, run
 
 MODEL = 'quantum_heisenberg'
@@ -49,7 +49,7 @@ sizes = np.arange(4, 15, 2)
 energies = [spectrum(create(MODEL, n_sites=int(n)), k=1, sector=(magnetization, 0.0)).energies[0] / n for n in sizes]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):
-    spread.plot(magnon.times, 0.5 - magnon['sz'][:, 6 + distance], label=f'd = {distance}')
+    spread.plot(magnon.times, 0.5 - magnon.values('sz')[:, 6 + distance], label=f'd = {distance}')
     spread.plot(magnon.times, jv(distance, magnon.times) ** 2, color='black', linestyle=':', linewidth=1)
 spread.set_xlabel('time')
 spread.set_ylabel('probability of the flip')

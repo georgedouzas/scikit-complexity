@@ -37,7 +37,7 @@ rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
     run = Simulation(create(MODEL, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1).run(until=1500)
-    densities.append(run.trajectory_['lattice.infected'][1000:].mean())
+    densities.append(run.trajectory_.values('lattice.infected')[1000:].mean())
 grid = np.linspace(1.0, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, densities, 'o-', label='simulation, 64 x 64')

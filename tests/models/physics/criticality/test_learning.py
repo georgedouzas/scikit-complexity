@@ -12,7 +12,7 @@ def test_sk_game_freezes_at_low_temperature():
     for temperature in (0.05, 3.0):
         system = sk_game(128, temperature=temperature)
         couplings = system.elements[0].values['couplings']
-        actions = np.asarray(Simulation(system, dt=1, random_state=0).run(150).trajectory_['agents.sigma'])[-50:]
+        actions = np.asarray(Simulation(system, dt=1, random_state=0).run(150).trajectory_.values('agents.sigma'))[-50:]
         reward = np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1]
         outcomes.append((reward, (actions[1:] != actions[:-1]).mean()))
     (frozen_reward, frozen_flips), (noisy_reward, noisy_flips) = outcomes

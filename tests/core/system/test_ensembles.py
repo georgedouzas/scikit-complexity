@@ -14,10 +14,10 @@ def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     ensemble = Simulation(replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1).run(until=50)
-    values = np.asarray(ensemble.trajectory_['map.x'])
+    values = np.asarray(ensemble.trajectory_.values('map.x'))
     for index in (0, 37, 99):
         single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).run(until=50)
-        np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_['map.x']), atol=1e-12)
+        np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('map.x')), atol=1e-12)
 
 
 def test_replicate_rejects_systems_with_interactions():

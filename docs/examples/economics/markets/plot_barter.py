@@ -65,7 +65,7 @@ box.set_xlabel('chocolate of the first barterer')
 box.set_ylabel('cigarettes of the first barterer')
 box.set_title('Barter ends on the contract curve')
 box.legend()
-dispersion = simulation.trajectory_['exchange.dispersion']
+dispersion = simulation.trajectory_.values('exchange.dispersion')
 spread.semilogy(simulation.trajectory_.times, dispersion, marker='.')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')

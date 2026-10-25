@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import re
 from typing import Any, ClassVar
 
-from ..base import Expression, Requires, SymbolicVector, TimeKind, symbol, vector
+from ..base import Requires, TimeKind
 from ._components import ElementComponent
 
 
@@ -51,24 +50,3 @@ class Wiener(ElementComponent):
         super().__init__(label, **values)
         self.dimension = dimension
         self.covariance = covariance
-
-    def declare_handle(self, path: str) -> Expression | SymbolicVector:
-        """Return the handle `dW` that noise laws name the processes of the element at a path by.
-
-        Args:
-            path:
-                The path of the element in its system.
-
-        Returns:
-            handle:
-                One symbol per process, a single symbol when the element has one process.
-
-        Examples:
-            >>> from skcomplex.core.components import Wiener
-            >>> Wiener('market', dimension=2).declare_handle('market')
-            (dW_market_0, dW_market_1)
-        """
-        base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
-        if self.dimension == 1:
-            return symbol(base)
-        return vector(symbol(f'{base}_{index}') for index in range(self.dimension))

@@ -112,7 +112,7 @@ def test_cloning_takes_a_function_of_the_segment():
     by_name = cloning(system, 'counter.n', -0.5, population=50, until=3.0, random_state=1)
     by_function = cloning(
         system,
-        lambda trajectory: trajectory['counter.n'][-1] - trajectory['counter.n'][0],
+        lambda trajectory: trajectory.values('counter.n')[-1] - trajectory.values('counter.n')[0],
         -0.5,
         population=50,
         until=3.0,

@@ -62,9 +62,9 @@ survivors, leaders, prices = [], [], []
 for share in shares:
     system = create(MODEL, online=share, random_state=0)
     run = Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).run(until=100)
-    survivors.append(run.trajectory_['open_shops'][-1])
-    leaders.append(run.trajectory_['concentration'][-1])
-    prices.append(run.trajectory_['mean_price'][50:].mean())
+    survivors.append(run.trajectory_.values('open_shops')[-1])
+    leaders.append(run.trajectory_.values('concentration')[-1])
+    prices.append(run.trajectory_.values('mean_price')[50:].mean())
 fig, (count, leader, price) = plt.subplots(1, 3, figsize=(13, 4))
 count.plot(shares, survivors, marker='o')
 count.set_xlabel('share of shoppers online')

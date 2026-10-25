@@ -99,8 +99,8 @@ class KineticSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
-        """Prepare the stepper for a problem.
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
+        """Prepare the stepper for a problem and draw the particles of the initial state.
 
         Args:
             problem:
@@ -109,17 +109,22 @@ class KineticSolver(Solver):
             rng:
                 The random number generator that draws the particles and their encounters.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
-                The problem has another form, laws other than encounters, or no encounter, or `n` or `dt` is not
-                positive.
+                The problem has another form, laws other than encounters, or no encounter, `n` or `dt` is not
+                positive, or a density of the initial state is negative.
         """
-        super().initialize(problem, rng)
+        super()._prepare(problem, rng, until)
         self._check_problem(problem)
         self._encounters = cast('KineticProblem', problem).encounters
         self.densities_ = _densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], Counts] = {}
+        self._sample(self.initial_state_)
+        self.initial_state_ = self._state(self.initial_state_)
 
     def _sample(self, x: Vector) -> None:
         """Draw the particle counts of every density from a state, with the mass that gives the largest one `n`."""
@@ -139,20 +144,6 @@ class KineticSolver(Solver):
         for indices in self.densities_:
             state[indices] = self._counts[tuple(indices.tolist())] * self.mass_
         return state
-
-    def initial_state(self, x: Vector) -> Vector:
-        """Return the state vector of the first frame, the empirical densities of the drawn particles.
-
-        Args:
-            x:
-                The initial state vector of the problem.
-
-        Returns:
-            state:
-                The state vector of the first frame.
-        """
-        self._sample(x)
-        return self._state(x)
 
     def _move(self, encounter: CompiledEncounter, p: Vector, step: float) -> None:
         """Move the candidates that encounter in one step to their outcome activities."""
@@ -192,7 +183,7 @@ class KineticSolver(Solver):
         for encounter in self._encounters:
             actions[encounter.kind](encounter, p, step)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Sample the encounters of the particles from time `t` to time `until` in equal steps no longer than `dt`.
 
         A state that differs from the empirical densities of the particles, such as one an observer changed, is

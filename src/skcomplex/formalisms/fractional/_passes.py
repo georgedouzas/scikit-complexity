@@ -125,7 +125,7 @@ def _fractional_solvers() -> list[str]:
         {
             name
             for cls, names in solver_classes().items()
-            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED
+            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form != Form.COUPLED
             for name in names
         },
     )
@@ -142,7 +142,7 @@ def _backend_class(backend: object) -> Any:  # noqa: ANN401
     """Return the class of a backend given by a registered name or an instance, or `None` for `'auto'` or a typo."""
     if not isinstance(backend, str):
         return type(backend)
-    return BACKENDS.resolve(backend) if backend in set(BACKENDS) else None
+    return BACKENDS.resolve(backend) if backend in BACKENDS.keys else None
 
 
 def _support_issues(states: list[FractionalState], solver: object, backend: object) -> list[Issue]:
@@ -157,7 +157,7 @@ def _support_issues(states: list[FractionalState], solver: object, backend: obje
             issues.append(Issue('order-unsupported', item.path, message, fix, error=SolverError))
         if engine is not None and OrderKind.FRACTIONAL not in engine.supports.orders:
             capable = sorted(
-                str(key) for key in BACKENDS if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
+                str(key) for key in BACKENDS.keys if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
             )
             message = f'The backend {engine.__name__} does not run {item.name}, a state of order {item.order}.'
             fix = f'Use one of the backends {", ".join(capable)}.'
@@ -301,7 +301,7 @@ class CheckFractionalNoisePass(BasePass):
     reads = ('lowered', 'layout')
     writes = ('lowered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Check the fractional noise laws.
 
         Args:
@@ -321,14 +321,14 @@ class FractionalFormPass(BasePass):
     reads = ('form', 'nodes', 'layout')
     writes = ('form',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Give the problem the fractional form when an owned state has a fractional order.
 
         Args:
             compilation:
                 The compilation state.
         """
-        if compilation.form is Form.ODE and _owned_fractional(compilation):
+        if compilation.form == Form.ODE and _owned_fractional(compilation):
             compilation.form = Form.FRACTIONAL
 
 
@@ -338,7 +338,7 @@ class FractionalProblemPass(BasePass):
     reads = ('problem', 'kernels', 'nodes', 'layout')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the fractional noise rows and the state orders to the problem.
 
         Args:
@@ -349,10 +349,10 @@ class FractionalProblemPass(BasePass):
         lowered = cast('Lowered', compilation.kernels)
         compilation.problem = replace(
             problem,
-            fractional=_fractional_rows(lowered) if problem.form is Form.SDE else (),
+            fractional=_fractional_rows(lowered) if problem.form == Form.SDE else (),
             orders=(
                 _state_orders(_owned_fractional(compilation), problem.states)
-                if problem.form is Form.FRACTIONAL
+                if problem.form == Form.FRACTIONAL
                 else np.zeros(0)
             ),
         )

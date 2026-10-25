@@ -72,7 +72,7 @@ samples = {intensity: mean_field(intensity)[-300:] for intensity in intensities}
 simulated = {
     intensity: Simulation(create(MODEL, n_traders=200, intensity=intensity), random_state=0)
     .run(100)
-    .trajectory_['pricing.deviation'][-50:]
+    .trajectory_.values('pricing.deviation')[-50:]
     for intensity in (1.0, 2.0, 4.0, 6.0)
 }
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(11, 4))

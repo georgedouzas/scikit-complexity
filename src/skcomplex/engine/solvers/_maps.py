@@ -31,9 +31,8 @@ class IterationSolver(Solver):
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
-        >>> stepper = IterationSolver()
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0).tolist()
+        >>> stepper = IterationSolver().prepare(problem, np.random.default_rng(0))
+        >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).tolist()
         [4.0]
     """
 
@@ -55,7 +54,7 @@ class IterationSolver(Solver):
 
     form: ClassVar[Form] = Form.DISCRETE
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -65,14 +64,17 @@ class IterationSolver(Solver):
             rng:
                 The random number generator.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super().initialize(problem, rng)
+        super()._prepare(problem, rng, until)
         reject_hybrid(problem, type(self).__name__)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Apply the map once per integer time step from `t` up to `until`.
 
         Args:

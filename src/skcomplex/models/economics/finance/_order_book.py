@@ -152,7 +152,9 @@ class StockTraderComponent(ElementComponent):
             expected = price + model.parameter('reversion') * (model.parameter('fundamental') - price)
         expected = max(LOWEST_PRICE, expected * (1 + model.parameter('noise') * model.rng.normal()))
         buying = expected > price
-        agent.bid, agent.ask = (expected, 0.0) if buying else (0.0, expected)
+        new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)
+        agent.bid = new_bid
+        agent.ask = new_ask
         agent.demand = float(buying and agent.money >= expected)
         agent.supply = float(not buying and agent.shares >= 1)
 
@@ -241,7 +243,7 @@ class BookInteraction(BaseInteraction):
                 The laws of the component.
         """
         return [
-            MatchLaw('traders', pairing=OrderBook(), label='trades', phase='trade'),
+            MatchLaw('traders', pairing=OrderBook().evaluate, label='trades', phase='trade'),
             RuleLaw(self.settle, phase='trade'),
             *(
                 Invariant(f'total {name}', functools.partial(_total, name), tolerance=1e-6)

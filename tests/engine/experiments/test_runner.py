@@ -28,7 +28,7 @@ LogisticMapComponent = ElementComponent.define(
 
 def last_value(trajectory):
     """Return the last infected count."""
-    return float(trajectory['I.n'][-1])
+    return float(trajectory.values('I.n')[-1])
 
 
 SCRIPT_WITHOUT_GUARD = """

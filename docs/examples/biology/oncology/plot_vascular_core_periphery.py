@@ -36,10 +36,14 @@ treated = simulation.trajectory_
 untreated = Simulation(create(MODEL, dose=0.0), dt=0.5, solver=solver).run(until=60).trajectory_
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
-    cells.semilogy(trajectory.times, trajectory['tumour.Ap'] + trajectory['tumour.Ac'], label=f'live cells, {name}')
-    cells.semilogy(trajectory.times, trajectory['tumour.An'].clip(1e-3), linestyle=':', label=f'necrotic, {name}')
-    vessels.semilogy(trajectory.times, trajectory['tumour.Vbp'].clip(1e-6), label=f'periphery, {name}')
-    vessels.semilogy(trajectory.times, trajectory['tumour.Vbc'].clip(1e-6), linestyle=':', label=f'core, {name}')
+    cells.semilogy(
+        trajectory.times, trajectory.values('tumour.Ap') + trajectory.values('tumour.Ac'), label=f'live cells, {name}'
+    )
+    cells.semilogy(
+        trajectory.times, trajectory.values('tumour.An').clip(1e-3), linestyle=':', label=f'necrotic, {name}'
+    )
+    vessels.semilogy(trajectory.times, trajectory.values('tumour.Vbp').clip(1e-6), label=f'periphery, {name}')
+    vessels.semilogy(trajectory.times, trajectory.values('tumour.Vbc').clip(1e-6), linestyle=':', label=f'core, {name}')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('cells')
 cells.set_title('The inhibitor holds the cells down')

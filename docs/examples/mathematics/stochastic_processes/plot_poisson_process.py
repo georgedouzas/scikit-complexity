@@ -30,7 +30,7 @@ simulation = Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observe
 # error of 2000 counters, the signature of independent events.
 
 counts = Simulation(create(MODEL, n_processes=2000), dt=1.0, random_state=1).run(until=50).trajectory_
-values = counts['counters.count']
+values = counts.values('counters.count')
 fig, (distribution, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)
 distribution.hist(values[-1], bins=np.arange(24.5, 80.5), density=True, label='simulated, t = 50')

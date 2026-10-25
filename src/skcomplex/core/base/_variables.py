@@ -18,7 +18,6 @@ from ._domains import BaseDomain, NumericDomain
 from ._errors import ArgumentError, LabelError
 
 METADATA_KEY = 'skcomplex'
-UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 
 
 class VariableKind(Enum):
@@ -183,11 +182,6 @@ def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, 
     return fields
 
 
-def _is_required(field: Any) -> bool:
-    """Check whether a declared field has no default."""
-    return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
-
-
 def _default_of(field: Any) -> Any:
     """Return the default value a declared field carries, a fresh copy for a mutable default."""
     factory = field.default_factory
@@ -244,17 +238,43 @@ def _settings(kind: type, root: type) -> dict[str, inspect.Parameter]:
         for setting in parameters:
             if setting.kind not in {setting.VAR_KEYWORD, setting.VAR_POSITIONAL}:
                 found.setdefault(setting.name, setting)
-        if klass is root or not any(item.kind is item.VAR_KEYWORD for item in parameters):
+        if klass is root or not any(item.kind == item.VAR_KEYWORD for item in parameters):
             break
     return found
 
 
 def _declare(instance: Any, label: str, values: Mapping[str, Any]) -> None:
-    """Store the label and the value of every declared name of an instance, the default for a name not given."""
+    """Store the label and every given value of an instance, the default for a declared name not given.
+
+    A declared name without a default that is not given is stored as `dataclasses.MISSING`, and every given name is
+    stored, also one the type does not declare, so that `_check_declared` reports both.
+    """
+    instance.label = label
+    for name, field in declared_fields(type(instance)).items():
+        setattr(instance, name, values[name] if name in values else _default_of(field))
+    for name, value in values.items():
+        setattr(instance, name, value)
+
+
+def _constructor_names(kind: type, root: type) -> set[str]:
+    """Return the names the constructors of a type up to its base take, without `**values`."""
+    names: set[str] = set()
+    for klass in kind.__mro__:
+        init = vars(klass).get('__init__')
+        if init is not None:
+            parameters = list(inspect.signature(init).parameters.values())[1:]
+            names |= {item.name for item in parameters if item.kind not in {item.VAR_KEYWORD, item.VAR_POSITIONAL}}
+        if klass is root:
+            break
+    return names
+
+
+def _check_declared(instance: Any, root: type) -> None:
+    """Raise an error for a stored value whose name the type does not declare, or a declared name not given."""
     kind = type(instance)
-    kind.declarations()
     fields = _fields(kind)
-    unknown = sorted(set(values) - set(fields))
+    known = {'label', *fields, *_constructor_names(kind, root)}
+    unknown = sorted(name for name in vars(instance) if name not in known and not name.endswith('_'))
     if unknown:
         declared = ', '.join(fields) or 'none'
         error_msg = (
@@ -262,13 +282,10 @@ def _declare(instance: Any, label: str, values: Mapping[str, Any]) -> None:
             f'variables are {declared}.'
         )
         raise ArgumentError(error_msg)
-    missing = [name for name, field in fields.items() if name not in values and _is_required(field)]
+    missing = [name for name in fields if getattr(instance, name, dataclasses.MISSING) is dataclasses.MISSING]
     if missing:
         error_msg = f'{kind.__name__} needs the arguments {", ".join(map(repr, missing))}.'
         raise ArgumentError(error_msg)
-    instance.label = label
-    for name, field in fields.items():
-        setattr(instance, name, values[name] if name in values else _default_of(field))
 
 
 def _define_type(
@@ -296,7 +313,7 @@ def _define_type(
     if laws is not None:
         namespace['laws'] = _laws_method(laws)
     new_type = type(name, (kind,), namespace)
-    new_type.declarations()  # type: ignore[attr-defined]
+    new_type._declarations()  # type: ignore[attr-defined]
     return new_type
 
 
@@ -331,19 +348,6 @@ def _get_params(instance: Any, root: type, *, deep: bool) -> dict[str, Any]:
             params.update({f'{name}__{key}': item for key, item in value.get_params().items()})
         params[name] = value
     return params
-
-
-def _declared_repr(instance: Any, root: type, limit: int) -> str:
-    """Return the type, the label, and the arguments that differ from their defaults."""
-    defaults = {name: item.default for name, item in _settings(type(instance), root).items()}
-    defaults.update({name: _default_of(field) for name, field in _fields(type(instance)).items()})
-    shown = [
-        f'{name}={value!r}'
-        for name, value in _get_params(instance, root, deep=False).items()
-        if name not in defaults or any(defaults[name] is item for item in UNSET) or repr(value) != repr(defaults[name])
-    ]
-    text = f'{type(instance).__name__}({", ".join(shown)})'
-    return text if len(text) <= limit else f'{text[: limit - 4]}...)'
 
 
 def state(
@@ -437,7 +441,7 @@ def state(
         raise ValueError(error_msg)
     declaration = Variable(
         VariableKind.STATE,
-        domain,
+        domain.check(),
         vector,
         order,
         lags,
@@ -538,11 +542,12 @@ def parameter(
             error_msg = f'A parameter takes either `adaptive=True` or `per={per!r}`, not both.'
             raise ValueError(error_msg)
         checked = None if bounds is None else (float(bounds[0]), float(bounds[1]))
-        return _declare_field(default, Variable(VariableKind.STATE, domain, vector, adaptive=True, bounds=checked))
+        declaration = Variable(VariableKind.STATE, domain.check(), vector, adaptive=True, bounds=checked)
+        return _declare_field(default, declaration)
     if vector and per is not None:
         error_msg = f'A parameter takes either `vector=True` or `per={per!r}`, not both.'
         raise ValueError(error_msg)
-    return _declare_field(default, Variable(VariableKind.PARAMETER, domain, vector, per=per))
+    return _declare_field(default, Variable(VariableKind.PARAMETER, domain.check(), vector, per=per))
 
 
 def role(*, variadic: bool = False) -> Any:
@@ -631,5 +636,5 @@ def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
     return {
         name: field.metadata[METADATA_KEY]
         for name, field in declared_fields(component).items()
-        if field.metadata[METADATA_KEY].kind is kind
+        if field.metadata[METADATA_KEY].kind == kind
     }

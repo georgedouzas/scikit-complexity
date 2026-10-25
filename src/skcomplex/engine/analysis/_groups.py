@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -118,7 +119,7 @@ def expand_groups(
         own = {
             other.name
             for layout in (problem.states, problem.parameters)
-            for other in layout
+            for other in layout.entries
             if other.name.rpartition('.')[0] == owner
         }
         for member in range(entry.rows):
@@ -143,16 +144,18 @@ class _Expansion:
     parameter_values: npt.NDArray[np.float64]
     symbols: dict[tuple[str, int, int], Expression] = field(default_factory=dict)
     values: dict[Expression, float] = field(default_factory=dict)
-    by_index: dict[tuple[bool, int], Expression] = field(default_factory=dict)
     shared: dict[tuple[Expression, int | None], Expression] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        """Name the symbols of single components by their flat index, so element sets find their elements."""
+    @functools.cached_property
+    def by_index(self) -> dict[tuple[bool, int], Expression]:
+        """Symbols of single components by their flat index, so element sets find their elements."""
+        found = {}
         for is_state, layout in ((True, self.problem.states), (False, self.problem.parameters)):
-            for entry in layout:
+            for entry in layout.entries:
                 if entry.members is None and entry.name in self.problem.symbols:
                     for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
-                        self.by_index[(is_state, entry.start + column)] = item
+                        found[(is_state, entry.start + column)] = item
+        return found
 
     def member_symbol(self, entry: Entry, column: int, member: int) -> Expression:
         """Return the symbol of one component of one member of a group."""
@@ -160,7 +163,7 @@ class _Expansion:
         if key not in self.symbols:
             generic = components_of(self.problem.symbols[entry.name])[column]
             self.symbols[key] = symbol(f'{generic}__{member}', domain_of(generic))
-            if entry.name in self.problem.parameters:
+            if self.problem.parameters.has(entry.name):
                 self.values[self.symbols[key]] = float(
                     self.parameter_values[entry.start + member * entry.columns + column],
                 )
@@ -170,7 +173,7 @@ class _Expansion:
         """Return the substitution of the generic symbols of groups by the symbols of one member."""
         mapping = {}
         for layout in (self.problem.states, self.problem.parameters):
-            for entry in layout:
+            for entry in layout.entries:
                 if entry.members is None or entry.name not in self.problem.symbols:
                     continue
                 if entry.name not in entry_names:

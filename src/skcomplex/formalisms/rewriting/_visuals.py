@@ -10,8 +10,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import BaseVisual, colors_of, log_scalars
 from ._components import PatchComponent, WordComponent
@@ -82,22 +81,18 @@ class GeometryVisual(BaseVisual):
     Examples:
         >>> from skcomplex.formalisms.rewriting import GeometryVisual
         >>> GeometryVisual(filled=True)
-        GeometryVisual(filled=True, resolution=512)
+        GeometryVisual(filled=True)
     """
 
     def __init__(self, filled: bool | None = None, resolution: int = RESOLUTION) -> None:
         self.filled = filled
         self.resolution = resolution
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return f'GeometryVisual(filled={self.filled!r}, resolution={self.resolution!r})'
-
     def _is_filled(self, element: CompiledElement) -> bool:
         """Check whether an element is drawn as a filled image."""
         return bool(getattr(element.element, 'filled', False) if self.filled is None else self.filled)
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the structure of the element at one frame and its counts.
 
         Args:
@@ -134,7 +129,7 @@ class GeometryVisual(BaseVisual):
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
         recording.log(element.path, archetype(strips, colors=colors))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the view of the geometry, with the bounds of the element, and a time series view of the counts.
 
         Args:
@@ -154,7 +149,7 @@ class GeometryVisual(BaseVisual):
             >>> from skcomplex.formalisms.rewriting import GeometryVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('koch_curve'))
-            >>> [type(view).__name__ for view in GeometryVisual().views(problem.elements[0], problem)]
+            >>> [type(view).__name__ for view in GeometryVisual().prepare(problem.elements[0], problem).views_]
             ['Spatial2DView', 'TimeSeriesView']
         """
         del problem

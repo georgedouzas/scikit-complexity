@@ -247,7 +247,7 @@ class SympyGrowthInteraction(BaseInteraction):
 )
 def test_compile_system_infers_form(system, form):
     """Test that the form follows from the law kinds."""
-    assert compile_system(system).form is form
+    assert compile_system(system).form == form
 
 
 def test_compile_system_mixed_kinds_raises_error():

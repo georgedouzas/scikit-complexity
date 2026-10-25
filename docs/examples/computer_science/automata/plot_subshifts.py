@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 # words of length `n` approaches the logarithm of the golden ratio.
 
 space = system.elements[0].space
-alive = simulation.trajectory_['cells.alive']
+alive = simulation.trajectory_.values('cells.alive')
 golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
 admissible = all(golden.is_admissible(row.astype(int), space) for row in alive)
 lengths = np.arange(2, 31, 4)

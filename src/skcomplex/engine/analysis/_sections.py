@@ -40,11 +40,7 @@ class Section:
     states: Array
     problem: Problem
 
-    def __len__(self) -> int:
-        """Return the number of points."""
-        return len(self.times)
-
-    def __getitem__(self, name: str) -> Array:
+    def values(self, name: str) -> Array:
         """Return the values of a state at every point by dotted name.
 
         Args:
@@ -56,7 +52,7 @@ class Section:
                 One value per point, or one row per point for a vector state.
         """
         values = np.asarray([self.problem.states.read(state, name) for state in self.states], dtype=float)
-        return values.reshape(len(self), -1) if self.problem.states.entry(name).size > 1 else values.reshape(-1)
+        return values.reshape(len(self.times), -1) if self.problem.states.entry(name).size > 1 else values.reshape(-1)
 
 
 def _problem(system: System | Problem) -> Problem:
@@ -118,11 +114,11 @@ def poincare_section(
         >>> from skcomplex.engine.analysis import poincare_section
         >>> from skcomplex.models.physics.mechanics import harmonic_oscillator
         >>> section = poincare_section(harmonic_oscillator(), 'mass.x', direction=1, until=20.0)
-        >>> len(section) > 2
+        >>> len(section.times) > 2
         True
     """
     problem = _problem(system)
-    if state not in problem.states or problem.states.entry(state).size != 1:
+    if not problem.states.has(state) or problem.states.entry(state).size != 1:
         error_msg = f'{state!r} is not a scalar state. Available states are: {", ".join(problem.states.names)}.'
         raise AnalysisError(error_msg)
     index = problem.states.entry(state).start
@@ -187,7 +183,7 @@ def stroboscopic(
         >>> from skcomplex.engine.analysis import stroboscopic
         >>> from skcomplex.models.physics.nonlinear_oscillators import duffing
         >>> section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=50, transient=10)
-        >>> len(section)
+        >>> len(section.times)
         50
     """
     problem = _problem(system)

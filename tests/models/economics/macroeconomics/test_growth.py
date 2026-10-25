@@ -12,7 +12,7 @@ from skcomplex.models.economics.macroeconomics import EconomyComponent, SolowGro
 @pytest.mark.parametrize('cv', [0.6, 1.2])
 def test_multiplier_accelerator_stability(cv):
     """Test that the cycle damps when `c v < 1` and grows when `c v > 1`."""
-    income = run('multiplier_accelerator', v=cv / 0.8, settings={'until': 60}).trajectory_['economy.Y']
+    income = run('multiplier_accelerator', v=cv / 0.8, settings={'until': 60}).trajectory_.values('economy.Y')
     deviation = np.abs(income - 100.0)
     assert (deviation[-10:].max() > deviation[:10].max()) == (cv > 1)
 
@@ -24,5 +24,5 @@ def test_solow_reaches_steady_state():
         components=[EconomyComponent('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
-    capital = Simulation(system, dt=10.0).run(until=300).trajectory_['country.k'][-1]
+    capital = Simulation(system, dt=10.0).run(until=300).trajectory_.values('country.k')[-1]
     assert capital == pytest.approx((s / delta) ** (1 / (1 - alpha)), rel=1e-3)

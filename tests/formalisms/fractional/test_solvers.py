@@ -61,11 +61,11 @@ class CounterComponent(ElementComponent):
 
 def _advance(stepper, problem, until, frames=1):
     """Return the state of a problem after advancing a stepper to a time in equal frames."""
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     x, t = problem.initial_state, 0.0
     for index in range(frames):
         following = until * (index + 1) / frames
-        x = stepper.advance(t, x, problem.initial_parameters, following)
+        x = stepper.run(t, x, problem.initial_parameters, following)
         t = following
     return x
 
@@ -73,7 +73,7 @@ def _advance(stepper, problem, until, frames=1):
 def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
     """Test that a rate law on a state of order 0.6 compiles to the fractional form with the order of every state."""
     problem = compile_system(System(components=[MixedComponent('a')]))
-    assert problem.form is Form.FRACTIONAL
+    assert problem.form == Form.FRACTIONAL
     assert problem.orders.tolist() == [0.5, 1.0]
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [-1.0, -1.0]
 
@@ -81,7 +81,7 @@ def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
 def test_compile_system_order_one_gives_ode_form():
     """Test that a state of order 1 compiles to the ODE form without orders."""
     problem = compile_system(System(components=[DecayingComponent('a')]))
-    assert problem.form is Form.ODE
+    assert problem.form == Form.ODE
     assert problem.orders.size == 0
 
 
@@ -126,10 +126,10 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
     """Test that a change of a fractional state between frames starts a new history from the changed state."""
     problem = compile_system(System(components=[RelaxingComponent('a')]))
     stepper = GrunwaldLetnikovSolver(dt=0.01)
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     p = problem.initial_parameters
-    stepper.advance(0.0, problem.initial_state, p, 1.0)
-    restarted = stepper.advance(1.0, np.array([1.0]), p, 2.0)
+    stepper.run(0.0, problem.initial_state, p, 1.0)
+    restarted = stepper.run(1.0, np.array([1.0]), p, 2.0)
     fresh = _advance(GrunwaldLetnikovSolver(dt=0.01), problem, 1.0)
     assert restarted == pytest.approx(fresh, abs=1e-12)
 
@@ -138,25 +138,25 @@ def test_scheme_rejects_times_off_the_grid():
     """Test that a frame that does not fall on the grid of the run is rejected."""
     problem = compile_system(System(components=[RelaxingComponent('a')]))
     stepper = L1Solver(dt=0.1)
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='multiple of dt'):
-        stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 0.25)
+        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 0.25)
 
 
 @pytest.mark.parametrize(('stepper', 'match'), [(L1Solver(dt=0.0), 'dt'), (L1Solver(memory=-1.0), 'memory')])
 def test_scheme_rejects_invalid_settings(stepper, match):
     """Test that a step or a memory window that is not positive is rejected."""
     problem = compile_system(System(components=[RelaxingComponent('a')]))
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match=match):
-        stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
 
 
 def test_ordinary_stepper_rejects_fractional_form():
     """Test that an ODE stepper rejects a problem of the fractional form."""
     problem = compile_system(System(components=[RelaxingComponent('a')]))
     with pytest.raises(SolverError, match='fractional differential equations'):
-        RK4Solver().initialize(problem, np.random.default_rng(0))
+        RK4Solver().prepare(problem, np.random.default_rng(0))
 
 
 def test_simulation_runs_fractional_system_with_default_solver():
@@ -164,7 +164,7 @@ def test_simulation_runs_fractional_system_with_default_solver():
     simulation = Simulation(System(components=[RelaxingComponent('a')]), dt=0.5).run(until=5.0)
     assert isinstance(simulation.stepper_, FractionalABMSolver)
     exact = float(mittag_leffler(0.6, 1.0, -(5.0**0.6)))
-    assert simulation.trajectory_['a.x'][-1] == pytest.approx(exact, abs=1e-4)
+    assert simulation.trajectory_.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
 
 
 def test_cosimulation_runs_fractional_partition():
@@ -179,5 +179,5 @@ def test_cosimulation_runs_fractional_partition():
     forms = {partition.name: partition.problem.form for partition in simulation.problem_.partitions}
     assert forms == {'memory': Form.FRACTIONAL, 'steps': Form.DISCRETE}
     exact = float(mittag_leffler(0.6, 1.0, -(5.0**0.6)))
-    assert simulation.trajectory_['memory/a.x'][-1] == pytest.approx(exact, abs=1e-4)
-    assert simulation.trajectory_['steps/c.k'][-1] == 5
+    assert simulation.trajectory_.values('memory/a.x')[-1] == pytest.approx(exact, abs=1e-4)
+    assert simulation.trajectory_.values('steps/c.k')[-1] == 5

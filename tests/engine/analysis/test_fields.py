@@ -109,7 +109,7 @@ def test_correlation_length_reaction_diffusion_field():
     """Test that the stationary noisy linear reaction-diffusion field gives sqrt(D / k) = 2 within 10 percent."""
     frames = _reaction_diffusion_frames(np.random.default_rng(0), 50, 128)
     assert correlation_length(frames, frames=True) == pytest.approx(2, rel=0.1)
-    assert 1 < correlation_length(frames, frames=True, method='fit') < 4
+    assert 1 < correlation_length(frames, frames=True, method='prepare') < 4
     with pytest.raises(AnalysisError, match='Unknown method'):
         correlation_length(frames[0], method='guess')
 

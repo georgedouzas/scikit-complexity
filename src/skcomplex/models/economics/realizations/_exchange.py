@@ -6,7 +6,6 @@
 import itertools
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -175,61 +174,56 @@ def trade_goods(
     return trades
 
 
-@dataclass(frozen=True)
-class NeighborPairing:
+def neighbor_pairing(
+    left: Sequence[Any],
+    right: Sequence[Any],
+    rng: np.random.Generator,
+    capacity: int,
+) -> list[tuple[Any, Any]]:
     """Pairing of every agent with a random unpaired neighbour, a pairing of the core's matching law.
 
     The agents of the first group, in random order, each pick one agent of the second group at random among those in
     the neighbouring cells or nodes that are not yet paired, so trading partners meet only locally.
 
+    Args:
+        left:
+            The agents of the first group.
+
+        right:
+            The agents of the second group, the same sequence as `left` for pairs within one group.
+
+        rng:
+            The random generator.
+
+        capacity:
+            The largest number of pairs of every agent.
+
+    Returns:
+        pairs:
+            The pairs of neighbouring agents.
+
     Examples:
-        >>> from skcomplex.models.economics.realizations import NeighborPairing
-        >>> NeighborPairing()
-        NeighborPairing()
+        >>> import numpy as np
+        >>> from skcomplex.models.economics.realizations import neighbor_pairing
+        >>> neighbor_pairing([], [], np.random.default_rng(0), 1)
+        []
     """
-
-    def __call__(
-        self,
-        left: Sequence[Any],
-        right: Sequence[Any],
-        rng: np.random.Generator,
-        capacity: int,
-    ) -> list[tuple[Any, Any]]:
-        """Return the pairs of neighbours.
-
-        Args:
-            left:
-                The agents of the first group.
-
-            right:
-                The agents of the second group, the same sequence as `left` for pairs within one group.
-
-            rng:
-                The random generator.
-
-            capacity:
-                The largest number of pairs of every agent.
-
-        Returns:
-            pairs:
-                The pairs of neighbouring agents.
-        """
-        candidates = {agent.id for agent in right}
-        used: dict[int, int] = {}
-        pairs: list[tuple[Any, Any]] = []
-        for index in rng.permutation(len(left)):
-            agent = left[int(index)]
-            if used.get(agent.id, 0) >= capacity:
-                continue
-            free = [
-                other
-                for other in agent.neighbors()
-                if other.id in candidates and other.id != agent.id and used.get(other.id, 0) < capacity
-            ]
-            if not free:
-                continue
-            partner = free[int(rng.integers(len(free)))]
-            pairs.append((agent, partner))
-            used[agent.id] = used.get(agent.id, 0) + 1
-            used[partner.id] = used.get(partner.id, 0) + 1
-        return pairs
+    candidates = {agent.id for agent in right}
+    used: dict[int, int] = {}
+    pairs: list[tuple[Any, Any]] = []
+    for index in rng.permutation(len(left)):
+        agent = left[int(index)]
+        if used.get(agent.id, 0) >= capacity:
+            continue
+        free = [
+            other
+            for other in agent.neighbors()
+            if other.id in candidates and other.id != agent.id and used.get(other.id, 0) < capacity
+        ]
+        if not free:
+            continue
+        partner = free[int(rng.integers(len(free)))]
+        pairs.append((agent, partner))
+        used[agent.id] = used.get(agent.id, 0) + 1
+        used[partner.id] = used.get(partner.id, 0) + 1
+    return pairs

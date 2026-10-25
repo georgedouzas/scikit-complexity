@@ -34,12 +34,12 @@ coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
     late = Simulation(create(MODEL, n=float(n)), dt=0.1).run(until=200).trajectory_
-    product = late['x3.x'][late.times >= 150.0]
+    product = late.values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 trajectory = simulation.trajectory_
 fig, (series, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('x1', 'x2', 'x3'):
-    series.plot(trajectory.times, trajectory[f'{name}.x'], label=name)
+    series.plot(trajectory.times, trajectory.values(f'{name}.x'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('concentration')
 series.set_title('Sustained oscillations for n = 12')

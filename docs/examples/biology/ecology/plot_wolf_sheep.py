@@ -60,8 +60,8 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 
 times = simulation.trajectory_.times
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(times, simulation.trajectory_['sheep.count'], label='sheep')
-ax.plot(times, simulation.trajectory_['wolves.count'], label='wolves', color='tab:red')
+ax.plot(times, simulation.trajectory_.values('sheep.count'), label='sheep')
+ax.plot(times, simulation.trajectory_.values('wolves.count'), label='wolves', color='tab:red')
 ax.set_xlabel('step')
 ax.set_ylabel('number of agents')
 ax.set_title('Sheep and wolves oscillate in turn')

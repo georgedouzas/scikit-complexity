@@ -45,10 +45,10 @@ simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(120)
 
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
-need, distribution = trajectory['relief.need'], trajectory['relief.distribution']
+need, distribution = trajectory.values('relief.need'), trajectory.values('relief.distribution')
 fig, (flows, gap) = plt.subplots(1, 2, figsize=(10, 4))
-flows.plot(times, trajectory['relief.shipping'], label='shipping')
-flows.plot(times, trajectory['relief.arrivals'], label='arrivals')
+flows.plot(times, trajectory.values('relief.shipping'), label='shipping')
+flows.plot(times, trajectory.values('relief.arrivals'), label='arrivals')
 flows.plot(times, distribution, label='distribution')
 flows.set_xlabel('days')
 flows.set_ylabel('tonnes per day')

@@ -40,7 +40,7 @@ class _MemberFunction:
     function: Callable[..., list[Any]]
     readers: tuple[Reference | str, ...]
 
-    def __call__(self, times: Vector, x: Vector, p: Vector, fired: Indices, drawn: Drawn) -> list[Vector]:
+    def evaluate(self, times: Vector, x: Vector, p: Vector, fired: Indices, drawn: Drawn) -> list[Vector]:
         """Return the value of every expression for every renewing member."""
         arguments = []
         for reader in self.readers:
@@ -96,7 +96,7 @@ class _Sampler:
         rng: np.random.Generator,
     ) -> None:
         """Draw a value for every renewing member into the drawn values."""
-        values = self.arguments(times, x, p, fired, drawn) if self.draw.arguments else []
+        values = self.arguments.evaluate(times, x, p, fired, drawn) if self.draw.arguments else []
         drawn[self.draw.name] = sample_draw(self.draw, values, fired.size, rng)
 
 
@@ -217,7 +217,7 @@ class CompiledRenewal:
         """Return the next renewal times of members from their states, after drawing the waiting time's draws."""
         for sampler in self.after:
             sampler.sample(times, x, p, fired, drawn=drawn, rng=rng)
-        waiting = self.waiting(times, x, p, fired, drawn)[0]
+        waiting = self.waiting.evaluate(times, x, p, fired, drawn)[0]
         if not np.all(waiting >= 0):
             error_msg = (
                 f'The renewal law {self.label} drew the waiting time {waiting[~(waiting >= 0)][0]}, but waiting '
@@ -294,7 +294,7 @@ class CompiledRenewal:
             sampler.sample(times, x, p, fired, drawn=drawn, rng=rng)
         state = x.copy()
         if self.reset is not None:
-            for place, value in zip(self.targets, self.reset(times, x, p, fired, drawn), strict=True):
+            for place, value in zip(self.targets, self.reset.evaluate(times, x, p, fired, drawn), strict=True):
                 state[place[fired]] = value
         state[self.counts[fired]] += 1
         following = self._wait(times, state, p, fired, drawn=drawn, rng=rng)

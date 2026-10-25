@@ -59,7 +59,7 @@ FitnessComponent = ElementComponent.define(
 
 def _ising_magnetization(trajectory):
     """Return the mean absolute magnetisation of the recorded frames."""
-    return float(np.abs(trajectory['spins.spin'].mean(axis=1)).mean())
+    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())
 
 
 class Recording:
@@ -76,11 +76,11 @@ class Recording:
 
 def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
     """Test that the six triangular neighbours of the corner of a periodic 10 x 10 lattice lie at distance 1."""
-    space = LatticeSpace((10, 10), geometry='triangular')
-    neighbours = space.neighbors((0, 0), Neighborhood.triangular())
+    space = LatticeSpace((10, 10), geometry='triangular').prepare()
+    neighbours = [tuple(np.unravel_index(site, space.shape_)) for site in space.run(0, Neighborhood.triangular())]
     assert len(set(neighbours)) == 6
     assert {(0, 9), (9, 0), (9, 1)} <= set(neighbours)
-    positions = space.positions.reshape(10, 10, 2)
+    positions = space.positions_.reshape(10, 10, 2)
     rows, columns = np.array([5.0, 10 * np.sqrt(3) / 2]), np.array([10.0, 0.0])
     images = [i * rows + j * columns for i, j in itertools.product((-1, 0, 1), repeat=2)]
     for cell in neighbours:
@@ -90,16 +90,16 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
-    space = LatticeSpace((7, 9), geometry='triangular')
-    offsets = Neighborhood.triangular().offsets
-    for cell in itertools.product(range(7), range(9)):
+    space = LatticeSpace((7, 9), geometry='triangular').prepare()
+    table = space._index_table(Neighborhood.triangular())
+    for site in range(space.size_):
         for k in range(6):
-            assert space.neighbor(space.neighbor(cell, offsets[k]), offsets[(k + 3) % 6]) == cell
+            assert table[table[site, k], (k + 3) % 6] == site
 
 
 def test_triangular_geometry_needs_two_dimensions():
     """Test that a triangular lattice of another dimension is rejected."""
-    with pytest.raises(ValueError, match='two dimensions'):
+    with pytest.raises(ValidationError, match='two dimensions'):
         LatticeSpace((5, 5, 5), geometry='triangular').check()
 
 
@@ -117,25 +117,26 @@ def test_triangular_rule_spreads_as_hexagons(backend):
 
 def test_network_index_table_pads_with_size():
     """Test that the adjacency table of a star graph pads the leaves with the number of nodes."""
-    table = NetworkSpace(nx.star_graph(3)).index_table(Adjacency(center=True))
+    space = NetworkSpace(nx.star_graph(3)).prepare()
+    table = space._index_table(Adjacency(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
     with pytest.raises(ValidationError, match='Adjacency'):
-        NetworkSpace(nx.star_graph(3)).index_table(Neighborhood.moore())
+        space.run(0, Neighborhood.moore())
 
 
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
-    lattice = LatticeSpace((20, 20))
-    table = lattice.index_table(Neighborhood.moore())
+    lattice = LatticeSpace((20, 20)).prepare()
+    table = lattice._index_table(Neighborhood.moore())
     graph = nx.Graph()
-    graph.add_nodes_from(range(lattice.size))
+    graph.add_nodes_from(range(lattice.size_))
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
     on_lattice = System(components=[_life(Neighborhood.moore()).lattice('cells', lattice, alive=glider)])
     on_graph = System(components=[_life(Adjacency()).lattice('cells', NetworkSpace(graph), alive=glider.ravel())])
-    expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_['cells.alive']
-    found = Simulation(on_graph, dt=1).run(until=40).trajectory_['cells.alive']
+    expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_.values('cells.alive')
+    found = Simulation(on_graph, dt=1).run(until=40).trajectory_.values('cells.alive')
     assert np.array_equal(found, expected)
     assert expected[-1].sum() == 5
 
@@ -296,7 +297,7 @@ def test_extremal_maximum_and_ties():
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
     with pytest.raises(ValueError, match='extremum'):
-        ExtremalLaw(None, Adjacency(), _renew, extremum='median')
+        ExtremalLaw(None, Adjacency(), _renew, extremum='median').check()
 
 
 def test_extremal_runs_are_reproducible_across_backends():
@@ -306,7 +307,7 @@ def test_extremal_runs_are_reproducible_across_backends():
     for backend in ('numpy', 'numpy', 'numba', 'numba'):
         system = System(components=[FitnessComponent.lattice('ring', LatticeSpace(50), value=values)])
         simulation = Simulation(system, dt=1, backend=backend, random_state=7).run(until=20)
-        runs.append((simulation.trajectory_['ring.value'], simulation.trajectory_.events))
+        runs.append((simulation.trajectory_.values('ring.value'), simulation.trajectory_.events))
     system = System(components=[FitnessComponent.lattice('ring', LatticeSpace(50), value=values)])
     compiled = compile_system(system, backend='numba')
     assert isinstance(compiled.lattice[0], CompiledExtremal)
@@ -322,12 +323,12 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
-    SiteVisual().log(recording, simulation.problem_.elements[0], frame)
+    SiteVisual().prepare(simulation.problem_.elements[0], simulation.problem_).run(frame, recording)
     ((path, points, _),) = recording.entries
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
     positions = np.asarray(points.positions.as_arrow_array().to_numpy(zero_copy_only=False).tolist())
-    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').positions)
+    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
     Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).run(until=3)
@@ -339,8 +340,9 @@ def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
     simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).run(until=1)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    visual, recording = SiteVisual(low=-1, high=1), Recording()
-    visual.log(recording, simulation.problem_.elements[0], frame)
-    visual.log(recording, simulation.problem_.elements[0], frame)
+    visual = SiteVisual(low=-1, high=1).prepare(simulation.problem_.elements[0], simulation.problem_)
+    recording = Recording()
+    visual.run(frame, recording)
+    visual.run(frame, recording)
     kinds = [(type(archetype).__name__, static) for _, archetype, static in recording.entries]
     assert kinds == [('GraphEdges', True), ('GraphNodes', False), ('GraphNodes', False)]

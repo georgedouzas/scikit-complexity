@@ -5,16 +5,10 @@ import pytest
 
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.system import System
-from skcomplex.engine.analysis import (
-    entanglement_entropy,
-    equations_of,
-    ground_state,
-    hamiltonian_of,
-    purity,
-    spectrum,
-)
+from skcomplex.engine.analysis import equations_of
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.quantum import entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import PopulationComponent
 from skcomplex.models.physics.realizations.quantum import SpinComponent
@@ -58,9 +52,9 @@ def test_ground_state_is_stationary():
     assert initial == {'quantum_heisenberg.state': 'ground'}
     simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial)
     trajectory = simulation.run(until=3.0).trajectory_
-    assert np.ptp(trajectory['energy']) < 1e-8
-    assert np.ptp(trajectory['sz'], axis=0).max() < 1e-8
-    assert trajectory['energy'][0] == pytest.approx(energy)
+    assert np.ptp(trajectory.values('energy')) < 1e-8
+    assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
+    assert trajectory.values('energy')[0] == pytest.approx(energy)
 
 
 def test_entanglement_entropy_of_a_singlet_is_log_two():
@@ -89,6 +83,6 @@ def test_purity_of_pure_and_dephased_runs():
 def test_hamiltonian_of_prints_operators_and_equations_of_refuses():
     """Test that a quantum system prints its Hamiltonian and has no state equations."""
     system = create('quantum_heisenberg', n_sites=2, boundary='open')
-    assert repr(hamiltonian_of(compile_system(system))).startswith('J_exchange*chain[0].x*chain[1].x')
+    assert hamiltonian_of(compile_system(system)).text.startswith('J_exchange*chain[0].x*chain[1].x')
     with pytest.raises(AnalysisError, match='hamiltonian_of'):
         equations_of(system)

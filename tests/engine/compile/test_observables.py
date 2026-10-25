@@ -72,7 +72,7 @@ def test_reductions_agree_with_observables(entry):
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)
-    recorded = ObservableEvaluator(problem).evaluate(0.0, x, p, agents_of=lambda group: [])
+    recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, x, p, agents_of=lambda group: [])
     for index, path in enumerate(paths):
         value = rates[problem.states.entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'model/{path}']), rel=1e-12, abs=1e-12)

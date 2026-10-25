@@ -57,9 +57,9 @@ def test_series_of_an_ode():
     """Test that the series of the prey and predators equal the trajectory's columns."""
     trajectory = run('lotka_volterra', settings={'until': 5.0}).trajectory_
     series = series_of(trajectory, ['prey.n', 'predators.n'])
-    assert series.values.shape == (len(trajectory), 2)
-    np.testing.assert_array_equal(series.values[:, 0], trajectory['prey.n'])
-    np.testing.assert_array_equal(series.values[:, 1], trajectory['predators.n'])
+    assert series.values.shape == (len(trajectory.times), 2)
+    np.testing.assert_array_equal(series.values[:, 0], trajectory.values('prey.n'))
+    np.testing.assert_array_equal(series.values[:, 1], trajectory.values('predators.n'))
     np.testing.assert_array_equal(series.times, trajectory.times)
 
 
@@ -71,7 +71,7 @@ def test_path_of_a_gillespie_run():
     assert path.label == 'cells.n'
     assert np.all(np.diff(path.states) != 0)
     assert np.all(np.abs(np.diff(path.states)) >= 1)
-    assert path.times.size < len(trajectory)
+    assert path.times.size < len(trajectory.times)
 
 
 def test_fields_of_a_lattice():
@@ -98,7 +98,7 @@ def test_snapshots_of_particle_groups():
     trajectory = run('ideal_gas', settings={'until': 0.2}).trajectory_
     snapshots = snapshots_of(trajectory)
     assert snapshots.positions.shape == snapshots.velocities.shape
-    assert snapshots.positions.shape[0] == len(trajectory)
+    assert snapshots.positions.shape[0] == len(trajectory.times)
 
 
 def test_snapshots_of_missing_data_kind():
@@ -112,7 +112,7 @@ def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
     trajectory = run('network_diffusion', settings={'until': 0.5}).trajectory_
     graphs = networks_of(trajectory)
-    assert len(graphs) == len(trajectory)
+    assert len(graphs) == len(trajectory.times)
     assert nx.is_isomorphic(graphs[0], nx.karate_club_graph())
 
 
@@ -129,16 +129,16 @@ def test_ensemble_of_replicates():
 def test_analyses_for_lattice_model():
     """Test that an Ising system lists field analyses and no agent analysis."""
     found = analyses_for(create('ising', size=16))
-    fields = {item.name for item in found if item.kind is DataKind.FIELD}
+    fields = {item.name for item in found if item.kind == DataKind.FIELD}
     assert {'structure_factor', 'correlation_length', 'cluster_sizes', 'binder_cumulant'} <= fields
-    assert all(item.kind is not DataKind.AGENTS for item in found)
-    assert all(item.adapter == 'fields_of' for item in found if item.kind is DataKind.FIELD)
+    assert all(item.kind != DataKind.AGENTS for item in found)
+    assert all(item.adapter == 'fields_of' for item in found if item.kind == DataKind.FIELD)
 
 
 def test_analyses_for_agent_model():
     """Test that a flocking trajectory lists polarization, neighbour statistics, and displacement as agent analyses."""
     trajectory = run('boids', settings={'until': 3}).trajectory_
-    agents = {item.name for item in analyses_for(trajectory) if item.kind is DataKind.AGENTS}
+    agents = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.AGENTS}
     assert {'polar_order', 'nearest_neighbor_distances', 'mean_squared_displacement'} <= agents
 
 
@@ -154,7 +154,7 @@ def test_analyses_for_plain_array():
 def test_analyses_for_jump_path_in_the_default_install():
     """Test that a jump path lists the Markov state model, which runs in the default install."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 30.0, 'random_state': 0}).trajectory_
-    names = {item.name for item in analyses_for(trajectory) if item.kind is DataKind.PATH}
+    names = {item.name for item in analyses_for(trajectory) if item.kind == DataKind.PATH}
     assert 'markov_state_model' in names
     path = path_of(trajectory)
     states = np.asarray(path.states, dtype=int) % 3

@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], observables=descri
 # stretch should share one frequency, a plateau near -0.69, while the incoherent oscillators drift more slowly, at
 # frequencies that bend away from the plateau in an arc, down to about -0.26.
 
-phases = np.asarray(simulation.trajectory_['ring.theta'])
+phases = np.asarray(simulation.trajectory_.values('ring.theta'))
 frequencies = (phases[-1] - phases[-101]) / 100
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(np.arange(phases.shape[1]), frequencies, 'o-', markersize=3)

@@ -51,7 +51,7 @@ betas = np.linspace(0.0, 0.6, 7)
 order, crossing, mixed = [], [], []
 for beta in betas:
     run = Simulation(create(MODEL, beta=beta), dt=10.0, random_state=2).run(until=150).trajectory_
-    members = run['voters.opinion'][-1]
+    members = run.values('voters.opinion')[-1]
     snapshot = run.network(-1)
     order.append(abs(2 * members.mean() - 1))
     crossing.append(np.mean(members[snapshot.sources] != members[snapshot.targets]))

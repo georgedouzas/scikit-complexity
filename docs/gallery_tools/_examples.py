@@ -11,6 +11,7 @@ import textwrap
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
+from importlib.resources import files
 from pathlib import Path
 
 from skcomplex.models import ModelEntry, catalog, describe
@@ -35,6 +36,7 @@ SCAFFOLD = '''"""
 
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import run
+from importlib.resources import files
 
 MODEL = '{name}'
 
@@ -402,6 +404,6 @@ def model_sources(model: str) -> list[Path]:
     package = importlib.import_module('skcomplex.models.' + describe(model).field.replace('/', '.'))
     framework = [importlib.import_module(f'skcomplex.{name}') for name in ('core', 'engine', 'formalisms')]
     return [
-        *sorted(Path(str(package.__file__)).parent.rglob('*.py')),
-        *(path for module in framework for path in sorted(Path(str(module.__file__)).parent.rglob('*.py'))),
+        *sorted(Path(str(files(package.__name__))).rglob('*.py')),
+        *(path for module in framework for path in sorted(Path(str(files(module.__name__))).rglob('*.py'))),
     ]

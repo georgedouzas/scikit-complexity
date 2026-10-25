@@ -43,7 +43,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 # stationary distribution `(0.8, 0.2)` of the hidden chain.
 
 long = Simulation(create(MODEL, transition=TRANSITION, emission=EMISSION), dt=1, random_state=1).run(100000)
-hidden, symbol = long.trajectory_['source.hidden'][1:], long.trajectory_['source.symbol'][1:]
+hidden, symbol = long.trajectory_.values('source.hidden')[1:], long.trajectory_.values('source.symbol')[1:]
 measured = np.array([[np.mean(symbol[hidden == i] == j) for j in (0, 1)] for i in (0, 1)])
 fig, ax = plt.subplots(figsize=(6, 4))
 positions = np.arange(4)

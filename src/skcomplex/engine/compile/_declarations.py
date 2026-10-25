@@ -189,9 +189,14 @@ class Declarations:
     handles: dict[Expression, tuple[str, int]] = field(default_factory=dict)
 
     def _declare_wiener(self, block: Block, wiener: Wiener) -> None:
-        """Add the handle `dW` of a Wiener element to its block and index its symbols by process."""
+        """Add the handle `dW` of a Wiener element to its block, one symbol per process, and index its symbols."""
         path = block.node.path
-        handle = wiener.declare_handle(path)
+        base = f'dW_{re.sub(r"[^0-9A-Za-z]", "_", path)}'
+        handle = (
+            symbol(base)
+            if wiener.dimension == 1
+            else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
+        )
         block.symbols['dW'] = handle
         self.wieners[path] = wiener
         for index, item in enumerate(components_of(handle)):
@@ -251,7 +256,7 @@ class Declarations:
             return
         space = cast('NetworkSpace', node.space)
         padding = np.zeros(rows - active, dtype=np.intp)
-        for variable, ends in zip(ENDS, space.list_edges(group.layer), strict=True):
+        for variable, ends in zip(ENDS, space.edges_[group.layer], strict=True):
             self._declare_hidden(block, variable, np.concatenate([ends, padding]))
 
     def declare_state(

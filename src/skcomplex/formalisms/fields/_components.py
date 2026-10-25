@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from ...core.base import (
+    BaseSpace,
     ComponentKind,
     VisualSpec,
 )
@@ -67,8 +68,10 @@ class FieldComponent(GroupComponent):
         ...     parameters={'D': 1.0},
         ...     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
         ... )
-        >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).size
+        >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).prepare().size_
         200
+        >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).prepare().default_visual_.kind
+        'image'
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.SITE_GROUP
@@ -85,71 +88,74 @@ class FieldComponent(GroupComponent):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[str | None]] | None = None,
     ) -> None:
-        size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
-        super().__init__(label, element=element, size=size, values=values, visual=visual, space=space, on='sites')
+        super().__init__(label, element=element, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
         self.discretization = discretization
         self.symmetry = symmetry
 
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label, element type, and size."""
-        return f'Field({self.label!r}, element={self.element.__name__}, size={self.size})'
+    def _prepare(self, space: BaseSpace | None = None) -> None:
+        """Set `declarations_`, `size_`, and `default_visual_`, the visual of the field when it sets none.
 
-    def boundary_of(self, state: str) -> tuple[str, Any]:
-        """Return the boundary condition of a state and its fixed value.
+        The default visual is an image on a lattice and a colored mesh on a mesh. On a network the field takes the
+        visual of its element type, or the sites of the network when the type declares none.
 
         Args:
-            state:
-                The name of the state.
-
-        Returns:
-            boundary:
-                `'periodic'`, `'zero-flux'`, or `'fixed'`, and the value read outside fixed edges, a number or a
-                function of the node coordinates.
-
-        Raises:
-            ValueError:
-                The boundary condition is not one of the three.
+            space:
+                The space the field inherits from its system, unused since a field has a space of its own.
         """
-        space = self.space
-        default = {'periodic': 'periodic', 'reflecting': 'zero-flux', 'fixed': ('fixed', getattr(space, 'fill', 0.0))}
-        edges = 'reflecting' if isinstance(space, MeshSpace) else getattr(space, 'boundary', 'periodic')
-        condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
-        if isinstance(condition, tuple | list):
-            kind, value = condition[0], condition[1] if callable(condition[1]) else float(condition[1])
-        else:
-            kind, value = condition, 0.0
-        if kind not in FIELD_BOUNDARIES:
-            error_msg = (
-                f"Unknown boundary {condition!r} of {self.label}.{state}. Use 'periodic', 'zero-flux', or "
-                "('fixed', value)."
-            )
-            raise ValueError(error_msg)
-        return kind, value
-
-    def default_visual(self) -> VisualSpec:
-        """Return the visual of the field when it sets none: an image on a lattice and a colored mesh on a mesh.
-
-        On a network the field takes the visual of its element type, or the sites of the network when the type
-        declares none.
-
-        Returns:
-            visual:
-                The visual.
-
-        Examples:
-            >>> from skcomplex.core.components import ElementComponent
-            >>> from skcomplex.formalisms.fields import FieldComponent
-            >>> from skcomplex.core.space import LatticeSpace
-            >>> HeatComponent = ElementComponent.define('HeatComponent', states={'u': 0.0})
-            >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).default_visual().kind
-            'image'
-        """
-        if isinstance(self.space, LatticeSpace):
-            return VisualSpec('image')
-        if isinstance(self.space, MeshSpace):
-            return VisualSpec('mesh')
+        super()._prepare(space)
         declared: VisualSpec = self.element.visual
-        if isinstance(self.space, NetworkSpace) and declared == VisualSpec():
-            return VisualSpec('sites')
-        return declared
+        if isinstance(self.space, LatticeSpace):
+            self.default_visual_ = VisualSpec('image')
+        elif isinstance(self.space, MeshSpace):
+            self.default_visual_ = VisualSpec('mesh')
+        elif isinstance(self.space, NetworkSpace) and declared == VisualSpec():
+            self.default_visual_ = VisualSpec('sites')
+        else:
+            self.default_visual_ = declared
+
+
+def boundary_of(field: FieldComponent, state: str) -> tuple[str, Any]:
+    """Return the boundary condition of a state of a field and its fixed value.
+
+    Args:
+        field:
+            The field.
+
+        state:
+            The name of the state.
+
+    Returns:
+        boundary:
+            `'periodic'`, `'zero-flux'`, or `'fixed'`, and the value read outside fixed edges, a number or a function of
+            the node coordinates.
+
+    Raises:
+        ValueError:
+            The boundary condition is not one of the three.
+
+    Examples:
+        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.space import LatticeSpace
+        >>> from skcomplex.formalisms.fields import FieldComponent
+        >>> from skcomplex.formalisms.fields._components import boundary_of
+        >>> HeatComponent = ElementComponent.define('HeatComponent', states={'u': 0.0})
+        >>> plate = FieldComponent('plate', HeatComponent, LatticeSpace((4, 4)), boundary={'u': ('fixed', 1)})
+        >>> boundary_of(plate, 'u')
+        ('fixed', 1.0)
+    """
+    space = field.space
+    default = {'periodic': 'periodic', 'reflecting': 'zero-flux', 'fixed': ('fixed', getattr(space, 'fill', 0.0))}
+    edges = 'reflecting' if isinstance(space, MeshSpace) else getattr(space, 'boundary', 'periodic')
+    condition = (field.boundary or {}).get(state, default.get(edges, 'periodic'))
+    if isinstance(condition, tuple | list):
+        kind, value = condition[0], condition[1] if callable(condition[1]) else float(condition[1])
+    else:
+        kind, value = condition, 0.0
+    if kind not in FIELD_BOUNDARIES:
+        error_msg = (
+            f"Unknown boundary {condition!r} of {field.label}.{state}. Use 'periodic', 'zero-flux', or "
+            "('fixed', value)."
+        )
+        raise ValueError(error_msg)
+    return kind, value

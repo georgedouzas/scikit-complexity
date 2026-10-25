@@ -8,7 +8,7 @@ from skcomplex.models import run
 def _species_headings(coupling):
     """Return the mean headings of species A and B of a nonreciprocal Vicsek run, one complex number per frame."""
     trajectory = run('nonreciprocal_vicsek', J_ab=coupling[0], J_ba=coupling[1], settings={'backend': 'numba'})
-    return trajectory.trajectory_['heading_a'], trajectory.trajectory_['heading_b']
+    return trajectory.trajectory_.values('heading_a'), trajectory.trajectory_.values('heading_b')
 
 
 def test_nonreciprocal_vicsek_chases_and_rotates():

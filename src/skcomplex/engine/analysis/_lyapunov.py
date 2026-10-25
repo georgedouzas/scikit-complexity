@@ -168,7 +168,9 @@ def lyapunov_spectrum(
     count = size if n is None else n
     problem = dynamics.problem
     indices = {
-        name: entry.start + column for entry in problem.states for column, name in enumerate(entry.generic_names)
+        name: entry.start + column
+        for entry in problem.states.entries
+        for column, name in enumerate(entry.generic_names)
     }
     start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
     f = _function('field', dynamics, dynamics.rates, (size,))

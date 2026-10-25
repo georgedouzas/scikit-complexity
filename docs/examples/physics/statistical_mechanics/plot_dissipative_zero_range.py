@@ -57,7 +57,7 @@ starts = 2 ** np.arange(6) - 1
 fig, profile = plt.subplots(figsize=(6, 4))
 for alpha in (0.5, -2.0):
     run = Simulation(create(MODEL, alpha=alpha), dt=1.0, random_state=0, backend='numba').run(until=4000)
-    quanta = run.trajectory_['nodes.n'][100:] > 0
+    quanta = run.trajectory_.values('nodes.n')[100:] > 0
     measured = [-np.log(quanta[:, start:stop].mean()) for start, stop in itertools.pairwise(starts)]
     profile.plot(levels, measured, 'o', label=f'simulation, alpha = {alpha}')
     profile.plot(levels, balance_profile(5, 2, alpha), color='black')

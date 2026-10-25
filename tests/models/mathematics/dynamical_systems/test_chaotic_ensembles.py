@@ -37,7 +37,7 @@ def _assert_uniform(points):
 def test_skew_tent_map_invariant_density_is_uniform(a):
     """Test that 10000 points iterated 200 steps fill every one of 20 bins within four binomial deviations."""
     system = skew_tent_map(ENSEMBLE_SIZE, a=a, random_state=1)
-    points = Simulation(system, dt=1).run(until=STEPS).trajectory_['points.x']
+    points = Simulation(system, dt=1).run(until=STEPS).trajectory_.values('points.x')
     assert np.ptp(points[0]) <= 0.01
     _assert_uniform(points[-1])
 
@@ -46,7 +46,7 @@ def test_doubling_map_iterates_fractions_exactly():
     """Test that the doubling map follows `k' = 2k mod q` exactly well beyond the floating-point collapse."""
     system = doubling_map(ENSEMBLE_SIZE, random_state=2)
     denominator = int(system.elements[0].values['q'])
-    points = Simulation(system, dt=1).run(until=STEPS).trajectory_['points.x']
+    points = Simulation(system, dt=1).run(until=STEPS).trajectory_.values('points.x')
     numerators = [round(value * denominator) for value in points[0]]
     for _ in range(STEPS):
         numerators = [2 * numerator % denominator for numerator in numerators]
@@ -67,12 +67,12 @@ def test_cubic_chaotic_map_walk_diffuses():
         .trajectory_
     )
     times = np.asarray(trajectory.times)
-    square = np.asarray(trajectory['square_displacement'])
+    square = np.asarray(trajectory.values('square_displacement'))
     slope, _ = np.polyfit(times[100:], square[100:], 1)
     assert slope > 0
     assert np.corrcoef(times[100:], square[100:])[0, 1] > 0.99
-    assert np.all(np.abs(trajectory['displacement'][1:]) < STANDARD_DEVIATIONS * np.sqrt(square[1:] / 1000))
-    steps = 2 * trajectory['walkers.x'][100:] - 1
+    assert np.all(np.abs(trajectory.values('displacement')[1:]) < STANDARD_DEVIATIONS * np.sqrt(square[1:] / 1000))
+    steps = 2 * trajectory.values('walkers.x')[100:] - 1
     assert np.mean(steps[1:] * steps[:-1]) < -0.3 * np.mean(steps**2)
 
 
@@ -85,7 +85,7 @@ def test_cubic_chaotic_map_settles_below_chaos():
             observables=describe('cubic_chaotic_map').observables_of(built),
         )
         .run(until=400)
-        .trajectory_['walkers.x']
+        .trajectory_.values('walkers.x')
     )
     cycle = (
         Simulation(
@@ -94,7 +94,7 @@ def test_cubic_chaotic_map_settles_below_chaos():
             observables=describe('cubic_chaotic_map').observables_of(built),
         )
         .run(until=400)
-        .trajectory_['walkers.x']
+        .trajectory_.values('walkers.x')
     )
     assert np.allclose(fixed[-1], 0.5)
     assert np.allclose(cycle[-1], cycle[-3])

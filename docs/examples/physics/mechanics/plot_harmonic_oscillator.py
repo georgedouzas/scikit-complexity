@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=20)
 # `E = m v^2 / 2 + k x^2 / 2` should stay at its initial value `1 / 2` up to the error of the solver.
 
 times = np.asarray(simulation.trajectory_.times)
-position = np.ravel(simulation.trajectory_['mass.x'])
-velocity = np.ravel(simulation.trajectory_['mass.v'])
+position = np.ravel(simulation.trajectory_.values('mass.x'))
+velocity = np.ravel(simulation.trajectory_.values('mass.v'))
 energy = velocity**2 / 2 + position**2 / 2
 fig, (motion, drift) = plt.subplots(1, 2, figsize=(10, 4))
 motion.plot(times, position, label='simulated')

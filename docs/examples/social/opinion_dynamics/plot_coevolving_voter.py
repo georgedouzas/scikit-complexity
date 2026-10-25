@@ -43,7 +43,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ru
 def discordant(trajectory, frame):
     """Return the share of the edges of a frame whose ends disagree."""
     snapshot = trajectory.network(frame)
-    opinions = trajectory['voters.opinion'][frame]
+    opinions = trajectory.values('voters.opinion')[frame]
     return float(np.mean(opinions[snapshot.sources] != opinions[snapshot.targets]))
 
 
@@ -60,7 +60,7 @@ for rewiring in (0.1, 0.3, 0.6, 0.9):
     trajectory = run.trajectory_
     axis.plot(
         trajectory.times,
-        [discordant(trajectory, frame) for frame in range(len(trajectory))],
+        [discordant(trajectory, frame) for frame in range(len(trajectory.times))],
         label=f'{rewiring}',
     )
 axis.set_xlabel('step')

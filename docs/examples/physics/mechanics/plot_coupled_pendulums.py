@@ -39,8 +39,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 # period `2π / (ω2 - ω1)`.
 
 times = np.asarray(simulation.trajectory_.times)
-left = np.sin(np.ravel(simulation.trajectory_['left.theta']))
-right = np.sin(np.ravel(simulation.trajectory_['right.theta']))
+left = np.sin(np.ravel(simulation.trajectory_.values('left.theta')))
+right = np.sin(np.ravel(simulation.trajectory_.values('right.theta')))
 slow, fast = np.sqrt(9.81), np.sqrt(9.81 + 2 * 0.5)
 envelope = 0.2 * np.abs(np.cos((fast - slow) * times / 2))
 fig, ax = plt.subplots(figsize=(10, 4))

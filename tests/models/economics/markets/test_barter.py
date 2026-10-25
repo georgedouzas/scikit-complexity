@@ -18,13 +18,13 @@ def test_barter_reaches_the_contract_curve(chocolate, cigarettes, weights):
     expected = contract_curve(final['chocolate'][0], *weights, sum(chocolate), sum(cigarettes))
     assert abs(final['cigarettes'][0] - expected) < 0.02 * sum(cigarettes)
     assert final['chocolate'].sum() == pytest.approx(sum(chocolate))
-    assert simulation.trajectory_['exchange.volume'][-1] == 0
+    assert simulation.trajectory_.values('exchange.volume')[-1] == 0
 
 
 def test_red_cross_barter_settles_on_one_price():
     """Test that the prices of the barter among many prisoners converge."""
     trajectory = run('barter', n_barterers=100, settings={'until': 20}).trajectory_
-    dispersion = trajectory['exchange.dispersion']
+    dispersion = trajectory.values('exchange.dispersion')
     assert np.nanmean(dispersion[-5:]) < 0.1 * dispersion[1]
 
 

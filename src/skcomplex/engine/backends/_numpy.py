@@ -37,30 +37,22 @@ class NumpyBackend(BaseBackend):
 
     name: ClassVar[str] = 'numpy'
 
-    def lower(
+    def _run(
         self,
-        form: Form,
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
-        size: int,
         *,
         reductions: ReductionSchedule | None = None,
         draws: Draws | None = None,
     ) -> Lowering:
-        """Return the numeric functions of a form evaluated with NumPy.
+        """Return the numeric functions of the prepared form evaluated with NumPy.
 
         Args:
-            form:
-                The form of the problem.
-
             kernels:
                 The kernels of every law kind, in evaluation order.
 
             changes:
                 The changes of every jump output, keyed by the output's identity.
-
-            size:
-                The size of the state vector.
 
             reductions:
                 The reductions the kernels read, evaluated before them at every evaluation, or `None`.
@@ -74,19 +66,20 @@ class NumpyBackend(BaseBackend):
                 The numeric functions.
         """
         del draws
+        form, size = self.form_, self.size_
         lowering = Lowering()
         if kernels.get(BoundaryLaw):
             lowering.boundary = assigning_function(kernels[BoundaryLaw])
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = adding_function(kernels.get(RateLaw, []), size)
-        if form is Form.SDE:
+        if form == Form.SDE:
             lowering.diffusion = concatenating_function(kernels.get(NoiseLaw, []))
             noise = lower_noise(kernels.get(NoiseLaw, []))
             lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
-        if form is Form.JUMP:
+        if form == Form.JUMP:
             lowering.propensities = concatenating_function(kernels.get(JumpLaw, []))
             lowering.jumps = jump_channels(kernels.get(JumpLaw, []), changes)
-        if form is Form.DISCRETE:
+        if form == Form.DISCRETE:
             lowering.update = assigning_function(kernels.get(UpdateLaw, []))
         return with_reductions(lowering, reductions, kernels)
 

@@ -69,7 +69,7 @@ class OwnersPass(BasePass):
     reads = ('shifted', 'apart', 'nodes', 'layout')
     writes = ('drawn', 'kinds', 'drawn_apart')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Keep the laws of the owners of the compilation and find their kinds.
 
         Args:

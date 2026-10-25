@@ -21,10 +21,10 @@ def test_sandpile_avalanches_follow_power_law():
     observer = EventsObserver(lambda frame: (frame.lattice('pile.height') < 4).all())
     simulation = Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer])
     simulation.run(until=30_000)
-    sizes = np.asarray([event.size for event in observer.events if event.time > 8_000])
-    assert observer.passed
+    sizes = np.asarray([event.size for event in observer.events_ if event.time > 8_000])
+    assert observer.passed_
     assert sizes.max() > 1000
-    assert {event.label for event in observer.events} == {'avalanche'}
+    assert {event.label for event in observer.events_} == {'avalanche'}
     edges, density = histogram(sizes, 20, log=True)
     centers = np.sqrt(edges[1:] * edges[:-1])
     decades = (centers >= 1) & (centers <= 100) & (density > 0)
@@ -38,7 +38,7 @@ def test_forest_fire_burns_graph_by_distance():
     cover = np.ones(500)
     cover[0] = 2
     system = hexagonal_forest_fire(graph=graph, growth=0.0, lightning=0.0, cover=cover)
-    covers = Simulation(system, dt=1).run(until=40).trajectory_['forest.cover']
+    covers = Simulation(system, dt=1).run(until=40).trajectory_.values('forest.cover')
     distances = nx.single_source_shortest_path_length(graph, 0)
     assert (covers == 2).any(axis=0).all()
     assert np.array_equal(np.argmax(covers == 2, axis=0), [distances[node] for node in graph.nodes])

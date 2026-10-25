@@ -131,7 +131,7 @@ def test_steppers_need_linear_terms():
 def test_burgers_shock_is_conservative():
     """Test that the Burgers shock keeps its total within 1e-12 and forms no new extrema."""
     trajectory = Simulation(burgers(), dt=0.25).run(until=2.0).trajectory_
-    values = trajectory['line.u']
+    values = trajectory.values('line.u')
     totals = values.sum(axis=1)
     assert np.abs(totals - totals[0]).max() < 1e-12 * totals[0]
     assert values[-1].min() >= values[0].min() - 1e-12
@@ -164,7 +164,7 @@ def test_numerical_fluxes_conserve(riemann):
 @pytest.mark.slow
 def test_dam_break_conserves_water():
     """Test that the dam break conserves its water and keeps the depth between the two initial depths."""
-    values = Simulation(shallow_water(), dt=0.05).run(until=0.5).trajectory_['channel.h']
+    values = Simulation(shallow_water(), dt=0.05).run(until=0.5).trajectory_.values('channel.h')
     assert values[-1].sum() == pytest.approx(values[0].sum(), rel=1e-12)
     assert 1.0 - 1e-9 <= values[-1].min() <= values[-1].max() <= 2.0 + 1e-9
 
@@ -185,7 +185,7 @@ def test_l_shaped_steady_state_converges_at_second_order():
     errors = []
     for refine in (2, 3, 4, 5):
         simulation = Simulation(heat_l_shape(refine), dt=100, solver=IMEXEulerSolver(dt=10.0)).run(until=500)
-        nodes = MeshSpace.l_shape(refine).nodes
+        nodes = MeshSpace.l_shape(refine).prepare().positions_
         away = np.hypot(nodes[:, 0], nodes[:, 1]) > 0.25
         errors.append(np.abs(simulation.state_ - harmonic(nodes[:, 0], nodes[:, 1]))[away].max())
     ratios = np.asarray(errors[:-1]) / np.asarray(errors[1:])
@@ -207,7 +207,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
     element = simulation.problem_.elements[0]
     recording = Meshes()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    resolve_visual(element.visual).log(recording, element, frame)
+    resolve_visual(element.visual).prepare(element, frame.problem).run(frame, recording)
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
     Simulation(heat_l_shape(1), dt=0.1, observers=[observer]).run(until=0.2)
@@ -230,7 +230,7 @@ def test_convection_onset():
     for rayleigh in (500.0, 1000.0):
         simulation = Simulation(rayleigh_benard(rayleigh, shape=(16, 16)), dt=1.0, solver=ETDRK4Solver(dt=0.01))
         trajectory = simulation.run(until=10).trajectory_
-        amplitudes[rayleigh] = np.abs(trajectory['flow.theta']).max(axis=1)
+        amplitudes[rayleigh] = np.abs(trajectory.values('flow.theta')).max(axis=1)
     assert amplitudes[500.0][-1] < 1e-6
     assert amplitudes[1000.0][-1] > 0.1
     assert amplitudes[1000.0][-1] == pytest.approx(amplitudes[1000.0][-2], rel=1e-3)
@@ -273,12 +273,12 @@ def test_imex2_second_call_restarts_history():
     problem = compile_system(kuramoto_sivashinsky())
     x, p = problem.initial_state, problem.initial_parameters
     stepper, fresh = IMEX2Solver(dt=0.01), IMEX2Solver(dt=0.01)
-    stepper.initialize(problem, np.random.default_rng(0))
-    fresh.initialize(problem, np.random.default_rng(0))
-    first = stepper.advance(0.0, x, p, 0.1)
-    second = stepper.advance(0.0, x, p, 0.1)
+    stepper.prepare(problem, np.random.default_rng(0))
+    fresh.prepare(problem, np.random.default_rng(0))
+    first = stepper.run(0.0, x, p, 0.1)
+    second = stepper.run(0.0, x, p, 0.1)
     assert np.array_equal(first, second)
-    assert np.array_equal(second, fresh.advance(0.0, x, p, 0.1))
+    assert np.array_equal(second, fresh.run(0.0, x, p, 0.1))
 
 
 def _viscous_burgers_laws(s):
@@ -302,7 +302,9 @@ def test_viscous_burgers_respects_diffusive_limit():
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (
-            Simulation(System(components=[field]), solver=SSPRKSolver(), dt=0.05).run(until=0.5).trajectory_['line.u']
+            Simulation(System(components=[field]), solver=SSPRKSolver(), dt=0.05)
+            .run(until=0.5)
+            .trajectory_.values('line.u')
         )
     assert values.min() >= initial.min() - 1e-12
     assert values.max() <= initial.max() + 1e-12

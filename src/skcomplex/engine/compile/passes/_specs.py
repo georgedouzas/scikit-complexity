@@ -19,7 +19,7 @@ class SpecsPass(BasePass):
     reads = ('layout', 'nodes')
     writes = ('specs',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Build the kernel specs of the declared components.
 
         Args:
@@ -32,5 +32,5 @@ class SpecsPass(BasePass):
         nodes = cast('list[Node]', compilation.nodes)
         observe = Observer(declarations, lowerable_observables(compilation.system, nodes))
         compilation.specs = [
-            (spec, block) for block in blocks for spec in specs_of(block, elements, declarations.time, observe)
+            (spec, block) for block in blocks for spec in specs_of(block, elements, declarations.time, observe.evaluate)
         ]

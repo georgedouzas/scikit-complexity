@@ -142,7 +142,7 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
 
     Examples:
         >>> from skcomplex.models.physics.fluids import wave_breaking
-        >>> wave_breaking(16).elements[0].size
+        >>> wave_breaking(16).elements[0].prepare().size_
         16
     """
     spacing = 2 * math.pi / n
@@ -191,7 +191,7 @@ def discrete_velocity_boltzmann(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import discrete_velocity_boltzmann
-        >>> discrete_velocity_boltzmann(16).elements[0].size
+        >>> discrete_velocity_boltzmann(16).elements[0].prepare().size_
         16
     """
     spacing = length / n

@@ -10,4 +10,4 @@ def test_bit_string_evolution_climbs_the_landscape():
     trajectory = _run(bit_string_evolution(), 100)
     fitness = [trajectory.agents('genomes', frame).values['fitness'].mean() for frame in (0, 100)]
     assert fitness[1] > fitness[0] + 0.05
-    assert trajectory['genomes.count'][-1] == 100
+    assert trajectory.values('genomes.count')[-1] == 100

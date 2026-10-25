@@ -37,7 +37,7 @@ for n_people in (200, 1000, 5000):
     finals = []
     for seed in range(20):
         run = Simulation(create(MODEL, n_people=n_people), dt=1.0, random_state=seed).run(until=40).trajectory_
-        finals.append(run['ignorants.n'][-1] / n_people)
+        finals.append(run.values('ignorants.n')[-1] / n_people)
     finals = np.array(finals)
     spread_out = finals[finals < 0.9]
     ax.plot(np.full(len(spread_out), n_people), spread_out, 'o', alpha=0.5, label=f'{n_people} people')

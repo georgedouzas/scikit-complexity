@@ -11,8 +11,8 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import AnalysisError, BaseProblem, CategoricalDomain, Form, NumericDomain
-from ...core.problems import Problem
+from ...core.base import AnalysisError, CategoricalDomain, Form, NumericDomain
+from ...core.problems import BaseProblem
 from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.system import System
 from ..compile import compile_system, observables_of
@@ -48,8 +48,6 @@ def _problem_of(source: Trajectory | System | BaseProblem) -> BaseProblem:
 
 def _lattice_names(problem: BaseProblem) -> list[str]:
     """Return the states of a problem that live on lattices or grids."""
-    if not isinstance(problem, Problem):
-        return []
     return [name for name in problem.states.names if problem.lattice_shape(name) is not None]
 
 
@@ -63,9 +61,9 @@ def _path_names(problem: BaseProblem) -> list[str]:
     """Return the discrete states that are not lattice states, every state of a jump process."""
     lattice = set(_lattice_names(problem))
     names = [name for name in problem.states.names if name not in lattice]
-    if problem.form is Form.JUMP:
+    if problem.form == Form.JUMP:
         return names
-    if problem.form is Form.DISCRETE:
+    if problem.form == Form.DISCRETE:
         return [name for name in names if _is_discrete(problem, name)]
     return []
 
@@ -73,7 +71,7 @@ def _path_names(problem: BaseProblem) -> list[str]:
 def _particle_groups(problem: BaseProblem) -> list[str]:
     """Return the groups whose members carry a vector position `x`."""
     found = []
-    for element in getattr(problem, 'elements', ()):
+    for element in problem.elements:
         dotted = element.states.get(POSITION_STATE)
         if element.members is not None and dotted is not None and problem.states.entry(dotted).shape:
             found.append(element.path)
@@ -82,14 +80,14 @@ def _particle_groups(problem: BaseProblem) -> list[str]:
 
 def _agent_groups(problem: BaseProblem) -> list[str]:
     """Return the agent groups and particle groups of a problem."""
-    return [agents.path for agents in getattr(problem, 'agents', ())] + _particle_groups(problem)
+    return [agents.path for agents in problem.agents] + _particle_groups(problem)
 
 
 def _network_space(problem: BaseProblem) -> NetworkSpace | None:
     """Return the network space of the agents or of a field of a problem, or `None`."""
-    if isinstance(getattr(problem, 'agent_space', None), NetworkSpace):
-        return getattr(problem, 'agent_space', None)
-    for element in getattr(problem, 'elements', ()):
+    if isinstance(problem.agent_space, NetworkSpace):
+        return problem.agent_space
+    for element in problem.elements:
         space = getattr(element.element, 'space', None)
         if isinstance(space, NetworkSpace):
             return space
@@ -112,20 +110,22 @@ def _scalar_series(trajectory: Trajectory) -> list[str]:
     lattice = set(_lattice_names(trajectory.problem))
     return [
         entry.name
-        for entry in trajectory.problem.states
+        for entry in trajectory.problem.states.entries
         if entry.shape == () and entry.members is None and entry.name not in lattice
     ]
 
 
-def _has_series(source: Trajectory | System | Problem, problem: BaseProblem) -> bool:
+def _has_series(source: Trajectory | System | BaseProblem, problem: BaseProblem) -> bool:
     """Check whether a source records scalar series: observables, reporters, or scalar states."""
     if isinstance(source, Trajectory):
         return bool(_scalar_series(source))
-    system = getattr(problem, 'system', None)
+    system = problem.system
     if system is not None and any(True for _ in observables_of(system)):
         return True
     lattice = set(_lattice_names(problem))
-    return any(entry.shape == () and entry.members is None and entry.name not in lattice for entry in problem.states)
+    return any(
+        entry.shape == () and entry.members is None and entry.name not in lattice for entry in problem.states.entries
+    )
 
 
 def _missing(trajectory: Trajectory, wanted: str) -> AnalysisError:
@@ -147,9 +147,9 @@ def _unwrap(positions: Array, box: Array | None, *, periodic: bool) -> Array:
 def _space_box(space: object) -> tuple[Array | None, bool]:
     """Return the sides of a continuous or grid space and whether it is periodic."""
     if isinstance(space, ContinuousSpace):
-        return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
+        return np.asarray(space.extent_[:2], dtype=float), space.periodic_
     if isinstance(space, LatticeSpace):
-        return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
+        return np.asarray(space.shape_[:2], dtype=float), space.periodic_
     return None, False
 
 
@@ -195,7 +195,7 @@ class Snapshots:
 
 def _agent_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
     """Return the snapshots of an agent group, aligned on the agents present in every frame."""
-    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory))]
+    frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
     common = set(frames[0].ids.tolist()).intersection(*(set(frame.ids.tolist()) for frame in frames[1:]))
     ids = np.asarray(sorted(common), dtype=np.int64)
     columns = [
@@ -207,9 +207,9 @@ def _agent_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
         name: np.asarray([frame.values[name][column] for frame, column in zip(frames, columns, strict=True)])
         for name in names
     }
-    box, periodic = _space_box(getattr(trajectory.problem, 'agent_space', None))
+    box, periodic = _space_box(trajectory.problem.agent_space)
     positions = None
-    located = not isinstance(getattr(trajectory.problem, 'agent_space', None), NetworkSpace)
+    located = not isinstance(trajectory.problem.agent_space, NetworkSpace)
     if located and frames[0].locations is not None and np.asarray(frames[0].locations).dtype != object:
         raw = np.asarray(
             [np.asarray(frame.locations, dtype=float)[column] for frame, column in zip(frames, columns, strict=True)],
@@ -241,22 +241,23 @@ def _positions_of(ids: npt.NDArray[np.int64], wanted: npt.NDArray[np.int64]) -> 
 
 def _particle_box(trajectory: Trajectory, group: str) -> Array | None:
     """Return the sides of the periodic box a particle group lives in, or `None` without one."""
-    space = getattr(getattr(trajectory.problem, 'system', None), 'space', None)
-    if isinstance(space, ContinuousSpace) and space.boundary == 'periodic':
-        return np.asarray(space.extent, dtype=float)
+    system = trajectory.problem.system
+    space = system.space if system is not None else None
+    if isinstance(space, ContinuousSpace) and space.periodic_:
+        return np.asarray(space.extent_, dtype=float)
     return None
 
 
 def _particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
     """Return the snapshots of a particle group from its vector states."""
-    element = next(item for item in getattr(trajectory.problem, 'elements', ()) if item.path == group)
+    element = next(item for item in trajectory.problem.elements if item.path == group)
     box = _particle_box(trajectory, group)
-    raw = np.asarray(trajectory[element.states[POSITION_STATE]], dtype=float)
+    raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
     positions = _unwrap(raw, box, periodic=box is not None)
     velocity = element.states.get(VELOCITY_STATE)
-    velocities = np.asarray(trajectory[velocity], dtype=float) if velocity is not None else None
+    velocities = np.asarray(trajectory.values(velocity), dtype=float) if velocity is not None else None
     others = {
-        name: np.asarray(trajectory[dotted]).reshape(len(trajectory), -1)
+        name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
         for name, dotted in element.states.items()
         if name not in {POSITION_STATE, VELOCITY_STATE}
     }
@@ -275,7 +276,7 @@ def _particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
 
 def _array_reading(kind: DataKind, dimensions: int) -> str:
     """Return how an analysis of a kind reads a plain array of some dimensions."""
-    if kind is DataKind.FIELD:
+    if kind == DataKind.FIELD:
         return 'the array as one grid'
     if dimensions > SERIES_DIMENSIONS:
         return 'every column of the array as a series'
@@ -301,7 +302,7 @@ def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -
     """
     if isinstance(source, ExperimentResult):
         return [DataKind.ENSEMBLE]
-    if not isinstance(source, Trajectory | System | Problem):
+    if not isinstance(source, Trajectory | System | BaseProblem):
         dimensions = np.ndim(source)
         return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
     problem = _problem_of(source)
@@ -368,7 +369,7 @@ def series_of(trajectory: Trajectory, names: Sequence[str] | None = None) -> Ser
         raise _missing(trajectory, 'scalar series')
     columns, labels = [], []
     for name in chosen:
-        values = np.asarray(trajectory[name], dtype=float).reshape(len(trajectory), -1)
+        values = np.asarray(trajectory.values(name), dtype=float).reshape(len(trajectory.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
     return Series(np.asarray(trajectory.times, dtype=float), np.concatenate(columns, axis=1), labels)
@@ -423,7 +424,7 @@ def path_of(trajectory: Trajectory, name: str | None = None) -> JumpPath:
     chosen = names[0] if name is None and names else name
     if chosen is None:
         raise _missing(trajectory, 'discrete state')
-    values = np.asarray(trajectory[chosen], dtype=float).reshape(len(trajectory), -1)
+    values = np.asarray(trajectory.values(chosen), dtype=float).reshape(len(trajectory.times), -1)
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     return JumpPath(
@@ -492,7 +493,7 @@ def snapshots_of(trajectory: Trajectory, group: str | None = None) -> Snapshots:
         >>> snapshots_of(trajectory).positions.shape
         (4, 5, 2)
     """
-    agent_paths = [agents.path for agents in getattr(trajectory.problem, 'agents', ())]
+    agent_paths = [agents.path for agents in trajectory.problem.agents]
     particle_paths = _particle_groups(trajectory.problem)
     chosen = group if group is not None else next(iter(agent_paths + particle_paths), None)
     if chosen in particle_paths:
@@ -530,7 +531,7 @@ def networks_of(trajectory: Trajectory) -> list[nx.Graph]:
     space = _network_space(trajectory.problem)
     if space is None:
         raise _missing(trajectory, 'network')
-    return [space.graph] * len(trajectory)
+    return [space.graph] * len(trajectory.times)
 
 
 @dataclass(frozen=True)
@@ -633,8 +634,8 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
         ('the array as one grid', 'every column of the array as a series')
     """
     kinds = data_kinds(source)
-    entries: list[AnalysisEntry] = [ANALYSES.resolve(key) for key in ANALYSES]
-    is_array = not isinstance(source, Trajectory | System | ExperimentResult | Problem)
+    entries: list[AnalysisEntry] = [ANALYSES.resolve(key) for key in ANALYSES.keys]
+    is_array = not isinstance(source, Trajectory | System | ExperimentResult | BaseProblem)
     dimensions = int(np.ndim(cast('npt.ArrayLike', source))) if is_array else 0
     return [
         Applicable(
@@ -645,5 +646,5 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
         )
         for kind in kinds
         for entry in entries
-        if entry.kind is kind
+        if entry.kind == kind
     ]

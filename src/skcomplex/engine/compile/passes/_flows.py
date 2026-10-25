@@ -29,7 +29,7 @@ class ExpandFlowsPass(BasePass):
     reads = ('collected', 'layout')
     writes = ('collected', 'flows')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Expand the flows of the collected laws.
 
         Args:
@@ -51,7 +51,7 @@ class FlowsCensusPass(BasePass):
     reads = ('census',)
     writes = ('census',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Leave the auxiliaries and invariants out of the census.
 
         Args:
@@ -69,7 +69,7 @@ class LowerFlowsPass(BasePass):
     reads = ('lowered', 'layout', 'flows')
     writes = ('lowered', 'stock_flow')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the flows and their delays.
 
         Args:
@@ -88,7 +88,7 @@ class FlowsProblemPass(BasePass):
     reads = ('problem', 'stock_flow')
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the stock and flow structure to the problem.
 
         Args:

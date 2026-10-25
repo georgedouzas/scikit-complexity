@@ -19,7 +19,7 @@ from skcomplex.models.physics.soft_matter import (
 def _exponent(trajectory, name, start):
     """Return the scaling exponent of the ensemble mean squared displacement after a time."""
     times = trajectory.times
-    squared = np.mean(np.sum(trajectory[name] ** 2, axis=-1), axis=1)
+    squared = np.mean(np.sum(trajectory.values(name) ** 2, axis=-1), axis=1)
     late = times > start
     return np.polyfit(np.log(times[late]), np.log(squared[late]), 1)[0]
 
@@ -51,13 +51,13 @@ def test_fractional_brownian_motion_has_its_hurst_index():
     simulation = Simulation(system, solver=FractionalEulerMaruyamaSolver(dt=0.01), dt=0.01, random_state=0)
     trajectory = simulation.run(10).trajectory_
     assert _exponent(trajectory, 'walkers.x', 0.05) == pytest.approx(0.6, abs=0.05)
-    exponents = [hurst_exponent(np.diff(trajectory['walkers.x'][:, member, 0])) for member in range(100)]
+    exponents = [hurst_exponent(np.diff(trajectory.values('walkers.x')[:, member, 0])) for member in range(100)]
     assert np.mean(exponents) == pytest.approx(0.3, abs=0.05)
 
 
 def test_levy_flight_spreads_as_n_to_one_over_mu():
     """Test that the median distance of 2000 walkers with mu = 1.2 grows as n^(1 / mu)."""
     trajectory = Simulation(levy_flight(2000, mu=1.2), random_state=0).run(200).trajectory_
-    distance = np.median(np.linalg.norm(trajectory['walkers.x'][10:], axis=-1), axis=1)
+    distance = np.median(np.linalg.norm(trajectory.values('walkers.x')[10:], axis=-1), axis=1)
     slope = np.polyfit(np.log(trajectory.times[10:]), np.log(distance), 1)[0]
     assert slope == pytest.approx(1 / 1.2, abs=0.05)

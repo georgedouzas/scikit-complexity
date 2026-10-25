@@ -14,8 +14,6 @@ from skcomplex.core.base import (
     BaseDomain,
     BaseInteraction,
     BaseLaw,
-    BaseProblem,
-    BaseSolver,
     BaseSpace,
     BaseTime,
     RoleError,
@@ -23,10 +21,11 @@ from skcomplex.core.base import (
     parameter,
     role,
     state,
+    symbol,
 )
 from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, neighbors
-from skcomplex.core.problems import BaseBackend
+from skcomplex.core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, neighbors
+from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
@@ -65,16 +64,49 @@ def test_component_stores_companions_without_class_attributes():
     assert not hasattr(PendulumComponent, 'theta_d1')
     assert (bob.theta, bob.theta_d1) == (0.1, 0.5)
     assert {'theta', 'theta_d1'} <= set(bob.get_params())
-    assert list(PendulumComponent.declarations()) == ['theta', 'theta_d1']
+    assert list(bob.prepare().declarations_) == ['theta', 'theta_d1']
 
 
 def test_component_rejects_unknown_and_missing_arguments():
-    """Test that an undeclared value and a missing role raise a named error that is also a type error."""
+    """Test that an undeclared value and a missing role are stored, and checking raises a named type error."""
+    rabbits = PopulationComponent('rabbits', foo=1)
+    assert rabbits.foo == 1
     with pytest.raises(ArgumentError, match="'foo'"):
-        PopulationComponent('rabbits', foo=1)
-    growth = BaseInteraction.define('GrowthInteraction', roles=['target'])
+        rabbits.check()
+    growth = BaseInteraction.define('GrowthInteraction', roles=['target'])('growth')
     with pytest.raises(TypeError, match="'target'"):
-        growth('growth')
+        growth.check()
+
+
+def test_validation_checks_every_component_with_its_path():
+    """Test that validating a system reports a component with an undeclared value by its path."""
+    system = System(components=[System('meadow', components=[PopulationComponent('rabbits', foo=1)])])
+    report = validate(system)
+    assert not report.ok
+    assert report.errors[0].message.startswith("meadow/rabbits: PopulationComponent got 'foo'")
+
+
+def test_interaction_rejects_a_layer_when_checked():
+    """Test that an interaction not over neighbours takes a layer but rejects it when checked."""
+    interaction = PredationInteraction('hunt', predator='foxes', prey='rabbits', layer='work')
+    assert interaction.layer == 'work'
+    with pytest.raises(ValidationError, match='only interactions over neighbours'):
+        interaction.check()
+
+
+def test_component_runs_its_laws_and_prepares_its_declarations():
+    """Test that `run` returns the laws of the `laws` hook and `prepare` sets the declarations."""
+    growth = BaseInteraction.define(
+        'GrowthInteraction',
+        roles=['target'],
+        parameters={'r': 1.0},
+        laws=lambda s: [RateLaw(s.target.n, s.r * s.target.n)],
+    )('growth', target='rabbits').prepare()
+    assert list(growth.declarations_) == ['target', 'r']
+    n, r = symbol('n'), symbol('r')
+    (law,) = growth.run(Symbols(target=Symbols(n=n), r=r))
+    assert isinstance(law, RateLaw)
+    assert law.value == r * n
 
 
 def test_component_parameters_list_settings_and_declared_names():
@@ -87,7 +119,7 @@ def test_component_parameters_list_settings_and_declared_names():
         'value': 0.0,
         'variable': None,
     }
-    assert repr(aggregate) == "Aggregate(group='farmers', label='size')"
+    assert repr(aggregate) == "Aggregate(group='farmers', label='size', value=0.0)"
     assert Wiener.get_argument_names() == ['dimension', 'covariance']
 
 
@@ -206,9 +238,9 @@ def _hebbian(space, activities):
 
 
 def test_interaction_requires_roles():
-    """Test that an interaction without its roles cannot be created."""
+    """Test that an interaction without its roles is created but does not pass its check."""
     with pytest.raises(TypeError, match='predator'):
-        PredationInteraction('hunt', prey='rabbits')
+        PredationInteraction('hunt', prey='rabbits').check()
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
@@ -217,8 +249,8 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
-    weights = simulation.run(until=1.0).trajectory_['synapses.w'][-1]
-    sources, targets = space.list_edges()
+    weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
+    sources, targets = space.prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
     assert np.allclose(weights[~coactive], 0.1, atol=1e-12)
@@ -266,7 +298,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         ],
     )
     trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).run(until=20.0).trajectory_
-    infected, wages = trajectory['people.infected'][-1], trajectory['people.wage'][-1]
+    infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
     isolated = System(
@@ -277,7 +309,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
     trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).run(until=20.0).trajectory_
-    assert np.allclose(trajectory['people.infected'][-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
+    assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
@@ -326,7 +358,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
-    sources, targets = space.list_edges()
+    sources, targets = space.prepare().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     assert np.allclose(drift, expected, atol=1e-12)
@@ -349,7 +381,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).run(until=60.0).trajectory_
-    assert trajectory['nodes.i'][-1].tolist() == [1.0, 1.0, 1.0, 1.0]
+    assert trajectory.values('nodes.i')[-1].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
 def test_edge_interactions_run_on_lattice_bonds():

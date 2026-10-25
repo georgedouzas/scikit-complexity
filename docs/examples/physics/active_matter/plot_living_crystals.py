@@ -52,9 +52,9 @@ def clustered_share(positions, side=50.0):
 
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times
-ax.plot(times, clustered_share(simulation.trajectory_['swimmers.x']), label='with attraction, v0 = 20')
+ax.plot(times, clustered_share(simulation.trajectory_.values('swimmers.x')), label='with attraction, v0 = 20')
 passive = Simulation(create(MODEL, v0=0.0, random_state=0), solver=solver, dt=0.2, random_state=0).run(until=40)
-ax.plot(times, clustered_share(passive.trajectory_['swimmers.x']), label='without attraction, v0 = 0')
+ax.plot(times, clustered_share(passive.trajectory_.values('swimmers.x')), label='without attraction, v0 = 0')
 ax.set_xlabel('time t')
 ax.set_ylabel('share of colloids in clusters of 3 or more')
 ax.set_title('Phoretic attraction gathers the swimmers into living clusters')

@@ -17,7 +17,6 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseInteraction,
-    BaseProblem,
     Entry,
     Expression,
     Form,
@@ -25,7 +24,6 @@ from ...core.base import (
     Layout,
     NumericDomain,
     SkcomplexError,
-    SymbolicVector,
     ValidationError,
     VariableKind,
     Vector,
@@ -35,11 +33,11 @@ from ...core.base import (
 )
 from ...core.components import GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import CompiledElement, CompiledInteraction, Getter, numpy_function
+from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction, Getter, numpy_function
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import Observable, System, reduce_values
 from ...engine.compile import BaseSystemCompiler, Node, coerce_value, flatten_system, spectral_multiplier
-from ._components import QuantumView, hilbert_state, is_quantum, view_of
+from ._components import QuantumView, hilbert_state, is_quantum
 from ._laws import DissipatorLaw, GeneratorLaw, Operator
 
 DENSE_LIMIT = 1024
@@ -66,7 +64,7 @@ def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
 
 def _laplacian_of(space: Any) -> sp.csr_array:  # noqa: ANN401
     """Return the Laplacian of a lattice, spectral when it is periodic and of finite differences otherwise."""
-    dimensions, spacings = space.dimensions, space.spacings
+    dimensions, spacings = space.shape_, space.spacings_
     size = math.prod(dimensions)
     if space.boundary == 'periodic':
         multiplier = spectral_multiplier('laplacian', 0, dimensions, spacings).real
@@ -290,13 +288,13 @@ def _interaction_laws(
         group = groups[path]
         for first, second in neighbor_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
-            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
+            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.run(namespace))
         return
     roles = {
         name: _role_namespace(node, getattr(interaction, name), members, set(groups))
         for name in declarations_of(interaction, VariableKind.ROLE)
     }
-    _collect_laws(laws, node.path, interaction.laws(Symbols(**roles, **parameters)))
+    _collect_laws(laws, node.path, interaction.run(Symbols(**roles, **parameters)))
 
 
 @dataclass(frozen=True)
@@ -638,10 +636,6 @@ class QuantumProblem(BaseProblem):
             The matrices of local operators computed so far.
     """
 
-    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
-    elements: tuple[CompiledElement, ...] = ()
-    interactions: tuple[CompiledInteraction, ...] = ()
-    system: System | None = field(default=None, repr=False)
     dimensions: tuple[int, ...] = ()
     subsystems: tuple[str, ...] = ()
     hamiltonian: tuple[QuantumTerm, ...] = field(default=(), repr=False)
@@ -652,149 +646,6 @@ class QuantumProblem(BaseProblem):
     lowering: Any = field(default=None, repr=False)
     hamiltonian_operator: Operator = field(default_factory=lambda: Operator({}), repr=False)
     cache: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
-
-    @property
-    def dimension(self) -> int:
-        """Dimension of the Hilbert space."""
-        return math.prod(self.dimensions)
-
-    @property
-    def state_name(self) -> str:
-        """Dotted name of the state in the state vector."""
-        return self.states.names[0]
-
-    def state_of(self, x: Vector) -> npt.NDArray[np.complex128]:
-        """Return the complex state, a vector or a density matrix, from a state vector.
-
-        Args:
-            x:
-                The state vector.
-
-        Returns:
-            state:
-                The pure state of shape `(dimension,)` or the density matrix of shape `(dimension, dimension)`.
-        """
-        return np.asarray(self.states.read(x, self.state_name))
-
-    def encode(self, state: npt.ArrayLike) -> Vector:
-        """Return a complex state as a state vector.
-
-        Args:
-            state:
-                The pure state or the density matrix.
-
-        Returns:
-            x:
-                The state vector.
-        """
-        return self.states.entry(self.state_name).encode(state)
-
-    def hamiltonian_at(self, t: float, p: Vector) -> sp.csr_array:
-        """Return the Hamiltonian matrix at a time and a parameter vector.
-
-        Args:
-            t:
-                The time.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            matrix:
-                The sparse Hamiltonian.
-        """
-        return _matrix_at(self.hamiltonian, t, p, self.dimension)
-
-    def operator_terms(self, operator: Operator, owner: str = 'an observable') -> tuple[QuantumTerm, ...]:
-        """Return the terms of an operator of the system.
-
-        Args:
-            operator:
-                The operator, built from the namespaces of the system.
-
-            owner:
-                The description of the operator, for error messages.
-
-        Returns:
-            terms:
-                The terms of the operator.
-        """
-        return self.lowering.terms(operator, owner)
-
-    def expect(self, terms: Iterable[QuantumTerm], t: float, x: Vector, p: Vector) -> float | complex:
-        """Return the expectation value of an operator at a state.
-
-        Args:
-            terms:
-                The terms of the operator.
-
-            t:
-                The time.
-
-            x:
-                The state vector.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            value:
-                `<psi|O|psi>` or `Tr(rho O)`, a float when its imaginary part vanishes.
-        """
-        state = self.state_of(x)
-        total = 0j
-        for term in terms:
-            value = np.vdot(state, term.matrix @ state) if self.pure else term.matrix.multiply(state.T).sum()
-            total += term.value(t, p) * complex(value)
-        if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
-            return float(total.real)
-        return total
-
-    def lowest_states(
-        self,
-        p: Vector,
-        k: int = 1,
-        basis: npt.NDArray[np.intp] | None = None,
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
-        """Return the lowest eigenvalues and eigenstates of the Hamiltonian at time 0, through QuTiP.
-
-        Args:
-            p:
-                The parameter vector.
-
-            k:
-                The number of eigenvalues.
-
-            basis:
-                The indices of the basis states that span a sector to diagonalise in, or `None` for the whole space.
-
-        Returns:
-            spectrum:
-                The eigenvalues in increasing order and the eigenstates as columns over the whole space.
-        """
-        matrix = self.hamiltonian_at(0.0, p)
-        indices = np.arange(self.dimension) if basis is None else np.asarray(basis, dtype=np.intp)
-        matrix = sp.csr_array(matrix[indices][:, indices])
-        count = min(k, indices.size)
-        sparse = indices.size > DENSE_LIMIT and count < indices.size - 1
-        energies, kets = qutip.Qobj(matrix).eigenstates(sparse=sparse, eigvals=count)
-        states = np.zeros((self.dimension, count), dtype=complex)
-        for column, ket in enumerate(kets):
-            states[indices, column] = ket.full().ravel()
-        return np.real(np.asarray(energies)), states
-
-    def _local_matrices(self, path: str, name: str) -> list[sp.csr_array]:
-        """Return the matrices on the whole space of one local operator of every member of an element or group."""
-        cached = self.cache.get(f'{path}:{name}')
-        if cached is None:
-            cached = [self.lowering.terms(getattr(member, name), path)[0].matrix for member in self.members[path]]
-            self.cache[f'{path}:{name}'] = cached
-        return cached
-
-    def _probabilities(self, x: Vector) -> npt.NDArray[np.float64]:
-        """Return the probability of every basis state of the whole space."""
-        state = self.state_of(x)
-        return np.abs(state) ** 2 if self.pure else np.real(np.diagonal(state))
 
     def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter]:
         """Return the getters of the observables, with the energy, and the purity when the system is open.
@@ -809,41 +660,75 @@ class QuantumProblem(BaseProblem):
         """
         return quantum_getters(self, observables)
 
-    def local_values(self, path: str, x: Vector) -> dict[str, Any]:
-        """Return the local expectations of a quantum element or group at a state, which visuals draw.
 
-        A group gives the expectation of the displayed local operator of every member. A single element without a
-        displayed operator, such as a particle on sites, gives the probability of every basis state, and one with it
-        gives the expectation of each of its Hermitian local operators.
+def state_of(problem: QuantumProblem, x: Vector) -> npt.NDArray[np.complex128]:
+    """Return the complex state of a quantum problem, a vector or a density matrix, from a state vector.
 
-        Args:
-            path:
-                The path of the element or group.
+    Args:
+        problem:
+            The quantum problem.
 
-            x:
-                The state vector.
+        x:
+            The state vector.
 
-        Returns:
-            values:
-                A mapping from the name of a local operator, or `'probability'`, to an array or a number.
-        """
-        element = next(item for item in self.elements if item.path == path)
-        display = view_of(element.element).display
-        if element.members is None and display is None:
-            index = self.subsystems.index(path)
-            shaped = self._probabilities(x).reshape(self.dimensions)
-            others = tuple(axis for axis in range(len(self.dimensions)) if axis != index)
-            return {'probability': shaped.sum(axis=others)}
-        if element.members is not None and display is not None:
-            matrices = self._local_matrices(path, display)
-            values = [self.expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
-            return {display: np.real(np.asarray(values))}
-        names = [name for name, local in view_of(element.element).local_operators().items() if local.hermitian]
-        return {
-            name: float(np.real(self.expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
-            for name in names
-            for matrix in self._local_matrices(path, name)
-        }
+    Returns:
+        state:
+            The pure state of shape `(dimension,)` or the density matrix of shape `(dimension, dimension)`.
+    """
+    return np.asarray(problem.states.read(x, problem.states.names[0]))
+
+
+def expect(problem: QuantumProblem, terms: Iterable[QuantumTerm], t: float, x: Vector, p: Vector) -> float | complex:
+    """Return the expectation value of an operator at a state of a quantum problem.
+
+    Args:
+        problem:
+            The quantum problem.
+
+        terms:
+            The terms of the operator.
+
+        t:
+            The time.
+
+        x:
+            The state vector.
+
+        p:
+            The parameter vector.
+
+    Returns:
+        value:
+            `<psi|O|psi>` or `Tr(rho O)`, a float when its imaginary part vanishes.
+    """
+    state = state_of(problem, x)
+    total = 0j
+    for term in terms:
+        value = np.vdot(state, term.matrix @ state) if problem.pure else term.matrix.multiply(state.T).sum()
+        total += term.value(t, p) * complex(value)
+    if abs(total.imag) <= REAL_TOLERANCE * (1 + abs(total.real)):
+        return float(total.real)
+    return total
+
+
+def hamiltonian_at(problem: QuantumProblem, t: float, p: Vector) -> sp.csr_array:
+    """Return the Hamiltonian matrix of a quantum problem at a time and a parameter vector.
+
+    Args:
+        problem:
+            The quantum problem.
+
+        t:
+            The time.
+
+        p:
+            The parameter vector.
+
+    Returns:
+        matrix:
+            The sparse Hamiltonian.
+    """
+    return _matrix_at(problem.hamiltonian, t, p, math.prod(problem.dimensions))
 
 
 def _member_getter(problem: QuantumProblem, path: str, observable: Observable, group: str) -> Getter:
@@ -855,11 +740,11 @@ def _member_getter(problem: QuantumProblem, path: str, observable: Observable, g
     if not callable(expression):
         error_msg = f'Observable {path} of a quantum group needs a function of a member namespace.'
         raise ValidationError(error_msg)
-    terms = [problem.operator_terms(_operator_of(path, expression(member)), path) for member in problem.members[group]]
+    terms = [problem.lowering.terms(_operator_of(path, expression(member)), path) for member in problem.members[group]]
 
     def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
         del done
-        values = np.asarray([problem.expect(item, t, x, p) for item in terms])
+        values = np.asarray([expect(problem, item, t, x, p) for item in terms])
         return reduce_values(values, observable.reduce)
 
     return get
@@ -878,7 +763,7 @@ def _expectation_getter(problem: QuantumProblem, terms: tuple[QuantumTerm, ...])
 
     def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
         del done
-        return problem.expect(terms, t, x, p)
+        return expect(problem, terms, t, x, p)
 
     return get
 
@@ -888,7 +773,7 @@ def _purity_getter(problem: QuantumProblem) -> Getter:
 
     def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
         del t, p, done
-        state = problem.state_of(x)
+        state = state_of(problem, x)
         return 1.0 if problem.pure else float(np.sum(np.abs(state) ** 2))
 
     return get
@@ -1024,7 +909,7 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
             continue
         expression = observable.expression
         value = expression(problem.namespaces[scope]) if callable(expression) else expression
-        getters[path] = _expectation_getter(problem, problem.operator_terms(_operator_of(path, value), path))
+        getters[path] = _expectation_getter(problem, problem.lowering.terms(_operator_of(path, value), path))
     getters.setdefault('energy', _expectation_getter(problem, problem.hamiltonian))
     if not problem.pure:
         getters.setdefault('purity', _purity_getter(problem))
@@ -1034,20 +919,16 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
 class QuantumCompiler(BaseSystemCompiler):
     """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether a system holds a quantum element or group.
+    def _prepare(self, system: System) -> None:
+        """Set `claims_`, whether a system holds a quantum element or group.
 
         Args:
             system:
                 The system.
-
-        Returns:
-            claims:
-                Whether the system holds a quantum element or group.
         """
-        return contains_quantum(system)
+        self.claims_ = contains_quantum(system)
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,

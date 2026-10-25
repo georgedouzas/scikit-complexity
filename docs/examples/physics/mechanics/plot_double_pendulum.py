@@ -41,7 +41,8 @@ runs = [
     for shift in [0.0, 1e-8]
 ]
 lower = [
-    bobs(np.ravel(run.trajectory_['pendulum.theta1']), np.ravel(run.trajectory_['pendulum.theta2']))[1] for run in runs
+    bobs(np.ravel(run.trajectory_.values('pendulum.theta1')), np.ravel(run.trajectory_.values('pendulum.theta2')))[1]
+    for run in runs
 ]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(runs[0].trajectory_.times, np.linalg.norm(lower[0] - lower[1], axis=0))

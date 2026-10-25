@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=
 # of the small scales, and the enstrophy cascade feeds `P`. The enstrophy should therefore fall much faster than the
 # energy: by about an order of magnitude over the run, while the energy loses only a fraction.
 
-vorticity = simulation.trajectory_['flow.omega'].reshape(-1, 128, 128)
+vorticity = simulation.trajectory_.values('flow.omega').reshape(-1, 128, 128)
 spectrum = np.abs(np.fft.fft2(vorticity)) ** 2
 wavenumbers = np.fft.fftfreq(128, d=1 / 128)
 squared = wavenumbers[:, None] ** 2 + wavenumbers[None, :] ** 2

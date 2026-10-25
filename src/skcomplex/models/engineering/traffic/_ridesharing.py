@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import numpy as np
@@ -47,56 +46,51 @@ def _ridesharing_observables(system: System) -> list[Observable]:
     ]
 
 
-@dataclass(frozen=True)
-class NearestCab:
+def nearest_cab(
+    left: Sequence[Any],
+    right: Sequence[Any],
+    rng: np.random.Generator,
+    capacity: int,
+) -> list[tuple[Any, Any]]:
     """Pairing of unassigned riders, the longest waiting first, with the nearest idle cab by blocks.
 
+    Args:
+        left:
+            The riders.
+
+        right:
+            The cabs.
+
+        rng:
+            The random generator, which breaks ties between riders that waited as long.
+
+        capacity:
+            The largest number of riders of a cab, which a cab on a trip does not take.
+
+    Returns:
+        pairs:
+            The pairs of riders and the cabs sent to them.
+
     Examples:
-        >>> from skcomplex.models.engineering.traffic import NearestCab
-        >>> NearestCab()
-        NearestCab()
+        >>> import numpy as np
+        >>> from skcomplex.models.engineering.traffic import nearest_cab
+        >>> nearest_cab([], [], np.random.default_rng(0), 1)
+        []
     """
-
-    def __call__(
-        self,
-        left: Sequence[Any],
-        right: Sequence[Any],
-        rng: np.random.Generator,
-        capacity: int,
-    ) -> list[tuple[Any, Any]]:
-        """Return the pairs of riders and cabs.
-
-        Args:
-            left:
-                The riders.
-
-            right:
-                The cabs.
-
-            rng:
-                The random generator, which breaks ties between riders that waited as long.
-
-            capacity:
-                The largest number of riders of a cab, which a cab on a trip does not take.
-
-        Returns:
-            pairs:
-                The pairs of riders and the cabs sent to them.
-        """
-        riders = [rider for rider in left if not rider.assigned]
-        order: npt.NDArray[np.intp] | list[int] = (
-            np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
-        )
-        free = [cab for cab in right if cab.task == IDLE]
-        pairs: list[tuple[Any, Any]] = []
-        for index in order:
-            if not free:
-                break
-            rider = riders[int(index)]
-            cell = _cell(rider.location)
-            nearest = min(range(len(free)), key=lambda item: _blocks(cell, _cell(free[item].location)))
-            pairs.append((rider, free.pop(nearest)))
-        return pairs
+    riders = [rider for rider in left if not rider.assigned]
+    order: npt.NDArray[np.intp] | list[int] = (
+        np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
+    )
+    free = [cab for cab in right if cab.task == IDLE]
+    pairs: list[tuple[Any, Any]] = []
+    for index in order:
+        if not free:
+            break
+        rider = riders[int(index)]
+        cell = _cell(rider.location)
+        nearest = min(range(len(free)), key=lambda item: _blocks(cell, _cell(free[item].location)))
+        pairs.append((rider, free.pop(nearest)))
+    return pairs
 
 
 class RiderComponent(ElementComponent):
@@ -234,7 +228,9 @@ class CabComponent(ElementComponent):
         fare = model.parameter('base_fare') + model.parameter('block_fare') * blocks
         transfer(rider, agent, fare, 'money')
         rider.remove()
-        agent.target_x, agent.target_y = destination
+        new_target_x_value, new_target_y_value = destination
+        agent.target_x = new_target_x_value
+        agent.target_y = new_target_y_value
         agent.task = DELIVERING
 
     def drive(self, agent: AgentView, model: ModelView) -> None:
@@ -327,7 +323,7 @@ class DispatchInteraction(BaseInteraction):
         """
         return [
             RuleLaw(self.admit, phase='arrival'),
-            MatchLaw('riders', 'cabs', pairing=NearestCab(), label='rides', phase='dispatch'),
+            MatchLaw('riders', 'cabs', pairing=nearest_cab, label='rides', phase='dispatch'),
             RuleLaw(self.dispatch, phase='dispatch'),
         ]
 
@@ -352,8 +348,12 @@ class DispatchInteraction(BaseInteraction):
                 The model view of the dispatcher.
         """
         for rider, cab in matches(model, 'rides'):
-            cab.target_x, cab.target_y = _cell(rider.location)
-            cab.destination_x, cab.destination_y = rider.destination_x, rider.destination_y
+            new_target_x_value, new_target_y_value = _cell(rider.location)
+            cab.target_x = new_target_x_value
+            cab.target_y = new_target_y_value
+            new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
+            cab.destination_x = new_destination_x
+            cab.destination_y = new_destination_y
             cab.rider = float(rider.id)
             cab.task = PICKING_UP
             rider.assigned = 1.0

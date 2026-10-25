@@ -33,10 +33,10 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).ru
 shares = []
 for seed in range(40):
     trajectory = Simulation(create(MODEL, stochastic=True), dt=1.0, random_state=seed).run(until=200).trajectory_
-    left, right = trajectory['left.n'][-1], trajectory['right.n'][-1]
+    left, right = trajectory.values('left.n')[-1], trajectory.values('right.n')[-1]
     shares.append(left / (left + right))
 deterministic = Simulation(create(MODEL, stochastic=False), dt=1.0).run(until=200).trajectory_
-even = deterministic['left.n'][-1] / (deterministic['left.n'][-1] + deterministic['right.n'][-1])
+even = deterministic.values('left.n')[-1] / (deterministic.values('left.n')[-1] + deterministic.values('right.n')[-1])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(shares, bins=np.linspace(0, 1, 21))
 ax.axvline(even, color='black', linestyle='--', label=f'deterministic mode: {even:.2f}')

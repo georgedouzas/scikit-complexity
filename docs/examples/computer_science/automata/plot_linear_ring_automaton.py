@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).run(until=40)
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
 space = system.elements[0].space
-values = simulation.trajectory_['cells.value']
+values = simulation.trajectory_.values('cells.value')
 steps = np.arange(values.shape[0])
 laplacian = LinearAutomaton(space, Neighborhood.radius(), (1, -2, 1), 'GF(3)')
 fig, ax = plt.subplots(figsize=(6, 4))

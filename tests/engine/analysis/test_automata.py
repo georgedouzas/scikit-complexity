@@ -97,7 +97,7 @@ def test_laplacian_over_gf2_matches_its_circulant():
     assert laplacian.is_invertible() == expected
     assert laplacian.is_surjective() == expected
     configuration = np.array([1, 0, 0, 1, 0])
-    neighbours = space.index_table(Memory(('a^-1', 'a')))
+    neighbours = space.prepare()._index_table(Memory(('a^-1', 'a')))
     np.testing.assert_array_equal(laplacian.step(configuration), configuration[neighbours].sum(axis=1) % 2)
 
 

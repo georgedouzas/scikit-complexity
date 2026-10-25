@@ -34,7 +34,7 @@ shares = []
 for contagion in contagions:
     system = create(MODEL, contagion=contagion, calming=1.0, spontaneous=0.0, stochastic=False)
     trajectory = Simulation(system, dt=0.1).run(until=60).trajectory_
-    shares.append(trajectory['nervous.n'][-1] / 100)
+    shares.append(trajectory.values('nervous.n')[-1] / 100)
 grid = np.linspace(0.25, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(contagions, shares, 'o', label='deterministic mode')

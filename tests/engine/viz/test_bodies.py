@@ -35,9 +35,10 @@ def _frames(system, steps, dt):
     class KeepObserver(BaseObserver):
         """Observer that keeps every frame."""
 
-        def on_frame(self, frame):
+        def _run(self, frame=None):
             """Keep a frame."""
-            frames.append(frame)
+            if frame is not None:
+                frames.append(frame)
 
     simulation = Simulation(system, dt=dt, observers=[KeepObserver()])
     simulation.run(until=steps * dt)
@@ -58,9 +59,12 @@ def _points(archetype, field):
 def test_bodies_visual_draws_double_pendulum():
     """Test that bobs, a rod strip from the pivot, a fading trail of the lower bob, and the angles are logged."""
     problem, frames = _frames(create('double_pendulum'), steps=20, dt=0.01)
-    visual, logs = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1]), Logs()
+    visual, logs = (
+        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1]).prepare(problem.elements[0], problem),
+        Logs(),
+    )
     for frame in frames:
-        visual.log(logs, problem.elements[0], frame)
+        visual.run(frame, logs)
     element = problem.elements[0]
     last = bobs(**{name: frames[-1].value(dotted) for name, dotted in {**element.parameters, **element.states}.items()})
     bodies = _points(logs.of('pendulum/bodies')[-1], 'positions')
@@ -80,9 +84,9 @@ def test_bodies_visual_logs_outline_once():
     """Test that the outline of a billiard table is logged once as a static line strip."""
     problem, frames = _frames(create('circular_billiard'), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
-    visual, logs = BodiesVisual(('x', 'y'), outline=[circle]), Logs()
+    visual, logs = BodiesVisual(('x', 'y'), outline=[circle]).prepare(problem.elements[0], problem), Logs()
     for frame in frames:
-        visual.log(logs, problem.elements[0], frame)
+        visual.run(frame, logs)
     assert len(logs.of('particle/outline')) == 1
     assert logs.static.count('particle/outline') == 1
 
@@ -90,7 +94,7 @@ def test_bodies_visual_logs_outline_once():
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
     problem = Simulation(create('double_pendulum')).run(until=0.0).problem_
-    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True).views(problem.elements[0], problem)
+    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True).prepare(problem.elements[0], problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
@@ -105,16 +109,15 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
     problem, frames = _frames(create('circular_billiard'), steps=1, dt=0.05)
     visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]))
     with pytest.raises(ValidationError, match='pairs of coordinates'):
-        visual.log(Logs(), problem.elements[0], frames[0])
+        visual.prepare(problem.elements[0], problem).run(frames[0], Logs())
 
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
     problem, frames = _frames(create('stormer_problem'), steps=5, dt=0.02)
-    visual, logs = BodiesVisual(('x', 'y', 'z')), Logs()
+    visual, logs = BodiesVisual(('x', 'y', 'z')).prepare(problem.elements[0], problem), Logs()
     for frame in frames:
-        visual.log(logs, problem.elements[0], frame)
+        visual.run(frame, logs)
     assert type(logs.of('charge/bodies')[-1]).__name__ == 'Points3D'
     assert type(logs.of('charge/trail')[-1]).__name__ == 'LineStrips3D'
-    views = visual.views(problem.elements[0], problem)
-    assert type(views[0]).__name__ == 'Spatial3DView'
+    assert type(visual.views_[0]).__name__ == 'Spatial3DView'

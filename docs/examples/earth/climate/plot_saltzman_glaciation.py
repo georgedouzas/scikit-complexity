@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 
 run = Simulation(create(MODEL), dt=0.05).run(until=400).trajectory_
 settled = run.times > 20
-ice, carbon = run['climate.x'][settled], run['climate.y'][settled]
+ice, carbon = run.values('climate.x')[settled], run.values('climate.y')[settled]
 frequencies, density = power_spectrum(ice, dt=0.05)
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

@@ -34,14 +34,14 @@ simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).run
 untreated = simulation.trajectory_
 treated = Simulation(create(MODEL, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver).run(until=1000).trajectory_
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
-cycles.semilogy(untreated.times, untreated['site.A'], label='tumour')
-cycles.semilogy(untreated.times, untreated['site.E'], label='effector cells')
+cycles.semilogy(untreated.times, untreated.values('site.A'), label='tumour')
+cycles.semilogy(untreated.times, untreated.values('site.E'), label='effector cells')
 cycles.set_xlabel('time (days)')
 cycles.set_ylabel('volume')
 cycles.set_title('Untreated, tumour and effector cells oscillate')
 cycles.legend()
-therapy.semilogy(untreated.times, untreated['site.A'], label='untreated')
-therapy.semilogy(treated.times, treated['site.A'].clip(1e-12), label='u1 = u2 = 1.1')
+therapy.semilogy(untreated.times, untreated.values('site.A'), label='untreated')
+therapy.semilogy(treated.times, treated.values('site.A').clip(1e-12), label='u1 = u2 = 1.1')
 therapy.axhline(1.0, color='grey', linestyle=':', label='one cell')
 therapy.set_xlabel('time (days)')
 therapy.set_ylabel('tumour volume')

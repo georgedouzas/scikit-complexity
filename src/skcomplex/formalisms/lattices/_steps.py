@@ -16,15 +16,15 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, SolverError, ValidationError, symbol
+from ...core.base import BaseSpace, Expression, SolverError, ValidationError, symbol
 from ...core.laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ...core.problems import numpy_function
-from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
+from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace
 from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SamplerLaw
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
-type Sites = SiteSpace | NetworkSpace
+type Sites = BaseSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'
@@ -33,15 +33,13 @@ type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledM
 
 def _shape_of(space: Sites) -> tuple[int, ...]:
     """Return the lattice shape of a lattice, or the number of nodes of a network as a one-dimensional shape."""
-    if isinstance(space, NetworkSpace):
-        return (space.graph.number_of_nodes(),)
-    return space.dimensions
+    return space.shape_
 
 
 def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> Indices:
     """Return the neighbour table of a lattice or a network, or raise an error naming the law that reads it."""
     try:
-        return space.index_table(neighborhood)  # type: ignore[arg-type]
+        return space._index_table(neighborhood)
     except (ValueError, ValidationError) as error:
         error_msg = f'{owner}: {error}'
         raise ValidationError(error_msg) from error
@@ -82,7 +80,7 @@ def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, 
     except (TypeError, ValueError):
         return tuple(names)
     parameters = signature.parameters.values()
-    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters):
+    if any(item.kind == inspect.Parameter.VAR_KEYWORD for item in parameters):
         return tuple(names)
     keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
     return tuple(name for name in names if name in keywords)
@@ -91,7 +89,7 @@ def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, 
 @functools.cache
 def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
     """Return the sites of even and of odd coordinate sum."""
-    colors = np.indices(space.dimensions).reshape(space.n_dim, -1).sum(axis=0) % 2
+    colors = np.indices(space.shape_).reshape(space.n_dim_, -1).sum(axis=0) % 2
     return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
 
 
@@ -104,7 +102,7 @@ def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency | M
         )
         raise ValidationError(error_msg)
     odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
-    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.dimensions)
+    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
     if not (odd and even):
         error_msg = (
             f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes on '
@@ -178,7 +176,7 @@ class Lookup:
 def _lookup_of(rule: object, n_offsets: int, owner: str) -> Lookup | None:
     """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
     if isinstance(rule, Table):
-        base = int(rule.states)  # type: ignore[arg-type]
+        base = rule.n_states
         values = np.full(base**n_offsets, float(rule.default))
         for pattern, value in rule.mapping.items():
             if len(pattern) != n_offsets:
@@ -238,15 +236,21 @@ class LatticeState:
     name: str
     start: int
     space: Sites
-    shape: tuple[int, ...] = field(init=False, repr=False)
-    size: int = field(init=False, repr=False)
-    sites: slice = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        shape = _shape_of(self.space)
-        object.__setattr__(self, 'shape', shape)
-        object.__setattr__(self, 'size', int(np.prod(shape)))
-        object.__setattr__(self, 'sites', slice(self.start, self.start + int(np.prod(shape))))
+    @functools.cached_property
+    def shape(self) -> tuple[int, ...]:
+        """Shape of the sites of the group."""
+        return _shape_of(self.space)
+
+    @functools.cached_property
+    def size(self) -> int:
+        """Number of sites of the group."""
+        return int(np.prod(self.shape))
+
+    @functools.cached_property
+    def sites(self) -> slice:
+        """Slice of the group's components in the state vector."""
+        return slice(self.start, self.start + self.size)
 
 
 @dataclass(frozen=True)
@@ -333,7 +337,7 @@ def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
         parameters = inspect.signature(rule).parameters.values()
     except (TypeError, ValueError):
         return False
-    return all(item.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
+    return all(item.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
 
 
 def _extremal_loop(

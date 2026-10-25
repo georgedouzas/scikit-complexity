@@ -53,8 +53,8 @@ scenarios = {
 for name, changes in scenarios.items():
     run = simulation.trajectory_ if not changes else Simulation(create(MODEL, **changes), dt=0.5).run(120).trajectory_
     times = np.asarray(run.times) / 12
-    stock.plot(times, run['hilsa.adult_weight'], label=name)
-    catch.plot(times, run['hilsa.adult_catch'] * 0.82e3, label=name)
+    stock.plot(times, run.values('hilsa.adult_weight'), label=name)
+    catch.plot(times, run.values('hilsa.adult_catch') * 0.82e3, label=name)
 stock.set_xlabel('years')
 stock.set_ylabel('tonnes')
 stock.set_title('Weight of adults about to spawn')

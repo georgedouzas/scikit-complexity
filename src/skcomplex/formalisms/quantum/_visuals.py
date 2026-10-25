@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
+import scipy.sparse as sp
+from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import Vector
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...core.space import LatticeSpace
 from ...engine.runtime import Frame
 from ...engine.viz import SPACE_TIME, ImageVisual, log_scalars
 from ._components import view_of
-from ._passes import QuantumProblem
+from ._passes import QuantumProblem, QuantumTerm, expect, state_of
 
 
 def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
@@ -22,7 +26,7 @@ def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
     space = getattr(element.element, 'space', None)
     if element.members is None and view_of(element.element).display is not None:
         return None
-    return space.dimensions if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
+    return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
 
 def _profile_name(element: CompiledElement) -> str:
@@ -30,6 +34,61 @@ def _profile_name(element: CompiledElement) -> str:
     if element.members is None:
         return 'probability'
     return str(view_of(element.element).display)
+
+
+def _local_matrices(problem: QuantumProblem, path: str, name: str) -> list[sp.csr_array]:
+    """Return the matrices on the whole space of one local operator of every member of an element or group."""
+    cached = problem.cache.get(f'{path}:{name}')
+    if cached is None:
+        cached = [problem.lowering.terms(getattr(member, name), path)[0].matrix for member in problem.members[path]]
+        problem.cache[f'{path}:{name}'] = cached
+    return cached
+
+
+def _probabilities(problem: QuantumProblem, x: Vector) -> npt.NDArray[np.float64]:
+    """Return the probability of every basis state of the whole space."""
+    state = state_of(problem, x)
+    return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
+
+
+def local_values(problem: QuantumProblem, path: str, x: Vector) -> dict[str, Any]:
+    """Return the local expectations of a quantum element or group at a state, which the visual draws.
+
+    A group gives the expectation of the displayed local operator of every member. A single element without a
+    displayed operator, such as a particle on sites, gives the probability of every basis state, and one with it
+    gives the expectation of each of its Hermitian local operators.
+
+    Args:
+        problem:
+            The quantum problem.
+
+        path:
+            The path of the element or group.
+
+        x:
+            The state vector.
+
+    Returns:
+        values:
+            A mapping from the name of a local operator, or `'probability'`, to an array or a number.
+    """
+    element = next(item for item in problem.elements if item.path == path)
+    display = view_of(element.element).display
+    if element.members is None and display is None:
+        index = problem.subsystems.index(path)
+        shaped = _probabilities(problem, x).reshape(problem.dimensions)
+        others = tuple(axis for axis in range(len(problem.dimensions)) if axis != index)
+        return {'probability': shaped.sum(axis=others)}
+    if element.members is not None and display is not None:
+        matrices = _local_matrices(problem, path, display)
+        values = [expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
+        return {display: np.real(np.asarray(values))}
+    names = [name for name, local in view_of(element.element).local_operators().items() if local.hermitian]
+    return {
+        name: float(np.real(expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
+        for name in names
+        for matrix in _local_matrices(problem, path, name)
+    }
 
 
 class ExpectationVisual(ImageVisual):
@@ -56,14 +115,10 @@ class ExpectationVisual(ImageVisual):
     Examples:
         >>> from skcomplex.formalisms.quantum import ExpectationVisual
         >>> ExpectationVisual(low=-0.5, high=0.5)
-        ExpectationVisual(states=None, low=-0.5, high=0.5, history=None)
+        ExpectationVisual(high=0.5, low=-0.5)
     """
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return super().__repr__().replace('ImageVisual', 'ExpectationVisual', 1)
-
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the local expectations of a quantum element or group at one frame.
 
         Args:
@@ -79,7 +134,7 @@ class ExpectationVisual(ImageVisual):
         problem = frame.problem
         if not isinstance(problem, QuantumProblem):
             return
-        values = problem.local_values(element.path, frame.state)
+        values = local_values(problem, element.path, frame.state)
         shape = _shape_of(element)
         for name, value in values.items():
             path = f'{element.path}/{name}'
@@ -91,7 +146,7 @@ class ExpectationVisual(ImageVisual):
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{name}', array)
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the space-time and image views of a quantum group or particle, or a series view of an element.
 
         Args:

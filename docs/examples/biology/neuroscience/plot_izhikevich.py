@@ -36,7 +36,7 @@ fig, (traces, intervals) = plt.subplots(1, 2, figsize=(11, 4))
 for offset, (label, (c, d)) in enumerate(patterns.items()):
     trajectory = Simulation(create(MODEL, c=c, d=d, I=10.0), dt=0.1).run(until=200).trajectory_
     spikes = np.array([event.time for event in trajectory.events if event.label == 'spike'])
-    traces.plot(trajectory.times, trajectory['neuron.v'] - 120 * offset, label=label)
+    traces.plot(trajectory.times, trajectory.values('neuron.v') - 120 * offset, label=label)
     intervals.plot(np.diff(spikes), 'o-', label=label)
 traces.set_xlabel('time (ms)')
 traces.set_ylabel('potential (mV, offset)')

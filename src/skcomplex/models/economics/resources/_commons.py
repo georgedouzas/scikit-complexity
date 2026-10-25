@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import numpy as np
@@ -31,56 +30,51 @@ def _commons_observables(system: System) -> list[Observable]:
     ]
 
 
-@dataclass(frozen=True)
-class RichestPasture:
+def richest_pasture(
+    left: Sequence[Any],
+    right: Sequence[Any],
+    rng: np.random.Generator,
+    capacity: int,
+) -> list[tuple[Any, Any]]:
     """Pairing of every cow, in random order, with the free pasture of most grass in its cell or the cells around it.
 
+    Args:
+        left:
+            The cows.
+
+        right:
+            The pastures, one per cell.
+
+        rng:
+            The random generator.
+
+        capacity:
+            The largest number of cows on a pasture.
+
+    Returns:
+        pairs:
+            The pairs of cows and the pastures they graze.
+
     Examples:
-        >>> from skcomplex.models.economics.resources import RichestPasture
-        >>> RichestPasture()
-        RichestPasture()
+        >>> import numpy as np
+        >>> from skcomplex.models.economics.resources import richest_pasture
+        >>> richest_pasture([], [], np.random.default_rng(0), 1)
+        []
     """
-
-    def __call__(
-        self,
-        left: Sequence[Any],
-        right: Sequence[Any],
-        rng: np.random.Generator,
-        capacity: int,
-    ) -> list[tuple[Any, Any]]:
-        """Return the pairs of cows and pastures.
-
-        Args:
-            left:
-                The cows.
-
-            right:
-                The pastures, one per cell.
-
-            rng:
-                The random generator.
-
-            capacity:
-                The largest number of cows on a pasture.
-
-        Returns:
-            pairs:
-                The pairs of cows and the pastures they graze.
-        """
-        pastures = {tuple(int(item) for item in np.atleast_1d(pasture.location)): pasture for pasture in right}
-        taken: dict[int, int] = {}
-        pairs: list[tuple[Any, Any]] = []
-        for index in rng.permutation(len(left)):
-            cow = left[int(index)]
-            cells = [cow.location, *cow.neighbor_cells()]
-            options = [pastures.get(tuple(int(item) for item in np.atleast_1d(cell))) for cell in cells]
-            free = [pasture for pasture in options if pasture is not None and taken.get(pasture.id, 0) < capacity]
-            if not free:
-                continue
-            best = max(free, key=lambda pasture: pasture.grass)
-            taken[best.id] = taken.get(best.id, 0) + 1
-            pairs.append((cow, best))
-        return pairs
+    pastures = {tuple(int(item) for item in np.atleast_1d(pasture.location)): pasture for pasture in right}
+    taken: dict[int, int] = {}
+    pairs: list[tuple[Any, Any]] = []
+    for index in rng.permutation(len(left)):
+        cow = left[int(index)]
+        cells = [cow.location, *cow.neighbor_cells()]
+        options = [pastures.get(tuple(int(item) for item in np.atleast_1d(cell))) for cell in cells]
+        free = [pasture for pasture in options if pasture is not None and taken.get(pasture.id, 0) < capacity]
+        if not free:
+            continue
+        best = max(free, key=lambda pasture: pasture.grass)
+        taken[best.id] = taken.get(best.id, 0) + 1
+        pairs.append((cow, best))
+    return pairs
 
 
 class PastureComponent(ElementComponent):
@@ -303,7 +297,7 @@ class GrazingInteraction(BaseInteraction):
                 The laws of the component.
         """
         return [
-            MatchLaw('cows', 'meadow', pairing=RichestPasture(), label='grazing', phase='grazing'),
+            MatchLaw('cows', 'meadow', pairing=richest_pasture, label='grazing', phase='grazing'),
             RuleLaw(self.graze, phase='grazing'),
         ]
 
@@ -319,10 +313,12 @@ class GrazingInteraction(BaseInteraction):
             cow.move_to(pasture.location)
             eaten = min(pasture.grass, model.parameter('appetite'))
             transfer(pasture, cow, eaten, 'grass', 'energy')
-            herders[int(cow.owner)].income += model.parameter('milk') * eaten
+            herder = herders[int(cow.owner)]
+            herder.income += model.parameter('milk') * eaten
         for cow in model.agents('cows'):
             cow.energy -= model.parameter('metabolism')
-            herders[int(cow.owner)].herd += 1
+            herder = herders[int(cow.owner)]
+            herder.herd += 1
             if cow.energy < 0:
                 cow.remove()
 

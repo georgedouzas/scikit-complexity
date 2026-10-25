@@ -28,7 +28,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 # The logistic law `dn/dt = r n (1 - n / K)` has the solution `n(t) = K / (1 + (K / n0 - 1) exp(-r t))`. The
 # simulated population should lie on it, and its growth rate `dn/dt` should be a parabola in `n` that peaks at `K / 2`.
 
-times, population = simulation.trajectory_.times, simulation.trajectory_['population.n']
+times, population = simulation.trajectory_.times, simulation.trajectory_.values('population.n')
 r, K, n0 = 0.5, 100.0, 2.0
 exact = K / (1 + (K / n0 - 1) * np.exp(-r * times))
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

@@ -30,10 +30,12 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=48)
 # setting by a gap that grows with the leak. Runs with several leaks, without the daily swing, should end on that line.
 
 leaks = np.linspace(0.02, 0.5, 13)
-steady = [Simulation(create(MODEL, leak=leak), dt=0.25).run(until=72).trajectory_['room.T'][-1] for leak in leaks]
+steady = [
+    Simulation(create(MODEL, leak=leak), dt=0.25).run(until=72).trajectory_.values('room.T')[-1] for leak in leaks
+]
 grid = np.linspace(0.0, 0.5, 100)
 fig, (day, theory) = plt.subplots(1, 2, figsize=(10, 4))
-day.plot(simulation.trajectory_.times, simulation.trajectory_['room.T'], label='room')
+day.plot(simulation.trajectory_.times, simulation.trajectory_.values('room.T'), label='room')
 day.axhline(18.0, color='black', linestyle='--', linewidth=0.8, label='setting')
 day.set_xlabel('time (hours)')
 day.set_ylabel('temperature (°C)')

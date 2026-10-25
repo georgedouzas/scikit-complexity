@@ -24,6 +24,7 @@ def _schelling_grid(side: int) -> np.ndarray:
     snapshot = snapshots_of(trajectory.trajectory_)
     group = next(values for values in snapshot.states.values())[-1]
     grid = np.full((side, side), EMPTY)
+    assert snapshot.positions is not None
     places = snapshot.positions[-1].astype(int)
     grid[places[:, 0], places[:, 1]] = group
     return grid

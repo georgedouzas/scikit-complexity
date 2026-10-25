@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any, ClassVar
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Self
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
@@ -190,13 +190,16 @@ class FluxLaw(BaseLaw):
     limiter: str | None = 'minmod'
     riemann: str = 'rusanov'
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if self.limiter not in LIMITERS:
             error_msg = f"Unknown limiter {self.limiter!r}. Use 'minmod', 'van-leer', or None."
             raise ValueError(error_msg)
         if self.riemann not in RIEMANN_SOLVERS:
             error_msg = f"Unknown numerical flux {self.riemann!r}. Use 'rusanov' or 'godunov'."
             raise ValueError(error_msg)
+        return replace(self, **changes) if changes else self
 
     @property
     def fluxes(self) -> list[object]:

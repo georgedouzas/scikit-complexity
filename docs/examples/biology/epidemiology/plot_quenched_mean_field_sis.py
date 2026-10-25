@@ -33,10 +33,10 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=40)
 # At the endemic state `p_i = lam s_i / (1 + lam s_i)` with `s_i = sum_j A_ij p_j`, so the probability rises with the
 # degree. Every node should fall on that relation, and a run below the threshold should die out.
 
-final = simulation.trajectory_['nodes.p'][-1]
+final = simulation.trajectory_.values('nodes.p')[-1]
 adjacency = nx.to_numpy_array(graph)
 pressure = 2 * threshold * adjacency @ final
-below = Simulation(create(MODEL, lam=0.5 * threshold), dt=0.5).run(until=40).trajectory_['nodes.p'][-1]
+below = Simulation(create(MODEL, lam=0.5 * threshold), dt=0.5).run(until=40).trajectory_.values('nodes.p')[-1]
 degrees = adjacency.sum(axis=1)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(degrees, final, 'o', alpha=0.6, label='simulated')

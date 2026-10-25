@@ -248,7 +248,7 @@ def catalog(field: str | None = None, tag: str | None = None) -> list[ModelEntry
         >>> sorted({entry.field for entry in catalog(field='chemistry')})
         ['chemistry/kinetics', 'chemistry/pattern_formation']
     """
-    entries = [MODELS.resolve(name) for name in MODELS]
+    entries = [MODELS.resolve(name) for name in MODELS.keys]
     return sorted(
         (
             entry

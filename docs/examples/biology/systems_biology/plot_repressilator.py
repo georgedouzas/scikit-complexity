@@ -35,12 +35,12 @@ noisy = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=0).run(u
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):
-        ax.plot(trajectory.times, trajectory[f'gene_{gene}.p'], label=f'protein {gene}')
+        ax.plot(trajectory.times, trajectory.values(f'gene_{gene}.p'), label=f'protein {gene}')
     ax.set_ylabel('protein count')
     ax.set_title(title)
 axes[0].legend(loc='upper right')
 axes[1].set_xlabel('time (min)')
-spread = np.std(noisy['gene_0.p'][noisy.times > 100]) / np.mean(noisy['gene_0.p'][noisy.times > 100])
+spread = np.std(noisy.values('gene_0.p')[noisy.times > 100]) / np.mean(noisy.values('gene_0.p')[noisy.times > 100])
 fig.suptitle(f'Proteins peak in turn; coefficient of variation with noise {spread:.2f}')
 fig.tight_layout()
 plt.show()

@@ -67,7 +67,7 @@ def test_four_part_system_runs():
         time=ContinuousTime(),
     )
     trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
-    assert trajectory['rabbits.n'][-1] > 1.0
+    assert trajectory.values('rabbits.n')[-1] > 1.0
     assert Simulation(system).run(until=0).problem_.parameters.names == ['growth.r']
 
 
@@ -80,7 +80,7 @@ def test_systems_nest_as_components():
     assert system.systems[0].label == 'meadow'
     assert system.elements == ()
     trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
-    assert trajectory['meadow/rabbits.n'][-1] > 2.0
+    assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
 
 
 def test_duplicate_labels_are_reported():
@@ -115,7 +115,7 @@ def test_nested_system_inherits_time():
 def test_unknown_schedule_is_rejected():
     """Test that a schedule other than the known ones or phases is rejected."""
     with pytest.raises(ValidationError, match='schedule'):
-        DiscreteTime(schedule='parallel')
+        DiscreteTime(schedule='parallel').prepare()
 
 
 def test_static_time_rejects_dynamic_laws():
@@ -135,24 +135,25 @@ def test_periodic_space_wraps_positions_without_box_component():
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
-    assert trajectory['p.x'][-1].tolist() == pytest.approx([0.1, 0.5])
+    assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
     assert system.interactions == ()
 
 
 def test_continuous_space_checks_its_box():
     """Test that an unbounded space rejects walls and a box needs one positive side per dimension."""
     with pytest.raises(ValidationError, match='unbounded'):
-        ContinuousSpace(n_dim=2, boundary='periodic')
+        ContinuousSpace(n_dim=2, boundary='periodic').check()
     with pytest.raises(ValidationError, match='positive side'):
-        ContinuousSpace(1.0, -1.0)
+        ContinuousSpace(1.0, -1.0).check()
     with pytest.raises(ValidationError, match='boundary'):
-        ContinuousSpace(1.0, boundary='sticky')
+        ContinuousSpace(1.0, boundary='sticky').check()
 
 
 def test_agents_and_fields_share_one_lattice_kind():
     """Test that agents and fields both live on lattice spaces, which declare agent neighbourhoods and capacities."""
-    space = LatticeSpace((4, 3), boundary='periodic', neighborhood='von_neumann', capacity=1)
-    assert (space.width, space.height, space.torus, space.capacity) == (4, 3, True, 1)
+    space = LatticeSpace((4, 3), boundary='periodic', neighborhood='von_neumann', capacity=1).prepare()
+    assert (space.shape_, space.periodic_, space.capacity) == ((4, 3), True, 1)
+    assert sorted(space.run(0).tolist()) == [1, 2, 3, 9]
     assert str(space.space_kind) == 'lattice'
 
 
@@ -161,7 +162,7 @@ def test_network_hyperedges_hold_nodes_of_the_graph():
     graph = nx.complete_graph(3)
     assert NetworkSpace(graph, hyperedges=[(0, 1, 2)]).hyperedges == [(0, 1, 2)]
     with pytest.raises(ValidationError, match='hyperedge'):
-        NetworkSpace(graph, hyperedges=[(0, 7)])
+        NetworkSpace(graph, hyperedges=[(0, 7)]).prepare()
 
 
 class CellComponent(ElementComponent):
@@ -182,7 +183,7 @@ def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = System(components=[GroupComponent('cells', element=CellComponent, size=10, variable=True)])
     trajectory = Simulation(system).run(until=3).trajectory_
-    assert trajectory['cells.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
 def test_group_on_edges_has_one_member_per_edge():
@@ -201,9 +202,10 @@ def test_group_on_edges_outside_a_network_is_reported():
 
 
 def test_unknown_part_is_rejected():
-    """Test that a group on a part other than sites, edges, and hyperedges is rejected."""
+    """Test that checking a group on a part other than sites, edges, and hyperedges raises an error."""
+    group = GroupComponent('cells', element=StockComponent, on='faces', space=LatticeSpace(4))
     with pytest.raises(SpaceError, match='faces'):
-        GroupComponent('cells', element=StockComponent, on='faces', space=LatticeSpace(4))
+        group.check()
 
 
 PAULI = HilbertDomain(
@@ -240,22 +242,24 @@ def test_sequence_state_is_rewritten_in_parallel():
         interactions=[Rewrite('rules', target='algae', rules=rules)],
     )
     trajectory = Simulation(system).run(until=4).trajectory_
-    assert trajectory['algae.size'].tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
+    assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
     assert structure_of(WordComponent) == 'sequence'
 
 
 def test_structured_domains_name_their_kind():
     """Test that tensor and structure domains report their kinds, and an unknown structure is rejected."""
     assert TensorDomain(2, 'traceless').value == 'traceless tensor of rank 2'
-    with pytest.raises(ValueError, match='structure'):
-        StructureDomain('tree')
+    with pytest.raises(ValidationError, match='structure'):
+        StructureDomain('tree').check()
+    with pytest.raises(ValidationError, match='structure'):
+        state(domain=StructureDomain('tree'))
 
 
 def test_state_on_an_interaction_is_rejected():
     """Test that creating an interaction whose type declares a state raises an error that suggests a group on edges."""
     weighted = type('WeightedInteraction', (BaseInteraction,), {'weight': state(1.0)})
     with pytest.raises(ValidationError, match='on="edges"'):
-        weighted('w')
+        weighted('w').check()
 
 
 def test_unknown_binding_is_rejected():
@@ -267,7 +271,7 @@ def test_unknown_binding_is_rejected():
         over: ClassVar[str] = 'everything'
 
     with pytest.raises(ValidationError, match='members, pairs, neighbors, hyperedges'):
-        EverywhereInteraction('everywhere')
+        EverywhereInteraction('everywhere').check()
 
 
 def test_pairs_binding_needs_its_roles_and_cutoff():
@@ -315,10 +319,10 @@ class SoftSphereInteraction(PairPotentialInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-def test_system_repr_counts_children():
-    """Test that a system shows its label and the number of each child kind."""
-    system = System('meadow', components=[PopulationComponent('rabbits')], space=ContinuousSpace(n_dim=2))
-    assert repr(system) == "System('meadow', components=1, interactions=0)"
+def test_system_prints_its_parameters():
+    """Test that a system prints the parameters it was given, through scikit-learn."""
+    system = System('meadow', components=[PopulationComponent('rabbits')])
+    assert repr(system) == "System(components=[PopulationComponent(label='rabbits', n=1.0)], label='meadow')"
 
 
 def test_periodic_box_wraps_member_with_same_velocity():
@@ -328,8 +332,8 @@ def test_periodic_box_wraps_member_with_same_velocity():
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
-    assert np.allclose(trajectory['gas.x'][-1], [[0.15, 0.5]])
-    assert np.allclose(trajectory['gas.v'][-1], [[1.0, 0.0]])
+    assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
+    assert np.allclose(trajectory.values('gas.v')[-1], [[1.0, 0.0]])
 
 
 @pytest.mark.slow
@@ -342,5 +346,5 @@ def test_pair_interaction_conserves_momentum():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
-    momentum = trajectory['gas.v'].sum(axis=1)
+    momentum = trajectory.values('gas.v').sum(axis=1)
     assert np.allclose(momentum, momentum[0], atol=1e-8)

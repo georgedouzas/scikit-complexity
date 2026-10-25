@@ -27,7 +27,7 @@ def test_active_brownian_particles_diffuse_with_the_active_coefficient():
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=50).trajectory_
     )
-    slope = _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10)
+    slope = _long_time_slope(trajectory.times, trajectory.values('swimmers.x'), 10)
     assert slope == pytest.approx(4 * D_t + 2 * speed**2 / D_r, rel=0.05)
 
 
@@ -37,7 +37,7 @@ def test_chiral_active_particles_diffuse_slower_when_they_turn():
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
     )
-    slope = _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10)
+    slope = _long_time_slope(trajectory.times, trajectory.values('swimmers.x'), 10)
     assert slope / 4 == pytest.approx(0.1 + 9 * 0.1 / (2 * (0.01 + 4)), rel=0.1)
 
 
@@ -47,7 +47,7 @@ def test_active_ornstein_uhlenbeck_particles_diffuse_with_the_active_coefficient
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).run(until=40).trajectory_
     )
-    assert _long_time_slope(trajectory.times, trajectory['swimmers.x'], 10) / 4 == pytest.approx(1.0, rel=0.1)
+    assert _long_time_slope(trajectory.times, trajectory.values('swimmers.x'), 10) / 4 == pytest.approx(1.0, rel=0.1)
 
 
 def test_run_and_tumble_diffuses_with_the_persistence_of_runs():
@@ -65,5 +65,5 @@ def test_run_and_tumble_diffuses_with_the_persistence_of_runs():
 def test_depot_particles_reach_the_pumped_speed():
     """Test that depot-pumped particles start at rest and move at `sqrt(q / gamma - c / d)`."""
     trajectory = Simulation(depot_brownian_particles(), dt=0.5, random_state=0).run(until=10).trajectory_
-    speeds = np.linalg.norm(trajectory['walkers.v'][-1], axis=-1)
+    speeds = np.linalg.norm(trajectory.values('walkers.v')[-1], axis=-1)
     assert speeds.mean() == pytest.approx(np.sqrt(10 / 20 - 1 / 10), rel=0.05)

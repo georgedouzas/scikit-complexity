@@ -37,7 +37,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 
 trajectory = simulation.trajectory_
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory['beads.x'][1:] ** 2, axis=-1), axis=1)
+squared = np.mean(np.sum(trajectory.values('beads.x')[1:] ** 2, axis=-1), axis=1)
 exact = 2 * 2 * (times - (1 - np.exp(-times)))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.loglog(times, squared, 'o', markersize=3, label='simulation, 500 particles')

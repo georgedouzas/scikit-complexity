@@ -1,20 +1,18 @@
-"""Define the base of the problems a system compiles to, and the layouts of their state and parameter vectors."""
+"""Define the layouts of the state and parameter vectors of the problems a system compiles to."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import math
-from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ._domains import BaseDomain, NumericDomain
-from ._kinds import Form
-from ._symbolic import Expression
-from ._utils import Vector
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -57,19 +55,6 @@ class Entry:
     domain: BaseDomain
     members: int | None = None
     is_complex: bool = False
-    _size: int = field(init=False, repr=False, compare=False)
-    _indices: slice = field(init=False, repr=False, compare=False)
-    _rows: int = field(init=False, repr=False, compare=False)
-    _columns: int = field(init=False, repr=False, compare=False)
-
-    def __post_init__(self) -> None:
-        """Compute the size, slice, rows, and columns of the variable once."""
-        parts = PARTS if self.is_complex else 1
-        size = math.prod(self.shape) * parts
-        object.__setattr__(self, '_size', size)
-        object.__setattr__(self, '_indices', slice(self.start, self.start + size))
-        object.__setattr__(self, '_rows', self.members if self.members is not None else 1)
-        object.__setattr__(self, '_columns', math.prod(self.member_shape) * parts)
 
     def _parts(self, names: list[str]) -> list[str]:
         """Return names with the suffixes of the real and imaginary parts for a complex variable."""
@@ -77,30 +62,30 @@ class Entry:
             return names
         return [f'{name}.{part}' for name in names for part in PART_NAMES]
 
-    @property
+    @functools.cached_property
     def size(self) -> int:
         """Number of components of the variable."""
-        return self._size
+        return math.prod(self.shape) * (PARTS if self.is_complex else 1)
 
-    @property
+    @functools.cached_property
     def indices(self) -> slice:
         """Slice of the variable's components in the vector."""
-        return self._indices
+        return slice(self.start, self.start + self.size)
 
     @property
     def member_shape(self) -> tuple[int, ...]:
         """Shape of the variable of one member, `()` for a scalar and `(n_dim,)` for a vector."""
         return self.shape[1:] if self.members is not None else self.shape
 
-    @property
+    @functools.cached_property
     def rows(self) -> int:
         """Number of members, 1 for a single element or an interaction."""
-        return self._rows
+        return self.members if self.members is not None else 1
 
-    @property
+    @functools.cached_property
     def columns(self) -> int:
         """Number of components of the variable of one member."""
-        return self._columns
+        return math.prod(self.member_shape) * (PARTS if self.is_complex else 1)
 
     @property
     def component_names(self) -> list[str]:
@@ -136,7 +121,7 @@ class Entry:
             view:
                 A `(rows, columns)` view that writes through to the vector.
         """
-        return vector[self._indices].reshape(self._rows, self._columns)
+        return vector[self.indices].reshape(self.rows, self.columns)
 
     def encode(self, value: object) -> npt.NDArray[np.float64]:
         """Return a value broadcast to the shape of the variable as flat floats, in pairs for a complex variable.
@@ -200,17 +185,18 @@ class Layout:
         self.entries = tuple(entries)
         self._by_name = {entry.name: entry for entry in self.entries}
 
-    def __contains__(self, name: object) -> bool:
-        """Check whether a variable name is part of the layout."""
+    def has(self, name: str) -> bool:
+        """Check whether a variable name is part of the layout.
+
+        Args:
+            name:
+                The dotted name of a variable.
+
+        Returns:
+            found:
+                Whether the layout has a variable of that name.
+        """
         return name in self._by_name
-
-    def __iter__(self) -> Iterator[Entry]:
-        """Iterate over the entries in vector order."""
-        return iter(self.entries)
-
-    def __len__(self) -> int:
-        """Return the number of variables."""
-        return len(self.entries)
 
     @property
     def size(self) -> int:
@@ -316,35 +302,3 @@ class Layout:
                 A mapping from dotted name to value.
         """
         return {name: self.read(vector, name) for name in self._by_name}
-
-
-@dataclass(frozen=True)
-class BaseProblem:
-    """Base of the problems a system compiles to: what every solver reads to advance one.
-
-    Args:
-        form:
-            The mathematical form.
-
-        states:
-            The layout of the state vector.
-
-        parameters:
-            The layout of the parameter vector.
-
-        initial_state:
-            The initial state vector.
-
-        initial_parameters:
-            The initial parameter vector.
-
-        time:
-            The time symbol.
-    """
-
-    form: Form
-    states: 'Layout'
-    parameters: 'Layout'
-    initial_state: Vector
-    initial_parameters: Vector
-    time: Expression

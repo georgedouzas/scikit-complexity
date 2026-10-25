@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=100)
 # and every bird should approach the preferred speed `sqrt(alpha / beta) = sqrt(2)`.
 
 trajectory = simulation.trajectory_
-positions, velocities = trajectory['birds.x'], trajectory['birds.v']
+positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.v')
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))
 order.plot(trajectory.times, polar_order(velocities, vectors=True), label='polar order')
 order.plot(trajectory.times, np.abs(milling_order(positions, velocities)), label='|milling order|')

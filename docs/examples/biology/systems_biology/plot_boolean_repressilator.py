@@ -31,7 +31,7 @@ fig, axes = plt.subplots(3, 1, figsize=(8, 5), sharex=True)
 for ax, delay in zip(axes, (0, 1, 2), strict=False):
     trajectory = Simulation(create(MODEL, x=(1, 0, 0), delay=delay), dt=1).run(until=48).trajectory_
     for offset, name in enumerate(('LacI', 'TetR', 'cI')):
-        ax.step(trajectory.times, trajectory[f'{name}.x'] + 1.5 * offset, where='post', label=name)
+        ax.step(trajectory.times, trajectory.values(f'{name}.x') + 1.5 * offset, where='post', label=name)
     ax.set_yticks([0.5, 2.0, 3.5], ['LacI', 'TetR', 'cI'])
     ax.set_title(f'delay {delay}: period {6 * (delay + 1)}', fontsize='medium')
 axes[-1].set_xlabel('step')

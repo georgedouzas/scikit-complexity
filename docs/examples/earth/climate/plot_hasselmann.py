@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), obs
 
 lam, sigma = 0.5, 0.3
 run = Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).run(until=2000).trajectory_
-anomaly = run['ocean.T'][100:]
+anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
 edges, density = histogram(anomaly, bins=40)
 variance = sigma**2 / (2 * lam)

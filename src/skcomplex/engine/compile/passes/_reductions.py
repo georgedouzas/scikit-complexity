@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import SR, I
 
 from ....core.base import (
     BaseLaw,
+    BaseNeighborhood,
     Entry,
     Expression,
     NumericDomain,
@@ -67,7 +68,7 @@ def _lower_law(law: BaseLaw, spec: KernelSpec, reductions: _Reductions) -> BaseL
         return law
     value = law.value
     if isinstance(value, Call):
-        value = Call(value.function, *(reductions.lower(argument, spec) for argument in value.arguments))
+        value = Call(value.function, tuple(reductions.lower(argument, spec) for argument in value.arguments))
     else:
         value = reductions.lower(value, spec)
     if isinstance(law, RateLaw | NoiseLaw):
@@ -413,6 +414,7 @@ class _Reductions:
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             changing = self.declarations.changing_entries(group_space(block)) if block.node.active is not None else None
+            over = over.check() if isinstance(over, BaseNeighborhood) else over
             search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
@@ -443,7 +445,7 @@ class ReductionsPass(BasePass):
     reads = ('drawn', 'drawn_apart', 'layout', 'drawing', 'events')
     writes = ('reduced', 'reduced_apart', 'reductions', 'events')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the reductions of the drawn laws, the laws set apart, and the events.
 
         Args:

@@ -47,7 +47,7 @@ for copy, trajectory in (('first', first), ('second', second)):
         observer.recording_.send_columns(
             f'copies/{copy}/unit_{unit}',
             indexes=time,
-            columns=rr.Scalars.columns(scalars=trajectory['units.r'][:, unit]),
+            columns=rr.Scalars.columns(scalars=trajectory.values('units.r')[:, unit]),
         )
 observer.recording_.flush()
 
@@ -60,16 +60,16 @@ observer.recording_.flush()
 
 fig, (activity, distance) = plt.subplots(1, 2, figsize=(10, 4))
 for unit in UNITS:
-    (line,) = activity.plot(first.times, first['units.r'][:, unit], label=f'unit {unit}')
-    activity.plot(second.times, second['units.r'][:, unit], '--', color=line.get_color())
+    (line,) = activity.plot(first.times, first.values('units.r')[:, unit], label=f'unit {unit}')
+    activity.plot(second.times, second.values('units.r')[:, unit], '--', color=line.get_color())
 activity.set_xlabel('step t')
 activity.set_ylabel('activity r')
 activity.set_title('Two copies, solid and dashed')
 activity.legend()
 for radius in (0.5, 0.9, 2.0):
     copies = create(MODEL, n_units=200, spectral_radius=radius, leak=0.3)
-    one = Simulation(copies, dt=1).run(until=300).trajectory_['units.r']
-    two = Simulation(copies, dt=1, initial_state={'units.r': start}).run(until=300).trajectory_['units.r']
+    one = Simulation(copies, dt=1).run(until=300).trajectory_.values('units.r')
+    two = Simulation(copies, dt=1, initial_state={'units.r': start}).run(until=300).trajectory_.values('units.r')
     distance.semilogy(np.arange(301), np.linalg.norm(one - two, axis=1) + 1e-16, label=f'spectral radius {radius}')
 distance.set_xlabel('step t')
 distance.set_ylabel('distance between the copies')

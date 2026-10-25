@@ -52,11 +52,11 @@ simulation = Simulation(
 # the regulator raises it to 0.2.
 
 trajectory = simulation.trajectory_
-ratio = trajectory['banks.reserve_ratio']
+ratio = trajectory.values('banks.reserve_ratio')
 fig, (money, policy) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-money.plot(trajectory.times, trajectory['broad_money'], label='broad money')
+money.plot(trajectory.times, trajectory.values('broad_money'), label='broad money')
 money.plot(trajectory.times, BASE / ratio, '--', color='black', label='base money / reserve ratio')
-money.plot(trajectory.times, trajectory['loans'], label='loans')
+money.plot(trajectory.times, trajectory.values('loans'), label='loans')
 money.set_ylabel('money')
 money.set_title('Lending multiplies the base money')
 money.legend()

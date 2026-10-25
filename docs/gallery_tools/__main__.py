@@ -6,6 +6,7 @@
 import argparse
 import os
 import sys
+from importlib.resources import files
 from pathlib import Path
 
 from gallery_tools import (
@@ -20,7 +21,7 @@ from gallery_tools import (
     summarize,
 )
 
-DOCS = Path(__file__).parent.parent
+DOCS = Path(str(files('gallery_tools'))).parent
 EXAMPLES = DOCS / 'examples'
 GALLERY = DOCS / 'generated' / 'gallery'
 INVENTORY = DOCS / 'overview' / 'inventory.toml'

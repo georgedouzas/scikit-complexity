@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL, graph=graph), dt=1, observers=[observer]).run(until=40)
 trajectory = simulation.trajectory_
-ranks = trajectory['pages.rank']
+ranks = trajectory.values('pages.rank')
 layout = nx.spring_layout(graph, seed=1)
 positions = np.array([layout[node] for node in graph.nodes]) * 300
 observer.recording_.log('club', rr.GraphEdges(list(graph.edges), graph_type='undirected'), static=True)

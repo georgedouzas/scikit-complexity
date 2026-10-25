@@ -113,7 +113,7 @@ def _problem_of(compilation: Compilation) -> Problem:
         delays=compile_delays(compilation.delays, time),
         events=(
             *compile_events(compilation.events, time, reductions),
-            *(hidden_events(reduced, time, reductions) if form is Form.ODE else ()),
+            *(hidden_events(reduced, time, reductions) if form == Form.ODE else ()),
         ),
         reductions=reductions.reductions,
         jacobian=compilation.jacobian,
@@ -127,7 +127,11 @@ def _problem_of(compilation: Compilation) -> Problem:
 def visual_of(node: Node) -> VisualSpec:
     """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
     if isinstance(node.component, GroupComponent):
-        return node.component.visual if node.component.visual is not None else node.component.default_visual()
+        if node.component.visual is not None:
+            return node.component.visual
+        prepared = 'default_visual_' in vars(node.component)
+        default: VisualSpec = (node.component if prepared else node.component.prepare()).default_visual_
+        return default
     declared: VisualSpec = node.component_type.visual
     return declared
 
@@ -149,7 +153,7 @@ class ProblemPass(BasePass):
     )
     writes = ('problem',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Assemble the problem.
 
         Args:

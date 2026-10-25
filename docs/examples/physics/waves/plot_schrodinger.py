@@ -12,10 +12,10 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.analysis import purity
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.formalisms.fields import ETDRK4Solver
+from skcomplex.formalisms.quantum import purity
 from skcomplex.models import create, run
 
 MODEL = 'schrodinger'
@@ -35,8 +35,8 @@ simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
 spacing = 40.0 / 128
 fields = Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).run(until=4.0).trajectory_
 operators = Simulation(create(MODEL, n_sites=128, formulation='operators'), dt=0.5).run(until=4.0).trajectory_
-density = (fields['packet.u'] ** 2 + fields['packet.w'] ** 2) * spacing
-probability = np.abs(operators['schrodinger.state']) ** 2
+density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
+probability = np.abs(operators.values('schrodinger.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
 fig, (agreement, coherence) = plt.subplots(1, 2, figsize=(10, 4))
 agreement.plot(positions, density[-1], label='fields, u² + w²')

@@ -195,7 +195,7 @@ def test_harmonic_phase_turns_on_the_unit_circle():
         solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
         dt=0.5,
     )
-    values = trajectory.run(until=10).trajectory_['osc.z']
+    values = trajectory.run(until=10).trajectory_.values('osc.z')
     assert values.dtype == np.complex128
     assert abs(values[-1] - np.exp(20j)) < 1e-8
     assert np.max(np.abs(np.abs(values) - 1)) < 1e-8
@@ -205,9 +205,9 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
     trajectory = Simulation(System(components=[ReadoutComponent('a')]), backend=backend, dt=1).run(until=5).trajectory_
-    assert trajectory['a.r'].dtype == np.float64
-    assert np.allclose(trajectory['a.r'][1:], 2.0)
-    assert np.allclose(trajectory['a.z'][-1], 2 * np.exp(1.5j))
+    assert trajectory.values('a.r').dtype == np.float64
+    assert np.allclose(trajectory.values('a.r')[1:], 2.0)
+    assert np.allclose(trajectory.values('a.z')[-1], 2 * np.exp(1.5j))
 
 
 def test_complex_value_for_real_state_is_rejected():
@@ -317,7 +317,7 @@ def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
     joined = Simulation(System(components=[StuartComponent('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
     split = Simulation(System(components=[SplitStuartComponent('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
-    assert np.max(np.abs(joined['o.z'] - (split['o.u'] + 1j * split['o.v']))) < 1e-8
+    assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
 
 
 @pytest.mark.parametrize(
@@ -332,7 +332,7 @@ def test_stiff_steppers_match_split_form(solver, discretization):
     joined, split = _ginzburg_landau((16, 16), discretization)
     first = Simulation(joined, solver=solver, dt=1.0).run(until=5).trajectory_
     second = Simulation(split, solver=solver, dt=1.0).run(until=5).trajectory_
-    assert np.max(np.abs(first['m.A'] - (second['m.u'] + 1j * second['m.v']))) < 1e-8
+    assert np.max(np.abs(first.values('m.A') - (second.values('m.u') + 1j * second.values('m.v')))) < 1e-8
 
 
 def test_complex_and_split_ginzburg_landau_agree():
@@ -357,13 +357,13 @@ def test_free_schrodinger_equation_keeps_the_norm():
         ],
     )
     trajectory = Simulation(system, solver=ETDRK4Solver(dt=0.01), dt=0.5).run(until=5).trajectory_
-    norms = (np.abs(trajectory['wave.psi']) ** 2).sum(axis=1)
+    norms = (np.abs(trajectory.values('wave.psi')) ** 2).sum(axis=1)
     assert np.max(np.abs(norms / norms[0] - 1)) < 1e-8
 
 
 def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
-    values = Simulation(System(components=[PhaseComponent('osc')]), dt=0.1).run(until=5).trajectory_['osc.z']
+    values = Simulation(System(components=[PhaseComponent('osc')]), dt=0.1).run(until=5).trajectory_.values('osc.z')
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
         power_spectrum(values)
     assert power_spectrum(values.real)[1].size
@@ -416,14 +416,14 @@ def test_complex_equation_and_event_split_into_parts():
     trajectory = (
         Simulation(System(components=[OscillatorComponent('o')]), solver=solver, dt=0.5).run(until=3).trajectory_
     )
-    assert np.allclose(trajectory['o.z'], np.exp(1j * trajectory.times), atol=1e-7)
+    assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 
 
 @pytest.mark.parametrize(
     ('law', 'message'),
     [
         (lambda s: [JumpLaw(1.0, {s.z: 1})], 'changes a complex state'),
-        (lambda s: [RateLaw(s.z, Call(_constant, s.z))], 'calls a function with complex values'),
+        (lambda s: [RateLaw(s.z, Call(_constant, (s.z,)))], 'calls a function with complex values'),
         (lambda s: [RateLaw(s.z, mod(s.z, 2))], 'only real values'),
         (lambda s: [RateLaw(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
         (
@@ -446,5 +446,5 @@ def test_complex_observable_is_complex():
     )
     observables = [Observable('double', _double), Observable('size', _size)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=0.5).trajectory_
-    assert trajectory['double'][0] == 6 + 8j
-    assert trajectory['size'][0] == 5.0
+    assert trajectory.values('double')[0] == 6 + 8j
+    assert trajectory.values('size')[0] == 5.0

@@ -60,9 +60,9 @@ policies = {
 }
 for name, changes in policies.items():
     run = simulation.trajectory_ if not changes else Simulation(create(MODEL, **changes), dt=0.25).run(50).trajectory_
-    ax.plot(np.asarray(run.times), run['rice.self_sufficiency'], label=name)
+    ax.plot(np.asarray(run.times), run.values('rice.self_sufficiency'), label=name)
 times = np.asarray(simulation.trajectory_.times)
-start = simulation.trajectory_['rice.self_sufficiency'][0]
+start = simulation.trajectory_.values('rice.self_sufficiency')[0]
 ax.plot(times, start * np.exp(-0.03 * times), 'k:', label='exp(-0.03 t)')
 ax.axhline(1.0, color='grey', lw=0.8)
 ax.set_xlabel('years')

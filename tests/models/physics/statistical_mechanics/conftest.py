@@ -7,4 +7,4 @@ from skcomplex.engine.runtime import Trajectory
 
 def magnetization(trajectory: Trajectory) -> float:
     """Return the mean absolute magnetisation of the recorded frames."""
-    return float(np.abs(trajectory['spins.spin'].mean(axis=1)).mean())
+    return float(np.abs(trajectory.values('spins.spin').mean(axis=1)).mean())

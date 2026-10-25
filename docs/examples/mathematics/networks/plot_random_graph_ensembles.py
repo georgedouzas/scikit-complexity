@@ -49,7 +49,7 @@ trajectory = simulation.trajectory_
 # clustering does, the small-world regime.
 
 degrees, giants = [], []
-for frame in range(len(trajectory)):
+for frame in range(len(trajectory.times)):
     graph = as_graph(trajectory.network(frame))
     degrees.append(2 * graph.number_of_edges() / 200)
     giants.append(max(len(component) for component in nx.connected_components(graph)) / 200)

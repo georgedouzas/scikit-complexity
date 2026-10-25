@@ -75,26 +75,16 @@ def _numeric(item: Expression) -> Any:  # noqa: ANN401
     return item.pyobject()
 
 
-class _Key:
-    """Key of an expression in tables, equal to keys of structurally identical expressions.
+type _Key = tuple[int, str]
 
-    Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions compare keys
-    structurally instead.
+
+def _key(item: Expression) -> _Key:
+    """Return the key of an expression in tables, equal to the keys of structurally identical expressions.
+
+    Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions are keyed by the
+    structural hash and the printed form of an expression instead.
     """
-
-    __slots__ = ('_hash', 'item')
-
-    def __init__(self, item: Expression) -> None:
-        self.item = item
-        self._hash = hash(item)
-
-    def __hash__(self) -> int:
-        """Return the hash of the expression."""
-        return self._hash
-
-    def __eq__(self, other: object) -> bool:
-        """Check whether two keys hold structurally identical expressions."""
-        return isinstance(other, _Key) and bool(self.item.is_trivially_equal(other.item))
+    return hash(item), str(item)
 
 
 def _subexpressions(expressions: Sequence[Expression]) -> Counter[_Key]:
@@ -108,7 +98,7 @@ def _subexpressions(expressions: Sequence[Expression]) -> Counter[_Key]:
         if _is_reciprocal(item):
             stack.append(item.operands()[0])
             continue
-        key = _Key(item)
+        key = _key(item)
         counts[key] += 1
         if counts[key] == 1:
             stack.extend(item.operands())
@@ -225,8 +215,10 @@ def print_expressions(
 
     def bind(item: Expression) -> None:
         """Bind the repeated subexpressions of an expression, innermost first."""
-        key = _Key(item)
-        if item.operator() is None or key in printer.bound:
+        if item.operator() is None:
+            return
+        key = _key(item)
+        if key in printer.bound:
             return
         for operand in item.operands():
             bind(operand)
@@ -458,15 +450,16 @@ class _Printer:
 
     def leaf(self, item: Expression) -> Printed:
         """Return the code of a bound subexpression, a symbol, a number, or a constant."""
-        if _Key(item) in self.bound:
-            return self.bound[_Key(item)], ATOM
+        name = self.bound.get(_key(item)) if self.bound else None
+        if name is not None:
+            return name, ATOM
         if item.is_symbol():
             return self.names(item), ATOM
         return self.number(_numeric(item) if item.is_numeric() else float(item))
 
     def print(self, item: Expression) -> Printed:
         """Return the code of an expression and how tightly it binds."""
-        if _Key(item) in self.bound or item.is_symbol() or item.is_numeric() or item.is_constant():
+        if item.is_symbol() or item.is_numeric() or item.is_constant() or (self.bound and _key(item) in self.bound):
             return self.leaf(item)
         function = item.operator()
         if _is_sum(item):

@@ -9,6 +9,6 @@ from ...conftest import _trajectory
 def test_immune_response_above_threshold_clears_the_tumour(activation, decays):
     """Test that the tumour density decays above the immune activation threshold and grows below it."""
     trajectory = _trajectory('immune_competition', 20, 5.0, activation=activation)
-    density = trajectory['tumour_density']
+    density = trajectory.values('tumour_density')
     assert bool(density[-1] < density[0]) is decays
     assert bool(density[-1] > density[0]) is not decays

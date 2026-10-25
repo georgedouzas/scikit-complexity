@@ -50,8 +50,9 @@ class NetworkWalkerComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import NetworkWalkerComponent
-        >>> NetworkWalkerComponent.group('walkers', 5)
-        GroupComponent('walkers', element=NetworkWalkerComponent, size=5)
+        >>> group = NetworkWalkerComponent.group('walkers', 5)
+        >>> group.label, group.element.__name__, group.size
+        ('walkers', 'NetworkWalkerComponent', 5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'steps'})
@@ -115,7 +116,7 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.mathematics.networks import network_random_walk
-        >>> network_random_walk(nx.cycle_graph(6), n_walkers=3).elements[0].size
+        >>> network_random_walk(nx.cycle_graph(6), n_walkers=3).elements[0].prepare().size_
         3
     """
     graph = _graph_or_default(graph)
@@ -150,7 +151,7 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.mathematics.networks import network_diffusion
-        >>> network_diffusion(nx.path_graph(4)).elements[0].size
+        >>> network_diffusion(nx.path_graph(4)).elements[0].prepare().size_
         4
     """
     graph = _graph_or_default(graph)
@@ -185,7 +186,7 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.mathematics.networks import pagerank
-        >>> pagerank(nx.cycle_graph(5)).elements[0].size
+        >>> pagerank(nx.cycle_graph(5)).elements[0].prepare().size_
         5
     """
     graph = _graph_or_default(graph)

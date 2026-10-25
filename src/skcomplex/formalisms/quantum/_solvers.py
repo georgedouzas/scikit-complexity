@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
@@ -12,7 +13,6 @@ import qutip
 import scipy.sparse as sp
 
 from ...core.base import (
-    BaseSolver,
     ComponentKind,
     DomainKind,
     Form,
@@ -24,7 +24,8 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
+from ...core.problems import BaseSolver
+from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, state_of
 
 MAX_SEED = 2**32
 PURITY_TOLERANCE = 1e-8
@@ -88,7 +89,8 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
         problem = self.quantum_
         dims = [list(problem.dimensions)] * 2
-        constant = qutip.Qobj(sp.csr_array((problem.dimension, problem.dimension), dtype=complex), dims=dims)
+        size = math.prod(problem.dimensions)
+        constant = qutip.Qobj(sp.csr_array((size, size), dtype=complex), dims=dims)
         varying: list[Any] = []
         for term in terms:
             matrix = qutip.Qobj(term.matrix, dims=dims)
@@ -106,7 +108,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
         problem = self.quantum_
-        state = problem.state_of(x)
+        state = state_of(problem, x)
         if problem.pure:
             return self._ket(state)
         return qutip.Qobj(state, dims=[list(problem.dimensions)] * 2)
@@ -114,12 +116,13 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
     def _stored(self, state: qutip.Qobj) -> Vector:
         """Return a QuTiP state as a state vector of the problem."""
         problem = self.quantum_
+        entry = problem.states.entry(problem.states.names[0])
         values = state.full()
         if problem.pure:
-            return problem.encode(values.ravel())
+            return entry.encode(values.ravel())
         if values.shape[1] == 1:
             values = np.outer(values, values.conj())
-        return problem.encode(values)
+        return entry.encode(values)
 
     @property
     def _options(self) -> dict[str, Any]:
@@ -152,7 +155,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         del problem
         return []
 
-    def initialize(self, problem: QuantumProblem, rng: np.random.Generator) -> None:
+    def _prepare(self, problem: QuantumProblem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
@@ -162,11 +165,14 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
             rng:
                 The random number generator that seeds quantum jumps.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
-        super().initialize(problem, rng)
+        super()._prepare(problem, rng, until)
         unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblem) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
@@ -175,7 +181,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         self.solver_: Any = None
         self.parameters_: Vector | None = None
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Advance the state from time `t` to time `until` with the QuTiP solver.
 
         Args:
@@ -228,7 +234,7 @@ class UnitarySolver(QuantumSolver):
         >>> system = System(components=[RabiComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).run(until=np.pi)
-        >>> float(round(simulation.trajectory_['z'][-1], 6))
+        >>> float(round(simulation.trajectory_.values('z')[-1], 6))
         -1.0
     """
 
@@ -272,7 +278,7 @@ class LindbladSolver(QuantumSolver):
         >>> system = System(components=[DecayingComponent('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).run(until=2.0)
-        >>> bool(abs((1 + simulation.trajectory_['z'][-1]) / 2 - np.exp(-1.0)) < 1e-6)
+        >>> bool(abs((1 + simulation.trajectory_.values('z')[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
 
@@ -319,7 +325,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=QuantumTrajectoriesSolver(), dt=1.0, random_state=0, observables=z)
         >>> simulation = simulation.run(until=20.0)
-        >>> float(simulation.trajectory_['z'][-1])
+        >>> float(simulation.trajectory_.values('z')[-1])
         -1.0
     """
 
@@ -333,7 +339,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
     def _start_state(self, x: Vector) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
         problem = self.quantum_
-        state = problem.state_of(x)
+        state = state_of(problem, x)
         if problem.pure:
             return self._ket(state)
         weights, vectors = np.linalg.eigh(state)

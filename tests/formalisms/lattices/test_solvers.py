@@ -45,14 +45,14 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).neighbors((0, 0), Neighborhood.moore())
-    assert sorted(neighbours) == [(0, 1), (0, 9), (1, 0), (1, 1), (1, 9), (9, 0), (9, 1), (9, 9)]
+    neighbours = LatticeSpace((10, 10)).prepare().run(0, Neighborhood.moore())
+    assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
-    assert LatticeSpace((5,), boundary='fixed').neighbors((0,), Neighborhood.radius()) == [None, (0,), (1,)]
-    assert LatticeSpace((5,), boundary='reflecting').neighbors((0,), Neighborhood.radius(2))[:2] == [(1,), (0,)]
+    assert LatticeSpace((5,), boundary='fixed').prepare().run(0, Neighborhood.radius()).tolist() == [0, 1]
+    assert LatticeSpace((5,), boundary='reflecting').prepare().run(0, Neighborhood.radius(2))[:2].tolist() == [1, 0]
     EdgeComponent = ElementComponent.define(
         'EdgeComponent',
         states={'value': 0.0},
@@ -71,11 +71,11 @@ def test_fixed_and_reflecting_edges():
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
     assert Neighborhood.moore(center=True).offsets[0] == (0, 0)
-    assert len(Neighborhood.moore(2)) == 24
-    assert len(Neighborhood.von_neumann(2)) == 12
-    assert len(Neighborhood.moore(n_dim=3)) == 26
+    assert len(Neighborhood.moore(2).offsets) == 24
+    assert len(Neighborhood.von_neumann(2).offsets) == 12
+    assert len(Neighborhood.moore(n_dim=3).offsets) == 26
     with pytest.raises(ValueError, match='same number of dimensions'):
-        Neighborhood(((0, 1), (1,)))
+        Neighborhood(((0, 1), (1,))).check()
 
 
 def test_rule_30_matches_published_pattern():
@@ -169,7 +169,7 @@ def test_checkerboard_needs_bipartite_neighbourhood():
 def test_unknown_schedule_is_rejected():
     """Test that an unknown schedule names the known ones."""
     with pytest.raises(ValueError, match='synchronous'):
-        LocalRuleLaw(None, Neighborhood.radius(), lambda *values: values[0], schedule='parallel')
+        LocalRuleLaw(None, Neighborhood.radius(), lambda *values: values[0], schedule='parallel').check()
 
 
 def test_forest_fire_is_reproducible():
@@ -305,14 +305,14 @@ def test_temperature_changes_live():
         random_state=0,
         schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
     ).run(until=200)
-    magnetization = np.abs(simulation.trajectory_['spins.spin'].mean(axis=1))
+    magnetization = np.abs(simulation.trajectory_.values('spins.spin').mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3
 
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY model keep every angle in (-π, π]."""
-    values = Simulation(xy(16)).run(until=50).trajectory_['spins.theta']
+    values = Simulation(xy(16)).run(until=50).trajectory_.values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 
@@ -352,7 +352,7 @@ def test_relaxation_over_active_sites_matches_the_full_update():
     sparse = Simulation(_pile(lambda heights: heights >= 4, sparse_sites), dt=5000, random_state=0)
     sparse = sparse.run(until=5000).trajectory_
     full = Simulation(_pile(None, full_sites), dt=5000, random_state=0).run(until=5000).trajectory_
-    np.testing.assert_array_equal(sparse['pile.height'][-1], full['pile.height'][-1])
+    np.testing.assert_array_equal(sparse.values('pile.height')[-1], full.values('pile.height')[-1])
     assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
     assert [event.time for event in sparse.events] == [event.time for event in full.events]
     assert sum(sparse_sites) < sum(full_sites) / 10

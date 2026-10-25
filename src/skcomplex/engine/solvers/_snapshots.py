@@ -30,10 +30,6 @@ class AgentSnapshot:
     values: Mapping[str, npt.NDArray[Any]]
     locations: npt.NDArray[Any] | None = None
 
-    def __len__(self) -> int:
-        """Return the number of agents."""
-        return len(self.ids)
-
 
 @dataclass(frozen=True)
 class AgentState:

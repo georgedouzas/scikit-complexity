@@ -4,19 +4,18 @@ import ast
 import inspect
 import sys
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
+
+from gallery_tools import Example, build_from_environment, find_examples
+from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import equations_of
 from skcomplex.models import catalog, create, describe
 
-sys.path.insert(0, str(Path(__file__).parent))
-
-from gallery_tools import Example, build_from_environment, find_examples
-from inventory_checks import InventoryError, inventory_problems
-
-DOCS = Path(__file__).parent
+DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
 EQUATION_FORMS = {

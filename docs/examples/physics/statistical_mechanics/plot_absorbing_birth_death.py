@@ -42,12 +42,12 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
 
 
 long = Simulation(create(MODEL, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend='numba').run(until=4000)
-density = long.trajectory_['particles.n'][100:] / 100
+density = long.trajectory_.values('particles.n')[100:] / 100
 kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
     run = Simulation(create(MODEL, kappa=kappa), dt=0.5, random_state=0, backend='numba').run(until=200)
-    means.append((run.trajectory_['particles.n'][100:] / 100).mean())
+    means.append((run.trajectory_.values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)
 weights = np.exp(-100 * large_deviation(grid, 2.0))
 fig, (distribution, transition) = plt.subplots(1, 2, figsize=(10, 4))

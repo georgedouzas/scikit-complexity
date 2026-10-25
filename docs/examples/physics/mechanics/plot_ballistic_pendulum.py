@@ -41,7 +41,7 @@ speeds = np.linspace(50.0, 400.0, 8)
 heights = []
 for speed in speeds:
     run = Simulation(create(MODEL, speed=speed, distance=1.0, m=0.01, M=1.0), dt=0.005).run(until=2.0)
-    angle = np.ravel(run.trajectory_['pendulum.theta'])
+    angle = np.ravel(run.trajectory_.values('pendulum.theta'))
     heights.append(1 - np.cos(np.abs(angle).max()))
 grid = np.linspace(0.0, 400.0, 200)
 fig, ax = plt.subplots(figsize=(6, 4))

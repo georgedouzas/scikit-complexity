@@ -51,11 +51,11 @@ forces = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0])
 velocities = []
 for f in forces:
     run = Simulation(create(MODEL, n_particles=300, f=f), dt=1.0, solver=EulerMaruyamaSolver(dt=0.005), random_state=1)
-    positions = run.run(until=30).trajectory_['particles.x'][..., 0]
+    positions = run.run(until=30).trajectory_.values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 
 times = simulation.trajectory_.times
-mean_position = simulation.trajectory_['particles.x'][..., 0].mean(axis=1)
+mean_position = simulation.trajectory_.values('particles.x')[..., 0].mean(axis=1)
 
 fig, (current, drift) = plt.subplots(1, 2, figsize=(10, 4))
 grid = np.linspace(0.05, 4.0, 60)

@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).ru
 # steep early and flatter later, while the abundances stay normalised and dominated by a few species.
 
 trajectory = simulation.trajectory_
-extinctions = np.nansum(trajectory['species.age'][1:] == 0, axis=1)
-abundances = np.sort(np.nan_to_num(trajectory['species.x'][-1]))[::-1]
+extinctions = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
+abundances = np.sort(np.nan_to_num(trajectory.values('species.x')[-1]))[::-1]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.step(trajectory.times[1:], np.cumsum(extinctions))
 left.set_xlabel('step')

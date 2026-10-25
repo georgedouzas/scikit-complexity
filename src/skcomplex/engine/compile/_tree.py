@@ -17,6 +17,7 @@ from ...core.base import (
     BaseSpace,
     LabelError,
     NumericDomain,
+    SkcomplexError,
     SpaceError,
     TimeKind,
     Trait,
@@ -25,7 +26,7 @@ from ...core.base import (
     has_trait,
 )
 from ...core.components import ElementComponent, GroupComponent, probe_laws
-from ...core.space import LatticeSpace, NetworkSpace, part_count
+from ...core.space import LatticeSpace, NetworkSpace
 from ...core.system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -66,11 +67,11 @@ def _check_group(group: GroupComponent, scope: str) -> None:
     if isinstance(space, LatticeSpace):
         try:
             space.check()
-        except ValueError as error:
+        except ValidationError as error:
             error_msg = f'{where} has a lattice that is not valid. {error}'
             raise ValidationError(error_msg) from error
-        if space.size != group.size:
-            error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
+        if space.size_ != group.size:
+            error_msg = f'{where} has size {group.size}, but its lattice has {space.size_} sites.'
             raise ValidationError(error_msg)
     if (
         isinstance(space, NetworkSpace)
@@ -79,6 +80,15 @@ def _check_group(group: GroupComponent, scope: str) -> None:
         and group.size is not None
     ):
         _check_network_lattice(space, group.size, where)
+
+
+def _check_part(part: ElementComponent | GroupComponent | BaseInteraction, scope: str) -> None:
+    """Check the arguments of an element, group, or interaction, raising its error with the path of the part."""
+    try:
+        part.check()
+    except SkcomplexError as error:
+        error_msg = f'{scope}{part.label}: {error}'
+        raise type(error)(error_msg) from error
 
 
 def _check_children(system: System, scope: str) -> None:
@@ -96,9 +106,11 @@ def _check_children(system: System, scope: str) -> None:
             )
             error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
             raise ValidationError(error_msg)
+        _check_label(child.label, scope)
+        if not isinstance(child, System):
+            _check_part(child, scope)
         if isinstance(child, GroupComponent):
             _check_group(child, scope)
-        _check_label(child.label, scope)
         if child.label in labels:
             error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
             raise LabelError(error_msg)
@@ -106,15 +118,12 @@ def _check_children(system: System, scope: str) -> None:
 
 
 def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) -> ElementComponent | GroupComponent:
-    """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
-    if not isinstance(element, GroupComponent) or element.size is not None:
+    """Return a group prepared with its size, a copy when the size counts the parts of the space it inherits."""
+    if not isinstance(element, GroupComponent):
         return element
-    if space is None:
-        error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
-        raise SpaceError(error_msg)
-    sized = copy.copy(element)
-    sized.size = part_count(space, element.on or 'sites', element.label, element.layer)
-    return sized
+    if element.size is None and element.space is None:
+        return copy.copy(element).prepare(space)
+    return element.prepare(space)
 
 
 def _with_capacity(
@@ -125,7 +134,7 @@ def _with_capacity(
     if not is_topology_group(element, space):
         return element, None
     group = cast('GroupComponent', element)
-    initial = int(group.size) if group.size is not None else 0
+    initial = group.size_
     capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
     if capacity < initial:
         error_msg = (
@@ -134,16 +143,43 @@ def _with_capacity(
         )
         raise ValidationError(error_msg)
     sized = copy.copy(group)
-    sized.size = capacity
+    sized.size_ = capacity
     return sized, initial
 
 
+def _same_network(first: NetworkSpace, second: NetworkSpace) -> bool:
+    """Check whether two prepared network spaces have the same nodes, edges, and layers, such as clones of a network."""
+    if list(first.graphs_) != list(second.graphs_):
+        return False
+    if (first.capacity, first.fill, list(first.hyperedges)) != (second.capacity, second.fill, list(second.hyperedges)):
+        return False
+    return all(
+        list(graph.nodes) == list(second.graphs_[layer].nodes)
+        and list(graph.edges) == list(second.graphs_[layer].edges)
+        and graph.is_directed() == second.graphs_[layer].is_directed()
+        for layer, graph in first.graphs_.items()
+    )
+
+
 def _canonical(space: BaseSpace | None, seen: list[BaseSpace]) -> BaseSpace | None:
-    """Return the first network space seen that equals a space, so clones of one network share one space."""
-    if not isinstance(space, NetworkSpace):
+    """Return a prepared space, or the first network space seen that equals it, so clones of a network share one.
+
+    A space is prepared here unless it was prepared before, such as a group space whose ball was enumerated once. A
+    space whose arguments are not valid stays unprepared, and validation reports it from its check.
+    """
+    if space is None:
+        return None
+    for known in seen:
+        if known is space:
+            return known
+    try:
+        if not hasattr(space, 'size_'):
+            space.prepare()
+    except ValidationError:
+        seen.append(space)
         return space
     for known in seen:
-        if isinstance(known, NetworkSpace) and known.equals(space):
+        if isinstance(known, NetworkSpace) and isinstance(space, NetworkSpace) and _same_network(known, space):
             return known
     seen.append(space)
     return space
@@ -184,7 +220,7 @@ class Node:
     @property
     def members(self) -> int | None:
         """Size of a group, or `None` for a single element or an interaction."""
-        return self.component.size if isinstance(self.component, GroupComponent) else None
+        return self.component.size_ if isinstance(self.component, GroupComponent) else None
 
     @property
     def is_agent(self) -> bool:
@@ -215,7 +251,7 @@ class Node:
             return default
         value = values[variable]
         space = getattr(self.component, 'space', None)
-        if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
+        if isinstance(space, LatticeSpace) and np.shape(value) == space.shape_:
             return np.ravel(value)
         if self.active is not None and np.ndim(value) and len(value) == self.active:
             rows = (self.members or 0) - self.active
@@ -229,12 +265,12 @@ def _flatten(system: System, scope: str, space: BaseSpace | None, seen: list[Bas
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
         raise ValidationError(error_msg)
-    _check_children(system, scope)
     seen = [] if seen is None else seen
     space = _canonical(system.space if system.space is not None else space, seen)
+    places = [_canonical(getattr(element, 'space', None) or space, seen) for element in system.elements]
+    _check_children(system, scope)
     nodes = []
-    for element in system.elements:
-        place = _canonical(getattr(element, 'space', None) or space, seen)
+    for element, place in zip(system.elements, places, strict=True):
         sized, active = _with_capacity(_sized(element, space), place)
         nodes.append(Node(f'{scope}{element.label}', scope, sized, place, active=active))
     nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
@@ -333,7 +369,7 @@ def flatten_system(system: System, scope: str = '', space: BaseSpace | None = No
 
     Raises:
         ValidationError:
-            A child has the wrong type.
+            A child has the wrong type, or a component or interaction does not pass its check, named by its path.
 
         LabelError:
             A label is not valid or is duplicated among siblings.
@@ -358,7 +394,7 @@ def declared_times(system: System, scope: str = '', inherited: TimeKind | None =
         times:
             The time of every system by path, `None` for a system without a declared time.
     """
-    time = system.time.kind if system.time is not None else inherited
+    time = system.time.prepare().time_kind_ if system.time is not None else inherited
     times = {scope: time}
     for child in system.systems:
         times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
@@ -394,10 +430,10 @@ def shape_of(name: str, declaration: Variable, space: BaseSpace | None) -> tuple
     if space is None:
         error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
         raise SpaceError(error_msg)
-    if not NumericDomain.POSITIVE.contains(space.n_dim) or not NumericDomain.INTEGER.contains(space.n_dim):
-        error_msg = f'The space of {name} has n_dim = {space.n_dim!r}, which is not a positive integer.'
+    if not NumericDomain.POSITIVE.contains(space.n_dim_) or not NumericDomain.INTEGER.contains(space.n_dim_):
+        error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
-    return (int(space.n_dim),)
+    return (int(space.n_dim_),)
 
 
 def coerce_value(

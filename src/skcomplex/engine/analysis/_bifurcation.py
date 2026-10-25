@@ -145,7 +145,7 @@ def orbit_diagram(
     if vectorized:
         settings = {'dt': step, 'random_state': arguments.get('random_state')}
         trajectory, _ = _ensemble(source, {parameter: list(values)}, transient + (keep - 1) * step, settings)
-        series = np.asarray(trajectory[observable])[np.asarray(trajectory.times) >= transient - 1e-9]
+        series = np.asarray(trajectory.values(observable))[np.asarray(trajectory.times) >= transient - 1e-9]
         points = [series[:, index] for index in range(len(values))]
         return OrbitDiagram(parameter, np.asarray(values, dtype=float), points)
     experiment = Experiment(
@@ -239,7 +239,7 @@ def basin_stability(
     """
 
     if vectorized:
-        rows = RandomDesign(n, random_state=random_state, **bounds).rows()
+        rows = RandomDesign(n, random_state=random_state, **bounds).prepare().run()
         values = {path: [row[path] for row in rows] for path in bounds}
         settings = {'dt': arguments.get('dt'), 'random_state': random_state}
         trajectory, system = _ensemble(source, values, until, settings)

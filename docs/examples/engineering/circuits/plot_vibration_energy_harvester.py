@@ -44,7 +44,7 @@ for omega in frequencies:
         .run(until=10)
         .trajectory_
     )
-    amplitudes.append(np.abs(run['voltage'][-300:]).max())
+    amplitudes.append(np.abs(run.values('voltage')[-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')
 for value in natural:

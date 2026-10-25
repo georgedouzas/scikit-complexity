@@ -51,9 +51,9 @@ orders = []
 for noise in noises:
     model_system = create(MODEL, n_particles=400, eta=noise, seed=1)
     run = Simulation(model_system, dt=5.0, random_state=1, observables=describe(MODEL).observables_of(model_system))
-    orders.append(np.mean(np.asarray(run.run(until=150).trajectory_['polarization'], dtype=float)[-10:]))
+    orders.append(np.mean(np.asarray(run.run(until=150).trajectory_.values('polarization'), dtype=float)[-10:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, np.asarray(simulation.trajectory_['polarization'], dtype=float))
+series.plot(simulation.trajectory_.times, np.asarray(simulation.trajectory_.values('polarization'), dtype=float))
 series.set_ylim(0, 1)
 series.set_xlabel('step')
 series.set_ylabel('polar order')

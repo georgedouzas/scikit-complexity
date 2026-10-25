@@ -98,13 +98,13 @@ class BookInteraction(BaseInteraction):
     def laws(self, s):
         """Return the matching and the rule that records it."""
         return [
-            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'),
+            MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential').evaluate, label='trades'),
             RuleLaw(self.record),
         ]
 
     def record(self, model):
         """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
-        PAIRS.extend((buyer.id, seller.id) for buyer, seller in matches(model, 'trades'))
+        PAIRS.extend((trade.buyer.id, trade.seller.id) for trade in matches(model, 'trades'))
         EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
 
 
@@ -209,7 +209,7 @@ def test_double_auction_efficiency():
     assert realised > 0.9 * maximum
     money = buyers.values['money'].sum() + sellers.values['money'].sum()
     assert money == pytest.approx(values.sum())
-    assert np.nansum(simulation.trajectory_['auction.volume']) == bought.sum()
+    assert np.nansum(simulation.trajectory_.values('auction.volume')) == bought.sum()
 
 
 def test_order_book_is_a_pairing_of_the_matching_law():

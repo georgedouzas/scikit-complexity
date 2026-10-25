@@ -254,7 +254,7 @@ def _solve_equations(specs: list[tuple[KernelSpec, list[Any]]]) -> list[tuple[Ke
     else:
         entries = [entry for row in coefficients for entry in row] + right
         laws = [
-            RateLaw(highest[item], Call(_numeric_solution(rows, len(unknowns), index), *entries))
+            RateLaw(highest[item], Call(_numeric_solution(rows, len(unknowns), index), tuple(entries)))
             for index, item in enumerate(unknowns)
         ]
     return [*kept, (merged, laws)]
@@ -300,7 +300,7 @@ class OrdersPass(BasePass):
     reads = ('lowered', 'layout')
     writes = ('ordered',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the orders and lags of the laws and solve their equations.
 
         Args:

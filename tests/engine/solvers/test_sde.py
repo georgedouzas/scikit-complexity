@@ -29,8 +29,8 @@ def test_euler_maruyama_without_noise_matches_ode():
     )
     problem = compile_system(system)
     stepper = EulerMaruyamaSolver(dt=1e-4)
-    stepper.initialize(problem, np.random.default_rng(0))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+    stepper.prepare(problem, np.random.default_rng(0))
+    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert state[0] == pytest.approx(np.e, rel=1e-3)
 
 
@@ -40,9 +40,9 @@ def test_euler_maruyama_nonpositive_dt_raises_error():
         System(components=[AssetComponent('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
     )
     stepper = EulerMaruyamaSolver(dt=0.0)
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='positive'):
-        stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
 
 
 def test_euler_maruyama_same_seed_on_both_backends():
@@ -52,8 +52,8 @@ def test_euler_maruyama_same_seed_on_both_backends():
         problem = compile_system(geometric_brownian_motion(), backend=backend)
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
-        stepper.initialize(problem, rng)
-        states.append(stepper.advance(0.1, problem.initial_state, problem.initial_parameters, 0.4))
+        stepper.prepare(problem, rng)
+        states.append(stepper.run(0.1, problem.initial_state, problem.initial_parameters, 0.4))
         three_steps = np.random.default_rng(0)
         for _ in range(3):
             three_steps.normal(0.0, 0.1, size=1)
@@ -83,8 +83,8 @@ def test_shared_process_keeps_difference(backend, stepper):
         .run(until=5)
         .trajectory_
     )
-    np.testing.assert_array_equal(trajectory['pair.x'], trajectory['pair.y'])
-    assert np.corrcoef(trajectory['pair.x'], trajectory['pair.y'])[0, 1] == pytest.approx(1.0)
+    np.testing.assert_array_equal(trajectory.values('pair.x'), trajectory.values('pair.y'))
+    assert np.corrcoef(trajectory.values('pair.x'), trajectory.values('pair.y'))[0, 1] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -96,7 +96,7 @@ def test_correlated_increments_reproduce_covariance(backend):
         .run(until=10_000)
         .trajectory_
     )
-    increments = np.diff(np.stack([trajectory['a.n'], trajectory['b.n']]), axis=1)
+    increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), covariance, atol=0.1)
 
 

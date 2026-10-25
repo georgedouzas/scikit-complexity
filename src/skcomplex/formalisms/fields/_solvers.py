@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -29,6 +30,7 @@ from ...core.problems import LATTICE_BOUNDARIES, Problem, numpy_function
 from ...core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ...engine.compile import spectral_multiplier
 from ...engine.solvers import Solver, step_count
+from ._components import boundary_of
 from ._lowering import mesh_laplacian
 from ._spaces import MeshSpace
 
@@ -57,12 +59,12 @@ def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
 def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_matrix:  # noqa: ANN401
     """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
     space = place.space
-    size = place.size
-    kind, _ = place.boundary_of(reference.entry.name.rpartition('.')[2])
+    size = place.size_
+    kind, _ = boundary_of(place, reference.entry.name.rpartition('.')[2])
 
     def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
-        lattice = LatticeSpace(space.dimensions, boundary=LATTICE_BOUNDARIES[kind])
-        table = lattice.index_table(Neighborhood((offset,)))[:, 0]
+        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).prepare()
+        table = lattice._index_table(Neighborhood((offset,)))[:, 0]
         inside = table < size
         return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
 
@@ -72,8 +74,8 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
             error_msg = f'Only Laplacians act on fields on networks, but a term takes the {name}.'
             raise SolverError(error_msg)
         return adjacency - diags(np.asarray(adjacency.sum(axis=1)).ravel())
-    units = [tuple(int(other == index) for other in range(space.n_dim)) for index in range(space.n_dim)]
-    spacings = space.spacings
+    units = [tuple(int(other == index) for other in range(space.n_dim_)) for index in range(space.n_dim_)]
+    spacings = space.spacings_
     if name == 'laplacian':
         total = csr_matrix((size, size))
         for unit, step in zip(units, spacings, strict=True):
@@ -89,7 +91,7 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
 def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
     """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
     place = term.place
-    matrix = identity(place.size, format='csr')
+    matrix = identity(place.size_, format='csr')
     for name, axis in reversed(term.chain):
         operator = (
             _mesh_operator(place.space, name)
@@ -97,7 +99,7 @@ def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
             else _lattice_operator(name, axis, place, term.source)
         )
         matrix = operator @ matrix
-    return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size)) @ matrix
+    return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
 
 
 def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: Problem) -> csr_matrix | None:
@@ -127,7 +129,7 @@ def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
         for reference in (term.target, term.source):
             states.setdefault((reference.entry.name, reference.column), reference)
     order = {key: index for index, key in enumerate(states)}
-    dimensions, spacings = place.space.dimensions, place.space.spacings
+    dimensions, spacings = place.space.shape_, place.space.spacings_
     matrix = np.zeros((*np.fft.rfftn(np.zeros(dimensions)).shape, len(states), len(states)), dtype=complex)
     for term, coefficient in terms:
         multiplier: Any = 1.0
@@ -209,7 +211,7 @@ class _SplitSolver(Solver):
     def __init__(self, dt: float = 0.01) -> None:
         self.dt = dt
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper and check that the problem has linear terms to treat apart.
 
         Args:
@@ -219,11 +221,14 @@ class _SplitSolver(Solver):
             rng:
                 The random number generator, unused.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not an ODE, has no linear terms of fields, or has delays or events.
         """
-        super().initialize(problem, rng)
+        super()._prepare(problem, rng, until)
         if not problem.linear:
             error_msg = (
                 f'{type(self).__name__} splits the rates of fields into linear and nonlinear parts, but the problem '
@@ -247,7 +252,7 @@ class _SplitSolver(Solver):
     def _forget(self) -> None:
         """Hook that forgets the steps of earlier calls, which multistep schemes override."""
 
-    def _prepare(self, p: Vector) -> None:
+    def _build_operator(self, p: Vector) -> None:
         """Build the linear part for parameter values when they change."""
         if self._parameters is None or not np.array_equal(p, self._parameters):
             self.operator_ = SplitOperator.build(self.problem_, p)
@@ -265,7 +270,7 @@ class _SplitSolver(Solver):
         """Return the state after one step."""
         raise NotImplementedError
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` in equal steps no longer than `dt`.
 
         Args:
@@ -287,7 +292,7 @@ class _SplitSolver(Solver):
         """
         if until <= t:
             return x
-        self._prepare(p)
+        self._build_operator(p)
         n_steps = step_count(t, until, self.dt)
         step = (until - t) / n_steps
         if not self._continues(t, x, step):
@@ -418,9 +423,8 @@ class IMEXEulerSolver(_SplitSolver):
         >>> from skcomplex.models.physics.heat import heat_diffusion
         >>> from skcomplex.formalisms.fields import IMEXEulerSolver
         >>> problem = compile_system(heat_diffusion((16, 16)))
-        >>> stepper = IMEXEulerSolver(dt=1.0)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 10.0)
+        >>> stepper = IMEXEulerSolver(dt=1.0).prepare(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 10.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
@@ -570,9 +574,8 @@ class SSPRKSolver(Solver):
         >>> from skcomplex.models.physics.fluids import burgers
         >>> from skcomplex.formalisms.fields import SSPRKSolver
         >>> problem = compile_system(burgers(64))
-        >>> stepper = SSPRKSolver()
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = SSPRKSolver().prepare(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
@@ -599,7 +602,7 @@ class SSPRKSolver(Solver):
         self.cfl = cfl
         self.dt = dt
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper and check its order.
 
         Args:
@@ -609,11 +612,14 @@ class SSPRKSolver(Solver):
             rng:
                 The random number generator, unused.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The order is not 2 or 3, or the problem is not an ODE.
         """
-        super().initialize(problem, rng)
+        super()._prepare(problem, rng, until)
         if self.order not in {2, 3}:
             error_msg = f'SSPRKSolver has order 2 or 3, not {self.order}.'
             raise SolverError(error_msg)
@@ -630,7 +636,7 @@ class SSPRKSolver(Solver):
             return step
         return min(step, self.cfl * self.spacing_ / speed)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` with steps of the CFL condition.
 
         Args:

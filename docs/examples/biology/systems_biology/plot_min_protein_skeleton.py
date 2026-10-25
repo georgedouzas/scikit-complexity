@@ -44,8 +44,8 @@ simulation = Simulation(
 # relation of the linearised laws should show positive growth rates with nonzero frequencies.
 
 trajectory = simulation.trajectory_
-mind_total = sum(trajectory[f'cell.{name}'] for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
-mine_total = sum(trajectory[f'cell.{name}'] for name in ('mde', 'ce')).sum(axis=1)
+mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
+mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
 relation = dispersion_relation(create(MODEL, n_sites=512, length=400.0))
 order = np.argsort(relation.magnitudes)
 

@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(
 # from 2 to 300 steps should lie near 1, and the log-binned distribution should fall by about one decade per decade
 # before it bends down past the cutoff.
 
-waits = simulation.trajectory_['execution.wait'][1:]
+waits = simulation.trajectory_.values('execution.wait')[1:]
 fit = fit_power_law(waits, discrete=True, xmin=2, xmax=300, bootstrap=0)
 edges = np.unique(np.logspace(0, np.log10(waits.max() + 1), 20).astype(int))
 counts, _ = np.histogram(waits, edges)

@@ -33,7 +33,7 @@ trajectory = simulation.trajectory_
 settled = trajectory.times > 10
 exponents = lyapunov_spectrum(system, n=1, until=300.0, dt=0.01)
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(trajectory['circuit.x'][settled], trajectory['circuit.z'][settled], linewidth=0.5)
+ax.plot(trajectory.values('circuit.x')[settled], trajectory.values('circuit.z')[settled], linewidth=0.5)
 ax.set_xlabel('voltage x')
 ax.set_ylabel('current z')
 ax.set_title(f'Double scroll, largest Lyapunov exponent {exponents[0]:.2f}')

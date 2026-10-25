@@ -35,8 +35,9 @@ class DiscussantComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussantComponent
-        >>> DiscussantComponent.group('people', 10, opinion=0.5)
-        GroupComponent('people', element=DiscussantComponent, size=10)
+        >>> group = DiscussantComponent.group('people', 10, opinion=0.5)
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'DiscussantComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -233,10 +234,10 @@ def hegselmann_krause(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import hegselmann_krause
         >>> trajectory = Simulation(hegselmann_krause(50, confidence=0.3), random_state=0).run(until=20).trajectory_
-        >>> len(np.unique(np.round(trajectory['people.opinion'][-1], 6))) <= 3
+        >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
         True
     """
-    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents))
-    opinions = np.random.default_rng(random_state).random(space.size)
+    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
+    opinions = np.random.default_rng(random_state).random(space.size_)
     people = ConfidentComponent.lattice('people', space, opinion=opinions, confidence=confidence)
     return System(components=[people], time=DiscreteTime())

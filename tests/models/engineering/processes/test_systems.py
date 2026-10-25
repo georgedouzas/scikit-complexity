@@ -13,16 +13,18 @@ def test_rice_milling_passes_the_harvest_through():
     """Test that over the last years the mill processes the mean harvest and sells its outturn as rice."""
     trajectory = _run_monitored(rice_milling(harvest=2000.0, outturn=0.65), 0.25, 120)
     last_years = np.asarray(trajectory.times) >= 72
-    assert trajectory['mill.milling'][last_years].mean() == pytest.approx(2000.0, rel=0.05)
-    assert trajectory['mill.rice_sales'][last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
-    np.testing.assert_allclose(trajectory['mill.husk_output'], 0.2 / 0.65 * trajectory['mill.milled_rice'])
-    assert trajectory['mill.paddy'].max() > 2 * trajectory['mill.paddy'].min()
+    assert trajectory.values('mill.milling')[last_years].mean() == pytest.approx(2000.0, rel=0.05)
+    assert trajectory.values('mill.rice_sales')[last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
+    np.testing.assert_allclose(
+        trajectory.values('mill.husk_output'), 0.2 / 0.65 * trajectory.values('mill.milled_rice')
+    )
+    assert trajectory.values('mill.paddy').max() > 2 * trajectory.values('mill.paddy').min()
 
 
 def test_solid_waste_fills_the_landfill_then_dumps():
     """Test that the landfill fills up to its capacity before any waste is dumped."""
     trajectory = _run_monitored(solid_waste(landfill_capacity=2e6), 0.1, 40)
-    landfill, dumped = trajectory['city.landfill'], trajectory['city.dumped']
+    landfill, dumped = trajectory.values('city.landfill'), trajectory.values('city.dumped')
     assert landfill.max() <= 2e6 * (1 + 1e-6)
     assert landfill[-1] == pytest.approx(2e6, rel=1e-3)
     assert dumped[landfill < 0.8 * 2e6].max() == pytest.approx(0.0, abs=1e-6)
@@ -35,16 +37,16 @@ def test_food_relief_delays_then_meets_the_need():
     trajectory = _run_monitored(food_relief(onset=10.0, shipping_delay=14.0), 0.5, 120)
     times = np.asarray(trajectory.times)
     need = 1e5 * 5e-4
-    assert trajectory['relief.distribution'][times <= 13].max() < 0.1 * need
-    assert trajectory['relief.distribution'][-1] == pytest.approx(need, rel=1e-2)
-    assert trajectory['relief.warehouse'].max() > 7 * need
+    assert trajectory.values('relief.distribution')[times <= 13].max() < 0.1 * need
+    assert trajectory.values('relief.distribution')[-1] == pytest.approx(need, rel=1e-2)
+    assert trajectory.values('relief.warehouse').max() > 7 * need
 
 
 def test_irrigation_pumps_groundwater_in_the_dry_season():
     """Test that the farmers pump the aquifer only when the reservoir runs low, drawing the aquifer down."""
     trajectory = _run_monitored(irrigation(), 1.0, 730)
-    pumping, reservoir = trajectory['scheme.pumping'], trajectory['scheme.reservoir']
+    pumping, reservoir = trajectory.values('scheme.pumping'), trajectory.values('scheme.reservoir')
     assert pumping.max() > 0
     assert reservoir[pumping > 0].max() < 10.0
-    assert trajectory['scheme.groundwater'][-1] < trajectory['scheme.groundwater'][0]
+    assert trajectory.values('scheme.groundwater')[-1] < trajectory.values('scheme.groundwater')[0]
     assert irrigation(pump_capacity=0.0).elements[0].pump_capacity == 0.0

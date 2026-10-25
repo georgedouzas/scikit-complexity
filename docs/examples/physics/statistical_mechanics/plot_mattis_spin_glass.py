@@ -50,8 +50,8 @@ for temperature in temperatures:
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     ).run(until=1000)
-    overlaps.append(np.abs(trajectory.trajectory_['overlap'][-30:]).mean())
-    magnetizations.append(np.abs(trajectory.trajectory_['magnetization'][-30:]).mean())
+    overlaps.append(np.abs(trajectory.trajectory_.values('overlap')[-30:]).mean())
+    magnetizations.append(np.abs(trajectory.trajectory_.values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))
 grid = np.linspace(1.0, critical - 1e-6, 100)
 fig, (spins, gauge, curve) = plt.subplots(1, 3, figsize=(13, 4))

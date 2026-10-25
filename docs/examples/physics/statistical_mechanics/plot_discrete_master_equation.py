@@ -36,8 +36,8 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=250)
 def divergence(beta):
     """Return the Kullback-Leibler divergence from the Boltzmann distribution at every step."""
     run = Simulation(create(MODEL, beta=beta), dt=1).run(until=2000)
-    probabilities = np.clip(run.trajectory_['states.P'], 1e-300, None)
-    boltzmann = np.exp(-beta * run.trajectory_['states.U'][0])
+    probabilities = np.clip(run.trajectory_.values('states.P'), 1e-300, None)
+    boltzmann = np.exp(-beta * run.trajectory_.values('states.U')[0])
     boltzmann /= boltzmann.sum()
     return run.trajectory_.times, np.sum(probabilities * np.log(probabilities / boltzmann), axis=1)
 

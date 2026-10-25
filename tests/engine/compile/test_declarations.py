@@ -1,11 +1,13 @@
 """Test the system vocabulary and the requirement and support declarations of primitives, solvers, and backends."""
 
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
 import skcomplex.engine.compile._validation as validation
+import skcomplex.formalisms.fractional  # noqa: F401  # registers the fractional solvers whose orders the tests read
 from skcomplex.core.base import (
     DomainKind,
     Form,
@@ -30,7 +32,7 @@ from skcomplex.formalisms.fields import FieldComponent, MeshSpace
 from skcomplex.formalisms.lattices import SamplerLaw
 from skcomplex.formalisms.quantum import GeneratorLaw
 
-INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
+INVENTORY = Path(str(files('tests'))).parent / 'docs' / 'overview' / 'inventory.toml'
 
 
 def test_vocabulary_matches_inventory():
@@ -79,7 +81,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 )
 def test_law_kinds_and_classes(law, kind, law_class):
     """Test that law types declare their kind and the time semantics of the kind."""
-    assert law.law_kind is kind
+    assert law.law_kind == kind
     assert law.time_class is law_class
 
 
@@ -103,7 +105,7 @@ def test_law_requirements():
 )
 def test_space_kinds(space, kind):
     """Test that every space declares its kind."""
-    assert space.space_kind is kind
+    assert space.space_kind == kind
 
 
 def test_field_is_a_site_group():
@@ -121,9 +123,9 @@ def test_solver_support_names_missing_terms():
 
 def test_every_solver_and_backend_declares_orders():
     """Test that every registered solver and backend declares its orders, and the fractional solvers declare both."""
-    for key in SOLVERS:
+    for key in SOLVERS.keys:
         assert SOLVERS.resolve(key).supports.orders, key
-    for key in BACKENDS:
+    for key in BACKENDS.keys:
         assert BACKENDS.resolve(key).supports.orders == set(OrderKind), key
     for name in ('grunwald-letnikov', 'l1', 'fractional-abm', 'auto'):
         assert SOLVERS.resolve((Form.FRACTIONAL, name)).supports.orders == set(OrderKind)

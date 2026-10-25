@@ -122,7 +122,7 @@ class Experiment(BaseEstimator):
         given = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
         settings = {key: value for key, value in {**defaults, **given}.items() if key in RUN_SETTINGS}
         until = self.until if self.until is not None else defaults.get('until', 10.0)
-        rows = self.design.rows() if self.design is not None else [{}]
+        rows = self.design.prepare().run() if self.design is not None else [{}]
         scenarios = list(self.scenarios) if self.scenarios else [Scenario()]
         seeds = np.random.SeedSequence(self.random_state).spawn(len(rows) * self.replicates)
         tasks: list[Task] = []

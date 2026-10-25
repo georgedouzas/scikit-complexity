@@ -33,12 +33,12 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=100)
 
 trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
-final = {f'{name}.n': trajectory[f'{name}.n'][-1] for name in species}
+final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
 result = stability(system, final)
 eigenvalues = np.asarray(result.eigenvalues, dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:
-    series.plot(trajectory.times, trajectory[f'{name}.n'], label=name)
+    series.plot(trajectory.times, trajectory.values(f'{name}.n'), label=name)
 series.set_xlabel('time')
 series.set_ylabel('population')
 series.set_title('Four species settle together')

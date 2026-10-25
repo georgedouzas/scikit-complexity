@@ -104,10 +104,10 @@ def _oscillators():
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(iθ) is recorded at every frame between 0 and 1."""
     trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).run(until=10).trajectory_
-    order = trajectory['order']
+    order = trajectory.values('order')
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
-    expected = np.abs(np.exp(1j * np.asarray(trajectory['osc.theta'])).mean(axis=1))
+    expected = np.abs(np.exp(1j * np.asarray(trajectory.values('osc.theta'))).mean(axis=1))
     assert np.allclose(order, expected)
 
 
@@ -119,8 +119,8 @@ def test_expression_observable_of_elements():
     )
     observables = [Observable('total', _total), Observable('share', _share)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_
-    assert np.allclose(trajectory['total'], trajectory['a.n'] + trajectory['b.n'])
-    assert np.allclose(trajectory['share'], trajectory['a.n'] / trajectory['total'])
+    assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
+    assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
 
 
 def test_observable_by_subsystem_path():
@@ -131,7 +131,7 @@ def test_observable_by_subsystem_path():
         ],
     )
     simulation = Simulation(system, dt=1, observables=[Observable('market/volume', _volume)])
-    assert simulation.run(until=2).trajectory_['market/volume'].tolist() == [6.0, 6.0, 6.0]
+    assert simulation.run(until=2).trajectory_.values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
 def test_agent_reduction_read_by_other_partition():
@@ -145,8 +145,8 @@ def test_agent_reduction_read_by_other_partition():
     )
     observables = [Observable('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = Simulation(system, dt=1, observables=observables).run(until=2).trajectory_
-    assert trajectory['village/mean_wealth'].tolist() == [1.0, 2.0, 3.0]
-    assert trajectory['land/soil.n'][-1] == pytest.approx(2.0 + 3.0)
+    assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
+    assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
 
 
 def test_observable_read_in_one_form_is_lowered():
@@ -157,7 +157,7 @@ def test_observable_read_in_one_form_is_lowered():
     )
     observables = [Observable('mean_n', group='herd', variable='n')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=1).trajectory_
-    assert trajectory['soil.n'][-1] == pytest.approx(trajectory['soil.n'][0] + 3.0)
+    assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
 
 
 def test_unknown_symbol_is_rejected():
@@ -187,8 +187,10 @@ def test_observable_module_function_pickles():
     )
     observables = [Observable('total', _total)]
     restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
-    expected = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_['total']
-    assert np.allclose(Simulation(system, dt=0.5, observables=restored).run(until=1).trajectory_['total'], expected)
+    expected = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_.values('total')
+    assert np.allclose(
+        Simulation(system, dt=0.5, observables=restored).run(until=1).trajectory_.values('total'), expected
+    )
 
 
 def test_observables_logged_to_rerun(tmp_path):
@@ -197,7 +199,7 @@ def test_observables_logged_to_rerun(tmp_path):
     simulation = Simulation(_oscillators(), dt=0.5, observers=[observer], observables=ORDER).run(until=1)
     observer.recording_ = LoggedPaths()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_, observables={'order': 0.5})
-    observer.on_frame(frame)
+    observer.run(frame)
     assert 'order' in observer.recording_.paths
 
 
@@ -218,8 +220,8 @@ def test_observables_read_time():
     )
     observables = [Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=2).trajectory_
-    assert trajectory['timed'].tolist() == [0.0, 2.0, 4.0]
-    assert trajectory['member_timed'].tolist() == [2.0, 3.0, 4.0]
+    assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
+    assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
 
 
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
@@ -251,15 +253,17 @@ def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
     simulation = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'))
     trajectory = simulation.run(until=2).trajectory_
-    x = np.asarray(trajectory['u.x'])
-    np.testing.assert_allclose(trajectory['energy'], np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
+    x = np.asarray(trajectory.values('u.x'))
+    np.testing.assert_allclose(trajectory.values('energy'), np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
 
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
     simulation = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
     trajectory = simulation.run(until=2).trajectory_
-    np.testing.assert_allclose(trajectory['spread'], np.asarray(trajectory['u.x']).var(axis=1), rtol=1e-12)
+    np.testing.assert_allclose(
+        trajectory.values('spread'), np.asarray(trajectory.values('u.x')).var(axis=1), rtol=1e-12
+    )
 
 
 def test_observable_rejects_reduction_over_another_group():

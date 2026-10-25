@@ -15,7 +15,7 @@ def test_bass_diffusion_matches_closed_form():
     times = np.asarray(trajectory.times)
     decay = np.exp(-(p + q) * times)
     expected = market * (1 - decay) / (1 + q / p * decay)
-    np.testing.assert_allclose(trajectory['market.A'], expected, atol=1e-2 * market)
-    np.testing.assert_allclose(trajectory['market.A'] + trajectory['market.P'], market)
-    peak = times[np.argmax(trajectory['market.adoption'])]
+    np.testing.assert_allclose(trajectory.values('market.A'), expected, atol=1e-2 * market)
+    np.testing.assert_allclose(trajectory.values('market.A') + trajectory.values('market.P'), market)
+    peak = times[np.argmax(trajectory.values('market.adoption'))]
     assert peak == pytest.approx(np.log(q / p) / (p + q), abs=0.25)

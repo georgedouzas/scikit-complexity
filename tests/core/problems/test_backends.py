@@ -12,6 +12,7 @@ from skcomplex.core.base import (
     BackendError,
     BackendWarning,
     BaseInteraction,
+    Form,
     NumericDomain,
     SolverError,
     parameter,
@@ -20,7 +21,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.problems import BaseBackend
+from skcomplex.core.problems import BaseBackend, Lowering
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend, _numba
@@ -67,7 +68,7 @@ class CompiledGrowthInteraction(BaseInteraction):
 
     def laws(self, s):
         """Return the compiled rate."""
-        return [RateLaw(s.target.n, Call(_logistic, s.target.n, s.r))]
+        return [RateLaw(s.target.n, Call(_logistic, (s.target.n, s.r)))]
 
 
 class PythonGrowthInteraction(BaseInteraction):
@@ -159,6 +160,16 @@ def _epidemic():
     )
 
 
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_backend_prepares_the_form_and_runs_the_kernels(backend):
+    """Test that a backend prepared for a form and a size returns the lowering of the kernels when run."""
+    prepared = backend().prepare(Form.ODE, 2)
+    assert (prepared.form_, prepared.size_) == (Form.ODE, 2)
+    lowering = prepared.run({}, {})
+    assert isinstance(lowering, Lowering)
+    assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
+
+
 def test_compile_unknown_backend_raises_error():
     """Test that an unknown backend names the registered ones."""
     with pytest.raises(BackendError, match='numba, numpy'):
@@ -177,7 +188,7 @@ def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
     simulation = Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).run(until=2)
     assert simulation.problem_.backend == 'numba'
-    assert np.allclose(simulation.trajectory_['herds.n'][-1], np.linspace(1.0, 50.0, 5) / 4)
+    assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
 
 
 @pytest.mark.parametrize('period', [None, 24.0])
@@ -247,10 +258,10 @@ def test_numpy_backend_calls_vector_call_once_per_step():
     PairComponent = ElementComponent.define(
         'PairComponent',
         states={'x': 1.0, 'y': 0.0},
-        laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+        laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))],
     )
     trajectory = Simulation(System(components=[PairComponent('pair')]), backend='numpy').run(until=4).trajectory_
-    assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
+    assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
 
@@ -356,8 +367,8 @@ def test_rk4_matches_exponential(backend, numba_backend):
         backend=numba_backend if backend == 'numba' else backend,
     )
     stepper = RK4Solver(dt=0.001)
-    stepper.initialize(problem, np.random.default_rng(0))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+    stepper.prepare(problem, np.random.default_rng(0))
+    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert np.allclose(state, np.e, rtol=1e-10)
 
 
@@ -420,7 +431,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         dt=10.0,
     )
     trajectory = simulation.run(until=1000).trajectory_
-    energy = 0.5 * trajectory['p.v'][:, 0, 0] ** 2 + 0.5 * trajectory['p.x'][:, 0, 0] ** 2
+    energy = 0.5 * trajectory.values('p.v')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
 
 

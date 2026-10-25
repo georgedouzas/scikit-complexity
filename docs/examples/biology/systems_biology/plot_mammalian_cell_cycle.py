@@ -39,7 +39,7 @@ for ax, trajectory, title in zip(
     ('CycD on: a cycle of period 7', 'CycD off: quiescence'),
     strict=False,
 ):
-    raster = [trajectory[f'{name}.x'] for name in PROTEINS]
+    raster = [trajectory.values(f'{name}.x') for name in PROTEINS]
     ax.imshow(raster, aspect='auto', cmap='Greys', interpolation='nearest')
     ax.set_yticks(range(len(PROTEINS)), PROTEINS)
     ax.set_xlabel('step')

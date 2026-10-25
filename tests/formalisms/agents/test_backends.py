@@ -170,7 +170,7 @@ def test_rules_give_agent_form():
     problem = compile_system(
         System(components=[WalkerComponent.group('walkers', 3)], space=LatticeSpace((5, 5), boundary='fixed')),
     )
-    assert problem.form is Form.AGENT
+    assert problem.form == Form.AGENT
     assert problem.agents[0].states == ('moves',)
 
 
@@ -190,8 +190,8 @@ def test_agents_are_born_every_step():
     trajectory = (
         Simulation(System(components=[BreederComponent.group('herd', 10, variable=True)])).run(until=3).trajectory_
     )
-    assert trajectory['herd.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
-    assert len(trajectory.agents('herd', 3)) == 80
+    assert trajectory.values('herd.count').tolist() == [10.0, 20.0, 40.0, 80.0]
+    assert len(trajectory.agents('herd', 3).ids) == 80
 
 
 def test_fixed_group_rejects_births():
@@ -208,7 +208,7 @@ def test_model_rules_remove_agents():
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
-    assert trajectory['walkers.count'].tolist() == [5.0, 4.0, 3.0, 2.0]
+    assert trajectory.values('walkers.count').tolist() == [5.0, 4.0, 3.0, 2.0]
     assert 1 not in trajectory.agents('walkers', 1).ids.tolist()
 
 
@@ -373,7 +373,7 @@ def test_rule_reads_parameter_of_nested_owner():
 def test_rule_binds_two_agent_groups_through_roles():
     """Test that an interaction binds two agent groups of different sizes and reads each through its role."""
     simulation, records = _census()
-    assert simulation.problem_.form is Form.AGENT
+    assert simulation.problem_.form == Form.AGENT
     assert records[0]['counted'] == 42
     assert records[0]['others'] == 43
     assert records[0]['paths'] == {'farm/cows'}
@@ -404,7 +404,7 @@ def _views(space, locations):
     system = System(components=[CattleComponent.group('cows', 2, location=locations)], space=space)
     simulation = Simulation(system, random_state=0).run(until=0)
     stepper = simulation.stepper_
-    return [AgentView(agent, stepper) for agent in stepper.group_agents('cows')]
+    return [AgentView(agent, stepper) for agent in stepper._group_agents('cows')]
 
 
 def test_displacement_across_torus_seam():
@@ -480,3 +480,47 @@ def test_one_agent_takes_one_entry_values():
     snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]
+
+
+def test_mesa_solver_run_sets_agents_and_snapshot():
+    """Test that every run of the Mesa solver sets the alive agents by group and the snapshot of the step."""
+    system = System(components=[BreederComponent.group('breeders', 2, variable=True)])
+    problem = compile_system(system)
+    solver = MesaSolver().prepare(problem, np.random.default_rng(0), 3.0)
+    assert len(solver.agents_['breeders']) == 2
+    solver.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+    assert len(solver.agents_['breeders']) == 8
+    assert solver.snapshot_.reporters['breeders.count'] == 8.0
+    for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):
+        assert not hasattr(solver, name)
+
+
+class ForagerComponent(ElementComponent):
+    """Agent that gathers one unit of food every step and records whether it can read an undeclared state."""
+
+    food: float = state(0.0)
+
+    def laws(self, s):
+        """Return the foraging rule."""
+        return [RuleLaw(self.forage)]
+
+    def forage(self, agent, model):
+        """Gather one unit of food and try to read an undeclared state."""
+        agent.food += 1
+        try:
+            _ = agent.wealth
+        except AttributeError:
+            UNDECLARED.append(True)
+
+
+UNDECLARED: list[bool] = []
+
+
+def test_agent_views_read_and_set_states_as_properties():
+    """Test that a rule sets a state through its view and that an undeclared state raises Python's own error."""
+    UNDECLARED.clear()
+    system = System(components=[ForagerComponent.group('foragers', 2)], time=DiscreteTime())
+    trajectory = Simulation(system, dt=1.0, random_state=0).run(until=3).trajectory_
+    assert trajectory.agents('foragers', 3).values['food'].tolist() == [3.0, 3.0]
+    assert UNDECLARED
+    assert all(UNDECLARED)

@@ -38,7 +38,7 @@ def _noise_matrix(problem):
 def test_noise_rejects_conserved_process():
     """Test that a conserved noise law rejects a named process."""
     with pytest.raises(ValidationError, match='per link'):
-        NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common')
+        NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common').check()
 
 
 def test_compile_system_gives_every_link_two_entries():

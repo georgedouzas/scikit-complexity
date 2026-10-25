@@ -66,7 +66,7 @@ def _equations_of(
                 key = (entry.name, column)
                 if key in excluded:
                     continue
-                default = item if form is Form.DISCRETE else SR(0)
+                default = item if form == Form.DISCRETE else SR(0)
                 terms = contributions.get(key)
                 name = entry.generic_names[column]
                 equations[name] = sum(terms[1:], terms[0]) if terms else default
@@ -78,7 +78,11 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
     """Return a boundary function that also wraps every angle state into `(-pi, pi]`."""
     indices = np.concatenate(
         [np.zeros(0, dtype=np.intp)]
-        + [np.arange(entry.start, entry.start + entry.size) for entry in states if entry.domain is NumericDomain.ANGLE],
+        + [
+            np.arange(entry.start, entry.start + entry.size)
+            for entry in states.entries
+            if entry.domain is NumericDomain.ANGLE
+        ],
     )
     if not indices.size:
         return boundary
@@ -126,8 +130,10 @@ def _lower(compilation: Compilation) -> dict[str, object]:
     backend = _chosen_backend(compilation, form, member_count(list(declarations.blocks.values())))
     kernels, size = lowered.kernels, declarations.ends[True]
     draws = drawing.draws
-    extra = {} if draws is None else {'draws': draws}
-    lowering = backend.lower(form, kernels, lowered.jump_changes, size, reductions=reductions, **extra)
+    lowering = cast(
+        'Lowering',
+        backend.prepare(form, size).run(kernels, lowered.jump_changes, reductions=reductions, draws=draws),
+    )
     functions: dict[str, object] = vars(lowering).copy()
     if draws is not None and functions.get('update') is not None:
         functions['update'] = stochastic_update(cast('Callable[..., Vector]', functions['update']), draws)
@@ -162,7 +168,7 @@ class FunctionsPass(BasePass):
     reads = ('kernels', 'form', 'layout', 'reductions', 'drawing')
     writes = ('functions',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the kernels into numeric functions.
 
         Args:

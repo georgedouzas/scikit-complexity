@@ -38,7 +38,7 @@ simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[o
 # the size of the earthquakes in it: most frames should be quiet, and the others should spread over a wide range of
 # sizes.
 
-x = simulation.trajectory_['fault.x']
+x = simulation.trajectory_.values('fault.x')
 steps = np.diff(x, axis=0)
 slips = np.where(steps > 0.3, steps, 0.0)
 sizes = slips.sum(axis=1)

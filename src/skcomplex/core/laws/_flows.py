@@ -6,8 +6,8 @@
 import pickle  # nosec B403: pickles the invariant's function to check that it pickles, and never loads
 import re
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from typing import Any, ClassVar, cast
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Self, cast
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
@@ -27,7 +27,7 @@ from ..base import (
     symbol,
 )
 from ._functions import series
-from ._laws import _check_value, _is_number
+from ._laws import _checked_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
 DELAY_FUNCTIONS: dict[str, BuiltinFunction] = {}
@@ -285,23 +285,23 @@ class TransferLaw(BaseLaw):
     label: str | None = None
     rate: object = None
 
-    def __post_init__(self) -> None:
-        """Take `None` as the environment, and check the holders and the amount of the transfer."""
-        if self.source is None:
-            object.__setattr__(self, 'source', Source())
-        if self.sink is None:
-            object.__setattr__(self, 'sink', Sink())
-        _check_holder('source', self.source, Source)
-        _check_holder('sink', self.sink, Sink)
-        if isinstance(self.source, Source) and isinstance(self.sink, Sink):
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        source = Source() if self.source is None else self.source
+        sink = Sink() if self.sink is None else self.sink
+        changes: dict[str, Any] = {'source': source, 'sink': sink}
+        _check_holder('source', source, Source)
+        _check_holder('sink', sink, Sink)
+        if isinstance(source, Source) and isinstance(sink, Sink):
             error_msg = 'A flow moves a quantity into or out of a state, but both of its holders are the environment.'
             raise ValidationError(error_msg)
-        _check_value(self, 'amount', f'amount of the flow {self.label or ""}'.rstrip())
+        changes['amount'] = _checked_value(f'amount of the flow {self.label or ""}'.rstrip(), self.amount)
         if self.rate is not None and not _is_number(self.amount):
             error_msg = (
                 f'The flow {self.label} has a rate, so its amount is a jump size, but {self.amount} is a symbol.'
             )
             raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -336,9 +336,11 @@ class Auxiliary(BaseLaw):
     label: str
     expression: object
 
-    def __post_init__(self) -> None:
-        """Check the expression of the auxiliary."""
-        _check_value(self, 'expression', f'expression of the auxiliary {self.label}')
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
+        changes['expression'] = _checked_value(f'expression of the auxiliary {self.label}', self.expression)
+        return replace(self, **changes) if changes else self
 
     @property
     def symbol(self) -> Expression:
@@ -385,11 +387,12 @@ class Invariant(BaseLaw):
     expression: object
     tolerance: float = 1e-9
 
-    def __post_init__(self) -> None:
-        """Check the expression of the invariant."""
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if not self.is_member:
-            _check_value(self, 'expression', f'expression of the invariant {self.label}')
-            return
+            changes['expression'] = _checked_value(f'expression of the invariant {self.label}', self.expression)
+            return replace(self, **changes) if changes else self
         try:
             pickle.dumps(self.expression)
         except (pickle.PicklingError, AttributeError, TypeError) as error:
@@ -397,6 +400,7 @@ class Invariant(BaseLaw):
                 f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
             )
             raise ValidationError(error_msg) from error
+        return replace(self, **changes) if changes else self
 
     @property
     def is_member(self) -> bool:
@@ -417,7 +421,7 @@ class Invariant(BaseLaw):
         function = cast('Callable[[Any], float]', self.expression)
         return float(function(member))
 
-    def check(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
+    def _verify(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
         """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
 
         Args:

@@ -47,9 +47,8 @@ class TopologyRequest:
             The initial states of a new node or edge as pairs of a state name and a value, which default to the
             defaults of the element type.
 
-    Raises:
-        ValidationError:
-            The kind or the kept end is unknown, or the number of edges is negative.
+    The builders, such as `rewire`, and `request_of`, which reads the request of a law, raise a `ValidationError`
+    for an unknown kind or kept end, or a negative number of edges.
 
     Examples:
         >>> from skcomplex.formalisms.topology import rewire
@@ -66,27 +65,24 @@ class TopologyRequest:
     layer: str | None = None
     values: tuple[tuple[str, object], ...] = ()
 
-    def __post_init__(self) -> None:
-        """Check the kind, the kept end, and the number of edges."""
-        if self.kind not in TOPOLOGY_KINDS:
-            error_msg = f'Unknown topology request {self.kind!r}. Use one of {", ".join(TOPOLOGY_KINDS)}.'
-            raise ValidationError(error_msg)
-        if self.keep not in ENDS:
-            error_msg = f'A rewiring keeps the source or the target of its edge, not {self.keep!r}.'
-            raise ValidationError(error_msg)
-        if int(self.edges) != self.edges or self.edges < 0:
-            error_msg = f'A topology request adds a whole number of edges of at least 0, not {self.edges!r}.'
-            raise ValidationError(error_msg)
-
     @property
     def on_edges(self) -> bool:
         """Whether the request changes only the edges of its layer."""
         return self.kind in EDGE_KINDS
 
-    def __repr__(self) -> str:
-        """Return the kind of the request with its layer."""
-        layer = '' if self.layer is None else f', layer={self.layer!r}'
-        return f'{self.kind.replace("-", "_")}({layer.removeprefix(", ")})'
+
+def _checked(request: TopologyRequest) -> TopologyRequest:
+    """Return a request, raising an error for an unknown kind or kept end, or a negative number of edges."""
+    if request.kind not in TOPOLOGY_KINDS:
+        error_msg = f'Unknown topology request {request.kind!r}. Use one of {", ".join(TOPOLOGY_KINDS)}.'
+        raise ValidationError(error_msg)
+    if request.keep not in ENDS:
+        error_msg = f'A rewiring keeps the source or the target of its edge, not {request.keep!r}.'
+        raise ValidationError(error_msg)
+    if int(request.edges) != request.edges or request.edges < 0:
+        error_msg = f'A topology request adds a whole number of edges of at least 0, not {request.edges!r}.'
+        raise ValidationError(error_msg)
+    return request
 
 
 def add_edge(*, toward: Toward = None, edges: int = 1, layer: str | None = None, **values: object) -> TopologyRequest:
@@ -112,12 +108,16 @@ def add_edge(*, toward: Toward = None, edges: int = 1, layer: str | None = None,
         request:
             The request, the target of an update or jump law of a group on the nodes.
 
+    Raises:
+        ValidationError:
+            The number of edges is negative or not whole.
+
     Examples:
         >>> from skcomplex.formalisms.topology import add_edge
         >>> add_edge(edges=2).edges
         2
     """
-    return TopologyRequest('add-edge', edges, toward, layer=layer, values=tuple(values.items()))
+    return _checked(TopologyRequest('add-edge', edges, toward, layer=layer, values=tuple(values.items())))
 
 
 def remove_edge(*, layer: str | None = None) -> TopologyRequest:
@@ -136,7 +136,7 @@ def remove_edge(*, layer: str | None = None) -> TopologyRequest:
         >>> remove_edge().kind
         'remove-edge'
     """
-    return TopologyRequest('remove-edge', 0, layer=layer)
+    return _checked(TopologyRequest('remove-edge', 0, layer=layer))
 
 
 def rewire(*, keep: str = 'source', toward: Toward = None, layer: str | None = None) -> TopologyRequest:
@@ -159,12 +159,16 @@ def rewire(*, keep: str = 'source', toward: Toward = None, layer: str | None = N
         request:
             The request, the target of an update or jump law of an interaction over neighbours.
 
+    Raises:
+        ValidationError:
+            The kept end is neither `'source'` nor `'target'`.
+
     Examples:
         >>> from skcomplex.formalisms.topology import rewire
         >>> rewire(keep='target').keep
         'target'
     """
-    return TopologyRequest('rewire', 1, toward, keep=keep, layer=layer)
+    return _checked(TopologyRequest('rewire', 1, toward, keep=keep, layer=layer))
 
 
 def add_node(*, edges: int = 0, toward: Toward = None, layer: str | None = None, **values: object) -> TopologyRequest:
@@ -190,13 +194,17 @@ def add_node(*, edges: int = 0, toward: Toward = None, layer: str | None = None,
         request:
             The request, the target of an update or jump law.
 
+    Raises:
+        ValidationError:
+            The number of edges is negative or not whole.
+
     Examples:
         >>> from skcomplex.formalisms.topology import add_node
         >>> from skcomplex.core.laws import neighbors
         >>> add_node(edges=2, toward=lambda node: neighbors(1)).edges
         2
     """
-    return TopologyRequest('add-node', edges, toward, layer=layer, values=tuple(values.items()))
+    return _checked(TopologyRequest('add-node', edges, toward, layer=layer, values=tuple(values.items())))
 
 
 def remove_node() -> TopologyRequest:
@@ -211,7 +219,7 @@ def remove_node() -> TopologyRequest:
         >>> remove_node().kind
         'remove-node'
     """
-    return TopologyRequest('remove-node', 0)
+    return _checked(TopologyRequest('remove-node', 0))
 
 
 def request_of(law: object) -> TopologyRequest | None:
@@ -227,7 +235,8 @@ def request_of(law: object) -> TopologyRequest | None:
 
     Raises:
         ValidationError:
-            A jump changes states and requests a topology change at once, or fires a request more than once.
+            A jump changes states and requests a topology change at once, or fires a request more than once, or the
+            request has an unknown kind or kept end, or a negative number of edges.
 
     Examples:
         >>> from skcomplex.core.laws import UpdateLaw
@@ -237,7 +246,7 @@ def request_of(law: object) -> TopologyRequest | None:
     """
     target = getattr(law, 'target', None)
     if isinstance(target, TopologyRequest):
-        return target
+        return _checked(target)
     changes = getattr(law, 'changes', None) or {}
     requests = [item for item in changes if isinstance(item, TopologyRequest)]
     if not requests:
@@ -248,4 +257,4 @@ def request_of(law: object) -> TopologyRequest | None:
             'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
         )
         raise ValidationError(error_msg)
-    return requests[0]
+    return _checked(requests[0])

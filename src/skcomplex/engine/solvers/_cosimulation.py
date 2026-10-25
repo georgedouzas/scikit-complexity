@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Mapping
 from typing import Any, ClassVar, cast
 
@@ -131,7 +132,7 @@ class CoSimulationSolver(Solver):
         self.scheme = scheme
         self.split = split
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _prepare(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Partition the problem when asked, and build and seed the stepper of every partition.
 
         Args:
@@ -141,6 +142,9 @@ class CoSimulationSolver(Solver):
             rng:
                 The random number generator from which every partition gets its own generator.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not a co-simulation and `split` is false, or the scheme is unknown.
@@ -148,7 +152,8 @@ class CoSimulationSolver(Solver):
         if self.scheme not in SCHEMES:
             error_msg = f'scheme = {self.scheme!r} must be one of {", ".join(SCHEMES)}.'
             raise SolverError(error_msg)
-        if problem.form is not Form.COUPLED:
+        initial_state = problem.initial_state.copy()
+        if problem.form != Form.COUPLED:
             if not self.split or problem.system is None:
                 error_msg = (
                     f'CoSimulationSolver runs co-simulations, but the problem has the {problem.form.value} form. Pass '
@@ -163,9 +168,13 @@ class CoSimulationSolver(Solver):
         for partition, generator in zip(problem.partitions, generators, strict=True):
             solver = given.get(partition.name, 'auto')
             stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
-            stepper.initialize(partition.problem, generator)
+            stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
         self._aggregates = [element for element in problem.elements if isinstance(element.element, Aggregate)]
+        self.initial_state_ = initial_state
+        self._update_aggregates(initial_state)
+        self.events_, self.stopped_at_ = [], None
+        self._collect()
 
     def _intervals(self, t: float, until: float) -> list[tuple[float, float]]:
         """Return the synchronisation intervals of a frame after checking that `sync_dt` divides it."""
@@ -191,7 +200,7 @@ class CoSimulationSolver(Solver):
             aggregate = cast('Aggregate', element.element)
             scope = element.path.rpartition('/')[0]
             group = f'{scope}/{aggregate.group}' if scope else aggregate.group
-            agents = self.agents_of(group)
+            agents = self._agents_of(group)
             values: Any
             if agents is not None:
                 values = [getattr(agent, aggregate.variable) for agent in agents] if aggregate.variable else agents
@@ -200,19 +209,10 @@ class CoSimulationSolver(Solver):
             entry = problem.states.entry(f'{element.path}.value')
             x[entry.indices] = float(np.real(reduce_values(values, aggregate.reduce)))
 
-    def agents_of(self, group: str) -> list[Any] | None:
-        """Return the agents of an agent group from the partition that holds it, or `None`.
-
-        Args:
-            group:
-                The path of the agent group.
-
-        Returns:
-            agents:
-                The agents alive now, or `None`.
-        """
+    def _agents_of(self, group: str) -> list[Any] | None:
+        """Return the agents of an agent group from the partition that holds it, or `None`."""
         for stepper in self.steppers_.values():
-            agents = stepper.agents_of(group)
+            agents = stepper.agents_.get(group)
             if agents is not None:
                 return agents
         return None
@@ -222,7 +222,7 @@ class CoSimulationSolver(Solver):
         stepper = self.steppers_[partition.name]
         if stepper.reads_inputs:
             stepper.inputs_ = self.problem_.states.values(source)
-        state = stepper.advance(start, source.copy(), p, end)
+        state = stepper.run(start, source.copy(), p, end)
         if partition.problem.boundary is not None:
             state = partition.problem.boundary(end, state, p)
         return state
@@ -234,22 +234,7 @@ class CoSimulationSolver(Solver):
             state += deposits
             deposits[:] = 0.0
 
-    def initial_state(self, x: Vector) -> Vector:
-        """Return the initial state vector with every aggregate computed from its group.
-
-        Args:
-            x:
-                The initial state vector of the problem.
-
-        Returns:
-            state:
-                The state vector of the first frame.
-        """
-        state = x.copy()
-        self._update_aggregates(state)
-        return state
-
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Advance every partition to `until`, exchanging values at every synchronisation point.
 
         Args:
@@ -290,21 +275,25 @@ class CoSimulationSolver(Solver):
             self._update_aggregates(state)
         return state
 
-    def snapshot(self) -> AgentState | None:
-        """Return the agents and reporters of every agent partition.
-
-        Returns:
-            state:
-                The merged agents and reporters, or `None` when no partition has agents.
-        """
+    def _collect(self) -> None:
+        """Set the agents and reporters of every agent partition, merged, or no snapshot without agents."""
         groups: dict[str, Any] = {}
         reporters: dict[str, float] = {}
+        agents: dict[str, list[Any]] = {}
         for stepper in self.steppers_.values():
-            external = stepper.snapshot()
+            external = stepper.snapshot_
             if isinstance(external, AgentState):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
-        return AgentState(groups, reporters) if groups or reporters else None
+            agents.update(stepper.agents_)
+        self.snapshot_ = AgentState(groups, reporters) if groups or reporters else None
+        self.agents_ = agents
+
+    def _release(self) -> None:
+        """Release what the stepper of every partition acquired."""
+        for partition in self.problem_.partitions:
+            problem = partition.problem
+            self.steppers_[partition.name].run(0.0, problem.initial_state, problem.initial_parameters, 0.0, final=True)
 
 
 register_solver('co-simulation', CoSimulationSolver, default=True)

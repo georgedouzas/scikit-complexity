@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).ru
 # distribution.
 
 run = Simulation(create(MODEL, n_zones=2000), dt=1.0, random_state=1).run(until=20)
-numbers = run.trajectory_['zones.N'][10:].ravel()
+numbers = run.trajectory_.values('zones.N')[10:].ravel()
 counts = np.arange(numbers.max() + 2)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(numbers, bins=counts - 0.5, density=True, alpha=0.5, label=f'simulation, variance {numbers.var():.2f}')

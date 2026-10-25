@@ -31,8 +31,8 @@ simulation = Simulation(system, observers=[observer]).run(until=20)
 # should settle after a few steps.
 
 space = system.elements[0].space
-sizes = np.asarray(space.ball_sizes(), dtype=float)
-alive = simulation.trajectory_['cells.alive']
+sizes = np.asarray(space.ball_sizes_, dtype=float)
+alive = simulation.trajectory_.values('cells.alive')
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(np.arange(1, sizes.size), sizes[1:] / sizes[:-1], 'o-')
 left.set_xlabel('radius $n$')

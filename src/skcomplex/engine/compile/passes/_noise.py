@@ -130,7 +130,7 @@ class NoisePass(BasePass):
     reads = ('delayed', 'layout')
     writes = ('corrected',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Add the drift corrections of the noise laws.
 
         Args:

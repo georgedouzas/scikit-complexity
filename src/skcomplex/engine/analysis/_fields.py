@@ -21,7 +21,7 @@ from ._kinds import DataKind, analysis
 from ._spatial import correlation_function
 
 type Array = npt.NDArray[np.float64]
-LENGTH_METHODS = ('moment', 'fit')
+LENGTH_METHODS = ('moment', 'prepare')
 DOMAIN_METHODS = ('moment', 'zero')
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 EIGENVALUE = symbol('_eigenvalue_')
@@ -122,7 +122,7 @@ def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
 
 def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
-    spacings = np.asarray(lattice.spacings, dtype=float)
+    spacings = np.asarray(lattice.spacings_, dtype=float)
     if field.discretization == 'spectral':
         return -np.sum(waves**2, axis=1)
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
@@ -138,7 +138,7 @@ def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
     if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
         error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
         raise AnalysisError(error_msg)
-    return field, field.space
+    return field, field.space.prepare()
 
 
 def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -155,7 +155,7 @@ def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], 
         parameters[name] = float(value)
     names = {name: symbol(f'_{name}_') for name in states}
     rates: dict[str, Any] = {}
-    for law in member.laws(Symbols(**names, **parameters, t=symbol('t'))):
+    for law in member.run(Symbols(**names, **parameters, t=symbol('t'))):
         target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
         if not isinstance(law, RateLaw) or target is None:
             error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
@@ -259,7 +259,7 @@ def correlation_length(
             The values on the grid, or a stack of frames when `frames` is true.
 
         method:
-            `'moment'` or `'fit'`.
+            `'moment'` or `'prepare'`.
 
         spacing:
             The distance between neighbouring sites.
@@ -286,7 +286,7 @@ def correlation_length(
         error_msg = f'Unknown method {method!r}. Use one of {", ".join(LENGTH_METHODS)}.'
         raise AnalysisError(error_msg)
     grids = _frames(field, frames=frames)
-    if method == 'fit':
+    if method == 'prepare':
         return _fitted_length(grids, spacing)
     return _moment_length(grids, spacing)
 
@@ -594,7 +594,7 @@ def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -
     start = [float(np.mean((at or {}).get(name, values.get(name, 0.0)))) for name in order]
     uniform = start if at is not None else _fixed_point(rates, variables)(start)
     substitution = dict(zip(variables, uniform, strict=True))
-    axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.dimensions, lattice.spacings, strict=True)]
+    axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.shape_, lattice.spacings_, strict=True)]
     waves = np.stack([grid.ravel() for grid in np.meshgrid(*axes, indexing='ij')], axis=1)
     eigenvalues = _laplacian_eigenvalues(field, lattice, waves)
     matrices = np.zeros((len(waves), len(order), len(order)))

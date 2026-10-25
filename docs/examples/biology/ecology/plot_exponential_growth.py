@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
 # The law `dn/dt = r n` has the solution `n(t) = n0 exp(r t)`, so `log n` grows linearly with slope `r` and the
 # population doubles every `log 2 / r`. The simulated population should lie on the straight line.
 
-times, population = simulation.trajectory_.times, simulation.trajectory_['population.n']
+times, population = simulation.trajectory_.times, simulation.trajectory_.values('population.n')
 r, n0 = 0.2, 10.0
 slope = np.polyfit(times, np.log(population), 1)[0]
 fig, ax = plt.subplots(figsize=(7, 4))

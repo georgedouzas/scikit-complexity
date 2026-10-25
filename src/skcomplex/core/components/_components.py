@@ -24,17 +24,17 @@ from ..base import (
     symbol,
 )
 from ..laws import Symbols
-from ..space import LatticeSpace, NetworkSpace, SiteSpace, part_count
+from ..space import LatticeSpace, NetworkSpace, part_count
 
 PARTS = ('sites', 'edges', 'hyperedges')
 
 
-def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
+def _lattice_visual(element: type, visual: VisualSpec | None, default: str | None) -> VisualSpec:
     """Return the visual of a lattice group: the given one, the element type's, or the default kind."""
     if visual is not None:
         return visual
     declared: VisualSpec = getattr(element, 'visual', VisualSpec())
-    return VisualSpec(default) if declared == VisualSpec() else declared
+    return VisualSpec(default or 'sites') if declared == VisualSpec() else declared
 
 
 def _check_element(label: str, element: object) -> None:
@@ -70,12 +70,24 @@ def _check_value_names(group: 'GroupComponent') -> None:
     raise ValidationError(error_msg)
 
 
+def _size_of(group: 'GroupComponent', space: BaseSpace | None = None) -> int:
+    """Return the size of a group, the number of parts of its own space or else of an inherited space without one."""
+    if group.size is not None:
+        return int(group.size)
+    place = group.space if group.space is not None else space
+    if place is None:
+        error_msg = f'Group {group.label!r} lives on {group.on} but has neither a size nor a space.'
+        raise SpaceError(error_msg)
+    return part_count(place, group.on or 'sites', group.label, group.layer)
+
+
 def _check_value_rows(group: 'GroupComponent') -> None:
     """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
-    if group.size is None:
+    if group.size is None and group.space is None:
         return
-    declarations = group.element.declarations()
-    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
+    size = _size_of(group)
+    declarations = group.element._declarations()
+    dimensions = group.space.prepare().shape_ if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
         if declaration is None or not isinstance(declaration.domain, NumericDomain):
@@ -85,10 +97,10 @@ def _check_value_rows(group: 'GroupComponent') -> None:
         except ValueError:
             continue
         shared = 1 if declaration.vector else 0
-        if len(shape) <= shared or shape[0] == group.size or shape == dimensions:
+        if len(shape) <= shared or shape[0] == size or shape == dimensions:
             continue
         error_msg = (
-            f'Group {group.label!r} has {shape[0]} values of {name} for {group.size} members. Give one value per '
+            f'Group {group.label!r} has {shape[0]} values of {name} for {size} members. Give one value per '
             'member, or one value shared by every member.'
         )
         raise ValidationError(error_msg)
@@ -181,7 +193,7 @@ class ElementComponent(BaseComponent):
             ...     laws=lambda s: [RateLaw(s.n, -s.k * s.n)],
             ... )
             >>> DecayingComponent('atoms', n=10.0)
-            DecayingComponent(label='atoms', n=10.0)
+            DecayingComponent(k=0.5, label='atoms', n=10.0)
         """
         attributes = {} if visual is None else {'visual': visual}
         return cls._define(name, states=states, parameters=parameters, laws=laws, attributes=attributes)
@@ -228,8 +240,9 @@ class ElementComponent(BaseComponent):
 
         Examples:
             >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> PopulationComponent.group('herds', 3, n=[10, 20, 30])
-            GroupComponent('herds', element=PopulationComponent, size=3)
+            >>> herds = PopulationComponent.group('herds', 3, n=[10, 20, 30])
+            >>> herds.element.__name__, herds.size, herds.values
+            ('PopulationComponent', 3, {'n': [10, 20, 30]})
         """
         return GroupComponent(
             label,
@@ -245,7 +258,7 @@ class ElementComponent(BaseComponent):
     def lattice(
         cls,
         label: str,
-        space: SiteSpace | NetworkSpace,
+        space: BaseSpace,
         /,
         *,
         visual: VisualSpec | None = None,
@@ -290,27 +303,16 @@ class ElementComponent(BaseComponent):
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
+        space.prepare()
         if isinstance(space, NetworkSpace):
             nodes = list(space.graph.nodes)
-            by_node = {
+            values = {
                 name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
                 for name, value in values.items()
             }
-            visual = _lattice_visual(cls, visual, 'sites')
-            return GroupComponent(
-                label,
-                element=cls,
-                size=len(nodes),
-                values=by_node,
-                visual=visual,
-                space=space,
-                on='sites',
-            )
-        flat = {
-            name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
-        }
-        visual = _lattice_visual(cls, visual, space.default_visual)
-        return GroupComponent(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
+        flat = {name: np.ravel(value) if np.shape(value) == space.shape_ else value for name, value in values.items()}
+        visual = _lattice_visual(cls, visual, space.default_visual_)
+        return GroupComponent(label, element=cls, size=space.size_, values=flat, visual=visual, space=space, on='sites')
 
 
 class GroupComponent(BaseComponent):
@@ -358,29 +360,34 @@ class GroupComponent(BaseComponent):
             The largest number of members of a variable group on the sites or edges of a network, which compiled
             backends reserve rows for, or `None` for twice the initial size.
 
-    Raises:
-        SpaceError:
-            The part is unknown, or the space does not have it, such as edges outside a network.
+    Attributes:
+        declarations_:
+            The declarations of the element type, by name in declaration order.
 
-        ValidationError:
-            The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value names a
-            variable the element type does not declare, or a per-member value does not have one row per member.
+        default_visual_:
+            The visual of the element type, which the group takes when it sets none.
+
+        size_:
+            The number of members: the size, or for a group on parts without one, the number of parts of its space.
 
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components import GroupComponent
         >>> from skcomplex.core.space import NetworkSpace
         >>> from skcomplex.models.biology.ecology import PopulationComponent
-        >>> GroupComponent('herds', element=PopulationComponent, size=3).size
+        >>> GroupComponent('herds', element=PopulationComponent, size=3).prepare().size_
         3
         >>> GroupComponent(
         ...     'weights', element=PopulationComponent, space=NetworkSpace(nx.cycle_graph(30)), on='edges'
-        ... ).size
+        ... ).prepare().size_
         30
         >>> from skcomplex.core.space import Layer
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
-        >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').size
+        >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').prepare().size_
         6
+        >>> herds = GroupComponent('herds', element=PopulationComponent, size=3).prepare()
+        >>> herds.default_visual_ == PopulationComponent.visual
+        True
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
@@ -402,7 +409,7 @@ class GroupComponent(BaseComponent):
     ) -> None:
         super().__init__(label)
         self.element = element
-        self.size = size if size is not None or on is None or space is None else part_count(space, on, label, layer)
+        self.size = size
         self.values = values
         self.visual = visual
         self.space = space
@@ -411,38 +418,67 @@ class GroupComponent(BaseComponent):
         self.location = location
         self.layer = layer
         self.capacity = capacity
-        if on is not None and on not in PARTS:
-            error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
+
+    def _check(self) -> None:
+        """Raise an error for a part, an element type, a size, or values the group cannot take.
+
+        Raises:
+            SpaceError:
+                The part is unknown.
+
+            ValidationError:
+                The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value
+                names a variable the element type does not declare, or a per-member value does not have one row per
+                member.
+        """
+        super()._check()
+        if self.on is not None and self.on not in PARTS:
+            error_msg = f'Group {self.label!r} lives on {self.on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
         _check_group(self)
 
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label, element type, and size."""
-        return f'{type(self).__name__}({self.label!r}, element={self.element.__name__}, size={self.size})'
+    def _prepare(self, space: BaseSpace | None = None) -> None:
+        """Set `declarations_`, `default_visual_`, the visual of the group when it sets none, and `size_`.
 
-    def default_visual(self) -> VisualSpec:
-        """Return the visual of the group when it sets none, the visual of its element type.
+        The default visual of a group is the visual of its element type. The size of a group on parts of a space
+        without a size of its own is the number of parts of its space, or else of the space it inherits.
 
-        Returns:
-            visual:
-                The visual.
+        Args:
+            space:
+                The space the group inherits from its system, or `None`.
 
-        Examples:
-            >>> from skcomplex.core.components import GroupComponent
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> GroupComponent(
-            ...     'herds', element=PopulationComponent, size=3
-            ... ).default_visual() == PopulationComponent.visual
-            True
+        Raises:
+            SpaceError:
+                The group lives on parts but has neither a size nor a space, or the space does not have the part.
         """
-        return self.element.visual
+        super()._prepare()
+        self.default_visual_ = self.element.visual
+        self.size_ = _size_of(self, space)
+
+
+def _probe_namespace(component_type: type[BaseComponent | BaseInteraction]) -> Symbols:
+    """Return the namespace of free symbols of the declared names of a type, which probing its laws reads.
+
+    An element type gives its states, their companions, and its parameters, with `other`, the neighbour of a member,
+    holding the same names. An interaction gives its parameters and an empty namespace per role, or an empty tuple
+    for a variadic role, since the names of the
+    bound elements are not known before compiling. Both give the time `t`.
+    """
+    declared = component_type._declarations()
+    names = {name: symbol(name) for name, item in declared.items() if item.kind != VariableKind.ROLE}
+    roles = {
+        name: () if item.variadic else Symbols() for name, item in declared.items() if item.kind == VariableKind.ROLE
+    }
+    other = {} if roles else {'other': Symbols(**names)}
+    return Symbols(**names, **roles, **other, t=symbol('t'))
 
 
 def probe_laws(component: object) -> list[BaseLaw] | None:
-    """Return the laws of a component for a namespace of free symbols, before its states are declared.
+    """Return the laws of a component for a namespace of its declared names, before its states are declared.
 
-    A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
-    role. Laws that cannot be written with free symbols, such as laws that index a vector state, are not listed.
+    A group returns the laws of a representative member. The namespace holds a free symbol for every declared state
+    and parameter, the time `t`, `other` for the neighbour of a member, and an empty namespace per role. Laws that
+    read other names, such as the states of the elements a role binds, or that index a vector state, are not listed.
 
     Args:
         component:
@@ -453,9 +489,12 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
             The laws, or `None` when they cannot be listed.
 
     Examples:
+        >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import ElementComponent, probe_laws
         >>> from skcomplex.core.laws import RateLaw
-        >>> DecayComponent = ElementComponent.define('DecayComponent', laws=lambda s: [RateLaw(s.x, -s.x)])
+        >>> DecayComponent = ElementComponent.define(
+        ...     'DecayComponent', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        ... )
         >>> [type(law).__name__ for law in probe_laws(DecayComponent('decay'))]
         ['RateLaw']
     """
@@ -467,25 +506,12 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
         return None
     if component_type.laws in (BaseComponent.laws, BaseInteraction.laws):
         return []
-    roles = declarations_of(component_type, VariableKind.ROLE)
     try:
         member = (
             component.element(component.label, **(component.values or {}))
             if isinstance(component, GroupComponent)
             else component
         )
-        return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
+        return list(member.run(_probe_namespace(component_type)))
     except Exception:  # noqa: BLE001
         return None
-
-
-class _FreeSymbols(Symbols):
-    """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a free symbol of the name, or a namespace of free symbols for `other`, the neighbour of a member."""
-        if name.startswith('__'):
-            raise AttributeError(name)
-        if name == 'other':
-            return _FreeSymbols()
-        return symbol(name)

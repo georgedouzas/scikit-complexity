@@ -113,7 +113,7 @@ class SDESolver(Solver):
             take=take,
         )
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` in fixed steps no longer than `dt`.
 
         Args:
@@ -157,9 +157,8 @@ class EulerMaruyamaSolver(SDESolver):
         ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
-        >>> stepper = EulerMaruyamaSolver(dt=1e-3)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
+        >>> stepper = EulerMaruyamaSolver(dt=1e-3).prepare(problem, np.random.default_rng(0))
+        >>> bool(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
     """
 
@@ -235,7 +234,7 @@ class EulerMaruyamaSolver(SDESolver):
         end = time + float(np.max(lengths))
         return self._bounded(end, self._increment(time, state, p, step=lengths, noise=noise, end=end), p)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate the drift and the noise from time `t` to time `until`.
 
         Args:
@@ -299,9 +298,8 @@ class MilsteinSolver(SDESolver):
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
         >>> from skcomplex.engine.solvers import MilsteinSolver
         >>> problem = compile_system(geometric_brownian_motion())
-        >>> stepper = MilsteinSolver(dt=0.01)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
+        >>> stepper = MilsteinSolver(dt=0.01).prepare(problem, np.random.default_rng(0))
+        >>> bool(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
     """
 
@@ -384,9 +382,8 @@ class HeunSolver(SDESolver):
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
         >>> from skcomplex.engine.solvers import HeunSolver
         >>> problem = compile_system(geometric_brownian_motion())
-        >>> stepper = HeunSolver(dt=0.01)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
+        >>> stepper = HeunSolver(dt=0.01).prepare(problem, np.random.default_rng(0))
+        >>> bool(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
     """
 

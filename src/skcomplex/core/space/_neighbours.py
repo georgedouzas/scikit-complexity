@@ -4,12 +4,12 @@
 # License: MIT
 
 import math
-from dataclasses import dataclass
-from typing import ClassVar, Protocol
+from dataclasses import dataclass, replace
+from typing import Any, ClassVar, Protocol, Self
 
-from ..base import BaseSpace, Requires, SpaceKind, ValidationError
-from ._networks import NetworkSpace
-from ._spaces import SiteSpace
+from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceKind, ValidationError
+
+SITE_KINDS = frozenset({SpaceKind.LATTICE, SpaceKind.NETWORK})
 
 
 def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
@@ -17,7 +17,7 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
 
     Args:
         space:
-            The space of sites or the network.
+            The space of sites or the network, prepared here unless it was prepared before.
 
         size:
             The number of members, one per site or node.
@@ -38,19 +38,16 @@ def neighbor_pairs(space: BaseSpace | None, size: int, layer: str | None = None)
         >>> neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3)
         [(0, 1), (1, 2)]
     """
-    if isinstance(space, NetworkSpace):
-        sources, targets = space.list_edges(layer)
-        return [
-            (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
-        ]
-    if not isinstance(space, SiteSpace):
+    if space is None or space.space_kind not in SITE_KINDS:
         error_msg = f'Neighbours are defined on a space of sites, such as a lattice, or on a network, not on {space!r}.'
         raise ValidationError(error_msg)
-    return space.list_neighbor_pairs()
+    if not hasattr(space, 'size_'):
+        space.prepare()
+    return space._neighbor_pairs(layer)
 
 
 @dataclass(frozen=True)
-class Radius:
+class Radius(BaseNeighborhood):
     """Neighbourhood of the members of a continuous space within a distance, the metric neighbourhood.
 
     Distances are measured between the position states of the members, by the minimum image in a periodic box.
@@ -77,15 +74,18 @@ class Radius:
     radius: float
     center: bool = False
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized."""
+        changes: dict[str, Any] = {}
         if not float(self.radius) > 0:
             error_msg = f'A radius neighbourhood needs a positive radius, but got {self.radius!r}.'
             raise ValidationError(error_msg)
-        object.__setattr__(self, 'radius', float(self.radius))
+        changes['radius'] = float(self.radius)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
-class Nearest:
+class Nearest(BaseNeighborhood):
     """Neighbourhood of the `k` members of a continuous space closest to a member, the topological neighbourhood.
 
     Distances are measured between the position states of the members, by the minimum image in a periodic box. A
@@ -113,15 +113,18 @@ class Nearest:
     k: int
     center: bool = False
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized."""
+        changes: dict[str, Any] = {}
         if int(self.k) != self.k or int(self.k) < 1:
             error_msg = f'A nearest neighbourhood needs a whole number of neighbours of at least 1, but got {self.k!r}.'
             raise ValidationError(error_msg)
-        object.__setattr__(self, 'k', int(self.k))
+        changes['k'] = int(self.k)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
-class Cone:
+class Cone(BaseNeighborhood):
     """Neighbourhood of the members of a continuous space within a distance and inside a cone around a heading.
 
     A neighbour is within the radius of a member and its direction from the member makes an angle of at most `angle`
@@ -160,15 +163,18 @@ class Cone:
     heading: str | None = None
     center: bool = False
 
-    def __post_init__(self) -> None:
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized."""
+        changes: dict[str, Any] = {}
         if not float(self.radius) > 0:
             error_msg = f'A cone neighbourhood needs a positive radius, but got {self.radius!r}.'
             raise ValidationError(error_msg)
         if not 0 < float(self.angle) <= math.pi:
             error_msg = f'A cone neighbourhood needs a half-angle in (0, pi], but got {self.angle!r}.'
             raise ValidationError(error_msg)
-        object.__setattr__(self, 'radius', float(self.radius))
-        object.__setattr__(self, 'angle', float(self.angle))
+        changes['radius'] = float(self.radius)
+        changes['angle'] = float(self.angle)
+        return replace(self, **changes) if changes else self
 
 
 METRIC_NEIGHBORHOODS = (Radius, Nearest, Cone)
@@ -181,7 +187,7 @@ class _Generated(Protocol):
 
 
 @dataclass(frozen=True)
-class Memory:
+class Memory(BaseNeighborhood):
     """Ordered memory set of a cellular automaton on a group space: the group elements whose values a rule reads.
 
     A cell at the element `g` reads the cell at `g s` for every element `s` of the memory set, in its order, so the
@@ -194,7 +200,7 @@ class Memory:
 
     Examples:
         >>> from skcomplex.core.space import Memory
-        >>> len(Memory(('1', 'a', 'a^-1')))
+        >>> len(Memory(('1', 'a', 'a^-1')).elements)
         3
     """
 
@@ -202,12 +208,11 @@ class Memory:
 
     elements: tuple[str, ...]
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, 'elements', tuple(str(element) for element in self.elements))
-
-    def __len__(self) -> int:
-        """Return the number of elements."""
-        return len(self.elements)
+    def _check(self) -> Self:
+        """Return the neighbourhood with its arguments checked and normalized."""
+        changes: dict[str, Any] = {}
+        changes['elements'] = tuple(str(element) for element in self.elements)
+        return replace(self, **changes) if changes else self
 
     @classmethod
     def generators(

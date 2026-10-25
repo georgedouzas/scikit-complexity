@@ -37,7 +37,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observ
 
 trajectory = simulation.trajectory_
 times = trajectory.times
-values = trajectory['line.u']
+values = trajectory.values('line.u')
 spacing = 2 * np.pi / values.shape[1]
 slope = np.abs(np.diff(values, axis=1, append=values[:, :1])).max(axis=1) / spacing
 drift = np.abs(values.sum(axis=1) - values[0].sum()) / values[0].sum()

@@ -86,7 +86,7 @@ def docs(session: nox.Session) -> None:
     arg = check_cli(session, ['serve', 'build'], default='serve')
     session.run('pdm', 'install', '-dG', 'docs', external=True)
     # mkdocs-gallery imports MkDocs' deprecated `warning_filter` when the plugin loads, before any hook can filter it.
-    env = {'PYTHONWARNINGS': "ignore:warning_filter doesn't do anything:DeprecationWarning"}
+    env = {'PYTHONWARNINGS': "ignore:warning_filter doesn't do anything:DeprecationWarning", 'PYTHONPATH': 'docs'}
     session.run('properdocs', arg, env=env)
 
 

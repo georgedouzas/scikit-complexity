@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem, BaseSpace
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.base import BaseSpace
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual
@@ -79,7 +79,7 @@ def agents_visual_of(agents: CompiledAgents, problem: BaseProblem) -> AgentsVisu
     visual: Any = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
-    if getattr(problem, 'agent_space', None) is None and type(visual) is AgentsVisual and visual.position is None:
+    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
         return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual
 
@@ -117,6 +117,10 @@ class TraitsVisual(AgentsVisual):
             Whether the histogram view comes before the time series view of the colored trait, for traits whose
             distribution matters more than its statistics, such as clustered opinions.
 
+    Attributes:
+        spans_:
+            The range of the histogram of every trait logged so far, by entity path.
+
     Examples:
         >>> from skcomplex.engine.viz import TraitsVisual
         >>> TraitsVisual(color_by='fitness').bins
@@ -137,16 +141,20 @@ class TraitsVisual(AgentsVisual):
         self.bins = bins
         self.shown = shown
         self.histogram_first = histogram_first
-        self._spans: dict[str, tuple[float, float]] = {}
+
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
+        self.spans_: dict[str, tuple[float, float]] = {}
+        super()._prepare(element, problem)
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""
-        if path not in self._spans:
+        if path not in self.spans_:
             for index, statistic in enumerate(STATISTICS):
                 style = rr.SeriesLines(colors=SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
-        span = self.color_range if self.color_range is not None else _widened(self._spans.get(path), numbers)
-        self._spans[path] = span
+        span = self.color_range if self.color_range is not None else _widened(self.spans_.get(path), numbers)
+        self.spans_[path] = span
         counts, centres, width = _histogram(numbers, span, self.bins)
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
@@ -156,7 +164,7 @@ class TraitsVisual(AgentsVisual):
         if numbers.size <= MAX_AGENT_SERIES:
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the histogram and the statistics of every state of the members of a group at one frame.
 
         Args:
@@ -174,7 +182,7 @@ class TraitsVisual(AgentsVisual):
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{element.path}/{state}', numbers)
 
-    def log_agents(
+    def _log_agents(
         self,
         recording: rr.RecordingStream,
         path: str,
@@ -196,14 +204,14 @@ class TraitsVisual(AgentsVisual):
             space:
                 The space the agents live in, `None` for this visual.
         """
-        if not len(snapshot):
+        if not len(snapshot.ids):
             return
         for trait, values in snapshot.values.items():
             numbers = _numbers_of(values)
             if numbers is not None and numbers.size:
                 self._log_trait(recording, f'{path}/{trait}', numbers)
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
 
         Args:

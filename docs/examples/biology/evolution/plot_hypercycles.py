@@ -32,9 +32,11 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=290)
 # over instead: about `sqrt(2 omega / alpha) ≈ 4.5` of them survive for `alpha = 0.1` and the slowest die out.
 
 ring = simulation.trajectory_
-complete = Simulation(create(MODEL, molecules=10, topology='complete'), dt=0.5).run(until=200).trajectory_['soup.x']
+complete = (
+    Simulation(create(MODEL, molecules=10, topology='complete'), dt=0.5).run(until=200).trajectory_.values('soup.x')
+)
 fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4))
-left.semilogy(ring.times, ring['soup.x'])
+left.semilogy(ring.times, ring.values('soup.x'))
 left.set_ylim(1e-5, 1)
 left.set_xlabel('time')
 left.set_ylabel('concentration (log scale)')

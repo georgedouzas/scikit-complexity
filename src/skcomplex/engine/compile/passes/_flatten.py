@@ -14,7 +14,7 @@ class FlattenPass(BasePass):
     reads = ('system',)
     writes = ('nodes',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Flatten the system into its nodes.
 
         Args:

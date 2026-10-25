@@ -49,7 +49,7 @@ simulation = Simulation(system, dt=DT, observers=[observer], random_state=0, obs
 # the histogram should follow it, and the complementary cumulative distribution should fall as `w^-mu`.
 
 trajectory = simulation.trajectory_
-wealth = trajectory['agents.W']
+wealth = trajectory.values('agents.W')
 relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][::10].ravel()
 mu = 1 + 2 * J / SIGMA**2
 law = stats.invgamma(mu, scale=mu - 1)

@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from dataclasses import dataclass, field, replace
+from typing import Any, ClassVar, Self
 
 import numpy as np
 import qutip
@@ -108,8 +108,8 @@ class Operator:
         >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
         >>> x = LocalOperator('x', qutip.sigmax(), hermitian=True)
         >>> a, b = Operator({(('a', x),): 1}), Operator({(('b', x),): 1})
-        >>> symbol('J') * a * b
-        J*a.x*b.x
+        >>> (symbol('J') * a * b).text
+        'J*a.x*b.x'
     """
 
     __array_ufunc__ = None
@@ -181,8 +181,9 @@ class Operator:
         coefficient = _coefficient(other)
         return NotImplemented if coefficient is None else self * (1 / coefficient)
 
-    def __repr__(self) -> str:
-        """Return the operator in operator notation, a sum of coefficients times products of local operators."""
+    @property
+    def text(self) -> str:
+        """Operator in operator notation, a sum of coefficients times products of local operators."""
         if not self.terms:
             return '0'
         parts = []
@@ -208,8 +209,8 @@ class Operator:
             >>> import qutip
             >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
             >>> plus = LocalOperator('plus', qutip.sigmap())
-            >>> (2j * Operator({(('q', plus),): 1})).adjoint()
-            (-2j)*q.minus
+            >>> (2j * Operator({(('q', plus),): 1})).adjoint().text
+            '(-2j)*q.minus'
         """
         return Operator(
             {
@@ -240,8 +241,8 @@ class GeneratorLaw(BaseLaw):
         >>> import qutip
         >>> from skcomplex.formalisms.quantum import GeneratorLaw, LocalOperator, Operator
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-        >>> GeneratorLaw(Operator({(('q', z),): 0.5}))
-        GeneratorLaw(operator=0.5*q.z)
+        >>> GeneratorLaw(Operator({(('q', z),): 0.5})).operator.text
+        '0.5*q.z'
     """
 
     law_kind: ClassVar[LawKind] = LawKind.GENERATOR
@@ -250,13 +251,15 @@ class GeneratorLaw(BaseLaw):
 
     operator: Operator
 
-    def __post_init__(self) -> None:
-        """Check that the law holds an operator."""
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if not isinstance(self.operator, Operator):
             error_msg = (
                 f'A Generator takes an operator built from local operators, such as `s.z`, but got {self.operator!r}.'
             )
             raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self
 
 
 @dataclass(frozen=True)
@@ -291,11 +294,13 @@ class DissipatorLaw(BaseLaw):
     operator: Operator
     rate: object = 1.0
 
-    def __post_init__(self) -> None:
-        """Check the collapse operator and the rate."""
+    def _check(self) -> Self:
+        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
+        changes: dict[str, Any] = {}
         if not isinstance(self.operator, Operator):
             error_msg = f'A Dissipator takes an operator, such as `s.minus`, but got {self.operator!r}.'
             raise ValidationError(error_msg)
         if _coefficient(self.rate) is None:
             error_msg = f'The rate of a Dissipator is a number or a symbolic expression, but got {self.rate!r}.'
             raise ValidationError(error_msg)
+        return replace(self, **changes) if changes else self

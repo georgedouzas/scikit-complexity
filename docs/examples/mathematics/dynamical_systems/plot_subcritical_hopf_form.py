@@ -40,7 +40,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], schedule={'form.al
 # runs at fixed `alpha` should end on different attractors exactly in the bistable window `-1/4 < alpha < 0`.
 
 trajectory = simulation.trajectory_
-amplitude = np.hypot(trajectory['form.x'], trajectory['form.y'])
+amplitude = np.hypot(trajectory.values('form.x'), trajectory.values('form.y'))
 alphas = np.linspace(-0.4, 0.2, 25)
 finals = {
     start: [

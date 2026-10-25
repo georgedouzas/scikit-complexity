@@ -57,7 +57,8 @@ def equilibrium(gap):
 
 counts = np.arange(10, 61, 5)
 finals = [
-    Simulation(create(MODEL, n_cars=int(n)), dt=1.0).run(until=200).trajectory_['cars.v'][-1].mean() for n in counts
+    Simulation(create(MODEL, n_cars=int(n)), dt=1.0).run(until=200).trajectory_.values('cars.v')[-1].mean()
+    for n in counts
 ]
 grid = np.arange(10, 61)
 fig, ax = plt.subplots(figsize=(6, 4.5))

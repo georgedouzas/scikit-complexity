@@ -45,7 +45,7 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], ran
 bifurcation = Simulation(create(MODEL, tipping='bifurcation'), dt=1.0, solver=solver).run(until=720).trajectory_
 fold = 4 * 0.2 / (9.7137e9 * 1.04e-5**2)
 fig, (ramped, rates) = plt.subplots(1, 2, figsize=(10, 4))
-ramped.plot(bifurcation['earth.mu'], bifurcation['earth.T'])
+ramped.plot(bifurcation.values('earth.mu'), bifurcation.values('earth.T'))
 ramped.axvline(fold, color='black', linestyle=':', label=f'fold at mu = {fold:.3f}')
 ramped.set_xlim(1.0, 0.7)
 ramped.set_ylim(150, 300)
@@ -55,7 +55,7 @@ ramped.set_title('B-tipping past the fold')
 ramped.legend()
 for rho in (0.16, 0.2):
     trajectory = Simulation(create(MODEL, tipping='rate', rho=rho), dt=0.5, solver=solver).run(until=150).trajectory_
-    rates.plot(trajectory.times, trajectory['earth.T'], label=f'rho = {rho}')
+    rates.plot(trajectory.times, trajectory.values('earth.T'), label=f'rho = {rho}')
 rates.set_ylim(240, 310)
 rates.set_xlabel('time (years)')
 rates.set_ylabel('temperature (K)')

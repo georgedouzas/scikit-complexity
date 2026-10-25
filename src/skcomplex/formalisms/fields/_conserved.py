@@ -13,7 +13,7 @@ from ...core.base import Expression, ValidationError
 from ...core.laws import NoiseLaw
 from ...core.problems import NoiseProcess, Output, Reference, Source
 from ...core.space import LatticeSpace
-from ._components import FieldComponent
+from ._components import FieldComponent, boundary_of
 
 type Indices = npt.NDArray[np.intp]
 
@@ -126,11 +126,11 @@ def conserved_outputs(
     for reference in targets:
         place = places.get(reference.entry.name)
         space = _check_place(owner, reference, place)
-        kind, _ = place.boundary_of(reference.entry.name.rpartition('.')[2])  # type: ignore[union-attr]
-        tables = link_tables(space.dimensions, kind == 'periodic')
+        kind, _ = boundary_of(place, reference.entry.name.rpartition('.')[2])  # type: ignore[arg-type]
+        tables = link_tables(space.shape_, kind == 'periodic')
         key = ('conserved', reference.entry.name, reference.column)
-        dimension = len(tables) * space.size
-        for spacing, (following, preceding) in zip(space.spacings, tables, strict=True):
+        dimension = len(tables) * space.size_
+        for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):
             scaled = amplitude / spacing
             outputs.append(Output(reference, -scaled, process=NoiseProcess(key, dimension=dimension, links=following)))
             outputs.append(Output(reference, scaled, process=NoiseProcess(key, dimension=dimension, links=preceding)))

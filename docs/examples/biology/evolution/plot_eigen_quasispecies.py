@@ -48,7 +48,8 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=40)
 
 rates = np.linspace(0.0, 0.7, 15)
 shares = [
-    Simulation(create(MODEL, u=rate, sigma=0.5), dt=1).run(until=200).trajectory_['master.x'][-1] for rate in rates
+    Simulation(create(MODEL, u=rate, sigma=0.5), dt=1).run(until=200).trajectory_.values('master.x')[-1]
+    for rate in rates
 ]
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, shares, 'o', label='simulated')

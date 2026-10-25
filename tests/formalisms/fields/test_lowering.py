@@ -63,7 +63,7 @@ def test_uniform_decay():
         .trajectory_
     )
     expected = 2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500)
-    assert trajectory['grid.u'] == pytest.approx(expected, rel=1e-5)
+    assert trajectory.values('grid.u') == pytest.approx(expected, rel=1e-5)
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -78,7 +78,7 @@ def test_diffusion_on_network():
     graph = nx.connected_watts_strogatz_graph(50, 4, 0.2, seed=1)
     initial = np.random.default_rng(0).random(50)
     system = System(components=[FieldComponent('net', HeatComponent, NetworkSpace(graph), values={'u': initial})])
-    values = Simulation(system, dt=1).run(until=60).trajectory_['net.u']
+    values = Simulation(system, dt=1).run(until=60).trajectory_.values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
@@ -89,7 +89,7 @@ def test_diffusion_on_network_without_edges():
     system = System(
         components=[FieldComponent('net', HeatComponent, NetworkSpace(nx.empty_graph(2)), values={'u': initial})],
     )
-    values = Simulation(system, dt=1).run(until=3).trajectory_['net.u']
+    values = Simulation(system, dt=1).run(until=3).trajectory_.values('net.u')
     assert values[-1] == pytest.approx(initial)
 
 
@@ -104,7 +104,9 @@ def test_zero_flux_conserves_mass(backend):
         boundary={'u': 'zero-flux'},
         values={'u': initial},
     )
-    totals = Simulation(System(components=[plate]), dt=1, backend=backend).run(until=30).trajectory_['plate.u'].sum(1)
+    totals = (
+        Simulation(System(components=[plate]), dt=1, backend=backend).run(until=30).trajectory_.values('plate.u').sum(1)
+    )
     assert np.abs(totals - initial.sum()).max() < 1e-10 * initial.sum()
     assert totals.std() < 1e-10 * initial.sum()
 
@@ -225,7 +227,7 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
         values={'u': checkerboard},
         discretization=discretization,
     )
-    final = np.asarray(Simulation(System(components=[field]), dt=0.01).run(until=0.5).trajectory_['m.u'])[-1]
+    final = np.asarray(Simulation(System(components=[field]), dt=0.01).run(until=0.5).trajectory_.values('m.u'))[-1]
     expected = (
         0.01 * np.exp((1 - 8) * 0.5)
         if discretization == 'finite-difference'

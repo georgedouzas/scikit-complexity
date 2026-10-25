@@ -13,8 +13,8 @@ def test_stigmergic_marks_follow_emotions():
     for emotions in (True, False):
         system = stigmergic_predator_prey(20, 20, plants=100, prey=40, predators=10, emotions=emotions, random_state=0)
         trajectory = _run_until(system, 10, random_state=0)
-        marks[emotions] = trajectory['ground/marks.prey_happiness'][-1].sum()
-        assert trajectory['life/prey.count'][-1] > 0
+        marks[emotions] = trajectory.values('ground/marks.prey_happiness')[-1].sum()
+        assert trajectory.values('life/prey.count')[-1] > 0
     assert marks[True] > 0
     assert marks[False] == 0
 

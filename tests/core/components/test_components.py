@@ -163,8 +163,8 @@ def test_defined_types_form_groups():
         interactions=[GrowthInteraction('g', target='herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory['herd.n'].shape == (2, 100)
-    assert np.allclose(trajectory['herd.n'][-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
+    assert trajectory.values('herd.n').shape == (2, 100)
+    assert np.allclose(trajectory.values('herd.n')[-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
     assert GrowthInteraction('g', target='herd', r=0.7).get_params() == {
         'label': 'g',
         'layer': None,
@@ -186,7 +186,7 @@ def test_defined_types_clone_and_pickle():
 def test_laws_function_receives_component():
     """Test that a laws function with two arguments receives the component and the namespace."""
     trajectory = Simulation(System(components=[DecayingComponent('a', n=1.0)]), dt=1).run(until=1).trajectory_
-    assert np.isclose(trajectory['a.n'][-1], np.exp(-0.2), rtol=1e-3)
+    assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
 def test_group_stores_arguments():
@@ -209,15 +209,16 @@ def test_group_position_state_has_member_shape():
 
 
 def test_group_wrong_number_of_values_raises_error():
-    """Test that creating a group with the wrong number of values names the group, the variable, and both sizes."""
+    """Test that checking a group with the wrong number of values names the group, the variable, and both sizes."""
+    group = ParticleComponent.group('gas', 1000, x=np.zeros((999, 2)))
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
-        ParticleComponent.group('gas', 1000, x=np.zeros((999, 2)))
+        group.check()
 
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and lattice-shaped arrays pass the checks of group creation."""
-    assert ParticleComponent.group('gas', 3, x=[0.5, 0.5]).size == 3
-    assert PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0]).size == 3
+    assert ParticleComponent.group('gas', 3, x=[0.5, 0.5]).prepare().size_ == 3
+    assert PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0]).prepare().size_ == 3
     assert (
         GroupComponent(
             'cells',
@@ -225,29 +226,48 @@ def test_group_shared_and_lattice_values_are_accepted():
             space=LatticeSpace((2, 3)),
             on='sites',
             values={'n': np.ones((2, 3))},
-        ).size
+        )
+        .prepare()
+        .size_
         == 6
     )
 
 
 @pytest.mark.parametrize(('size', 'match'), [(0, 'positive integer'), (2.5, 'positive integer')])
 def test_group_invalid_size_raises_error(size, match):
-    """Test that creating a group checks that its size is a positive integer."""
+    """Test that checking a group rejects a size that is not a positive integer."""
+    group = PopulationComponent.group('herds', size)
     with pytest.raises(ValidationError, match=match):
-        PopulationComponent.group('herds', size)
+        group.check()
 
 
 def test_group_unknown_value_raises_error():
-    """Test that creating a group with an undeclared value names it and lists the declared states and parameters."""
+    """Test that checking a group with an undeclared value names it and lists the declared states and parameters."""
     message = r'sets foo, which PopulationComponent does not declare\. Its states are n'
+    group = PopulationComponent.group('herds', 3, foo=1)
     with pytest.raises(ValidationError, match=message):
-        PopulationComponent.group('herds', 3, foo=1)
+        group.check()
 
 
 def test_group_non_element_type_raises_error():
-    """Test that creating a group checks that its element is an Element subclass."""
+    """Test that checking a group rejects an element that is not an Element subclass."""
+    group = GroupComponent('herds', element=int, size=3)
     with pytest.raises(ValidationError, match='not an Element subclass'):
-        GroupComponent('herds', element=int, size=3)
+        group.check()
+
+
+def test_group_with_invalid_values_fails_validation_with_its_path():
+    """Test that a group built with an invalid size is reported by compiling the system, with the path of the group."""
+    system = System(components=[System('meadow', components=[PopulationComponent.group('herds', 0)])])
+    with pytest.raises(ValidationError, match=r'meadow/herds: Group .herds. has size 0'):
+        compile_system(system)
+
+
+def test_group_default_visual_is_prepared():
+    """Test that a prepared group holds the visual of its element type as its default visual."""
+    group = PopulationComponent.group('herds', 3).prepare()
+    assert group.default_visual_ == PopulationComponent.visual
+    assert list(group.declarations_) == []
 
 
 def test_role_binds_to_group_and_applies_to_every_member():
@@ -402,7 +422,7 @@ def test_numpy_scalar_values_match_floats():
             dt=0.5,
         )
         .run(until=2)
-        .trajectory_['d.x']
+        .trajectory_.values('d.x')
         for laws in (_numpy_decay, _float_decay)
     ]
     assert np.array_equal(*trajectories)

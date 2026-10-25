@@ -150,12 +150,12 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
         raise AnalysisError(error_msg)
     values = problem.initial_parameters.copy()
     for name, value in (parameters or {}).items():
-        if name not in problem.parameters:
+        if not problem.parameters.has(name):
             error_msg = f'{name} is not a parameter. Available parameters are: {", ".join(problem.parameters.names)}.'
             raise AnalysisError(error_msg)
         values[problem.parameters.entry(name).indices] = value
     current = {}
-    for entry in problem.parameters:
+    for entry in problem.parameters.entries:
         for column, item in enumerate(components_of(problem.symbols[entry.name])):
             current[item] = float(values[entry.start + column])
     names, symbols, rates, members = expand_groups(problem, values)
@@ -165,7 +165,7 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
         symbols=symbols,
         rates=rates,
         parameters={**current, **members},
-        discrete=problem.form is Form.DISCRETE,
+        discrete=problem.form == Form.DISCRETE,
     )
 
 

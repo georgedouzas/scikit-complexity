@@ -25,4 +25,4 @@ def test_fragmentation_conserves_the_total_size():
     trajectory = _run(fragmentation(500), 20)
     lengths = trajectory.agents('fragments', 20).values['length']
     assert lengths.sum() == 500
-    assert trajectory['fragments.count'][-1] > trajectory['fragments.count'][5] > 1
+    assert trajectory.values('fragments.count')[-1] > trajectory.values('fragments.count')[5] > 1

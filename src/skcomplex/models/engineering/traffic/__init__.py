@@ -10,7 +10,7 @@ from ._drivers import (
     ring_road_drivers,
 )
 from ._langevin import LangevinDrivingInteraction, TrafficMomentsComponent, langevin_traffic, traffic_density_equation
-from ._ridesharing import CabComponent, DispatchInteraction, NearestCab, RiderComponent, ridesharing
+from ._ridesharing import CabComponent, DispatchInteraction, RiderComponent, nearest_cab, ridesharing
 from ._traffic import RoadComponent, nagel_schreckenberg
 
 __all__: list[str] = [
@@ -20,7 +20,6 @@ __all__: list[str] = [
     'DriverComponent',
     'LangevinDrivingInteraction',
     'MotoristComponent',
-    'NearestCab',
     'RiderComponent',
     'RoadComponent',
     'TrafficMomentsComponent',
@@ -31,6 +30,7 @@ __all__: list[str] = [
     'langevin_traffic',
     'lighthill_whitham_richards',
     'nagel_schreckenberg',
+    'nearest_cab',
     'optimal_velocity',
     'payne',
     'ridesharing',

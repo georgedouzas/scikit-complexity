@@ -32,8 +32,8 @@ noisy = simulation.trajectory_
 deterministic = Simulation(create(MODEL, stochastic=False), dt=0.5).run(until=100).trajectory_
 a, e, h, m = 0.005, 0.5, 0.5, 0.3
 fig, ax = plt.subplots(figsize=(6, 5))
-ax.plot(noisy['prey.n'], noisy['predators.n'], linewidth=0.8, label='jump process')
-ax.plot(deterministic['prey.n'], deterministic['predators.n'], color='black', label='deterministic limit')
+ax.plot(noisy.values('prey.n'), noisy.values('predators.n'), linewidth=0.8, label='jump process')
+ax.plot(deterministic.values('prey.n'), deterministic.values('predators.n'), color='black', label='deterministic limit')
 ax.axvline(m / (a * (e - m * h)), color='grey', linestyle=':', label='coexistence prey')
 ax.set_xlabel('prey')
 ax.set_ylabel('predators')

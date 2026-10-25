@@ -51,7 +51,7 @@ orbits = [simulation.trajectory_] + [
 ]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)
-strips = [np.column_stack([SCALE * orbit['flow.x1'], -SCALE * orbit['flow.x2']]) for orbit in orbits]
+strips = [np.column_stack([SCALE * orbit.values('flow.x1'), -SCALE * orbit.values('flow.x2')]) for orbit in orbits]
 observer.recording_.log('phase_plane/orbits', rr.LineStrips2D(strips, radii=1.0, colors=[255, 170, 40]), static=True)
 observer.recording_.log(
     'phase_plane/manifold',
@@ -70,15 +70,17 @@ observer.recording_.flush()
 times = simulation.trajectory_.times
 fig, (plane, eigen) = plt.subplots(1, 2, figsize=(10, 4))
 for orbit in orbits:
-    plane.plot(orbit['flow.x1'], orbit['flow.x2'], color='tab:orange', linewidth=1)
+    plane.plot(orbit.values('flow.x1'), orbit.values('flow.x2'), color='tab:orange', linewidth=1)
 plane.plot(parabola, b * parabola**2, color='tab:blue', label=f'slow manifold x2 = {b:.3f} x1^2')
 plane.set_xlabel('x1')
 plane.set_ylabel('x2')
 plane.set_title('Fast collapse onto the slow manifold')
 plane.legend()
 for orbit in orbits[:3]:
-    eigen.semilogy(times, np.abs(orbit['flow.x1']), color='tab:orange', linewidth=1)
-    eigen.semilogy(times, np.abs(orbit['flow.x2'] - b * orbit['flow.x1'] ** 2), color='tab:green', linewidth=1)
+    eigen.semilogy(times, np.abs(orbit.values('flow.x1')), color='tab:orange', linewidth=1)
+    eigen.semilogy(
+        times, np.abs(orbit.values('flow.x2') - b * orbit.values('flow.x1') ** 2), color='tab:green', linewidth=1
+    )
 eigen.semilogy(times, np.exp(MU * times), 'k--', label='exp(mu t)')
 eigen.semilogy(times, np.exp(LAM * times), 'k:', label='exp(lam t)')
 eigen.set_ylim(1e-12, 3)

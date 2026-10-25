@@ -19,19 +19,19 @@ def test_success_to_the_successful_gives_everything_to_the_initially_larger():
     for a, b in ((55.0, 45.0), (45.0, 55.0)):
         trajectory = _run_seeded(success_to_the_successful(a=a, b=b), 100.0, 5.0)
         winner, loser = ('contest.a', 'contest.b') if a > b else ('contest.b', 'contest.a')
-        assert trajectory[winner][-1] > 99.0
-        assert trajectory[loser][-1] < 1.0
+        assert trajectory.values(winner)[-1] > 99.0
+        assert trajectory.values(loser)[-1] < 1.0
     assert _polarities(success_to_the_successful()) == ['balancing', 'balancing', 'reinforcing', 'reinforcing']
 
 
 def test_shifting_the_burden_lets_the_quick_fix_take_over():
     """Test that the quick fix replaces the capability of the system, which builds up to the goal without it."""
     addicted = _run_seeded(shifting_the_burden(), 40.0, 1.0)
-    assert addicted['burden.capability'][-1] < 0.01
-    assert addicted['burden.intervention'][-1] == pytest.approx(1.0, abs=0.01)
-    assert abs(addicted['burden.symptom'][-1]) < 0.01
+    assert addicted.values('burden.capability')[-1] < 0.01
+    assert addicted.values('burden.intervention')[-1] == pytest.approx(1.0, abs=0.01)
+    assert abs(addicted.values('burden.symptom')[-1]) < 0.01
     unaided = _run_seeded(shifting_the_burden(fix_rate=0.0), 40.0, 1.0)
-    assert unaided['burden.capability'][-1] == pytest.approx(1.0, abs=0.01)
+    assert unaided.values('burden.capability')[-1] == pytest.approx(1.0, abs=0.01)
     assert 'reinforcing' in _polarities(shifting_the_burden())
 
 
@@ -40,5 +40,5 @@ def test_escalation_grows_both_stocks_exponentially():
     trajectory = _run_seeded(escalation(), 100.0, 5.0)
     rate = (-3.0 + np.sqrt(9.0 + 0.8)) / 4.0
     for path in ('race.a', 'race.b'):
-        assert np.log(trajectory[path][-1] / trajectory[path][-5]) / 20.0 == pytest.approx(rate, rel=1e-3)
+        assert np.log(trajectory.values(path)[-1] / trajectory.values(path)[-5]) / 20.0 == pytest.approx(rate, rel=1e-3)
     assert 'reinforcing' in _polarities(escalation())

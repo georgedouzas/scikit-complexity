@@ -6,10 +6,9 @@ import rerun.blueprint as rrb
 from scipy.special import jv
 
 from skcomplex.core.base import ValidationError
-from skcomplex.engine.analysis import purity, spectrum
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver, default_blueprint
-from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver
+from skcomplex.formalisms.quantum import ExpectationVisual, LindbladSolver, purity, spectrum
 from skcomplex.models import create, run
 
 
@@ -22,20 +21,20 @@ def test_quantum_heisenberg_ground_state_of_the_ring():
 def test_quantum_heisenberg_single_magnon_follows_bessel_functions():
     """Test that one flipped spin of the XX ring spreads as J_d(J t)² with a conserved magnetisation."""
     trajectory = run('quantum_heisenberg', delta=0.0, settings={'until': 2.0, 'dt': 0.1}).trajectory_
-    sz = trajectory['sz']
+    sz = trajectory.values('sz')
     for distance in range(-5, 6):
         expected = jv(abs(distance), trajectory.times) ** 2
         assert np.allclose(0.5 - sz[:, 6 + distance], expected, atol=1e-5)
-    assert np.ptp(trajectory['magnetization']) < 1e-8
+    assert np.ptp(trajectory.values('magnetization')) < 1e-8
 
 
 def test_quantum_heisenberg_run_by_name_records_states_and_observables():
     """Test that a run by name records 21 complex states and the local magnetisation of every site."""
     trajectory = run('quantum_heisenberg', settings={'until': 2.0, 'dt': 0.1}).trajectory_
     assert len(trajectory.times) == 21
-    assert trajectory['quantum_heisenberg.state'].shape == (21, 4096)
-    assert np.iscomplexobj(trajectory['quantum_heisenberg.state'])
-    assert trajectory['sz'].shape == (21, 12)
+    assert trajectory.values('quantum_heisenberg.state').shape == (21, 4096)
+    assert np.iscomplexobj(trajectory.values('quantum_heisenberg.state'))
+    assert trajectory.values('sz').shape == (21, 12)
 
 
 def test_quantum_heisenberg_dephasing_destroys_coherence():
@@ -45,7 +44,7 @@ def test_quantum_heisenberg_dephasing_destroys_coherence():
     values = purity(simulation.trajectory_)
     assert np.all(np.diff(values) <= 1e-10)
     assert values[-1] < 1
-    assert np.ptp(simulation.trajectory_['magnetization']) < 1e-8
+    assert np.ptp(simulation.trajectory_.values('magnetization')) < 1e-8
 
 
 @pytest.mark.parametrize(('values', 'message'), [({'boundary': 'twisted'}, 'boundary'), ({'initial': 'x'}, 'x')])
@@ -64,4 +63,4 @@ def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')
     Simulation(system, dt=0.5, observers=[observer]).run(until=2.0)
     assert observer.logged_frames_ == 5
-    assert repr(ExpectationVisual()) == 'ExpectationVisual(states=None, low=None, high=None, history=None)'
+    assert repr(ExpectationVisual()) == 'ExpectationVisual()'

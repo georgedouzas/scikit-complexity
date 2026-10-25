@@ -53,7 +53,7 @@ for temperature in temperatures:
     spins = trajectory.lattice('spins.spin')[-50:]
     bonds = spins * right * np.roll(spins, -1, axis=-1) + spins * down * np.roll(spins, -1, axis=-2)
     energies.append(-bonds.sum(axis=(1, 2)).mean() / 32**2)
-    magnetizations.append(np.abs(trajectory['magnetization'][-50:]).mean())
+    magnetizations.append(np.abs(trajectory.values('magnetization')[-50:]).mean())
     frozen.append(np.mean(spins.mean(axis=0) ** 2))
 grid = np.linspace(1.5, 3.6, 50)
 fig, (energy, order) = plt.subplots(1, 2, figsize=(10, 4))

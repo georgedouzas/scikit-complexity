@@ -59,6 +59,13 @@ conventions are the taste it cannot check.
   dependency rather than implemented in the codebase, and the codebase MUST hold only the adapter that lowers its own
   abstractions to the library. A capability MUST NOT be implemented in house unless no such library fits, and the
   change that adds it MUST record the libraries it surveyed and why each was rejected.
+- A class MUST define every method its children share on their common parent, as a public method written once that
+  calls a private hook the children override, and the parent MUST give a trivial hook where a child has nothing to do.
+- A constructor MUST only store each argument unmodified under its own name. Every other attribute MUST end in an
+  underscore and MUST be set by a named method, and checks MUST run in a named method, not at construction.
+- A class MUST NOT define magic methods other than `__init__`, except the arithmetic operators of a type the user writes
+  as mathematics. A collection MUST be read through named methods and properties, a callable object MUST expose a
+  named method, and a value MUST be a frozen dataclass compared by its fields.
 - A constant that two modules define the same way MUST be treated as one fact and lifted to the shared leaves. Two
   constants that share a value but not a meaning MUST stay apart, and the same holds for behavior, so only the
   fragment that is identical at every call site MUST be collapsed.
@@ -216,17 +223,21 @@ conventions are the taste it cannot check.
 This section instantiates the body above for this repository. It is the repo-specific part, and it is a starting point
 to fill in as the project takes shape.
 
-- Ecosystem contract: the scikit-learn estimator contract. The bases `BaseComponent`, `BaseInteraction`,
-  `BaseSpace`, `BaseTime`, `BaseSolver`, and `BaseBackend`, and `System`, clocks, and simulations inherit
-  `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state with a trailing
-  underscore. `BaseLaw`, `BaseDomain`, and `BaseProblem` derive from no class. Elements and groups derive from
+- Ecosystem contract: the scikit-learn estimator contract. Every configurable base derives from the framework's
+  `BaseEstimator`, a child of `sklearn.base.BaseEstimator`, and speaks three verbs: `check()` validates the stored
+  arguments, `prepare(*context)` checks and derives every attribute ending in an underscore, and
+  `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `prepare`
+  acquired. Each verb calls a private hook, `_check`, `_prepare`, `_run`, or `_release`, with a trivial default, and no
+  family MUST add a verb of its own. Laws, domains, problems, terms, and compiled records are values: frozen
+  dataclasses whose only shared method is `check()`, which returns a checked copy. Elements and groups derive from
   `BaseComponent`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
   helpers they share. A system holds its components, interactions, and nested systems, and is none of them. A
   component or interaction type declares its fields with `state`, `parameter`, and `role`, and a constructor setting
   that is not a declaration is taken by an explicit keyword-only `__init__` of the type. No component class is turned
   into a dataclass or given generated attributes. Every law derives from `BaseLaw` and declares its kind, its time
-  class, and its traits as class variables.
+  class, and its traits as class variables. The only magic methods beyond `__init__` are the arithmetic of the
+  quantum operators.
 - Language: Python >=3.12, <3.14.
 - Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
   Windows users run the package in WSL.
@@ -294,4 +305,4 @@ to fill in as the project takes shape.
   kinds, forms, space kinds, and traits are open vocabularies. Classes users subclass are `ElementComponent`,
   `BaseInteraction`, `BaseLaw`, `PotentialInteraction`, `PairPotentialInteraction`, `BaseBackend`, `BaseSolver`,
   `Solver`, `ExternalSolver`, `BaseSystemCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`.
-**Version**: 1.9.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25
+**Version**: 1.10.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25

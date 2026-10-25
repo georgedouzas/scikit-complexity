@@ -113,7 +113,7 @@ class PontryaginSolver(OptimalControlSolver):
         >>> simulation = Simulation(System(components=[PlantComponent('plant')]), solver=PontryaginSolver()).run(
         ...     until=1.0
         ... )
-        >>> float(round(simulation.trajectory_['plant.u'][0], 3))
+        >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
     """
 
@@ -155,7 +155,7 @@ class PontryaginSolver(OptimalControlSolver):
             return np.where(values > 0, lower, upper)
         return np.clip(values, lower, upper)
 
-    def prepare(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the costate equations, the terminal costates, and the control law symbolically.
 
         Args:
@@ -184,7 +184,7 @@ class PontryaginSolver(OptimalControlSolver):
         )
         self._law: GridFunction = control_problem.function(law, costates)
 
-    def solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
         """Return the optimal solution by a forward-backward sweep with relaxed control updates.
 
         Args:

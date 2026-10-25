@@ -81,7 +81,7 @@ def solver_lines() -> list[str]:
         '| Solver | Form | Time | Space | Laws | Domains | Components | Noise |',
         '|---|---|---|---|---|---|---|---|',
     ]
-    for key in sorted(SOLVERS, key=lambda key: (key[0].name, key[1])):
+    for key in sorted(SOLVERS.keys, key=lambda key: (key[0].name, key[1])):
         if key[1] == 'auto':
             continue
         supports = SOLVERS.resolve(key).supports
@@ -116,7 +116,7 @@ def backend_lines() -> list[str]:
         '| Backend | Laws | Domains | Noise |',
         '|---|---|---|---|',
     ]
-    for key in sorted(BACKENDS):
+    for key in sorted(BACKENDS.keys):
         supports = BACKENDS.resolve(key).supports
         cells = [
             _terms(supports.laws, len(LawKind.registered())),

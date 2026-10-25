@@ -51,7 +51,7 @@ def final_distribution(confidence, repulsion):
     """Return the final distribution and variance of the opinions for a confidence and a repulsion."""
     model_system = create(MODEL, confidence=confidence, repulsion=repulsion)
     run = Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system)).run(until=60)
-    return run.trajectory_['opinions.f'][-1], run.trajectory_['opinion_variance'][-1]
+    return run.trajectory_.values('opinions.f')[-1], run.trajectory_.values('opinion_variance')[-1]
 
 
 opinions = opinion_grid(7)

@@ -36,7 +36,7 @@ phases = {'low density': (0.3, 0.7), 'high density': (0.7, 0.3), 'maximal curren
 fig, (profiles, currents) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, (alpha, gamma)) in enumerate(phases.items()):
     run = Simulation(create(MODEL, alpha=alpha, gamma=gamma), dt=2.0, random_state=0, backend='numba').run(until=4000)
-    lane = run.trajectory_['lane.n'][250:]
+    lane = run.trajectory_.values('lane.n')[250:]
     predicted = 0.25 if min(alpha, gamma) > 0.5 else min(alpha, gamma) * (1 - min(alpha, gamma))
     profiles.plot(lane.mean(axis=0), label=f'{name}, alpha = {alpha}, gamma = {gamma}')
     currents.bar(index - 0.2, gamma * lane[:, -1].mean(), width=0.4, color='tab:blue')

@@ -177,13 +177,13 @@ def fhp_lattice_gas(
         >>> fhp_lattice_gas((8, 8)).elements[0].size
         64
     """
-    space = LatticeSpace(tuple(shape), geometry='triangular')
-    positions = space.positions
+    space = LatticeSpace(tuple(shape), geometry='triangular').prepare()
+    positions = space.positions_
     centre = positions.mean(axis=0)
-    size = min(space.dimensions) / 6 if radius is None else radius
+    size = min(space.shape_) / 6 if radius is None else radius
     inside = np.linalg.norm(positions - centre, axis=1) < size
     probability = np.where(inside, bump, density)[:, None]
-    occupied = (np.random.default_rng(random_state).random((space.size, DIRECTIONS)) < probability).astype(float)
+    occupied = (np.random.default_rng(random_state).random((space.size_, DIRECTIONS)) < probability).astype(float)
     channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
     gas = FHPSiteComponent.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
     return System(components=[gas])

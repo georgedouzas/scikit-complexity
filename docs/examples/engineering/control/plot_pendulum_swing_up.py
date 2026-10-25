@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[ob
 
 omega = 1.5652475842498528
 trajectory = simulation.trajectory_
-theta, rate = trajectory['pendulum.theta'], trajectory['pendulum.theta_d1']
+theta, rate = trajectory.values('pendulum.theta'), trajectory.values('pendulum.theta_d1')
 energy = rate**2 / 2 - omega**2 * np.cos(theta)
 fig, (pumping, phase) = plt.subplots(1, 2, figsize=(10, 4))
 pumping.plot(trajectory.times, energy)

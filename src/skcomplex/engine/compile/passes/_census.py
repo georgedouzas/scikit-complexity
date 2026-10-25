@@ -17,7 +17,7 @@ class CensusPass(BasePass):
     reads = ('nodes',)
     writes = ('census',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Take the census of the laws of the nodes.
 
         Args:

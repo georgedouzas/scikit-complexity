@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=60)
 # `AU = d / alpha - r AV = 1/3`. The trajectory should end on that point.
 
 alpha, r, d = 1.0, 0.5, 0.5
-AU, AV = simulation.trajectory_['tumour.AU'], simulation.trajectory_['tumour.AV']
+AU, AV = simulation.trajectory_.values('tumour.AU'), simulation.trajectory_.values('tumour.AV')
 grid = np.linspace(0, 1, 50)
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, AU, label='uninfected')

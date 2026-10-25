@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import BaseSpace, Requires, SpaceError, SpaceKind, ValidationError
+from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceError, SpaceKind, ValidationError
 
 type Seed = int | np.random.Generator | None
 type Indices = npt.NDArray[np.intp]
@@ -24,12 +24,33 @@ def _simple(graph: nx.Graph) -> nx.Graph:
     return simple
 
 
+def _edges(graph: nx.Graph, index: dict[object, int]) -> tuple[Indices, Indices]:
+    """Return the source and target node index of every edge, the end first in node order on an undirected graph."""
+    pairs = np.array([(index[first], index[second]) for first, second in graph.edges()], dtype=np.intp)
+    pairs = pairs.reshape(-1, 2)
+    if not graph.is_directed():
+        pairs = np.sort(pairs, axis=1)
+    return pairs[:, 0].copy(), pairs[:, 1].copy()
+
+
+def _adjacency(sources: Indices, targets: Indices, directed: bool, size: int) -> tuple[Indices, Indices, Indices]:
+    """Return the neighbours of every node in compressed sparse row form, with the edge of every entry."""
+    edges = np.arange(sources.size, dtype=np.intp)
+    readers = sources if directed else np.concatenate([sources, targets])
+    others = targets if directed else np.concatenate([targets, sources])
+    ids = edges if directed else np.concatenate([edges, edges])
+    order = np.lexsort((others, readers))
+    counts = np.bincount(readers, minlength=size)
+    indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+    return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
+
+
 def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) -> int:
     """Return the number of parts of a space a group has one member on.
 
     Args:
         space:
-            The space.
+            The space, prepared here unless it was prepared before.
 
         on:
             `'sites'`, `'edges'`, or `'hyperedges'`.
@@ -48,13 +69,16 @@ def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) 
         SpaceError:
             The space does not have the part.
     """
-    graph = getattr(space, 'graph', None)
-    if on == 'sites' and graph is not None:
-        return int(graph.number_of_nodes())
-    if on == 'sites' and hasattr(space, 'size'):
-        return int(space.size)
+    if not hasattr(space, 'size_'):
+        space.prepare()
+    if on == 'sites' and space.size_ is not None:
+        return int(space.size_)
     if on == 'edges' and isinstance(space, NetworkSpace):
-        return int(space.resolve_graph(layer).number_of_edges())
+        if layer not in space.edges_:
+            known = ', '.join(repr(label) for label in space.edges_)
+            error_msg = f'Group {label!r} lives on the edges of the layer {layer!r}, but the layers are {known}.'
+            raise SpaceError(error_msg)
+        return int(space.edges_[layer][0].size)
     hyperedges = getattr(space, 'hyperedges', None)
     if on == 'hyperedges' and hyperedges:
         return len(hyperedges)
@@ -64,7 +88,7 @@ def part_count(space: BaseSpace, on: str, label: str, layer: str | None = None) 
 
 
 @dataclass(frozen=True)
-class Adjacency:
+class Adjacency(BaseNeighborhood):
     """Neighbourhood of a node of a graph: the nodes along its edges, in node order, after the node itself if included.
 
     Rules receive the values of the neighbours padded to the largest degree of the graph. On a directed graph the
@@ -117,10 +141,6 @@ class Layer:
     label: str
     graph: nx.Graph
 
-    def __repr__(self) -> str:
-        """Return the label and the size of the graph."""
-        return f'Layer({self.label!r}, nodes={self.graph.number_of_nodes()}, edges={self.graph.number_of_edges()})'
-
 
 class NetworkSpace(BaseSpace):
     """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
@@ -148,26 +168,40 @@ class NetworkSpace(BaseSpace):
             The hyperedges of the network, each a sequence of at least two nodes, which interactions with the binding
             `'hyperedges'` and groups on hyperedges read.
 
-    Raises:
-        ValidationError:
-            A hyperedge has fewer than two nodes or a node outside the graph, or a layer has other nodes than the
-            graph or a label that another layer has.
+    Attributes:
+        graphs_:
+            The graph of every layer by label, `None` first for the graph of the network.
+
+        edges_:
+            The source and target node index of every edge of every layer by label, in the order of `graph.edges`.
+
+        adjacency_:
+            The neighbours of every node of every layer by label in compressed sparse row form: the start of the
+            neighbours of every node with the number of entries last, the sorted neighbours of every node in turn, the
+            successors on a directed graph, and the edge that joins every node to every neighbour.
 
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.space import Layer, NetworkSpace
-        >>> NetworkSpace(nx.cycle_graph(5)).graph.number_of_nodes()
+        >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
         5
-        >>> NetworkSpace(nx.complete_graph(3), hyperedges=[(0, 1, 2)]).hyperedges
-        [(0, 1, 2)]
-        >>> space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))])
-        >>> space.layer_labels, space.resolve_graph('work').number_of_edges()
-        ((None, 'work'), 3)
+        >>> space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.complete_graph(3))]).prepare()
+        >>> list(space.graphs_), space.graphs_['work'].number_of_edges()
+        ([None, 'work'], 3)
+        >>> [item.tolist() for item in space.edges_[None]]
+        [[0, 1], [1, 2]]
+        >>> [item.tolist() for item in space.adjacency_[None]]
+        [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
+        >>> space.run(1).tolist()
+        [0, 2]
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.NETWORK
 
-    n_dim = 1
+    size_: int
+    graphs_: dict[str | None, nx.Graph]
+    edges_: dict[str | None, tuple[Indices, Indices]]
+    adjacency_: dict[str | None, tuple[Indices, Indices, Indices]]
 
     def __init__(
         self,
@@ -183,209 +217,67 @@ class NetworkSpace(BaseSpace):
         self.capacity = capacity
         self.fill = fill
         self.hyperedges = hyperedges
-        nodes = set(graph.nodes)
-        for hyperedge in hyperedges:
+
+    def _check(self) -> None:
+        """Raise an error for a hyperedge or a layer that does not fit the nodes of the graph.
+
+        Raises:
+            ValidationError:
+                A hyperedge has fewer than two nodes or a node outside the graph, or a layer has other nodes than the
+                graph or a label that another layer has.
+        """
+        nodes = set(self.graph.nodes)
+        for hyperedge in self.hyperedges:
             if len(hyperedge) < 2 or not set(hyperedge) <= nodes:  # noqa: PLR2004
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
-        labels = [layer.label for layer in layers]
+        labels = [layer.label for layer in self.layers]
         repeated = sorted({label for label in labels if labels.count(label) > 1})
         if repeated:
             listed = ', '.join(map(repr, repeated))
             error_msg = f'The layers {listed} appear more than once. Give every layer its own label.'
             raise ValidationError(error_msg)
-        for layer in layers:
+        for layer in self.layers:
             if set(layer.graph.nodes) != nodes:
                 error_msg = f'The layer {layer.label!r} has other nodes than the graph. Give it the nodes of the graph.'
                 raise ValidationError(error_msg)
 
-    @property
-    def layer_labels(self) -> tuple[str | None, ...]:
-        """Labels of the layers, `None` first for the graph itself."""
-        return (None, *(layer.label for layer in self.layers))
-
-    @property
-    def size(self) -> int:
-        """Number of nodes."""
-        return int(self.graph.number_of_nodes())
-
-    def equals(self, other: object) -> bool:
-        """Check whether another network space has the same nodes, edges, and layers, such as a clone of this one.
-
-        Args:
-            other:
-                The other space.
-
-        Returns:
-            equal:
-                Whether both spaces describe the same network.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from sklearn.base import clone
-            >>> from skcomplex.core.space import NetworkSpace
-            >>> space = NetworkSpace(nx.cycle_graph(4))
-            >>> space.equals(clone(space)), space.equals(NetworkSpace(nx.path_graph(4)))
-            (True, False)
-        """
-        if other is self:
-            return True
-        if not isinstance(other, NetworkSpace) or other.layer_labels != self.layer_labels:
-            return False
-        if (self.capacity, self.fill, list(self.hyperedges)) != (other.capacity, other.fill, list(other.hyperedges)):
-            return False
-        return all(
-            list(self.resolve_graph(layer).nodes) == list(other.resolve_graph(layer).nodes)
-            and list(self.resolve_graph(layer).edges) == list(other.resolve_graph(layer).edges)
-            and self.resolve_graph(layer).is_directed() == other.resolve_graph(layer).is_directed()
-            for layer in self.layer_labels
-        )
-
-    def resolve_graph(self, layer: str | None = None) -> nx.Graph:
-        """Return the graph of a layer.
-
-        Args:
-            layer:
-                The label of the layer, or `None` for the graph of the network.
-
-        Returns:
-            graph:
-                The NetworkX graph of the layer.
-
-        Raises:
-            ValidationError:
-                The network has no layer of that label.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.space import NetworkSpace
-            >>> NetworkSpace(nx.path_graph(4)).resolve_graph().number_of_edges()
-            3
-        """
-        if layer is None:
-            return self.graph
-        for item in self.layers:
-            if item.label == layer:
-                return item.graph
-        known = ', '.join(repr(label) for label in self.layer_labels)
-        error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
-        raise ValidationError(error_msg)
-
-    def list_edges(self, layer: str | None = None) -> tuple[Indices, Indices]:
-        """Return the source and target node index of every edge of a layer, in the order of `graph.edges`.
-
-        Args:
-            layer:
-                The label of the layer, or `None` for the graph of the network.
-
-        Returns:
-            sources:
-                The node index of the source of every edge, the end first in node order on an undirected graph.
-
-            targets:
-                The node index of the target of every edge.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.space import NetworkSpace
-            >>> [item.tolist() for item in NetworkSpace(nx.path_graph(3)).list_edges()]
-            [[0, 1], [1, 2]]
-        """
-        graph = self.resolve_graph(layer)
+    def _prepare(self) -> None:
+        """Set the graph, the edges, and the adjacency of every layer, and the position of every node."""
+        self.size_ = int(self.graph.number_of_nodes())
+        self.n_dim_ = 1
+        self.shape_ = (self.size_,)
+        self.periodic_ = False
+        self.default_visual_ = 'sites'
+        self.graphs_ = {None: self.graph, **{layer.label: layer.graph for layer in self.layers}}
         index = {node: number for number, node in enumerate(self.graph.nodes)}
-        pairs = np.array([(index[first], index[second]) for first, second in graph.edges()], dtype=np.intp)
-        pairs = pairs.reshape(-1, 2)
-        if not graph.is_directed():
-            pairs = np.sort(pairs, axis=1)
-        return pairs[:, 0].copy(), pairs[:, 1].copy()
+        self.edges_ = {label: _edges(graph, index) for label, graph in self.graphs_.items()}
+        self.adjacency_ = {
+            label: _adjacency(*self.edges_[label], graph.is_directed(), self.size_)
+            for label, graph in self.graphs_.items()
+        }
+        given = nx.get_node_attributes(self.graph, 'pos')
+        if self.size_ and len(given) == self.size_:
+            self.positions_ = np.asarray([given[node] for node in self.graph.nodes], dtype=float)
+        else:
+            layout = nx.circular_layout(self.graph)
+            self.positions_ = np.asarray([layout[node] for node in self.graph.nodes], dtype=float).reshape(-1, 2)
 
-    def compute_adjacency(self, layer: str | None = None) -> tuple[Indices, Indices, Indices]:
-        """Return the neighbours of every node of a layer in compressed sparse row form, with the edge of every entry.
+    def _default_neighborhood(self) -> Adjacency:
+        """Return the neighbours along the edges of the graph."""
+        return Adjacency()
 
-        Args:
-            layer:
-                The label of the layer, or `None` for the graph of the network.
-
-        Returns:
-            indptr:
-                The start of the neighbours of every node, and the number of entries last.
-
-            indices:
-                The neighbours of every node in turn, sorted, the successors on a directed graph.
-
-            edges:
-                The edge, in the order of `list_edges`, that joins every node to every neighbour.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.space import NetworkSpace
-            >>> [item.tolist() for item in NetworkSpace(nx.path_graph(3)).compute_adjacency()]
-            [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
-        """
-        sources, targets = self.list_edges(layer)
-        edges = np.arange(sources.size, dtype=np.intp)
-        directed = self.resolve_graph(layer).is_directed()
-        readers = sources if directed else np.concatenate([sources, targets])
-        others = targets if directed else np.concatenate([targets, sources])
-        ids = edges if directed else np.concatenate([edges, edges])
-        order = np.lexsort((others, readers))
-        counts = np.bincount(readers, minlength=self.size)
-        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
-        return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
-
-    def read_positions(self, attribute: str = 'pos') -> npt.NDArray[np.float64]:
-        """Return the position of every node from a node attribute, such as the positions of a spatial generator.
-
-        Args:
-            attribute:
-                The name of the node attribute that holds the position.
-
-        Returns:
-            positions:
-                One row of coordinates per node, in node order.
-
-        Raises:
-            ValidationError:
-                A node has no such attribute.
-
-        Examples:
-            >>> from skcomplex.core.space import NetworkSpace
-            >>> NetworkSpace.random_geometric(5, 0.5, seed=1).read_positions().shape
-            (5, 2)
-        """
-        missing = [node for node, data in self.graph.nodes(data=True) if attribute not in data]
-        if missing:
-            error_msg = f'The nodes {missing[:3]} have no attribute {attribute!r}. Store a position on every node.'
-            raise ValidationError(error_msg)
-        return np.asarray([self.graph.nodes[node][attribute] for node in self.graph.nodes], dtype=float)
-
-    def index_table(self, neighborhood: Adjacency) -> npt.NDArray[np.intp]:
+    def _index_table(self, neighborhood: Adjacency) -> npt.NDArray[np.intp]:
         """Return the node index of every neighbour of every node, padded with the number of nodes.
 
-        Args:
-            neighborhood:
-                The graph neighbourhood.
-
-        Returns:
-            table:
-                One row per node and one column per neighbour slot, as wide as the largest degree, plus one column
-                for the node itself when the neighbourhood includes it.
-
-        Raises:
-            ValidationError:
-                The neighbourhood is not a graph neighbourhood.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.space import Adjacency, NetworkSpace
-            >>> NetworkSpace(nx.star_graph(2)).index_table(Adjacency()).tolist()
-            [[1, 2], [0, 3], [0, 3]]
+        The table has one row per node and one column per neighbour slot, as wide as the largest degree, plus one
+        column for the node itself when the neighbourhood includes it.
         """
         if not isinstance(neighborhood, Adjacency):
             error_msg = f'A network reads the neighbourhood Adjacency(), but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
-        size = self.size
-        indptr, indices, _ = self.compute_adjacency(neighborhood.layer)
+        size = self.size_
+        indptr, indices, _ = self.adjacency_[neighborhood.layer]
         degrees = np.diff(indptr)
         width = int(degrees.max(initial=0))
         table = np.full((size, width), size, dtype=np.intp)
@@ -394,6 +286,13 @@ class NetworkSpace(BaseSpace):
         if neighborhood.center:
             return np.column_stack([np.arange(size, dtype=np.intp), table])
         return table
+
+    def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
+        """Return the pairs of distinct nodes joined by an edge of a layer, in the order of its edges."""
+        sources, targets = self.edges_[layer]
+        return [
+            (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
+        ]
 
     @classmethod
     def erdos_renyi(
@@ -658,7 +557,7 @@ class NetworkSpace(BaseSpace):
         """Return a spatial network of nodes placed at random, joined with a probability that decays with distance.
 
         Two nodes at distance `d` join with probability `beta exp(-d / (alpha L))`, where `L` is the largest distance
-        in the domain. Every node stores its position in the node attribute `pos`, which `read_positions` returns.
+        in the domain. Every node stores its position in the node attribute `pos`, which gives the prepared `positions_`.
 
         Args:
             n:
@@ -685,7 +584,7 @@ class NetworkSpace(BaseSpace):
 
         Examples:
             >>> from skcomplex.core.space import NetworkSpace
-            >>> NetworkSpace.waxman(20, seed=1).read_positions().shape
+            >>> NetworkSpace.waxman(20, seed=1).prepare().positions_.shape
             (20, 2)
         """
         return cls(nx.waxman_graph(n, beta=beta, alpha=alpha, domain=domain, seed=seed), layers=layers)
@@ -702,7 +601,7 @@ class NetworkSpace(BaseSpace):
     ) -> 'NetworkSpace':
         """Return a spatial network of nodes placed at random in the unit cube, joined within a distance.
 
-        Every node stores its position in the node attribute `pos`, which `read_positions` returns.
+        Every node stores its position in the node attribute `pos`, which gives the prepared `positions_`.
 
         Args:
             n:

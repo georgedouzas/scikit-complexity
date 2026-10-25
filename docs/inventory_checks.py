@@ -5,12 +5,13 @@
 
 import re
 import tomllib
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 from skcomplex.models import catalog
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(str(files('gallery_tools'))).parent.parent
 INVENTORY = ROOT / 'docs' / 'overview' / 'inventory.toml'
 CHANGES = ROOT / 'openspec' / 'changes'
 ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')

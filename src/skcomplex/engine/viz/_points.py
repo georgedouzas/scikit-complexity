@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _widened, colors_of
 from ._utils import UPWARD, _radius_of, log_scalars
@@ -55,6 +54,16 @@ class PointsVisual(BaseVisual):
         trail:
             The number of recent positions the trail of each point holds, or 0 for no trail.
 
+    Attributes:
+        history_:
+            The recent positions of the points, the oldest first.
+
+        bounds_:
+            The lowest and highest coordinates of the positions logged so far, or `None`.
+
+        span_:
+            The range of the colored values logged so far, or `None`.
+
     Examples:
         >>> from skcomplex.engine.viz import PointsVisual
         >>> PointsVisual(position='x', color_by='v').color_by
@@ -77,11 +86,15 @@ class PointsVisual(BaseVisual):
         self.color_range = color_range
         self.states = states
         self.trail = trail
-        self._trail: deque[npt.NDArray[np.float64]] = deque(maxlen=max(trail, 1))
-        self._bounds: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
-        self._span: tuple[float, float] | None = None
 
-    def _colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
+        self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
+        self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
+        self.span_: tuple[float, float] | None = None
+        super()._prepare(element, problem)
+
+    def _point_colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points over the given range, or over a range widened to every value so far."""
         if self.color_by is None:
             return None
@@ -89,15 +102,15 @@ class PointsVisual(BaseVisual):
         magnitudes = np.linalg.norm(values, axis=1)
         if self.color_range is not None:
             return colors_of(magnitudes, *self.color_range)
-        self._span = _widened(self._span, magnitudes)
-        return colors_of(magnitudes, *self._span)
+        self.span_ = _widened(self.span_, magnitudes)
+        return colors_of(magnitudes, *self.span_)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
         low, high = points.min(axis=0), points.max(axis=0)
-        if self._bounds is not None:
-            low, high = np.minimum(low, self._bounds[0]), np.maximum(high, self._bounds[1])
-        self._bounds = (low, high)
+        if self.bounds_ is not None:
+            low, high = np.minimum(low, self.bounds_[0]), np.maximum(high, self.bounds_[1])
+        self.bounds_ = (low, high)
         extent = float((high - low).max()) or float(np.abs(points).max())
         return _radius_of(extent, len(points))
 
@@ -105,7 +118,7 @@ class PointsVisual(BaseVisual):
         """Return the positions of every element drawn by a points visual of the same position state and dimension."""
         positions = [
             np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
-            for other in getattr(frame.problem, 'elements', ())
+            for other in frame.problem.elements
             if other.visual.kind == 'points'
             and other.visual.options.get('position') == self.position
             and self.position in other.states
@@ -128,17 +141,17 @@ class PointsVisual(BaseVisual):
         """Log the recent positions of each point as one line strip per point, for small groups only."""
         if not self.trail or len(points) > MAX_TRAIL_POINTS:
             return
-        if self._trail and self._trail[-1].shape != points.shape:
-            self._trail.clear()
-        self._trail.append(points)
-        strips = list(np.stack(self._trail, axis=1))
+        if self.history_ and self.history_[-1].shape != points.shape:
+            self.history_.clear()
+        self.history_.append(points)
+        strips = list(np.stack(self.history_, axis=1))
         radius = self._extent_radius(points) * TRAIL_WIDTH
         if points.shape[1] == MAX_POINT_DIMENSIONS:
             recording.log(f'{path}/trail', rr.LineStrips3D(strips, radii=radius, colors=colors))
         else:
             recording.log(f'{path}/trail', rr.LineStrips2D(strips, radii=radius, colors=colors))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the position under `<path>`, the trail under `<path>/trail`, and the other states under `<path>/<state>`.
 
         Args:
@@ -152,7 +165,7 @@ class PointsVisual(BaseVisual):
                 The frame.
         """
         points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
-        colors = self._colors(element, frame, len(points))
+        colors = self._point_colors(element, frame, len(points))
         radius = self._radius(self._crowd(frame, points)) if points.shape[1] > 1 else 0.0
         if points.shape[1] == MAX_POINT_DIMENSIONS:
             recording.log(element.path, rr.Points3D(points, radii=radius, colors=colors))
@@ -169,7 +182,7 @@ class PointsVisual(BaseVisual):
         for state in others:
             log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return a spatial view of the positions by their dimension, and a time series view of the other states.
 
         Args:
@@ -189,7 +202,7 @@ class PointsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import PointsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('ideal_gas', n_molecules=10, n_dim=3))
-            >>> views = PointsVisual(position='x', states=()).views(problem.elements[0], problem)
+            >>> views = PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """

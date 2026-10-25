@@ -106,7 +106,7 @@ simulation = Simulation(
     observers=[RerunObserver('lotka-volterra', spawn=True)],
 )
 trajectory = simulation.run(until=30).trajectory_
-print(trajectory['rabbits.n'].max())
+print(trajectory.values('rabbits.n').max())
 ```
 
 A simulation started with `start` runs in the background, and its parameters can change while it runs:

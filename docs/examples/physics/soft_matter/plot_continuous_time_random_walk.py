@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=5, observers=[observer], random_state=0).run(
 
 trajectory = simulation.trajectory_
 times = trajectory.times[1:]
-squared = np.mean(np.sum(trajectory['walkers.x'][1:] ** 2, axis=-1), axis=1)
-jumps = trajectory['jumps.renewals'][1:] / 500
+squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
+jumps = trajectory.values('jumps.renewals')[1:] / 500
 slope = np.polyfit(np.log(times), np.log(squared), 1)[0]
 fig, (displacement, counts) = plt.subplots(1, 2, figsize=(10, 4))
 displacement.loglog(times, squared, label=f'simulation, slope {slope:.2f}')

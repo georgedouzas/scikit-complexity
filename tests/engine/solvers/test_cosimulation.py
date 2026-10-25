@@ -126,7 +126,7 @@ def _counting_system(agents=3, reduce='count', variable=None):
 def test_agents_and_ode_split_into_two_partitions():
     """Test that agents and differential equations in sibling subsystems give an agent and an ODE partition."""
     problem = compile_system(harvesting())
-    assert problem.form is Form.COUPLED
+    assert problem.form == Form.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
         ('land', Form.ODE),
         ('village', Form.AGENT),
@@ -145,7 +145,7 @@ def test_laws_join_the_partition_of_their_target():
     land, village = compile_system(system).partitions
     assert (land.problem.form, village.problem.form) == (Form.ODE, Form.AGENT)
     assert [path for path, _ in village.problem.model_rules] == ['tend']
-    assert Simulation(system, dt=1).run(until=2).trajectory_['land/soil.n'][-1] == pytest.approx(2 * 2)
+    assert Simulation(system, dt=1).run(until=2).trajectory_.values('land/soil.n')[-1] == pytest.approx(2 * 2)
 
 
 def test_mixed_leaf_subsystem_names_itself():
@@ -188,15 +188,15 @@ def test_mix_across_subsystems_gives_partitions():
 def test_held_input_keeps_start_of_interval_value():
     """Test that an ODE reading an aggregate uses its value from the start of the synchronisation interval."""
     trajectory = Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2).run(until=2).trajectory_
-    assert trajectory['land/soil.n'][-1] == pytest.approx(3 * 2)
-    assert trajectory['village/size.value'].tolist() == [3.0, 12.0]
+    assert trajectory.values('land/soil.n')[-1] == pytest.approx(3 * 2)
+    assert trajectory.values('village/size.value').tolist() == [3.0, 12.0]
 
 
 def test_aggregate_counts_agents():
     """Test that an aggregate counting 12 agents gives the ODE the value 12."""
     trajectory = Simulation(_counting_system(12), solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
-    assert trajectory['village/size.value'][0] == 12
-    assert trajectory['land/soil.n'][-1] == pytest.approx(12)
+    assert trajectory.values('village/size.value')[0] == 12
+    assert trajectory.values('land/soil.n')[-1] == pytest.approx(12)
 
 
 @pytest.mark.parametrize(
@@ -220,7 +220,7 @@ def test_aggregate_reductions_of_agent_states(reduce, expected):
         interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/total')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory['village/total.value'][0] == expected
+    assert trajectory.values('village/total.value')[0] == expected
 
 
 def test_aggregate_reduces_element_group():
@@ -243,7 +243,7 @@ def test_aggregate_reduces_element_group():
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory['herds/total.value'][0] == 6.0
+    assert trajectory.values('herds/total.value')[0] == 6.0
 
 
 def test_agent_rules_read_other_partitions():
@@ -288,8 +288,8 @@ def test_gauss_seidel_reads_already_advanced_values():
     )
     gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
     jacobi = Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1).run(until=1).trajectory_
-    assert gauss_seidel['land/soil.n'][-1] == pytest.approx(6)
-    assert jacobi['land/soil.n'][-1] == pytest.approx(3)
+    assert gauss_seidel.values('land/soil.n')[-1] == pytest.approx(6)
+    assert jacobi.values('land/soil.n')[-1] == pytest.approx(3)
 
 
 def test_unknown_scheme_raises_error():
@@ -320,7 +320,7 @@ def test_split_lotka_volterra_converges():
 def test_mixed_trajectory_holds_states_and_agents():
     """Test that a co-simulation trajectory returns ODE states per frame and agent states per agent."""
     trajectory = Simulation(harvesting(5), random_state=0).run(until=10).trajectory_
-    assert trajectory['land/stock.n'].shape == (11,)
+    assert trajectory.values('land/stock.n').shape == (11,)
     snapshot = trajectory.agents('village/farmers', 10)
     assert len(snapshot.values['wealth']) == 5
     assert np.all(snapshot.values['wealth'] > 0)
@@ -338,5 +338,5 @@ def test_live_parameter_reaches_partitions():
     time.sleep(0.6)
     simulation.update_parameters({'harvest.effort': 0.0})
     simulation.wait()
-    stock = simulation.trajectory_['land/stock.n']
+    stock = simulation.trajectory_.values('land/stock.n')
     assert stock[-1] > stock[10]

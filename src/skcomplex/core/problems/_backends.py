@@ -4,17 +4,16 @@
 # License: MIT
 
 import warnings
-from abc import abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import ClassVar, cast
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ..base import (
     BackendError,
     BackendWarning,
+    BaseEstimator,
     BaseLaw,
     Expression,
     Form,
@@ -274,45 +273,58 @@ def report_fallbacks(
             else 'a law holds a Python callable or reads values it cannot compile'
         )
         message = f'The {name} backend runs the {", ".join(fallen)} laws in Python, because {reason}.'
-        warnings.warn(message, BackendWarning, stacklevel=3)
+        warnings.warn(message, BackendWarning, stacklevel=4)
     return {str(cast('type[BaseLaw]', kind).law_kind): name if compiled[kind] else 'python' for kind in kinds}
 
 
 class BaseBackend(BaseEstimator):
     """Base class of backends, which turn kernels into the numeric functions of a form.
 
-    Subclasses set the class variable `name` and implement `lower`.
+    `prepare(form, size)` fixes the form of the problem and the size of its state vector, which every lowering of the
+    backend shares, and `run(kernels, changes, reductions=..., draws=...)` returns the `Lowering` of the kernels.
+    Subclasses set the class variable `name` and implement the hook `_run`, reading the prepared `form_` and `size_`.
+
+    Attributes:
+        form_:
+            The form of the problem.
+
+        size_:
+            The size of the state vector.
     """
 
     supports: ClassVar[Supports]
 
     name: ClassVar[str]
 
-    @abstractmethod
-    def lower(
-        self,
-        form: Form,
-        kernels: Mapping[type, list[Kernel]],
-        changes: Mapping[int, list[tuple[Reference, float]]],
-        size: int,
-        *,
-        reductions: ReductionSchedule | None = None,
-        draws: Draws | None = None,
-    ) -> Lowering:
-        """Return the numeric functions of a form.
+    def _prepare(self, form: Form, size: int) -> None:
+        """Store the form of the problem and the size of its state vector.
 
         Args:
             form:
                 The form of the problem.
 
+            size:
+                The size of the state vector.
+        """
+        self.form_ = form
+        self.size_ = size
+
+    def _run(
+        self,
+        kernels: Mapping[type, list[Kernel]],
+        changes: Mapping[int, list[tuple[Reference, float]]],
+        *,
+        reductions: ReductionSchedule | None = None,
+        draws: Draws | None = None,
+    ) -> Lowering:
+        """Return the numeric functions of the prepared form.
+
+        Args:
             kernels:
                 The kernels of every law kind, in evaluation order.
 
             changes:
                 The changes of every jump output, keyed by the output's identity.
-
-            size:
-                The size of the state vector.
 
             reductions:
                 The reductions the kernels read, evaluated before them at every evaluation, or `None`.
@@ -327,7 +339,7 @@ class BaseBackend(BaseEstimator):
 
         Raises:
             NotImplementedError:
-                The subclass does not implement the method.
+                The subclass does not implement the hook.
         """
         raise NotImplementedError
 
@@ -371,6 +383,6 @@ def resolve_backend(backend: str | BaseBackend, members: int) -> BaseBackend:
     try:
         return BACKENDS.resolve(name)()
     except KeyError as error:
-        names = ', '.join(['auto', *map(str, BACKENDS)])
+        names = ', '.join(['auto', *map(str, BACKENDS.keys)])
         error_msg = f'No backend named {backend!r}. Available backends are: {names}.'
         raise BackendError(error_msg) from error

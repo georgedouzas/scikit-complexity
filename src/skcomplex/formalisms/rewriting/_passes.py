@@ -14,15 +14,12 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ...core.base import (
-    BaseProblem,
     Entry,
-    Expression,
     Form,
     IncompatibleLawsError,
     Layout,
     NumericDomain,
     RoleError,
-    SymbolicVector,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -30,7 +27,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import CompiledElement, CompiledInteraction
+from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction
 from ...core.system import System
 from ...engine.compile import BaseSystemCompiler, Node, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of
@@ -265,11 +262,11 @@ class CompiledPatch:
         self.placements = [placement for _, placement in tiles]
         self.pieces: dict[int, list[tuple[int, Any]]] = {}
         for substitution in substitutions:
-            code = self._code(substitution.prototile, repr(substitution))
+            code = self._code(substitution.prototile, substitution.text)
             if code in self.pieces:
                 error_msg = f'Patch {path!r} has two substitutions of {substitution.prototile!r}. Keep one.'
                 raise RewritingError(error_msg)
-            self.pieces[code] = [(self._code(name, repr(substitution)), affine) for name, affine in substitution.pieces]
+            self.pieces[code] = [(self._code(name, substitution.text), affine) for name, affine in substitution.pieces]
 
     def _code(self, name: str, where: str) -> int:
         """Return the code of a prototile by name."""
@@ -310,7 +307,7 @@ class CompiledPatch:
             counts:
                 The counts, in the order of the states.
         """
-        return [float(patch.count(name)) for name in self.counted] + [float(len(patch))]
+        return [float(patch.count(name)) for name in self.counted] + [float(patch.parts)]
 
     def rewrite(
         self,
@@ -428,7 +425,7 @@ class CompiledGraph:
             counts:
                 The counts, in the order of the states.
         """
-        return [float(graph.count(name)) for name in self.counted] + [float(len(graph))]
+        return [float(graph.count(name)) for name in self.counted] + [float(graph.parts)]
 
     def _key(self, graph: nx.Graph, first: Any, second: Any) -> Any:  # noqa: ANN401
         """Return the key of an edge, ordered for directed graphs."""
@@ -535,30 +532,22 @@ class RewritingProblem(BaseProblem):
             The compiled rewriting systems of the words, patches, and host graphs.
     """
 
-    symbols: Mapping[str, Expression | SymbolicVector] = field(default_factory=dict, repr=False)
-    elements: tuple[CompiledElement, ...] = ()
-    interactions: tuple[CompiledInteraction, ...] = ()
-    system: System | None = field(default=None, repr=False)
     rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
 
 
 class RewritingCompiler(BaseSystemCompiler):
     """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether a system holds a word, a patch, or a host graph.
+    def _prepare(self, system: System) -> None:
+        """Set `claims_`, whether a system holds a word, a patch, or a host graph.
 
         Args:
             system:
                 The system.
-
-        Returns:
-            claims:
-                Whether the system holds a rewritten element.
         """
-        return is_rewriting(system)
+        self.claims_ = is_rewriting(system)
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,

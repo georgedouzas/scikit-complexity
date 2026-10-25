@@ -27,15 +27,15 @@ MODEL = 'rotating_swing'
 class SwingObserver(RerunObserver):
     """Observer that also logs the chain angle and the angular velocity of the stand."""
 
-    def on_start(self, problem):
-        super().on_start(problem)
+    def _prepare(self, problem):
+        super()._prepare(problem)
         for name, color in (('chain angle', [250, 150, 60]), ('stand speed', [90, 170, 230])):
             path = 'chairs/' + name.replace(' ', '_')
             self.recording_.log(path, rr.SeriesLines(colors=color, names=name, widths=2), static=True)
 
-    def on_frame(self, frame):
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
+    def _run(self, frame=None):
+        super()._run(frame)
+        if frame is not None and frame.step % self.interval == 0:
             self.recording_.log('chairs/chain_angle', rr.Scalars(frame.value('swing.theta')))
             self.recording_.log('chairs/stand_speed', rr.Scalars(frame.value('swing.phi_d1')))
 
@@ -58,8 +58,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=20)
 # momentum, the solution of `g tan θ = φ'^2 (a + l sin θ)` with `φ' = L / [J + n m (a + l sin θ)^2]`, dashed.
 
 times = np.asarray(simulation.trajectory_.times)
-theta = np.ravel(simulation.trajectory_['swing.theta'])
-speed = np.ravel(simulation.trajectory_['swing.phi_d1'])
+theta = np.ravel(simulation.trajectory_.values('swing.theta'))
+speed = np.ravel(simulation.trajectory_.values('swing.phi_d1'))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)

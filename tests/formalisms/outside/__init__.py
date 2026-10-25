@@ -35,8 +35,8 @@ from skcomplex.engine.compile import BaseSystemCompiler
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms import Formalism, register
 
-DECAY = LawKind('DECAY', 'decay')
-DECAYING = Form('DECAYING', 'exponential decay')
+DECAY = LawKind.register('DECAY', 'decay')
+DECAYING = Form.register('DECAYING', 'exponential decay')
 
 
 @dataclass(frozen=True)
@@ -97,11 +97,13 @@ class DecayProblem(Problem):
 class DecayCompiler(BaseSystemCompiler):
     """Pass that compiles a system of nuclei into a problem of the decaying form."""
 
-    def claims(self, system: System) -> bool:
-        """Check whether every element of the system is a nucleus."""
-        return bool(system.elements) and all(isinstance(element, NucleusComponent) for element in system.elements)
+    def _prepare(self, system: System) -> None:
+        """Set `claims_`, whether every element of the system is a nucleus."""
+        self.claims_ = bool(system.elements) and all(
+            isinstance(element, NucleusComponent) for element in system.elements
+        )
 
-    def compile(
+    def _run(
         self,
         system: System,
         *,
@@ -151,7 +153,7 @@ class ExactDecaySolver(Solver):
     )
     form: ClassVar[Form] = DECAYING
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Return the states decayed from time `t` to time `until`."""
         rates = p[np.asarray(cast('DecayProblem', self.problem_).rates, dtype=np.intp)]
         return x * np.exp(-rates * (until - t))

@@ -24,7 +24,7 @@ graph = nx.karate_club_graph()
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(create(MODEL, graph=graph), dt=0.01, observers=[observer]).run(until=0.6)
 trajectory = simulation.trajectory_
-contents = trajectory['nodes.u']
+contents = trajectory.values('nodes.u')
 
 # %%
 # Relaxation to the uniform state
@@ -34,14 +34,14 @@ contents = trajectory['nodes.u']
 # Laplacian.
 
 run = Simulation(create(MODEL, graph=graph), dt=0.1).run(until=20).trajectory_
-distance = np.linalg.norm(run['nodes.u'] - 1 / graph.number_of_nodes(), axis=1)
+distance = np.linalg.norm(run.values('nodes.u') - 1 / graph.number_of_nodes(), axis=1)
 connectivity = nx.algebraic_connectivity(graph, weight=None, seed=0)
 fig, (decay, by_distance) = plt.subplots(1, 2, figsize=(11, 4))
 decay.semilogy(run.times, distance, label='simulated')
 decay.semilogy(run.times, distance[50] * np.exp(-connectivity * (run.times - 5)), 'k--', label=r'$e^{-\lambda_2 t}$')
 decay.set_xlabel('time')
 decay.set_ylabel('distance from 1/n')
-decay.set_title(f'Relaxation at λ2 = {connectivity:.3f}; mass drift {np.ptp(run["nodes.u"].sum(axis=1)):.0e}')
+decay.set_title(f'Relaxation at λ2 = {connectivity:.3f}; mass drift {np.ptp(run.values("nodes.u").sum(axis=1)):.0e}')
 decay.legend()
 hops = nx.single_source_shortest_path_length(graph, 0)
 for hop in sorted(set(hops.values())):

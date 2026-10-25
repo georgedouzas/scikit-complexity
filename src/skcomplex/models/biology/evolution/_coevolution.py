@@ -127,8 +127,8 @@ def bak_sneppen(
         >>> bak_sneppen(50).elements[0].values['updates']
         50
     """
-    space = LatticeSpace(size) if graph is None else NetworkSpace(graph)
-    count = space.size if isinstance(space, LatticeSpace) else space.graph.number_of_nodes()
+    space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).prepare()
+    count = int(space.size_ or 0)
     fitness = np.random.default_rng(random_state).random(count)
     species = SpeciesComponent.lattice(
         'species',

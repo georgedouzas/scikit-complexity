@@ -9,8 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseProblem
-from ...core.problems import NetworkSnapshot, Problem, Record
+from ...core.problems import BaseProblem, NetworkSnapshot, Record
 from ..solvers import AgentSnapshot
 
 
@@ -58,7 +57,7 @@ class Trajectory:
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
-        >>> trajectory['a.n'].round(3).tolist()
+        >>> trajectory.values('a.n').round(3).tolist()
         [1.0, 1.649, 2.718]
     """
 
@@ -85,20 +84,16 @@ class Trajectory:
         self.events = list(events)
         self.structures = structures
 
-    def __len__(self) -> int:
-        """Return the number of recorded frames."""
-        return len(self.times)
-
     def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
-        topology = self.problem.topology if isinstance(self.problem, Problem) else None
+        topology = self.problem.topology
         if topology is None or topology.presence(name, self.parameters[0]) is None:
             return values
         present = np.array([topology.presence(name, row) for row in self.parameters])
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def __getitem__(self, name: str) -> npt.NDArray[Any]:
+    def values(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -114,10 +109,10 @@ class Trajectory:
             KeyError:
                 The name is neither a state nor a parameter.
         """
-        if name in self.problem.states:
+        if self.problem.states.has(name):
             entry = self.problem.states.entry(name)
             return self._present(name, entry.domain.decode(np.asarray(self.problem.states.read(self.states, name))))
-        if name in self.problem.parameters:
+        if self.problem.parameters.has(name):
             entry = self.problem.parameters.entry(name)
             values = entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._present(name, values)
@@ -153,17 +148,17 @@ class Trajectory:
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
             >>> trajectory = Simulation(ensemble, dt=1).run(until=2).trajectory_
-            >>> float(trajectory.member(1, compile_system(logistic_map()))['map.x'][0])
+            >>> float(trajectory.member(1, compile_system(logistic_map())).values('map.x')[0])
             0.2
         """
-        frames = len(self)
+        frames = len(self.times)
         states = np.zeros((frames, problem.states.size))
         parameters = np.zeros((frames, problem.parameters.size))
         for layout, source, target, values in (
             (problem.states, self.problem.states, states, self.states),
             (problem.parameters, self.problem.parameters, parameters, self.parameters),
         ):
-            for entry in layout:
+            for entry in layout.entries:
                 origin = source.entry(entry.name)
                 columns = np.asarray(values)[:, origin.start : origin.start + origin.size].reshape(
                     frames,
@@ -175,7 +170,7 @@ class Trajectory:
 
     @property
     def names(self) -> list[str]:
-        """Names of the states, parameters, reporters, and observables that indexing the trajectory reads."""
+        """Names of the states, parameters, reporters, and observables that `values` reads."""
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
@@ -198,7 +193,7 @@ class Trajectory:
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """
-        frames = [self.agents(group, frame) for frame in range(len(self))]
+        frames = [self.agents(group, frame) for frame in range(len(self.times))]
         return [
             np.asarray(snapshot.locations) if snapshot.locations is not None else np.zeros((0, 0))
             for snapshot in frames
@@ -219,11 +214,11 @@ class Trajectory:
             KeyError:
                 The name is not a state of a lattice group.
         """
-        shape = self.problem.lattice_shape(name) if isinstance(self.problem, Problem) else None
+        shape = self.problem.lattice_shape(name)
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self[name].reshape(len(self), *shape)
+        return self.values(name).reshape(len(self.times), *shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshot:
         """Return the agents of a group alive at a frame, with their ids, states, and locations.
@@ -270,7 +265,7 @@ class Trajectory:
             KeyError:
                 The system has no network whose topology changes.
         """
-        topology = self.problem.topology if isinstance(self.problem, Problem) else None
+        topology = self.problem.topology
         if topology is None:
             error_msg = 'The system has no network whose topology changes. Give its groups `variable=True`.'
             raise KeyError(error_msg)
@@ -297,7 +292,7 @@ class Trajectory:
         Examples:
             >>> from skcomplex.models import run
             >>> trajectory = run('cantor_set', settings={'until': 4}).trajectory_
-            >>> len(trajectory.structure('cantor', 2))
+            >>> trajectory.structure('cantor', 2).parts
             4
         """
         structures = self.structures[frame] if self.structures else {}

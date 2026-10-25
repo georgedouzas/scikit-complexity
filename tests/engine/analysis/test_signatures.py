@@ -10,7 +10,7 @@ from skcomplex.models import run
 def test_signature_analysis_of_a_series():
     """Test that a series gives its power spectrum on log axes with the autocorrelation time."""
     (signature,) = signature_analysis(run('lotka_volterra', settings={'until': 50.0}).trajectory_)
-    assert signature.kind is DataKind.SERIES
+    assert signature.kind == DataKind.SERIES
     assert signature.title == 'Power spectrum'
     assert (signature.xscale, signature.yscale) == ('log', 'log')
     assert set(signature.curves) == {'prey.n', 'predators.n'}
@@ -28,7 +28,7 @@ def test_signature_analysis_of_a_jump_path():
     """Test that a jump path gives its waiting-time distribution with the Fano factor."""
     trajectory = run('poisson_process', settings={'until': 30.0, 'random_state': 0}).trajectory_
     (signature,) = signature_analysis(trajectory)
-    assert signature.kind is DataKind.PATH
+    assert signature.kind == DataKind.PATH
     assert 'Fano factor of jumps per frame' in signature.values
     ((_, survival),) = signature.curves.values()
     assert survival[0] == 1
@@ -37,7 +37,7 @@ def test_signature_analysis_of_a_jump_path():
 def test_signature_analysis_of_a_field():
     """Test that a field gives the structure factor of its last frame with a length."""
     (signature,) = signature_analysis(run('ising', size=32, settings={'until': 10}).trajectory_)
-    assert signature.kind is DataKind.FIELD
+    assert signature.kind == DataKind.FIELD
     assert signature.ylabel == 'S(k)'
     assert {'correlation length', 'peak wavelength'} & set(signature.values)
 
@@ -46,9 +46,9 @@ def test_signature_analysis_of_agents():
     """Test that agents with velocities give their polar and milling orders over time."""
     trajectory = run('boids', settings={'until': 5}).trajectory_
     signature = signature_analysis(trajectory)[0]
-    assert signature.kind is DataKind.AGENTS
+    assert signature.kind == DataKind.AGENTS
     assert set(signature.curves) == {'polar order', 'milling order'}
-    assert signature.curves['polar order'][1].size == len(trajectory)
+    assert signature.curves['polar order'][1].size == len(trajectory.times)
 
 
 def test_signature_analysis_of_agents_without_motion():
@@ -60,7 +60,7 @@ def test_signature_analysis_of_agents_without_motion():
 def test_signature_analysis_of_a_network():
     """Test that a network gives its degree distribution with its moments."""
     (signature,) = signature_analysis(run('network_diffusion', settings={'until': 0.5}).trajectory_)
-    assert signature.kind is DataKind.NETWORK
+    assert signature.kind == DataKind.NETWORK
     assert signature.values['mean degree'] > 0
     assert 'clustering' in signature.values
 

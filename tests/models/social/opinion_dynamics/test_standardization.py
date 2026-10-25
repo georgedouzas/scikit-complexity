@@ -23,7 +23,7 @@ def test_standardized_agents_match_the_exact_equilibrium():
     q = (
         Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
         .run(until=5000)
-        .trajectory_['q']
+        .trajectory_.values('q')
     )
     assert q[200:].mean() == pytest.approx(np.sum(probabilities * marked / size), abs=0.04)
 
@@ -37,8 +37,8 @@ def test_standardized_agents_order_below_t_m(temperature, ordered):
         .run(until=1000)
         .trajectory_
     )
-    magnetization = np.abs(trajectory['m'][-200:]).mean()
-    assert trajectory['q'][-200:].mean() > 0.95
+    magnetization = np.abs(trajectory.values('m')[-200:]).mean()
+    assert trajectory.values('q')[-200:].mean() > 0.95
     if ordered:
         assert magnetization == pytest.approx(brentq(lambda m: m - np.tanh(m / temperature), 0.1, 1.0), abs=0.08)
     else:

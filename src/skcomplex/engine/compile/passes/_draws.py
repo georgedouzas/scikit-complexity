@@ -17,7 +17,7 @@ class DrawsPass(BasePass):
     reads = ('drawn', 'layout')
     writes = ('drawn', 'drawing')
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the draws of the laws.
 
         Args:

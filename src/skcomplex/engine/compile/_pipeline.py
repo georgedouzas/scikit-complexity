@@ -4,12 +4,11 @@
 # License: MIT
 
 import heapq
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import ClassVar
 
-from ...core.base import PipelineError, Registry
+from ...core.base import BaseEstimator, PipelineError, Registry
 from ._compilation import Compilation
 from ._issues import Issue
 
@@ -89,7 +88,7 @@ def _needed(passes: Sequence['BasePass'], field: str) -> set['BasePass']:
 
 def _registered_passes(passes: Iterable['BasePass'] = ()) -> list['BasePass']:
     """Return passes followed by the registered passes, in registration order."""
-    return [*passes, *(PASSES.resolve(key) for key in PASSES)]
+    return [*passes, *(PASSES.resolve(key) for key in PASSES.keys)]
 
 
 def order_passes(passes: Sequence['BasePass'], present: Collection[str] = ()) -> list['BasePass']:
@@ -119,11 +118,11 @@ def order_passes(passes: Sequence['BasePass'], present: Collection[str] = ()) ->
         >>> from skcomplex.engine.compile import BasePass, order_passes
         >>> class LowerPass(BasePass):
         ...     reads, writes = ('layout',), ('lowered',)
-        ...     def run(self, compilation):
+        ...     def _run(self, compilation):
         ...         pass
         >>> class DeclarePass(BasePass):
         ...     reads, writes = ('nodes',), ('layout',)
-        ...     def run(self, compilation):
+        ...     def _run(self, compilation):
         ...         pass
         >>> [type(item).__name__ for item in order_passes([LowerPass(), DeclarePass()], present=['nodes'])]
         ['DeclarePass', 'LowerPass']
@@ -188,7 +187,7 @@ def register_pass(item: 'BasePass') -> None:
         item:
             The pass.
     """
-    if item not in set(PASSES):
+    if item not in PASSES.keys:
         PASSES.register(item, item)
 
 
@@ -209,21 +208,22 @@ def registered_checks() -> list[Check]:
         checks:
             The checks.
     """
-    return [CHECKS.resolve(key) for key in CHECKS]
+    return [CHECKS.resolve(key) for key in CHECKS.keys]
 
 
-class BasePass(ABC):
+class BasePass(BaseEstimator):
     """Step of a compilation that reads fields of the compilation state and writes others.
 
     A pass declares the fields it reads and writes as the class variables `reads` and `writes`, which order the passes
-    of a compilation. A field it reads is a field of `Compilation` or a fact a pass of a formalism adds.
+    of a compilation. A field it reads is a field of `Compilation` or a fact a pass of a formalism adds. A pass fits
+    nothing, and `run(compilation)` calls its hook `_run`, which reads the fields the pass reads and writes the fields
+    it writes.
     """
 
     reads: ClassVar[tuple[str, ...]] = ()
     writes: ClassVar[tuple[str, ...]] = ()
 
-    @abstractmethod
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Read the fields of the compilation the pass reads and write the fields it writes.
 
         Args:
@@ -232,6 +232,6 @@ class BasePass(ABC):
 
         Raises:
             NotImplementedError:
-                The subclass does not implement the method.
+                The subclass does not implement the hook.
         """
         raise NotImplementedError

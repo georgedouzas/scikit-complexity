@@ -50,7 +50,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).run(until=200)
 # the first half a period apart, so the two series are anticorrelated at zero lag and correlated at half a period.
 
 trajectory = simulation.trajectory_
-first, second = trajectory['first.x'], trajectory['second.x']
+first, second = trajectory.values('first.x'), trajectory.values('second.x')
 late = trajectory.times > 100
 lags = np.arange(-12, 13)
 correlation = [np.corrcoef(first[late], np.roll(second, lag)[late])[0, 1] for lag in lags]

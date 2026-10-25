@@ -46,7 +46,7 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
         .run(until=10)
         .trajectory_
     )
-    sites = trajectory['f.rho'].reshape(len(trajectory.times), -1)
+    sites = trajectory.values('f.rho').reshape(len(trajectory.times), -1)
     np.testing.assert_allclose(sites.sum(axis=1), values.sum(), rtol=1e-9)
     assert np.abs(sites[-1] - values.ravel()).min() > 0
 
@@ -55,7 +55,7 @@ def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldComponent('f', ConservedComponent, LatticeSpace((16, 16), spacing=0.5))
     trajectory = Simulation(System(components=[field]), solver=EulerMaruyamaSolver(dt=0.05), random_state=0, dt=4.0)
-    sites = trajectory.run(until=4).trajectory_['f.rho'][-1]
+    sites = trajectory.run(until=4).trajectory_.values('f.rho')[-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
 
@@ -68,7 +68,7 @@ def test_conserved_noise_gives_flat_structure_factor():
         .run(until=1000)
         .trajectory_
     )
-    frames = trajectory['f.rho'][50:].reshape(-1, 16, 16)
+    frames = trajectory.values('f.rho')[50:].reshape(-1, 16, 16)
     factor = structure_factor(frames, frames=True)
     np.testing.assert_allclose(factor.power, 0.5, rtol=0.1)
     np.testing.assert_allclose(np.abs(np.fft.fftn(frames, axes=(1, 2))[:, 0, 0]) ** 2, 0.0, atol=1e-18)

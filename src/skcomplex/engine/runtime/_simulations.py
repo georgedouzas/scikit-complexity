@@ -10,10 +10,9 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
 from ...core.base import (
-    BaseProblem,
+    BaseEstimator,
     Entry,
     Form,
     NumericDomain,
@@ -22,7 +21,7 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ...core.problems import BaseBackend, Problem, with_initial_state
+from ...core.problems import BaseBackend, BaseProblem, with_initial_state
 from ...core.system import Observable, System
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
@@ -40,7 +39,7 @@ TIME_TOLERANCE = 1e-9
 
 def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
     """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
-    return tuple(partition.problem for partition in problem.partitions) if isinstance(problem, Problem) else ()
+    return tuple(partition.problem for partition in problem.partitions)
 
 
 def _default_dt(until: float) -> float:
@@ -63,6 +62,10 @@ class Simulation(BaseEstimator):
     frames through `update_parameters`, also while a background run started with `start` is going. Values set
     between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
     frame.
+
+    A simulation speaks the verbs of every configurable object: `check()` validates the system, `prepare(until)`
+    compiles it and prepares the stepper and the observers, and `run(until)` prepares and runs from time 0. A run
+    prepares every observer before the first frame, runs it at every frame, and runs it with `final=True` at the end.
 
     Args:
         system:
@@ -138,7 +141,7 @@ class Simulation(BaseEstimator):
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
-        >>> round(simulation.trajectory_['rabbits.n'][-1])
+        >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
 
@@ -192,11 +195,24 @@ class Simulation(BaseEstimator):
         problem: BaseProblem = self.problem_
         return problem.parameters.names, self.parameters_.copy()
 
-    def _prepare(self, until: float) -> None:
-        """Compile the system, build the stepper, and notify the observers of the start."""
-        previous = self._previous_parameters()
+    def _check(self) -> None:
+        """Validate the system against the solver, the backend, and the observables, unless it is a compiled problem.
+
+        Raises:
+            ValidationError:
+                The system cannot be compiled or run, with every problem found.
+        """
         if not isinstance(self.system, BaseProblem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+
+    def _prepare(self, until: float = math.inf) -> None:
+        """Compile the system, prepare the stepper, and prepare the observers for a run until a time.
+
+        Args:
+            until:
+                The simulated time the run stops at.
+        """
+        previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
         self.problem_ = (
             with_initial_state(self.system, initial)
@@ -204,16 +220,15 @@ class Simulation(BaseEstimator):
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
-        self._adaptive = self.problem_.adaptive_parameters if isinstance(self.problem_, Problem) else {}
+        self._adaptive = self.problem_.adaptive_parameters
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
-        self.observables_ = ObservableEvaluator(self.problem_)
-        self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
-        self.stepper_.plan(until)
-        initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
+        self.observables_ = ObservableEvaluator(self.problem_).prepare()
+        self.stepper_.prepare(self.problem_, np.random.default_rng(self.random_state), until)
+        initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
-        stock_flow = self.problem_.stock_flow if isinstance(self.problem_, Problem) else None
+        stock_flow = self.problem_.stock_flow
         invariants = stock_flow is not None and stock_flow.invariants
         monitors = [InvariantObserver()] if invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
@@ -229,48 +244,16 @@ class Simulation(BaseEstimator):
         self._running.set()
         self._thread: threading.Thread | None = None
         self._error: BaseException | None = None
-        self._compile_functions()
         for observer in self.observers_:
-            observer.on_start(self.problem_)
-
-    def _compile_functions(self) -> None:
-        """Call every numeric function of the problem and its partitions once, before the clock starts."""
-        for problem in (self.problem_, *_partition_problems(self.problem_)):
-            if isinstance(problem, Problem):
-                self._compile_problem(problem)
-
-    def _compile_problem(self, problem: Problem) -> None:
-        """Call every numeric function of one problem once, so compiled backends finish compiling."""
-        x, p = self.state_, self.parameters_
-        rng = np.random.default_rng(0)
-        drawn = (rng,) if problem.stochastic else ()
-        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
-            if function is not None:
-                function(0.0, x, p)
-        if problem.update is not None:
-            problem.update(0.0, x, p, *drawn)
-        accelerated = problem.accelerated
-        if accelerated is None:
-            return
-        if accelerated.rk4 is not None:
-            accelerated.rk4(0.0, x, p, 0.0, 1.0)
-        if accelerated.velocity_verlet is not None:
-            empty = np.zeros(0, dtype=np.int64)
-            accelerated.velocity_verlet(0.0, x, p, 0.0, 1.0, empty, empty)
-        if accelerated.euler_maruyama is not None:
-            accelerated.euler_maruyama(0.0, x, p, 0.0, 1.0, rng)
-        if accelerated.gillespie is not None:
-            accelerated.gillespie(0.0, x, p, 0.0, rng)
-        if accelerated.iterate is not None:
-            accelerated.iterate(0.0, x, p, 0.0, *drawn)
+            observer.prepare(self.problem_)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
-        external = self.stepper_.snapshot()
+        external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
         structures = external.structures if isinstance(external, StructureState) else {}
         reporters = external.reporters if isinstance(external, StructureState) else reporters
-        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
+        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_.get)
         frame = Frame(
             step,
             self.time_,
@@ -280,11 +263,11 @@ class Simulation(BaseEstimator):
             agents,
             reporters,
             observables,
-            tuple(self.stepper_.drain_events()),
+            tuple(self.stepper_.events_),
             structures,
         )
         for observer in self.observers_:
-            observer.on_frame(frame)
+            observer.run(frame)
 
     def _apply_pending(self) -> None:
         """Apply the parameter changes queued since the last frame."""
@@ -293,12 +276,17 @@ class Simulation(BaseEstimator):
             self.parameters_[indices] = values
 
     def _loop(self, until: float) -> None:
-        """Advance frame by frame from the current time until `until` or until a stop is requested."""
+        """Advance frame by frame from the current time until `until` or until a stop is requested.
+
+        The stepper runs once per frame, and its last run, at the last frame or after a stop, releases what it
+        acquired, such as an external process.
+        """
         origin, first = self.time_, self._step
-        self.clock_.start()
+        self.clock_.prepare()
         self._apply_schedule()
         if first == 0:
             self._emit(0)
+        released = False
         try:
             while self.time_ < until - TIME_TOLERANCE and not self._stop_requested.is_set():
                 self._running.wait()
@@ -307,8 +295,9 @@ class Simulation(BaseEstimator):
                 self._apply_pending()
                 self._step += 1
                 target = min(self._step * self.dt_, until)
-                self.state_ = self.stepper_.advance(self.time_, self.state_, self.parameters_, target)
-                stopped_at = self.stepper_.stopped_at
+                released = target >= until - TIME_TOLERANCE
+                self.state_ = self.stepper_.run(self.time_, self.state_, self.parameters_, target, final=released)
+                stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
                 self.time_ = target
@@ -318,10 +307,12 @@ class Simulation(BaseEstimator):
                 self._emit(self._step)
                 if stopped_at is not None:
                     break
-                self.clock_.wait(self.time_ - origin)
+                self.clock_.run(self.time_ - origin)
         finally:
+            if not released:
+                self.stepper_.run(self.time_, self.state_, self.parameters_, self.time_, final=True)
             for observer in self.observers_:
-                observer.on_stop()
+                observer.run(final=True)
 
     def _apply_schedule(self) -> None:
         """Set every scheduled parameter and adaptive parameter to the value of its function at the current time."""
@@ -348,7 +339,7 @@ class Simulation(BaseEstimator):
 
     def _check_domains(self) -> None:
         """Raise an error when a state has left its domain."""
-        for entry in self.problem_.states:
+        for entry in self.problem_.states.entries:
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
             if not entry.domain.contains(values):
                 error_msg = (
@@ -373,7 +364,7 @@ class Simulation(BaseEstimator):
     def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
         """Raise an error when parameter changes would break a transition or emission matrix."""
         problems = (self.problem_, *_partition_problems(self.problem_))
-        matrices = [matrix for problem in problems if isinstance(problem, Problem) for matrix in problem.matrices]
+        matrices = [matrix for problem in problems for matrix in problem.matrices]
         if not matrices:
             return
         candidate = self.parameters_.copy()
@@ -398,8 +389,8 @@ class Simulation(BaseEstimator):
             error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
             raise SimulationError(error_msg)
 
-    def run(self, until: float) -> 'Simulation':
-        """Run the simulation from time 0 to `until` in the calling thread.
+    def _run(self, until: float) -> 'Simulation':
+        """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
         such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
@@ -412,7 +403,7 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare(until)
+        self.prepare(until)
         self._loop(until)
         return self
 
@@ -420,7 +411,8 @@ class Simulation(BaseEstimator):
         """Continue a finished run from its last frame to `until` in the calling thread.
 
         The run keeps its state, parameters, stepper, clock, observers, and frame duration, applies pending parameter
-        changes, and appends its frames to the trajectory.
+        changes, and appends its frames to the trajectory. A solver that closes an external process at the end of a
+        run, such as `LammpsSolver`, cannot continue it.
 
         Args:
             until:
@@ -448,7 +440,7 @@ class Simulation(BaseEstimator):
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()
             [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory['rabbits.n'][5] == trajectory['rabbits.n'][10])
+            >>> bool(trajectory.values('rabbits.n')[5] == trajectory.values('rabbits.n')[10])
             True
         """
         self._check_prepared()
@@ -458,7 +450,7 @@ class Simulation(BaseEstimator):
         if not until > self.time_ + TIME_TOLERANCE:
             error_msg = f'Cannot extend the run to t = {until}, which is not later than its current time {self.time_}.'
             raise SimulationError(error_msg)
-        if self.stepper_.stopped_at is not None:
+        if self.stepper_.stopped_at_ is not None:
             error_msg = f'A terminal event ended the run at t = {self.time_}, so it cannot be extended.'
             raise SimulationError(error_msg)
         self._stop_requested.clear()
@@ -477,7 +469,7 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare(until)
+        self.prepare(until)
         self._thread = threading.Thread(target=self._run_in_background, args=(until,), daemon=True)
         self._thread.start()
         return self
@@ -556,4 +548,4 @@ class Simulation(BaseEstimator):
         if self.recorder_ is None:
             error_msg = 'The simulation does not record frames. Create it with `record=True`.'
             raise SimulationError(error_msg)
-        return self.recorder_.trajectory
+        return self.recorder_.trajectory_

@@ -122,7 +122,7 @@ class CollocationSolver(OptimalControlSolver):
         ... )
         >>> solver = CollocationSolver(nodes=51, scheme='hermite-simpson')
         >>> simulation = Simulation(System(components=[PlantComponent('plant')]), solver=solver).run(until=1.0)
-        >>> float(round(simulation.trajectory_['plant.u'][0], 3))
+        >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
     """
 
@@ -211,7 +211,7 @@ class CollocationSolver(OptimalControlSolver):
             np.concatenate([state_upper, np.tile(upper, points)]),
         )
 
-    def prepare(self, control_problem: _ControlProblem) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the Jacobians of the rates and the gradients of the costs symbolically.
 
         Args:
@@ -237,7 +237,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:

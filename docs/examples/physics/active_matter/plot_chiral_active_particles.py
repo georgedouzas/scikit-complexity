@@ -57,7 +57,7 @@ rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
     system_o = create(MODEL, n_particles=500, omega=omega, size=1e5, random_state=1)
     run = Simulation(system_o, solver=solver, dt=0.1, random_state=1).run(until=40)
-    positions = run.trajectory_['swimmers.x']
+    positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     w = rotation**2 + omega**2

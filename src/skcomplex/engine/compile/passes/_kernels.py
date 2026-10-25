@@ -154,7 +154,7 @@ def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[i
                     parameters,
                     spec.pairs,
                     kind_outputs,
-                ),
+                ).check(),
             )
     return lowered
 
@@ -165,7 +165,7 @@ class KernelsPass(BasePass):
     reads = ('reduced', 'layout', 'outputs')
     writes = ('kernels',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Lower the reduced laws into kernels.
 
         Args:

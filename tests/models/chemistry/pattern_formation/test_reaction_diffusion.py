@@ -34,7 +34,7 @@ def _turing_wavelength(a, b, du, dv):
 def test_turing_spots_have_predicted_wavelength():
     """Test that the Schnakenberg model forms a stationary pattern with the wavelength of the linear prediction."""
     simulation = Simulation(schnakenberg((256,)), dt=50, solver=RK4Solver(dt=0.01)).run(until=600)
-    values = simulation.trajectory_['cells.u']
+    values = simulation.trajectory_.values('cells.u')
     wavelengths = [256 / np.argmax(np.abs(np.fft.rfft(row - row.mean()))) for row in values[-5:]]
     changes = np.abs(np.diff(values[-5:], axis=0)).max(axis=1)
     assert len(set(wavelengths)) == 1
@@ -49,7 +49,9 @@ def test_brusselator_and_heat_stay_bounded():
     assert np.all(np.isfinite(values))
     assert values.max() < 20
     trajectory = Simulation(heat_diffusion((32, 32)), dt=5).run(until=50).trajectory_
-    assert trajectory['plate.u'].sum(axis=1) == pytest.approx(np.full(len(trajectory), trajectory['plate.u'][0].sum()))
+    assert trajectory.values('plate.u').sum(axis=1) == pytest.approx(
+        np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum())
+    )
 
 
 def test_gray_scott_streams_images(tmp_path):
@@ -57,9 +59,9 @@ def test_gray_scott_streams_images(tmp_path):
     simulation = Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0)).run(until=40)
     element = simulation.problem_.elements[0]
     recording = Images()
-    for step in range(len(simulation.trajectory_)):
+    for step in range(len(simulation.trajectory_.times)):
         frame = Frame(step, 0.0, simulation.trajectory_.states[step], simulation.parameters_, simulation.problem_)
-        resolve_visual(element.visual).log(recording, element, frame)
+        resolve_visual(element.visual).prepare(element, frame.problem).run(frame, recording)
     assert recording.images == [('cells/u', 'Image'), ('cells/v', 'Image')] * 3
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
     Simulation(gray_scott((32, 32)), dt=20, solver=RK4Solver(dt=1.0), observers=[observer]).run(until=40)

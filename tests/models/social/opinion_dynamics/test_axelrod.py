@@ -10,7 +10,7 @@ def test_axelrod_order_disorder_transition():
     for traits in (2, 50):
         system = axelrod(8, 8, features=3, traits=traits, random_state=0)
         trajectory = Simulation(system, random_state=0).run(until=300).trajectory_
-        regions[traits] = trajectory['census.largest_region'][-1]
+        regions[traits] = trajectory.values('census.largest_region')[-1]
     assert regions[2] > 0.5
     assert regions[50] < 0.1
 

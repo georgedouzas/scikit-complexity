@@ -14,7 +14,7 @@ from ..conftest import _run
 
 def _cooperation(trajectory):
     """Return the share of cooperators at every frame of a lattice game."""
-    strategies = trajectory['players.strategy']
+    strategies = trajectory.values('players.strategy')
     return strategies.reshape(len(strategies), -1).mean(axis=1)
 
 
@@ -32,7 +32,7 @@ def test_spatial_cooperation_survives_in_clusters():
     trajectory = _run(spatial_prisoners_dilemma((40, 40), temptation=1.6), 200, dt=1)
     shares = _cooperation(trajectory)
     assert shares.min() > 0.2
-    lattice = trajectory['players.strategy'][-1].reshape(40, 40)
+    lattice = trajectory.values('players.strategy')[-1].reshape(40, 40)
     shifts = [np.roll(lattice, shift, axis) for shift in (-1, 1) for axis in (0, 1)]
     cooperating_neighbours = np.mean(shifts, axis=0)[lattice == 1]
     assert cooperating_neighbours.mean() > shares[-1]

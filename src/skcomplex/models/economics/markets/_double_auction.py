@@ -48,8 +48,9 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
 def _book_profit(trade: Trade, model: ModelView) -> None:
     """Add the surplus of a trade to the profits of the buyer and the seller."""
     del model
-    trade.buyer.profit += trade.quantity * (trade.buyer.value - trade.price)
-    trade.seller.profit += trade.quantity * (trade.price - trade.seller.value)
+    buyer, seller = trade.buyer, trade.seller
+    buyer.profit += trade.quantity * (buyer.value - trade.price)
+    seller.profit += trade.quantity * (trade.price - seller.value)
 
 
 class ZeroIntelligenceBuyerComponent(ElementComponent):

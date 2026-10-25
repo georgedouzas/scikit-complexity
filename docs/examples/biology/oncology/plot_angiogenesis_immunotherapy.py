@@ -40,16 +40,16 @@ arms = {
 fig, (tumour, toxicity) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = Simulation(arm, dt=0.5, observables=describe(MODEL).observables_of(arm)).run(until=150).trajectory_
-    tumour.plot(trajectory.times, trajectory['tumour.A'], label=name)
+    tumour.plot(trajectory.times, trajectory.values('tumour.A'), label=name)
 combined = simulation.trajectory_
-tumour.plot(combined.times, combined['tumour.A'], label='combination', color='black')
+tumour.plot(combined.times, combined.values('tumour.A'), label='combination', color='black')
 tumour.set_xlabel('time (days)')
 tumour.set_ylabel('tumour volume (mm³)')
 tumour.set_title('The combination shrinks the tumour')
 tumour.legend()
-toxicity.plot(combined.times, combined['toxicity'], color='black', label='mean toxicity')
-toxicity.plot(combined.times, combined['tumour.c_an'] / 15, label='bevacizumab / dose')
-toxicity.plot(combined.times, combined['tumour.c_im'] / 20, label='atezolizumab / dose')
+toxicity.plot(combined.times, combined.values('toxicity'), color='black', label='mean toxicity')
+toxicity.plot(combined.times, combined.values('tumour.c_an') / 15, label='bevacizumab / dose')
+toxicity.plot(combined.times, combined.values('tumour.c_im') / 20, label='atezolizumab / dose')
 toxicity.set_xlabel('time (days)')
 toxicity.set_ylabel('toxicity and relative amount')
 toxicity.set_title('Doses every three weeks')

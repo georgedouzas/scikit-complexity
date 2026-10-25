@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, solve
 from ...core.base import Expression, ValidationError, symbol
 from ...core.problems import Reference, Source, numpy_function
 from ...core.space import LatticeSpace
-from ._components import FieldComponent
+from ._components import FieldComponent, boundary_of
 from ._laws import FluxLaw
 
 type Array = npt.NDArray[np.float64]
@@ -284,7 +284,7 @@ def compile_volumes(
         error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
         raise ValidationError(error_msg)
     states = [_symbol(law.target, references) for law, _ in laws]
-    n_dim = space.n_dim
+    n_dim = space.n_dim_
     expressions = []
     for law, _ in laws:
         components = law.fluxes
@@ -327,13 +327,13 @@ def compile_volumes(
         critical = tuple(roots)
     boundaries = tuple(
         (kind, float(value) if not callable(value) else 0.0)
-        for kind, value in (place.boundary_of(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
+        for kind, value in (boundary_of(place, reference.entry.name.rpartition('.')[2]) for _, reference in laws)
     )
     return FiniteVolume(
         owner,
         tuple(reference.entry.start for _, reference in laws),
-        space.dimensions,
-        space.spacings,
+        space.shape_,
+        space.spacings_,
         boundaries,
         fluxes,
         jacobians,

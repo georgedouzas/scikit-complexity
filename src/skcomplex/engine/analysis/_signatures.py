@@ -81,7 +81,7 @@ def _series_signature(trajectory: Trajectory) -> Signature:
     columns = series.values[:, :SERIES_COLUMNS]
     labels = series.labels[:SERIES_COLUMNS]
     dt = float(np.median(np.diff(series.times))) if series.times.size > 1 else 1.0
-    if trajectory.problem.form is Form.DISCRETE:
+    if trajectory.problem.form == Form.DISCRETE:
         curves = {label: (column[:-1], column[1:]) for label, column in zip(labels, columns.T, strict=True)}
         return Signature(DataKind.SERIES, 'Return map', 'x(t)', 'x(t + 1)', curves, points=True)
     curves = {}
@@ -107,7 +107,7 @@ def _path_signature(trajectory: Trajectory) -> Signature:
     path = path_of(trajectory)
     waiting = np.diff(path.times)
     states = path.states.reshape(path.times.size, -1)
-    frames = np.asarray(trajectory[path.label], dtype=float).reshape(len(trajectory), -1)
+    frames = np.asarray(trajectory.values(path.label), dtype=float).reshape(len(trajectory.times), -1)
     jumps = np.abs(np.diff(frames, axis=0)).sum(axis=1)
     values = {'Fano factor of jumps per frame': fano_factor(jumps)} if jumps.mean() > 0 else {}
     values['jumps'] = float(states.shape[0] - 1)

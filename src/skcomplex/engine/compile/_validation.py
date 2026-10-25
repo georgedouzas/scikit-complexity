@@ -44,7 +44,7 @@ from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
 from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend
 from ...core.problems._neighbourhoods import cone_heading, position_state
-from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace
+from ...core.space import Adjacency, Cone, NetworkSpace
 from ...core.system import Observable, System
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
@@ -108,7 +108,7 @@ def _space_kind(space: BaseSpace | None) -> SpaceKind:
 def _layer_issues(node: Any, space: BaseSpace | None) -> list[Issue]:  # noqa: ANN401
     """Return the issue of an interaction over neighbours that names a layer its network does not have."""
     layer = getattr(node.component, 'layer', None)
-    labels = getattr(space, 'layer_labels', (None,))
+    labels = tuple(getattr(space, 'graphs_', (None,)))
     if layer is None or layer in labels:
         return []
     known = ', '.join(repr(label) for label in labels)
@@ -142,7 +142,7 @@ def _binding_issues(nodes: list[Node]) -> list[Issue]:
         target = next(iter(members), None)
         space = target.space if target is not None else node.space
         offered = (
-            isinstance(space, SiteSpace | NetworkSpace)
+            getattr(space, 'space_kind', None) in {SpaceKind.LATTICE, SpaceKind.NETWORK}
             if over == 'neighbors'
             else bool(
                 getattr(space, 'hyperedges', ()),
@@ -190,17 +190,18 @@ def _space_issues(system: System, nodes: list[Node]) -> list[Issue]:
             message = (
                 f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
             )
-            fix = f'Use the {space.default_visual!r} visual.' if isinstance(space, SiteSpace) else 'Use another visual.'
+            default = getattr(space, 'default_visual_', None)
+            fix = f'Use the {default!r} visual.' if default is not None else 'Use another visual.'
             issues.append(Issue('visual-unsupported', node.path, message, fix))
     if system.space is not None:
         spaces.setdefault(id(system.space), (system.label, system.space))
     for path, space in spaces.values():
         try:
-            getattr(space, 'check', lambda: None)()
+            space.check()
         except SpaceTooLargeError as error:
             fix = 'Ask for a smaller ball, or raise max_sites.'
             issues.append(Issue('space-too-large', path, str(error), fix, error=SpaceTooLargeError))
-        except ValueError as error:
+        except ValidationError as error:
             fix = f'Give the {type(space).__name__} a shape, a boundary, and a geometry that it supports.'
             holder = path.rpartition('/')[0] or system.label
             issues.append(Issue('space-invalid', holder, str(error), fix, error=SpaceError))
@@ -270,9 +271,9 @@ def _space_fix(requires: Requires) -> str:
 
 def _layer_reduction_issue(name: str, path: str, over: object, space: object) -> Issue | None:
     """Return the issue of a reduction over a layer that its network does not have, or `None`."""
-    if not isinstance(over, Adjacency) or not isinstance(space, NetworkSpace) or over.layer in space.layer_labels:
+    if not isinstance(over, Adjacency) or not isinstance(space, NetworkSpace) or over.layer in space.graphs_:
         return None
-    known = ', '.join(repr(label) for label in space.layer_labels)
+    known = ', '.join(repr(label) for label in space.graphs_)
     message = (
         f'The {name} reduces over the layer {over.layer!r}, which the network does not have. Its layers are {known}.'
     )
@@ -305,7 +306,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
                 issues.append(layered)
                 continue
             node = by_path.get(record.owner)
-            if node is None or space is not SpaceKind.CONTINUOUS or over is None:
+            if node is None or space != SpaceKind.CONTINUOUS or over is None:
                 continue
             states = declarations_of(node.component_type, VariableKind.STATE)
             if position_state(states) is None:
@@ -318,7 +319,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
                 continue
             if isinstance(over, Cone):
                 try:
-                    cone_heading(over, states, getattr(record.space, 'n_dim', 0))
+                    cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
                 except ValidationError as error:
                     fix = (
                         "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
@@ -366,7 +367,7 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
 
 def _order_issues(nodes: list[Node]) -> list[Issue]:
     """Return the states of a fractional order when no registered solver integrates fractional orders."""
-    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED for cls in solver_classes()):
+    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form != Form.COUPLED for cls in solver_classes()):
         return []
     fractional = [
         (node.path, name, declaration.order)
@@ -556,7 +557,7 @@ def _noise_runners(solver: object, backend: object) -> list[tuple[str, Any]]:
         runners += [('solver', cls) for cls, names in solver_classes().items() if solver in names][:1]
     else:
         runners.append(('solver', type(solver)))
-    if isinstance(backend, str) and backend in set(BACKENDS):
+    if isinstance(backend, str) and backend in BACKENDS.keys:
         runners.append(('backend', BACKENDS.resolve(backend)))
     elif not isinstance(backend, str):
         runners.append(('backend', type(backend)))
@@ -571,7 +572,7 @@ def _noise_fix(term: NoiseKind) -> str:
         if LawKind.NOISE in cls.supports.laws and term in cls.supports.noise
         for name in names
     )
-    backends = sorted(str(key) for key in BACKENDS if term in BACKENDS.resolve(key).supports.noise)
+    backends = sorted(str(key) for key in BACKENDS.keys if term in BACKENDS.resolve(key).supports.noise)
     return f'Use one of the solvers {", ".join(solvers)}, with one of the backends {", ".join(backends)}.'
 
 
@@ -680,9 +681,9 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     if solver != 'auto':
         issues += _solver_issues(solver, records, system)
     issues += _noise_issues(compilation, records)
-    if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
+    if isinstance(backend, str) and backend != 'auto' and backend not in BACKENDS.keys:
         message = f'No backend is registered under {backend!r}.'
-        fix = f'Choose one of {names_of(BACKENDS)}.'
+        fix = f'Choose one of {names_of(BACKENDS.keys)}.'
         issues.append(Issue('backend-unknown', system.label, message, fix, error=BackendError))
     return issues
 
@@ -717,12 +718,12 @@ def missing_declarations() -> list[str]:
         if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
     )
     solvers = solver_registry()
-    for key in solvers:
+    for key in solvers.keys:
         solver = solvers.resolve(key)
         if not isinstance(getattr(solver, 'supports', None), Supports):
             _, name = cast('tuple[Form, str]', key)
             missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
-    for key in BACKENDS:
+    for key in BACKENDS.keys:
         backend = BACKENDS.resolve(key)
         if not isinstance(getattr(backend, 'supports', None), Supports):
             missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')
@@ -824,9 +825,9 @@ class ValidationReport:
                 The report holds an error.
         """
         for issue in self.warnings:
-            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
+            warnings.warn(issue.text, ValidationWarning, stacklevel=3)
         if self.errors:
-            lines = '\n'.join(f'- {issue}' for issue in self.errors)
+            lines = '\n'.join(f'- {issue.text}' for issue in self.errors)
             error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
             classes = {issue.error for issue in self.errors}
             raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)

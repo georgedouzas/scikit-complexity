@@ -63,7 +63,7 @@ for k in couplings:
         .run(until=100)
         .trajectory_
     )
-    times, amplitude = np.asarray(run.times), np.asarray(run['amplitude'])
+    times, amplitude = np.asarray(run.times), np.asarray(run.values('amplitude'))
     late = (times >= 10.0) & (amplitude > 1e-8)
     rates.append(np.polyfit(times[late], np.log(amplitude[late]), 1)[0])
 fig, ax = plt.subplots(figsize=(7, 4))

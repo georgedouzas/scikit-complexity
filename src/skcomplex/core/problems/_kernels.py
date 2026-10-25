@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -80,24 +81,16 @@ class Reference:
     column: int
     source: Source = Source.SINGLE
     neighbor: Any = field(default=None, compare=False, repr=False)
-    _index: int = field(init=False, compare=False, repr=False)
-    _members: slice = field(init=False, compare=False, repr=False)
 
-    def __post_init__(self) -> None:
-        """Compute the flat index of a single read and the strided slice of a member read once."""
-        entry = self.entry
-        object.__setattr__(self, '_index', entry.start + self.column)
-        object.__setattr__(self, '_members', slice(entry.start + self.column, entry.start + entry.size, entry.columns))
-
-    @property
+    @functools.cached_property
     def index(self) -> int:
         """Flat index of the component of a single read, or of the first member."""
-        return self._index
+        return self.entry.start + self.column
 
-    @property
+    @functools.cached_property
     def members(self) -> slice:
         """Strided slice of the component of every member in the flat vector."""
-        return self._members
+        return slice(self.entry.start + self.column, self.entry.start + self.entry.size, self.entry.columns)
 
     def column_of(self, x: Vector, p: Vector) -> Vector:
         """Return the component of every member as a view into the state or parameter vector.
@@ -115,8 +108,8 @@ class Reference:
         """
         vector = x if self.is_state else p
         if self.source is Source.SINGLE:
-            return vector[self._index : self._index + 1]
-        return vector[self._members]
+            return vector[self.index : self.index + 1]
+        return vector[self.members]
 
     @property
     def flat_indices(self) -> Indices:
@@ -445,22 +438,65 @@ class Kernel:
     pairs: Search | None = None
     outputs: list[Output] = field(default_factory=list)
 
-    def __post_init__(self) -> None:
-        """Compile the symbolic outputs and the arguments of calls into one NumPy function."""
-        self._slots: list[tuple[int, int]] = []
+    @functools.cached_property
+    def _plan(self) -> tuple[list[tuple[int, int]], list[Expression]]:
+        """Return the slot of every output among the compiled expressions, and the expressions, found once.
+
+        Outputs that call the same function on the same arguments share one slot.
+        """
+        slots: list[tuple[int, int]] = []
         expressions: list[Expression] = []
         calls: dict[tuple[int, tuple[Expression, ...]], tuple[int, int]] = {}
         for output in self.outputs:
             key = (id(output.function), output.arguments) if output.arguments is not None else None
             if key is not None and key in calls:
-                self._slots.append(calls[key])
+                slots.append(calls[key])
                 continue
             parts = [output.expression] if output.expression is not None else list(output.arguments or ())
-            self._slots.append((len(expressions), len(parts)))
+            slots.append((len(expressions), len(parts)))
             if key is not None:
-                calls[key] = self._slots[-1]
+                calls[key] = slots[-1]
             expressions.extend(parts)
-        used = symbols_of(expressions) - {self.time}
+        return slots, expressions
+
+    @functools.cached_property
+    def _slots(self) -> list[tuple[int, int]]:
+        """Start and count of the compiled values of every output."""
+        return self._plan[0]
+
+    @functools.cached_property
+    def _arguments(self) -> list[Expression]:
+        """Symbols the compiled expressions read besides time, sorted by name."""
+        return sorted(symbols_of(self._plan[1]) - {self.time}, key=str)
+
+    @functools.cached_property
+    def _function(self) -> Callable[..., Any] | None:
+        """NumPy function of the symbolic outputs and the arguments of calls, or `None` without expressions."""
+        expressions = self._plan[1]
+        return numpy_function(self.time, self._arguments, expressions) if expressions else None
+
+    @functools.cached_property
+    def _readers(self) -> dict[Expression, Reader]:
+        """Reader of every symbol resolved so far."""
+        return {}
+
+    @functools.cached_property
+    def _argument_readers(self) -> list[Reader]:
+        """Readers of the arguments of the compiled function, in order."""
+        return [self._reader(item) for item in self._arguments]
+
+    def check(self) -> 'Kernel':
+        """Check that the outputs read only declared symbols, and neighbour symbols only inside a reduction.
+
+        Returns:
+            kernel:
+                The kernel itself.
+
+        Raises:
+            ValidationError:
+                If an output reads an undeclared symbol, or a neighbour symbol outside a neighbourhood reduction.
+        """
+        used = set(self._arguments)
         unknown = used - set(self.references)
         if unknown:
             names = ', '.join(sorted(map(str, unknown)))
@@ -476,12 +512,7 @@ class Kernel:
                 'reduction. Read `s.other` inside `neighbors`, which reduces over the neighbours of every member.'
             )
             raise ValidationError(error_msg)
-        self._arguments = sorted(used, key=str)
-        self._function: Callable[..., Any] | None = (
-            numpy_function(self.time, self._arguments, expressions) if expressions else None
-        )
-        self._readers: dict[Expression, Reader] = {}
-        self._argument_readers = [self._reader(item) for item in self._arguments]
+        return self
 
     @property
     def arguments(self) -> list[Expression]:

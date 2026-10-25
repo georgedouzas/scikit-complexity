@@ -103,14 +103,16 @@ def test_renewal_stepper_reproduces_runs_with_one_seed():
 def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
     problem = compile_system(System(components=[CounterComponent('c')]))
-    counts = [Simulation(problem, dt=1000, random_state=seed).run(1000).trajectory_['c.n'][-1] for seed in range(100)]
+    counts = [
+        Simulation(problem, dt=1000, random_state=seed).run(1000).trajectory_.values('c.n')[-1] for seed in range(100)
+    ]
     assert abs(np.mean(counts) - 1000) < 2 * np.std(counts) / np.sqrt(len(counts))
 
 
 def test_renewal_stepper_counts_power_law_renewals():
     """Test that Pareto waits of tail exponent 0.5 for 10000 members give a mean count growing as t^0.5."""
     trajectory = _trajectory(System(components=[WaitingComponent.group('w', 10000)]), 10000, 100)
-    times, counts = trajectory.times[10:], trajectory['w.n'][10:].mean(axis=1)
+    times, counts = trajectory.times[10:], trajectory.values('w.n')[10:].mean(axis=1)
     assert np.polyfit(np.log(times), np.log(counts), 1)[0] == pytest.approx(0.5, abs=0.05)
 
 
@@ -119,14 +121,16 @@ def test_renewal_stepper_holds_states_between_renewals():
     trajectory = _trajectory(System(components=[CounterComponent('c')]), 20, 0.1)
     times = np.concatenate([record.times for record in trajectory.events])
     expected = np.searchsorted(times, trajectory.times, side='right')
-    assert np.array_equal(trajectory['c.n'], expected)
+    assert np.array_equal(trajectory.values('c.n'), expected)
 
 
 def test_renewal_stepper_exposes_the_renewal_count_observable():
     """Test that the observable of a renewal law counts the renewals recorded up to every frame."""
     trajectory = _trajectory(System(components=[CounterComponent.group('c', 5)]), 10, 0.5)
     times = np.concatenate([record.times for record in trajectory.events])
-    assert np.array_equal(trajectory['ticks.renewals'], np.searchsorted(np.sort(times), trajectory.times, 'right'))
+    assert np.array_equal(
+        trajectory.values('ticks.renewals'), np.searchsorted(np.sort(times), trajectory.times, 'right')
+    )
 
 
 def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
@@ -187,11 +191,11 @@ def test_stepper_rejects_renewals_it_does_not_fire():
     """Test that a stepper without renewals names the steppers that fire them."""
     problem = compile_system(System(components=[FlierComponent('f')]))
     with pytest.raises(SolverError, match=r'ScipyODESolver does not fire renewal laws. Use RK4Solver'):
-        ScipyODESolver().initialize(problem, np.random.default_rng(0))
+        ScipyODESolver().prepare(problem, np.random.default_rng(0))
 
 
 def test_renewal_stepper_solves_the_renewal_form():
     """Test that the renewal stepper is the default solver of the renewal form."""
     simulation = Simulation(System(components=[CounterComponent('c')]), random_state=0).run(1)
-    assert simulation.problem_.form is Form.RENEWAL
+    assert simulation.problem_.form == Form.RENEWAL
     assert isinstance(simulation.stepper_, RenewalSolver)

@@ -29,7 +29,7 @@ def test_phase_ring_visual_logs_wrapped_phases_against_index():
     problem = simulation.problem_
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
     logs = Logs()
-    PhaseRingVisual('theta', position='x').log(logs, problem.elements[0], frame)
+    PhaseRingVisual('theta', position='x').prepare(problem.elements[0], problem).run(frame, logs)
     points = np.asarray(logs.of('ring/phases')[0].positions.as_arrow_array().to_pylist())
     assert points.shape == (20, 2)
     np.testing.assert_allclose(points[:, 0], np.arange(20))

@@ -100,8 +100,9 @@ class StrategistComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.cooperation import StrategistComponent
-        >>> StrategistComponent.group('agents', 10, genome=[1.0] * 7)
-        GroupComponent('agents', element=StrategistComponent, size=10)
+        >>> group = StrategistComponent.group('agents', 10, genome=[1.0] * 7)
+        >>> group.label, group.element.__name__, group.size
+        ('agents', 'StrategistComponent', 10)
     """
 
     genome: npt.ArrayLike = state(default=1.0, vector=True)

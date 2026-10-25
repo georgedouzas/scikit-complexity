@@ -1,5 +1,6 @@
 """Test the compilation of quantum systems."""
 
+import math
 from operator import attrgetter
 from typing import ClassVar
 
@@ -9,7 +10,6 @@ import qutip
 
 from skcomplex.core.base import (
     BaseInteraction,
-    BaseProblem,
     Form,
     IncompatibleLawsError,
     LawKind,
@@ -19,7 +19,7 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.problems import Problem
+from skcomplex.core.problems import BaseProblem, Problem
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
@@ -39,6 +39,7 @@ from skcomplex.formalisms.quantum import (
     QuantumProblem,
     expectation,
 )
+from skcomplex.formalisms.quantum._passes import hamiltonian_at, state_of
 from skcomplex.models.biology.ecology import PopulationComponent
 from skcomplex.models.physics.realizations.quantum import ModeComponent, QubitComponent, SpinComponent
 
@@ -78,9 +79,9 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
     system = System(components=[SpinComponent.lattice('chain', LatticeSpace(10)), ModeComponent('cavity', quanta=4)])
     problem = compile_system(system)
     assert isinstance(problem, QuantumProblem)
-    assert problem.form is Form.QUANTUM
+    assert problem.form == Form.QUANTUM
     assert list(problem.dimensions) == [2] * 10 + [5]
-    assert problem.dimension == 5120
+    assert math.prod(problem.dimensions) == 5120
 
 
 def test_compile_system_rejects_too_large_spaces():
@@ -97,7 +98,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system)
-    matrix = problem.hamiltonian_at(0.0, problem.initial_parameters).toarray()
+    matrix = hamiltonian_at(problem, 0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
     for site in range(8):
@@ -149,7 +150,7 @@ def test_compile_system_stores_neel_states():
     """Test that a Néel state has norm 1 and one nonzero amplitude at its basis index."""
     labels = ['up', 'down'] * 3
     problem = compile_system(System(components=[SpinComponent.lattice('chain', LatticeSpace(6), initial=labels)]))
-    state = problem.state_of(problem.initial_state)
+    state = state_of(problem, problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
 
@@ -165,7 +166,7 @@ def test_compile_system_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
     problem = compile_system(System(components=[DecayingComponent('q')]))
     assert not problem.pure
-    assert problem.state_of(problem.initial_state).shape == (2, 2)
+    assert state_of(problem, problem.initial_state).shape == (2, 2)
     mixed = compile_system(System(components=[QubitComponent('q')]), initial_state={'system.state': np.eye(2) / 2})
     assert not mixed.pure
 
@@ -177,7 +178,11 @@ def test_compile_system_starts_from_the_ground_state():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system, initial_state={'system.state': 'ground'})
-    energy = ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)['energy']
+    energy = (
+        ObservableEvaluator(problem)
+        .prepare()
+        .evaluate(0.0, problem.initial_state, problem.initial_parameters)['energy']
+    )
     assert energy == pytest.approx(-2.0)
 
 
@@ -190,7 +195,7 @@ def test_observable_evaluator_reads_local_magnetization():
         expectation('total', local_z, group='chain', reduce='sum'),
     ]
     problem = compile_system(system, observables=observables)
-    values = ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)
+    values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert values['sz'].tolist() == [0.5, -0.5] * 4
     assert values['total'] == 0.0
 
@@ -199,15 +204,7 @@ def test_observable_evaluator_rejects_non_operators():
     """Test that a quantum observable must give an operator."""
     system = System(components=[QubitComponent('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
-        ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))]))
-
-
-def test_local_values_give_probabilities_and_expectations():
-    """Test the local values that visuals draw for single elements."""
-    problem = compile_system(System(components=[QubitComponent('q', initial='down')]))
-    values = problem.local_values('q', problem.initial_state)
-    assert values['z'] == -1.0
-    assert values['x'] == 0.0
+        ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))])).prepare()
 
 
 def test_quantum_pass_claims_quantum_systems():

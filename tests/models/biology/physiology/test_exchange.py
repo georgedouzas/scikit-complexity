@@ -12,8 +12,8 @@ from skcomplex.models.biology.physiology import (
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
     """Test that the contour cells synchronize at a stable equilibrium in its domain, and a chaotic one does not."""
-    stable = Simulation(closed_contour_cell_exchange(r=2.5), dt=1).run(200).trajectory_['cells.x']
-    chaotic = Simulation(closed_contour_cell_exchange(r=3.9), dt=1).run(200).trajectory_['cells.x']
+    stable = Simulation(closed_contour_cell_exchange(r=2.5), dt=1).run(200).trajectory_.values('cells.x')
+    chaotic = Simulation(closed_contour_cell_exchange(r=3.9), dt=1).run(200).trajectory_.values('cells.x')
     equilibrium = stable[-1]
     assert np.ptp(stable[-20:], axis=0).max() < 1e-9
     assert np.ptp(equilibrium) < 1e-9
@@ -29,6 +29,6 @@ def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
     final = {}
     for share in (0.8, 1.2):
         system = nanotube_gap_junction_exchange(graph, xi=share * critical, x=0.1)
-        final[share] = Simulation(system, dt=0.5).run(200).trajectory_['cells.x'][-1].mean()
+        final[share] = Simulation(system, dt=0.5).run(200).trajectory_.values('cells.x')[-1].mean()
     assert final[0.8] < 0.01
     assert final[1.2] > 10

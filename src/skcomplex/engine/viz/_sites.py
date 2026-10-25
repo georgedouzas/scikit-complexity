@@ -10,12 +10,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement, NetworkSnapshot
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement, NetworkSnapshot
 from ...core.space import LatticeSpace, NetworkSpace
 from ..runtime import Frame
-from ._colors import palette_colors
-from ._utils import GRID_RADIUS, NODE_SPACING, _network_layout
+from ._utils import GRID_RADIUS, NODE_SPACING
 from ._visuals import BaseVisual, register_visual
 
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
@@ -27,7 +25,7 @@ CHANGING_CENTRING = 0.05
 
 def _changes_topology(element: CompiledElement, problem: BaseProblem) -> bool:
     """Check whether a group lies on the nodes of a network whose topology changes."""
-    topology = getattr(problem, 'topology', None)
+    topology = problem.topology
     return topology is not None and element.path in {path for path, _ in topology.layers}
 
 
@@ -50,10 +48,17 @@ class SiteVisual(BaseVisual):
         high:
             The value of the brightest color, or `None` for the largest value of every frame.
 
+    Attributes:
+        edges_:
+            The entity paths whose static edges are logged.
+
+        changing_:
+            The hash of the latest logged edges of every changing network, by entity path.
+
     Examples:
         >>> from skcomplex.engine.viz import SiteVisual
         >>> SiteVisual(low=0, high=2)
-        SiteVisual(states=None, low=0, high=2)
+        SiteVisual(high=2, low=0)
     """
 
     def __init__(
@@ -65,25 +70,12 @@ class SiteVisual(BaseVisual):
         self.states = states
         self.low = low
         self.high = high
-        self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
-        self._edges: set[str] = set()
-        self._changing: dict[str, int] = {}
 
-    def __repr__(self) -> str:
-        """Return the options."""
-        return f'SiteVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
-
-    def _colors(self, values: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
-        """Return the colors of site values over the given range or the extremes of the values."""
-        low = float(values.min()) if self.low is None else float(self.low)
-        high = float(values.max()) if self.high is None else float(self.high)
-        return palette_colors(values, low, high)
-
-    def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
-        """Return the positions of the nodes of a network, computed once per network."""
-        if id(space.graph) not in self._layouts:
-            self._layouts[id(space.graph)] = _network_layout(space.graph)
-        return self._layouts[id(space.graph)]
+    def _prepare(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> None:
+        """Keep the group, forget the edges logged in earlier runs, and set the views."""
+        self.edges_: set[str] = set()
+        self.changing_: dict[str, int] = {}
+        super()._prepare(element, problem)
 
     def _log_graph(
         self,
@@ -95,13 +87,19 @@ class SiteVisual(BaseVisual):
         """Log the nodes of a network colored by value, and its edges once."""
         layout = self._layout(space)
         nodes = [str(node) for node in space.graph.nodes]
-        if path not in self._edges:
+        if path not in self.edges_:
             edges = [(str(source), str(target)) for source, target in space.graph.edges]
             recording.log(path, rr.GraphEdges(edges), static=True)
-            self._edges.add(path)
+            self.edges_.add(path)
         positions = [layout[node] for node in nodes]
         radius = GRID_RADIUS * NODE_SPACING / 2
-        drawn = rr.GraphNodes(nodes, positions=positions, colors=self._colors(values), radii=radius, show_labels=False)
+        drawn = rr.GraphNodes(
+            nodes,
+            positions=positions,
+            colors=self._colors(values, self.low, self.high),
+            radii=radius,
+            show_labels=False,
+        )
         recording.log(path, drawn)
 
     def _log_changing(
@@ -114,15 +112,17 @@ class SiteVisual(BaseVisual):
         """Log the nodes present of a changing network colored by value, and its edges when they change."""
         edges = [(str(source), str(target)) for source, target in zip(snapshot.sources, snapshot.targets, strict=True)]
         key = hash(tuple(edges))
-        if self._changing.get(path) != key:
+        if self.changing_.get(path) != key:
             recording.log(path, rr.GraphEdges(edges, graph_type='undirected'))
-            self._changing[path] = key
+            self.changing_[path] = key
         nodes = [str(node) for node in snapshot.nodes]
-        colors = self._colors(values[snapshot.nodes]) if nodes else np.zeros((0, 4), dtype=np.uint8)
+        colors = (
+            self._colors(values[snapshot.nodes], self.low, self.high) if nodes else np.zeros((0, 4), dtype=np.uint8)
+        )
         radius = GRID_RADIUS * NODE_SPACING / 2
         recording.log(path, rr.GraphNodes(nodes, colors=colors, radii=radius, show_labels=False))
 
-    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+    def _log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every chosen state of a triangular lattice or a network under `<path>/<state>`.
 
         Args:
@@ -142,20 +142,20 @@ class SiteVisual(BaseVisual):
             values = np.ravel(np.asarray(frame.value(name), dtype=float))
             path = f'{element.path}/{state}'
             if _changes_topology(element, frame.problem):
-                snapshot = getattr(frame.problem, 'topology', None).read_network(frame.parameters, element.path)  # type: ignore[union-attr]
+                snapshot = frame.problem.topology.read_network(frame.parameters, element.path)  # type: ignore[union-attr]
                 self._log_changing(recording, path, snapshot, values)
                 continue
             if isinstance(space, NetworkSpace):
                 self._log_graph(recording, path, space, values)
                 continue
-            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size)
-            positions = lattice.positions
+            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).prepare()
+            positions = lattice.positions_
             if positions.shape[1] == 1:
                 positions = np.column_stack([positions[:, 0], np.zeros(len(positions))])
-            radius = HEXAGON_RADIUS * min(lattice.spacings)
-            recording.log(path, rr.Points2D(positions, colors=self._colors(values), radii=radius))
+            radius = HEXAGON_RADIUS * min(lattice.spacings_)
+            recording.log(path, rr.Points2D(positions, colors=self._colors(values, self.low, self.high), radii=radius))
 
-    def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
+    def _views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:
         """Return one graph view per chosen state of a lattice group on a network, and a 2D spatial view otherwise.
 
         Args:
@@ -180,7 +180,7 @@ class SiteVisual(BaseVisual):
             >>> NodeComponent = ElementComponent.define('NodeComponent', states={'value': state(0.0)})
             >>> system = System(components=[NodeComponent.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)
-            >>> [type(view).__name__ for view in SiteVisual().views(problem.elements[0], problem)]
+            >>> [type(view).__name__ for view in SiteVisual().prepare(problem.elements[0], problem).views_]
             ['GraphView']
         """
         if not isinstance(element, CompiledElement):

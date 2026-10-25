@@ -39,7 +39,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).run(until=
 def cooperators(synergy):
     """Return the share of cooperators after every round."""
     run = Simulation(create(MODEL, synergy=synergy, noise=0.5, random_state=0), random_state=0).run(until=ROUNDS)
-    return run.trajectory_['players.strategy'].reshape(ROUNDS + 1, -1).mean(axis=1)
+    return run.trajectory_.values('players.strategy').reshape(ROUNDS + 1, -1).mean(axis=1)
 
 
 synergies = np.linspace(3.0, 6.5, 8)

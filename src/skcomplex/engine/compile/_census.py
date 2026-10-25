@@ -135,7 +135,7 @@ def _records_of(
 ) -> list[CensusRecord]:
     """Return the census records of the laws of one component."""
     records = []
-    for spec in specs_of(block, elements, declarations.time, observe):
+    for spec in specs_of(block, elements, declarations.time, observe.evaluate):
         for law in declared_laws(spec, component_of(block.node)):
             target = getattr(law, 'target', None)
             items = components_of(target) if target is not None else []
@@ -195,7 +195,7 @@ def law_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str:
         ValidationError:
             The law changes no state of its component, or targets a symbol that is not a state.
     """
-    for key in OWNER_RULES:
+    for key in OWNER_RULES.keys:
         owner = OWNER_RULES.resolve(key)(spec, law, agents)
         if owner is not None:
             return owner
@@ -239,7 +239,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
         ValidationError:
             `laws` returns something other than declarable laws, or laws its binding does not take.
     """
-    declared: Any = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
     _check_registered(spec, declared)
     if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
@@ -255,7 +255,14 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
             'laws, which its edges do not take.'
         )
         raise ValidationError(error_msg)
-    return list(declared)
+    checked = []
+    for law in declared:
+        try:
+            checked.append(law.check())
+        except ValidationError as error:
+            error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
+            raise ValidationError(error_msg) from error
+    return checked
 
 
 def census_of(system: System, nodes: list[Node]) -> Census:

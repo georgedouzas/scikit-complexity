@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=200)
 # harmonics at its multiples.
 
 trajectory = simulation.trajectory_
-anomaly = trajectory['pacific.T']
+anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
 frequencies, density = power_spectrum(anomaly[settled], dt=0.5)

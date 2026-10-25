@@ -16,7 +16,7 @@ class FormPass(BasePass):
     reads = ('kinds',)
     writes = ('form',)
 
-    def run(self, compilation: Compilation) -> None:
+    def _run(self, compilation: Compilation) -> None:
         """Infer the form of the problem.
 
         Args:

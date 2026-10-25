@@ -71,9 +71,9 @@ for gamma in strengths:
         random_state=1,
         observables=describe(MODEL).observables_of(model_system),
     )
-    polarizations.append(np.abs(run.run(until=150).trajectory_['polarization'][75:]).mean())
+    polarizations.append(np.abs(run.run(until=150).trajectory_.values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, np.abs(simulation.trajectory_['polarization']))
+series.plot(simulation.trajectory_.times, np.abs(simulation.trajectory_.values('polarization')))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

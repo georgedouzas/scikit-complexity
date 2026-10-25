@@ -50,7 +50,7 @@ for _ in times:
     xx, xv, vv = moments
     moments = np.array([xx + 2 * xv + vv, 0.5 * (xv + vv), 0.25 * vv + 1.0])
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(times, np.mean(trajectory['walkers.x'] ** 2, axis=1), label='simulation')
+ax.plot(times, np.mean(trajectory.values('walkers.x') ** 2, axis=1), label='simulation')
 ax.plot(times, exact, '--', color='black', label='exact second moment')
 ax.plot(times, times / (1 - 0.5**2), ':', color='grey', label='uncorrelated steps')
 ax.set_xlabel('step t')
