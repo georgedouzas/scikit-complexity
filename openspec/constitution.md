@@ -89,7 +89,8 @@ conventions are the taste it cannot check.
   never by its name. A base a client is expected to subclass MUST be re-exported.
 - Inheritance MUST mean *is* and membership *has*: a class MUST derive only from a class it is, and MUST hold what it
   merely has. A class MUST be named after what it is, so its name ends with the concept of the base it derives from,
-  such as `RateLaw` of `BaseLaw`, and no base MUST derive from another base.
+  such as `RateLaw` of `BaseLaw`, and no base MUST derive from another base, except that the bases of the parts of a
+  domain model MAY derive from one base of parts that defines what every part does.
 - One module MUST be one concern, a file that grows two MUST be split, and small general helpers MUST share a
   `_utils` module. A base package MUST import no other package of the project, and its modules MUST import one
   another downward.
@@ -228,9 +229,12 @@ to fill in as the project takes shape.
   arguments, `prepare(*context)` checks and derives every attribute ending in an underscore, and
   `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `prepare`
   acquired. Each verb calls a private hook, `_check`, `_prepare`, `_run`, or `_release`, with a trivial default, and no
-  family MUST add a verb of its own. Laws, domains, problems, terms, and compiled records are values: frozen
-  dataclasses whose only shared method is `check()`, which returns a checked copy. A system is defined by elements,
-  interactions, and laws alone: elements and groups derive from `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
+  family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen dataclasses whose
+  only shared method is `check()`, which returns a checked copy. A system is defined by elements, interactions, and laws
+  alone, its parts, which derive from `BasePart`: it declares abstract `_check`, `_prepare`, and `_run` hooks that
+  return the part or its contribution, and the verbs on them. Elements and systems return themselves, and laws, frozen
+  values, return checked and prepared copies and run into their contribution. Elements and groups derive from
+  `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
   helpers they share. A system holds its elements, interactions, and nested systems, and is none of them. What a
   run records or checks, such as observables and invariants, is an argument of the run. An element or interaction
@@ -306,4 +310,4 @@ to fill in as the project takes shape.
   kinds, forms, space kinds, and traits are open vocabularies. Classes users subclass are `ElementComponent`,
   `BaseInteraction`, `BaseLaw`, `PotentialInteraction`, `PairPotentialInteraction`, `BaseBackend`, `BaseSolver`,
   `Solver`, `ExternalSolver`, `BaseSystemCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`.
-**Version**: 1.11.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25
+**Version**: 1.12.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25

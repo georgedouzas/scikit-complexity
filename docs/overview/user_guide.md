@@ -4,12 +4,17 @@
 
 `scikit-complexity` separates the description of a model from the way it is solved.
 
-- A **component** is any part of a system. Elements, groups, interactions, and systems are all components.
+- A system is made of **parts**: its elements, its interactions, the laws they return, and the system itself.
     - An **element** is an entity that carries state, such as a particle, a population, a compartment, or a market.
     - A **group** holds many identical elements of one type as arrays.
-    - An **interaction** couples components through **roles** and describes its effect with **laws**.
-    - A **system** holds components, interactions, child systems, and an optional space. A run records
-      **observables**, named values computed from its states at every frame.
+    - An **interaction** couples elements through **roles** and describes its effect with **laws**.
+    - A **system** holds elements, interactions, child systems, and an optional space.
+- Every part speaks three verbs. `check()` validates it, `prepare(...)` prepares it against what it works on, and
+  `run(...)` returns what it contributes: an element, an interaction, or a system returns its laws, and a law returns
+  its contribution at given values, such as the rate of a `RateLaw`. Elements, interactions, and systems return
+  themselves from `check` and `prepare`; laws are values, so they return checked and prepared copies.
+- A run records **observables**, named values computed from the states at every frame, and checks the
+  **invariants** it is given.
 - A **law** says how a state changes. Every law has a kind, and the four most common kinds are these.
     - `RateLaw` adds a term to the time derivative of a state. Rates on one state add up.
     - `NoiseLaw` drives a state with a Wiener process, independent unless laws name a shared or correlated one.
@@ -32,10 +37,10 @@ Compiling a system infers its mathematical form from its law kinds and builds fa
 | `JumpLaw` | jump process | `GillespieSolver` |
 | `UpdateLaw` | discrete map | `IterationSolver` |
 
-## Defining components
+## Defining elements
 
-Every component type derives from `BaseElement`, which `Element`, `GroupElement`, `BaseInteraction`, and `System` extend. A type
-declares its variables as class attributes made by `state`, `parameter`, and `role`.
+Every element type derives from `Element`, and every interaction type from `BaseInteraction`; both, like laws and
+systems, derive from `BasePart`. A type declares its variables as class attributes made by `state`, `parameter`, and `role`.
 
 - The constructor takes the label first, and then the value of every declared name by keyword.
 - The constructor stores each value unmodified under its own name, and the declared default for a name it is not given.

@@ -39,6 +39,6 @@
 
 ## 5. Rules and gate
 
-- [ ] 5.1 Amend the constitution's layout rule. Update the `import-system-dynamics` change so that auxiliaries map to
+- [x] 5.1 Amend the constitution's layout rule. Update the `import-system-dynamics` change so that auxiliaries map to
   expressions and observables. Update the user guide and the gallery.
 - [ ] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.
