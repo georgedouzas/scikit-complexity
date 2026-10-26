@@ -1,7 +1,8 @@
 # base-interfaces Specification
 
 ## Purpose
-TBD - created by archiving change complete-base-interfaces. Update Purpose after archive.
+Gives every base one vocabulary: configurable objects check, prepare, and run, keep their arguments as given and their
+derived state in attributes ending in `_`, and values carry only fields and `check()`, with no hidden magic methods.
 
 ## Requirements
 
