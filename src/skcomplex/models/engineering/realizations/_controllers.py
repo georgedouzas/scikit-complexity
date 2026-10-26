@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import BoundaryLaw, RateLaw, Symbols, derivative, where
 
 
@@ -25,7 +25,7 @@ def _read(plant: Symbols, name: str) -> Expression:
     return value
 
 
-class IntegratorComponent(ElementComponent):
+class IntegratorElement(Element):
     """Element that holds the integral of a signal, whose rate a controller sets.
 
     Args:
@@ -36,8 +36,8 @@ class IntegratorComponent(ElementComponent):
             The initial value of the integral.
 
     Examples:
-        >>> from skcomplex.models.engineering.realizations import IntegratorComponent
-        >>> IntegratorComponent('memory').value
+        >>> from skcomplex.models.engineering.realizations import IntegratorElement
+        >>> IntegratorElement('memory').value
         0.0
     """
 
@@ -49,7 +49,7 @@ class PIDInteraction(BaseInteraction):
 
     The error is `e = setpoint - y` for the measured state `y`, and the controller sets the control input to
     `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative taken on the measure. The integral
-    `I' = e` of the error lives in an `IntegratorComponent` bound to the role `integrator`. The control input is an
+    `I' = e` of the error lives in an `IntegratorElement` bound to the role `integrator`. The control input is an
     adaptive parameter of the plant, which the controller sets after every solver step, so it holds within a step like a
     sampled controller. The derivative term reads the first derivative of the measure, so a measure with a derivative
     term is a state of order 2.

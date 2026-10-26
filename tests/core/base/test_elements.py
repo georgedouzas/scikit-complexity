@@ -6,14 +6,14 @@ from sklearn.base import clone
 
 from skcomplex.core.base import (
     ArgumentError,
-    BaseComponent,
+    BaseElement,
     BaseInteraction,
     ConservationError,
     parameter,
     state,
     symbol,
 )
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import (
     AuxiliaryQuantity,
     InvariantQuantity,
@@ -23,10 +23,10 @@ from skcomplex.core.laws import (
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.ecology import PopulationComponent, PredationInteraction
+from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
 
 
-class TallyComponent(ElementComponent):
+class TallyElement(Element):
     """Element with a setting next to its declared state."""
 
     value: float = state(0.0)
@@ -36,7 +36,7 @@ class TallyComponent(ElementComponent):
         self.source = source
 
 
-class TanksComponent(ElementComponent):
+class TanksElement(Element):
     """Two tanks that drain into each other at a rate an auxiliary names, under the invariant of their total."""
 
     a: float = state(3.0)
@@ -53,7 +53,7 @@ class TanksComponent(ElementComponent):
         return [AuxiliaryQuantity('outflow', s.k * s.a), InvariantQuantity('total', s.a + s.b)]
 
 
-class PendulumComponent(ElementComponent):
+class PendulumElement(Element):
     """Pendulum whose angle has order 2.
 
     Args:
@@ -69,18 +69,18 @@ class PendulumComponent(ElementComponent):
 
 def test_component_is_the_base_of_elements_and_groups_only():
     """Test that elements and groups derive from the component base, and interactions and systems do not."""
-    for kind in (ElementComponent, GroupComponent):
-        assert issubclass(kind, BaseComponent)
+    for kind in (Element, GroupElement):
+        assert issubclass(kind, BaseElement)
     for kind in (BaseInteraction, System):
-        assert not issubclass(kind, BaseComponent)
-    system = System(components=[System('meadow', components=[PopulationComponent('rabbits')])])
-    assert not isinstance(system, BaseComponent)
+        assert not issubclass(kind, BaseElement)
+    system = System(components=[System('meadow', components=[PopulationElement('rabbits')])])
+    assert not isinstance(system, BaseElement)
 
 
 def test_component_stores_companions_without_class_attributes():
     """Test that a state of order 2 takes its derivative under a derived name that is not a class attribute."""
-    bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5)
-    assert not hasattr(PendulumComponent, 'theta_d1')
+    bob = PendulumElement('bob', theta=0.1, theta_d1=0.5)
+    assert not hasattr(PendulumElement, 'theta_d1')
     assert (bob.theta, bob.theta_d1) == (0.1, 0.5)
     assert {'theta', 'theta_d1'} <= set(bob.get_params())
     assert list(bob.prepare().declarations_) == ['theta', 'theta_d1']
@@ -88,7 +88,7 @@ def test_component_stores_companions_without_class_attributes():
 
 def test_component_rejects_unknown_and_missing_arguments():
     """Test that an undeclared value and a missing role are stored, and checking raises a named type error."""
-    rabbits = PopulationComponent('rabbits', foo=1)
+    rabbits = PopulationElement('rabbits', foo=1)
     assert rabbits.foo == 1
     with pytest.raises(ArgumentError, match="'foo'"):
         rabbits.check()
@@ -99,10 +99,10 @@ def test_component_rejects_unknown_and_missing_arguments():
 
 def test_validation_checks_every_component_with_its_path():
     """Test that validating a system reports a component with an undeclared value by its path."""
-    system = System(components=[System('meadow', components=[PopulationComponent('rabbits', foo=1)])])
+    system = System(components=[System('meadow', components=[PopulationElement('rabbits', foo=1)])])
     report = validate(system)
     assert not report.ok
-    assert report.errors[0].message.startswith("meadow/rabbits: PopulationComponent got 'foo'")
+    assert report.errors[0].message.startswith("meadow/rabbits: PopulationElement got 'foo'")
 
 
 def test_component_runs_its_laws_and_prepares_its_declarations():
@@ -123,13 +123,13 @@ def test_component_runs_its_laws_and_prepares_its_declarations():
 def test_quantities_are_none_by_default():
     """Test that a component and an interaction return no quantities unless their type declares some."""
     s = Symbols(n=symbol('n'))
-    assert PopulationComponent('rabbits').quantities(s) == []
+    assert PopulationElement('rabbits').quantities(s) == []
     assert BaseInteraction('coupling').quantities(s) == []
 
 
 def test_quantities_substitute_into_laws_and_hold_every_frame():
     """Test that the auxiliary of a component reaches its rates and its invariant is checked at every frame."""
-    system = System(components=[TanksComponent('tanks')])
+    system = System(components=[TanksElement('tanks')])
     problem = compile_system(system)
     assert str(problem.equations['tanks.a']) == '-a_tanks*k_tanks'
     trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
@@ -139,33 +139,33 @@ def test_quantities_substitute_into_laws_and_hold_every_frame():
 
 def test_violated_quantity_is_checked_at_every_frame():
     """Test that an invariant the laws break raises the conservation error at the first frame that breaks it."""
-    LeakyTanksComponent = ElementComponent.define(
-        'LeakyTanksComponent',
+    LeakyTanksElement = Element.define(
+        'LeakyTanksElement',
         states={'a': 1.0},
         laws=lambda s: [RateLaw(s.a, 1.0)],
         quantities=lambda s: [InvariantQuantity('total', s.a)],
     )
     with pytest.raises(ConservationError, match=r'invariant leaky\.total .* at frame 1'):
-        Simulation(System(components=[LeakyTanksComponent('leaky')]), dt=0.5).run(until=2)
+        Simulation(System(components=[LeakyTanksElement('leaky')]), dt=0.5).run(until=2)
 
 
 def test_component_parameters_list_settings_and_declared_names():
     """Test that the parameters are the label, the settings, and every declared name with its value or default."""
-    tally = TallyComponent('size', source='farmers')
+    tally = TallyElement('size', source='farmers')
     assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0}
-    assert repr(tally) == "TallyComponent(label='size', source='farmers', value=0.0)"
+    assert repr(tally) == "TallyElement(label='size', source='farmers', value=0.0)"
 
 
 def test_clone_keeps_declared_values():
     """Test that a clone of a group of 100 members has the same values and compiles to the same problem."""
-    group = PopulationComponent.group('herds', 100, n=np.linspace(1.0, 2.0, 100))
+    group = PopulationElement.group('herds', 100, n=np.linspace(1.0, 2.0, 100))
     cloned = clone(group)
     assert (cloned.label, cloned.size) == ('herds', 100)
     assert np.array_equal(cloned.values['n'], group.values['n'])
     first, second = compile_system(System(components=[group])), compile_system(System(components=[cloned]))
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations
-    single = PendulumComponent('bob', theta=0.3)
+    single = PendulumElement('bob', theta=0.3)
     assert clone(single).get_params() == single.get_params()
 
 

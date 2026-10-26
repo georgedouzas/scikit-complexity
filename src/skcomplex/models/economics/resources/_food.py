@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, lookup
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -55,8 +55,8 @@ def _rice_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-RiceSectorComponent = ElementComponent.define(
-    'RiceSectorComponent',
+RiceSectorElement = Element.define(
+    'RiceSectorElement',
     states={
         'available_land': state(default=0.088, domain=NumericDomain.NONNEGATIVE, quantity='land'),
         'rice_area': state(default=0.680647, domain=NumericDomain.NONNEGATIVE, quantity='land'),
@@ -153,7 +153,7 @@ def food_security(
         >>> food_security(subsidy=0.0).elements[0].subsidy
         0.0
     """
-    sector = RiceSectorComponent(
+    sector = RiceSectorElement(
         'rice',
         subsidy=subsidy,
         bio_target=bio_target,

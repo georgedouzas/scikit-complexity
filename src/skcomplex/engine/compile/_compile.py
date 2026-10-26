@@ -181,10 +181,10 @@ def compile_system(
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationComponent('rabbits', n=10)],
+        ...         components=[PopulationElement('rabbits', n=10)],
         ...         interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ...     ),
         ... )
@@ -230,17 +230,17 @@ def partition_system(system: System, backend: str | BaseBackend = 'auto') -> Pro
     Examples:
         >>> from skcomplex.engine.compile import partition_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     components=[
         ...         System(
         ...             'a',
-        ...             components=[PopulationComponent('x')],
+        ...             components=[PopulationElement('x')],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
         ...         System(
         ...             'b',
-        ...             components=[PopulationComponent('y')],
+        ...             components=[PopulationElement('y')],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],

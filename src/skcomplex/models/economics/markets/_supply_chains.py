@@ -6,7 +6,7 @@
 from itertools import pairwise
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -82,8 +82,8 @@ def _brewery_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-EchelonComponent = ElementComponent.define(
-    'EchelonComponent',
+EchelonElement = Element.define(
+    'EchelonElement',
     states={
         'inventory': state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
         'in_transit': state(default=8.0, domain=NumericDomain.NONNEGATIVE, quantity='beer'),
@@ -219,7 +219,7 @@ def beer_game(
         pipeline = production_delay if label == 'factory' else shipping_delay
         lead_time = pipeline if label == 'factory' else mail_delay + shipping_delay
         supply_line = demand * lead_time
-        echelon = EchelonComponent(
+        echelon = EchelonElement(
             label,
             inventory=inventory,
             in_transit=demand * pipeline,

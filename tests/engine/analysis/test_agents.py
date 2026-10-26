@@ -8,7 +8,7 @@ import pytest
 from scipy.spatial import cKDTree
 
 from skcomplex.core.base import AnalysisError, BaseLaw, NumericDomain, VisualSpec, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Symbols
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
@@ -32,7 +32,7 @@ from skcomplex.formalisms.agents import AgentView, ModelView, RuleLaw
 from skcomplex.models import run
 
 
-class GridWalkerComponent(ElementComponent):
+class GridWalkerElement(Element):
     """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
@@ -49,7 +49,7 @@ class GridWalkerComponent(ElementComponent):
         agent.steps += 1
 
 
-class DiffuserComponent(ElementComponent):
+class DiffuserElement(Element):
     """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
@@ -213,11 +213,11 @@ def test_coarse_grain_density():
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
     continuous = System(
-        components=[DiffuserComponent.group('particles', 300)],
+        components=[DiffuserElement.group('particles', 300)],
         space=ContinuousSpace(20.0, 20.0, boundary='periodic'),
     )
     grid = System(
-        components=[GridWalkerComponent.group('walkers', 300)],
+        components=[GridWalkerElement.group('walkers', 300)],
         space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):

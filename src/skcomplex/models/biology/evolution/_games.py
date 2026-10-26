@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -37,8 +37,8 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
     return np.where(beaten, neighbor, strategy)
 
 
-StrategyComponent = ElementComponent.define(
-    'StrategyComponent',
+StrategyElement = Element.define(
+    'StrategyElement',
     states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
 )
 
@@ -95,7 +95,7 @@ class ReplicationInteraction(BaseInteraction):
         return [RateLaw(s.population.x, _replicator_rate(s.population.x, payoff))]
 
 
-class CyclicSpeciesComponent(ElementComponent):
+class CyclicSpeciesElement(Element):
     """Site of a lattice of rock, paper, and scissors, 0, 1, and 2, where each strategy beats the one before it.
 
     Sites update one at a time in random order, and a site adopts the strategy of a random neighbour that beats it.
@@ -108,8 +108,8 @@ class CyclicSpeciesComponent(ElementComponent):
             The initial strategy, 0, 1, or 2.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CyclicSpeciesComponent
-        >>> CyclicSpeciesComponent('site', strategy=2).strategy
+        >>> from skcomplex.models.biology.evolution import CyclicSpeciesElement
+        >>> CyclicSpeciesElement('site', strategy=2).strategy
         2
     """
 
@@ -174,7 +174,7 @@ def replicator_dynamics(
     matrix = (((V - C) / 2, V), (0.0, V / 2)) if payoff is None else tuple(tuple(row) for row in payoff)
     strategies = len(matrix)
     shares = [1 / strategies] * strategies if x is None else list(x)
-    population = StrategyComponent.group('population', strategies, x=shares)
+    population = StrategyElement.group('population', strategies, x=shares)
     replication = ReplicationInteraction('replication', population='population', payoff=matrix)
     return System(components=[population], interactions=[replication])
 
@@ -213,5 +213,5 @@ def rock_paper_scissors(
     """
     strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)
     return System(
-        components=[CyclicSpeciesComponent.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)],
+        components=[CyclicSpeciesElement.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)],
     )

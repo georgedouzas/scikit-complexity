@@ -4,14 +4,14 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class TraderComponent(ElementComponent):
+class TraderElement(Element):
     """Agent of the Boltzmann wealth model, who gives one unit of wealth to a random agent when it has any.
 
     Args:
@@ -22,10 +22,10 @@ class TraderComponent(ElementComponent):
             The initial wealth.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import TraderComponent
-        >>> group = TraderComponent.group('traders', 100)
+        >>> from skcomplex.models.economics.econophysics import TraderElement
+        >>> group = TraderElement.group('traders', 100)
         >>> group.label, group.element.__name__, group.size
-        ('traders', 'TraderComponent', 100)
+        ('traders', 'TraderElement', 100)
     """
 
     wealth: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -83,4 +83,4 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
         >>> boltzmann_wealth(10).elements[0].size
         10
     """
-    return System(components=[TraderComponent.group('traders', n_agents)])
+    return System(components=[TraderElement.group('traders', n_agents)])

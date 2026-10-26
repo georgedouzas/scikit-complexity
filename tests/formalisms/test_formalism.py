@@ -24,7 +24,7 @@ from skcomplex.core.base import (
     register_laws,
     state,
 )
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Symbols
 from skcomplex.core.system import System
 from skcomplex.engine.compile import validate
@@ -65,7 +65,7 @@ class UndeclaredLaw(BaseLaw):
     """Law class without a kind."""
 
 
-class DriftingComponent(ElementComponent):
+class DriftingElement(Element):
     """Element whose law is of an unregistered class."""
 
     x: float = state(default=0.0, domain=NumericDomain.REAL)
@@ -129,11 +129,11 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     """Test that a law of an outside formalism validates, compiles with its pass, and simulates with its solver."""
     found = _run(
         'import json\n'
-        'from tests.formalisms.outside import DECAYING, ExactDecaySolver, NucleusComponent\n'
+        'from tests.formalisms.outside import DECAYING, ExactDecaySolver, NucleusElement\n'
         'from skcomplex.engine.compile import compile_system, validate\n'
         'from skcomplex.engine.runtime import Simulation\n'
         'from skcomplex.core.system import System\n'
-        "system = System(components=[NucleusComponent('a', n=2.0, k=0.5)])\n"
+        "system = System(components=[NucleusElement('a', n=2.0, k=0.5)])\n"
         'simulation = Simulation(system, dt=0.5).run(until=2)\n'
         'print(json.dumps({\n'
         "    'valid': validate(system).ok,\n"
@@ -180,7 +180,7 @@ def test_register_laws_rejects_classes_without_declarations():
 
 def test_validate_reports_unregistered_law():
     """Test that validation names a law class that no formalism registered and says a formalism must register it."""
-    report = validate(System(components=[DriftingComponent('d')]))
+    report = validate(System(components=[DriftingElement('d')]))
     (issue,) = [issue for issue in report.issues if issue.code == 'law-unregistered']
     assert 'StrayLaw' in issue.message
     assert 'formalism must register' in issue.message

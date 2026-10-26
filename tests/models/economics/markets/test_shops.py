@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.base import parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.runtime import Simulation
@@ -14,7 +14,7 @@ from skcomplex.models.economics.realizations import (
 )
 
 
-class ShopComponent(ElementComponent):
+class ShopElement(Element):
     """Shop whose price grows by a drift and noise, slowed by the interest rate."""
 
     price: float = state(1.0)
@@ -49,7 +49,7 @@ class CentralBankInteraction(InstitutionInteraction):
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
     system = System(
-        components=[ShopComponent.group('shops', 20)],
+        components=[ShopElement.group('shops', 20)],
         interactions=[CentralBankInteraction('bank', phase='policy')],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('policy')])),
     )

@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-SoilTemperatureComponent = ElementComponent.define(
-    'SoilTemperatureComponent',
+SoilTemperatureElement = Element.define(
+    'SoilTemperatureElement',
     states={'x': 0.3, 'y': 0.1},
     parameters={'r': 3.8, 'epsilon': 0.1},
     laws=lambda s: [
@@ -55,4 +55,4 @@ def soil_temperature(x: float = 0.3, y: float = 0.1, *, r: float = 3.8, epsilon:
         >>> soil_temperature(r=2.5).elements[0].r
         2.5
     """
-    return System(components=[SoilTemperatureComponent('soil', x=x, y=y, r=r, epsilon=epsilon)])
+    return System(components=[SoilTemperatureElement('soil', x=x, y=y, r=r, epsilon=epsilon)])

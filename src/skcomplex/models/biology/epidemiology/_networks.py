@@ -8,15 +8,15 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
 from ....core.space import NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
-class DegreeClassComponent(ElementComponent):
+class DegreeClassElement(Element):
     """Infected density of the nodes of one degree of a network, in heterogeneous mean field.
 
     A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
@@ -40,8 +40,8 @@ class DegreeClassComponent(ElementComponent):
             The probability `P(k)` of the degree.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import DegreeClassComponent
-        >>> DegreeClassComponent.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).prepare().size_
+        >>> from skcomplex.models.biology.epidemiology import DegreeClassElement
+        >>> DegreeClassElement.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).prepare().size_
         2
     """
 
@@ -65,7 +65,7 @@ class DegreeClassComponent(ElementComponent):
         return [RateLaw(s.rho, -s.rho + s.lam * s.k * (1 - s.rho) * theta)]
 
 
-class SubpopulationComponent(ElementComponent):
+class SubpopulationElement(Element):
     """Well-mixed SIR population at a node of a network, whose individuals hop along each edge at the rate `D`.
 
     Inside the node, `beta S I / N` individuals are infected and `gamma I` recover per unit time, with
@@ -94,8 +94,8 @@ class SubpopulationComponent(ElementComponent):
             The rate at which an individual hops along one edge.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import SubpopulationComponent
-        >>> SubpopulationComponent('city', S=1000.0).beta
+        >>> from skcomplex.models.biology.epidemiology import SubpopulationElement
+        >>> SubpopulationElement('city', S=1000.0).beta
         0.3
     """
 
@@ -173,7 +173,7 @@ def heterogeneous_mean_field_sis(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = DegreeClassComponent.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
+    classes = DegreeClassElement.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
     return System(components=[classes])
 
 
@@ -238,4 +238,4 @@ def metapopulation(
         'gamma': gamma,
         'D': D,
     }
-    return System(components=[FieldComponent('cities', SubpopulationComponent, NetworkSpace(graph), values=values)])
+    return System(components=[FieldElement('cities', SubpopulationElement, NetworkSpace(graph), values=values)])

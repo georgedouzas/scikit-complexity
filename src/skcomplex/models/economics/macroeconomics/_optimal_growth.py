@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp, log
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -23,7 +23,7 @@ def _saving_rate(s: Symbols) -> Expression:
     return rate
 
 
-class RamseyEconomyComponent(ElementComponent):
+class RamseyEconomyElement(Element):
     """Economy that splits its output between consumption and capital, after Ramsey, Cass, and Koopmans.
 
     Capital follows `k' = A k^alpha - delta k - c` under the consumption `c`, a bounded control input. The planner
@@ -58,8 +58,8 @@ class RamseyEconomyComponent(ElementComponent):
             The value per unit of capital left at the horizon.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import RamseyEconomyComponent
-        >>> RamseyEconomyComponent('economy', k=2.0).k
+        >>> from skcomplex.models.economics.macroeconomics import RamseyEconomyElement
+        >>> RamseyEconomyElement('economy', k=2.0).k
         2.0
     """
 
@@ -149,4 +149,4 @@ def optimal_consumption(
         >>> optimal_consumption(rho=0.05).components[0].rho
         0.05
     """
-    return System(components=[RamseyEconomyComponent('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])
+    return System(components=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])

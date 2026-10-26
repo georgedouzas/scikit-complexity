@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
@@ -51,7 +51,7 @@ def _topple_at_random(heights: Array, *, random: np.random.Generator) -> Array:
     return following
 
 
-class SandpileCellComponent(ElementComponent):
+class SandpileCellElement(Element):
     """Site of the Bak-Tang-Wiesenfeld sandpile, which topples to its four neighbours when it holds four grains.
 
     Every step drops one grain on a random site, then sites at or above the threshold topple until the pile is
@@ -71,8 +71,8 @@ class SandpileCellComponent(ElementComponent):
                 The initial number of grains.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import SandpileCellComponent
-        >>> SandpileCellComponent('site').threshold
+        >>> from skcomplex.models.physics.criticality import SandpileCellElement
+        >>> SandpileCellElement('site').threshold
         4
     """
 
@@ -115,7 +115,7 @@ class SandpileCellComponent(ElementComponent):
         ]
 
 
-class MannaCellComponent(ElementComponent):
+class MannaCellElement(Element):
     """Site of the Manna sandpile, which topples when it holds two grains and sends each to a random neighbour.
 
     Every step drops one grain on a random site, then all sites with two or more grains topple at once until the pile
@@ -129,8 +129,8 @@ class MannaCellComponent(ElementComponent):
             The initial number of grains.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import MannaCellComponent
-        >>> MannaCellComponent('site').height
+        >>> from skcomplex.models.physics.criticality import MannaCellElement
+        >>> MannaCellElement('site').height
         0
     """
 
@@ -158,7 +158,7 @@ class MannaCellComponent(ElementComponent):
         ]
 
 
-class ForestComponent(ElementComponent):
+class ForestElement(Element):
     """Site of the Drossel-Schwabl forest fire: empty at 0, a tree at 1, or burning at 2.
 
     Trees grow on empty sites with probability `growth`, catch fire from a burning neighbour or from lightning with
@@ -178,8 +178,8 @@ class ForestComponent(ElementComponent):
             The probability that lightning strikes a tree per step.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import ForestComponent
-        >>> ForestComponent('site').growth
+        >>> from skcomplex.models.physics.criticality import ForestElement
+        >>> ForestElement('site').growth
         0.05
     """
 
@@ -210,7 +210,7 @@ def _burn(cover: Array, *around: Array, growth: Any, lightning: Any, random: Arr
     return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
-class SpreadingForestComponent(ElementComponent):
+class SpreadingForestElement(Element):
     """Site of the Drossel-Schwabl forest fire on a triangular lattice or a graph: empty at 0, a tree, or burning at 2.
 
     Fire spreads to the six neighbours of a site of a triangular lattice, whose cells are the hexagons of a hexagonal
@@ -237,8 +237,8 @@ class SpreadingForestComponent(ElementComponent):
                 The probability that lightning strikes a tree per step.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import SpreadingForestComponent
-        >>> SpreadingForestComponent('site').neighbors
+        >>> from skcomplex.models.physics.criticality import SpreadingForestElement
+        >>> SpreadingForestElement('site').neighbors
         'triangular'
     """
 
@@ -300,7 +300,7 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     """
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[SandpileCellComponent.lattice('pile', space, height=heights)])
+    return System(components=[SandpileCellElement.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -333,7 +333,7 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
     """
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[MannaCellComponent.lattice('pile', space, height=heights)])
+    return System(components=[MannaCellElement.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -380,7 +380,7 @@ def forest_fire(
     cover = (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
     space = LatticeSpace(tuple(shape))
     return System(
-        components=[ForestComponent.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)],
+        components=[ForestElement.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)],
     )
 
 
@@ -447,7 +447,7 @@ def hexagonal_forest_fire(
         if cover is None
         else np.ravel(np.asarray(cover, dtype=float))
     )
-    forest = SpreadingForestComponent.lattice(
+    forest = SpreadingForestElement.lattice(
         'forest',
         space,
         cover=initial,

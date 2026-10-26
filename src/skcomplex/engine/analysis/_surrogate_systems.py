@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import AnalysisError, BaseEstimator, BaseLaw, Expression
-from ...core.components import ElementComponent
+from ...core.components import Element
 from ...core.laws import Symbols
 from ...core.space import BaseTime, DiscreteTime
 from ...core.system import System
@@ -214,7 +214,7 @@ def surrogate_system(
         system:
             The system.
     """
-    element_type = ElementComponent.define(kind, states=dict(initial), laws=laws)
+    element_type = Element.define(kind, states=dict(initial), laws=laws)
     return System(components=[element_type(label)], time=time)
 
 

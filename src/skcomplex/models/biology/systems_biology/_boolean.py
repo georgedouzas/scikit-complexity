@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -40,7 +40,7 @@ def _pattern(inputs: Sequence[Expression], index: int) -> Expression:
     return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
 
-class BooleanNodeComponent(ElementComponent):
+class BooleanNodeElement(Element):
     """Node of a Boolean network, a gene or protein that is on or off.
 
     Args:
@@ -51,8 +51,8 @@ class BooleanNodeComponent(ElementComponent):
             The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import BooleanNodeComponent
-        >>> BooleanNodeComponent('Sic1', x=1).x
+        >>> from skcomplex.models.biology.systems_biology import BooleanNodeElement
+        >>> BooleanNodeElement('Sic1', x=1).x
         1
     """
 
@@ -237,7 +237,7 @@ def random_boolean_network(
         error_msg = f'k = {k} inputs per node must be between 1 and the number of nodes, n_nodes = {n_nodes}.'
         raise ValidationError(error_msg)
     rng = np.random.default_rng(random_state)
-    nodes = [BooleanNodeComponent(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
+    nodes = [BooleanNodeElement(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
     functions = [
         BooleanFunctionInteraction(
             f'function_{index}',
@@ -277,7 +277,7 @@ def yeast_cell_cycle(active: Sequence[str] = YEAST_START) -> System:
         >>> [node.label for node in yeast_cell_cycle().elements if node.x]
         ['Cln3', 'Cdh1', 'Sic1']
     """
-    nodes = [BooleanNodeComponent(name, x=int(name in active)) for name in YEAST_NODES]
+    nodes = [BooleanNodeElement(name, x=int(name in active)) for name in YEAST_NODES]
     functions = [
         ThresholdFunctionInteraction(
             f'regulation_{name}',

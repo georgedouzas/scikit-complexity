@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -116,7 +116,7 @@ def opinion_variance(s: Symbols, opinions: npt.NDArray[np.float64]) -> Expressio
     return moment(s.f, 2, opinions, central=True)
 
 
-class OpinionLevelComponent(ElementComponent):
+class OpinionLevelElement(Element):
     """Density of the population at one opinion level, a member of a distribution over opinions.
 
     Args:
@@ -127,8 +127,8 @@ class OpinionLevelComponent(ElementComponent):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import OpinionLevelComponent
-        >>> OpinionLevelComponent.group('opinions', 7, f=1 / 7).size
+        >>> from skcomplex.models.social.opinion_dynamics import OpinionLevelElement
+        >>> OpinionLevelElement.group('opinions', 7, f=1 / 7).size
         7
     """
 
@@ -268,9 +268,9 @@ def kinetic_opinion(
     initial = 1.0 + 0.1 * opinion_grid(levels)
     return System(
         components=[
-            GroupComponent(
+            GroupElement(
                 'opinions',
-                element=OpinionLevelComponent,
+                element=OpinionLevelElement,
                 size=levels,
                 on='sites',
                 values={'f': initial / initial.sum()},

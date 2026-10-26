@@ -7,15 +7,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import floor
 
 from ....core.base import Expression, NumericDomain, VisualSpec, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, mod, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
-CubicWalkComponent = ElementComponent.define(
-    'CubicWalkComponent',
+CubicWalkElement = Element.define(
+    'CubicWalkElement',
     states={'x': 0.3, 'y': 0.0},
     parameters={'lam': parameter(default=15.0, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [
@@ -25,15 +25,15 @@ CubicWalkComponent = ElementComponent.define(
     visual=VisualSpec('points', {'position': 'y', 'states': ()}),
 )
 
-SkewTentMapComponent = ElementComponent.define(
-    'SkewTentMapComponent',
+SkewTentMapElement = Element.define(
+    'SkewTentMapElement',
     states={'x': 0.4},
     parameters={'a': parameter(default=0.3, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))],
 )
 
-DoublingMapComponent = ElementComponent.define(
-    'DoublingMapComponent',
+DoublingMapElement = Element.define(
+    'DoublingMapElement',
     states={'x': 0.4},
     parameters={'q': parameter(default=DOUBLING_DENOMINATOR, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)],
@@ -92,7 +92,7 @@ def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
         4
     """
     start = (np.arange(n_walkers) + 1 / 4) / n_walkers
-    walkers = CubicWalkComponent.group('walkers', n_walkers, x=start, y=0.0, lam=lam)
+    walkers = CubicWalkElement.group('walkers', n_walkers, x=start, y=0.0, lam=lam)
     return System(
         components=[walkers],
     )
@@ -145,7 +145,7 @@ def skew_tent_map(
         0.7
     """
     start = _draw_cloud(n_points, x, spread, random_state)
-    return System(components=[SkewTentMapComponent.group('points', n_points, x=start, a=a)])
+    return System(components=[SkewTentMapElement.group('points', n_points, x=start, a=a)])
 
 
 @register_model(
@@ -197,4 +197,4 @@ def doubling_map(
         41.0
     """
     start = np.floor(q * _draw_cloud(n_points, x, spread, random_state) + 1 / 2) / q
-    return System(components=[DoublingMapComponent.group('points', n_points, x=start, q=q)])
+    return System(components=[DoublingMapElement.group('points', n_points, x=start, q=q)])

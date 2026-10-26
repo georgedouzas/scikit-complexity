@@ -10,7 +10,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -31,7 +31,7 @@ def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generat
     return scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size))
 
 
-class DilutedNeuronComponent(ElementComponent):
+class DilutedNeuronElement(Element):
     """Binary neuron of an asymmetric diluted Hopfield network, updated in parallel with the others at every step.
 
     The neuron takes the value `s = ±1` with probability `1 / (1 + exp(-2 s β h))`, where `h = Σ_j J_ij s_j` is its
@@ -57,8 +57,8 @@ class DilutedNeuronComponent(ElementComponent):
                 The inverse temperature `β`.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuronComponent
-        >>> DilutedNeuronComponent('neuron').beta
+        >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuronElement
+        >>> DilutedNeuronElement('neuron').beta
         0.06
     """
 
@@ -148,7 +148,7 @@ def diluted_hopfield(
     n_patterns = max(1, round(load * connectivity))
     patterns = rng.choice([-1.0, 1.0], size=(n_patterns, n_neurons))
     spins = np.where(rng.random(n_neurons) < (1 + overlap) / 2, patterns[0], -patterns[0])
-    neurons = DilutedNeuronComponent.group(
+    neurons = DilutedNeuronElement.group(
         'neurons',
         n_neurons,
         spin=spins,

@@ -11,7 +11,7 @@ import numpy as np
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -149,11 +149,11 @@ class EulerMaruyamaSolver(SDESolver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.economics.finance import AssetComponent, GeometricBrownianMotionInteraction
+        >>> from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.engine.solvers import EulerMaruyamaSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[AssetComponent('stock', price=100)],
+        ...         components=[AssetElement('stock', price=100)],
         ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
@@ -176,11 +176,11 @@ class EulerMaruyamaSolver(SDESolver):
         },
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
@@ -309,11 +309,11 @@ class MilsteinSolver(SDESolver):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
@@ -393,11 +393,11 @@ class HeunSolver(SDESolver):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},

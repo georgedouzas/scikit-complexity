@@ -10,14 +10,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, draw, uniform
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class TrapWalkerComponent(ElementComponent):
+class TrapWalkerElement(Element):
     """Walker in a trap of depth `E`, which escapes after an exponential time of mean `tau0 exp(E / T)`.
 
     On escape the walker falls into a new trap of the fully connected landscape, at a uniformly random place in the
@@ -40,8 +40,8 @@ class TrapWalkerComponent(ElementComponent):
             The escape time from a trap of zero depth.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import TrapWalkerComponent
-        >>> TrapWalkerComponent('walker', T=0.5).T
+        >>> from skcomplex.models.physics.statistical_mechanics import TrapWalkerElement
+        >>> TrapWalkerElement('walker', T=0.5).T
         0.5
     """
 
@@ -109,7 +109,7 @@ def trap_model(
         0.8
     """
     rng = np.random.default_rng(random_state)
-    walkers = TrapWalkerComponent.group(
+    walkers = TrapWalkerElement.group(
         'walkers',
         n_walkers,
         x=rng.random((n_walkers, 2)),

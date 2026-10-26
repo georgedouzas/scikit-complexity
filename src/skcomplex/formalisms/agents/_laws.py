@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Self
 import numpy as np
 
 from ...core.base import BaseLaw, LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
-from ...core.components import ElementComponent, GroupComponent, probe_laws
+from ...core.components import Element, GroupElement, probe_laws
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -94,17 +94,17 @@ def runs_rules(component: object) -> bool:
             Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
 
     Examples:
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.formalisms.agents import RuleLaw, runs_rules
-        >>> WalkerComponent = ElementComponent.define(
-        ...     'WalkerComponent', laws=lambda s: [RuleLaw(lambda agent, model: None)]
+        >>> WalkerElement = Element.define(
+        ...     'WalkerElement', laws=lambda s: [RuleLaw(lambda agent, model: None)]
         ... )
-        >>> runs_rules(WalkerComponent('walker')), runs_rules(ElementComponent.define('Plain')('plain'))
+        >>> runs_rules(WalkerElement('walker')), runs_rules(Element.define('Plain')('plain'))
         (True, False)
     """
-    if isinstance(component, GroupComponent) and component.variable:
+    if isinstance(component, GroupElement) and component.variable:
         return True
-    if not isinstance(component, ElementComponent | GroupComponent):
+    if not isinstance(component, Element | GroupElement):
         return False
     return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
 

@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -81,7 +81,7 @@ def largest_region(locations: npt.ArrayLike, cultures: npt.ArrayLike, width: int
     return largest / (width * height)
 
 
-class VillageComponent(ElementComponent):
+class VillageElement(Element):
     """Village of Axelrod's model, with a culture of `F` features of `q` traits each, stored as one integer.
 
     Every step the village picks a random neighbour and, with probability equal to the fraction of features they
@@ -101,8 +101,8 @@ class VillageComponent(ElementComponent):
             The number of traits `q` of every feature.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import VillageComponent
-        >>> VillageComponent.group('villages', 4, culture=0, features=3, traits=5).size
+        >>> from skcomplex.models.social.opinion_dynamics import VillageElement
+        >>> VillageElement.group('villages', 4, culture=0, features=3, traits=5).size
         4
     """
 
@@ -269,7 +269,7 @@ def axelrod(
     digits = rng.integers(traits, size=(size, features))
     cultures = (digits * traits ** np.arange(features)).sum(axis=1).astype(float)
     locations = [(x, y) for x in range(width) for y in range(height)]
-    villages = VillageComponent.group(
+    villages = VillageElement.group(
         'villages',
         size,
         location=locations,

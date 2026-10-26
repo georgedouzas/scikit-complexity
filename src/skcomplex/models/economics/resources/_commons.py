@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -77,7 +77,7 @@ def richest_pasture(
     return pairs
 
 
-class PastureComponent(ElementComponent):
+class PastureElement(Element):
     """Cell of the meadow whose grass grows back logistically, from a seed bank when it is grazed bare.
 
     Args:
@@ -97,8 +97,8 @@ class PastureComponent(ElementComponent):
             The share of the capacity that grows back as if it stood on a bare cell.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import PastureComponent
-        >>> PastureComponent.group('meadow', 4, capacity=2.0).size
+        >>> from skcomplex.models.economics.resources import PastureElement
+        >>> PastureElement.group('meadow', 4, capacity=2.0).size
         4
     """
 
@@ -136,7 +136,7 @@ class PastureComponent(ElementComponent):
         agent.grass = min(agent.capacity, agent.grass + growth)
 
 
-class CowComponent(ElementComponent):
+class CowElement(Element):
     """Cow of a herder that gains the energy of the grass it eats, burns its metabolism, and starves without food.
 
     Args:
@@ -150,8 +150,8 @@ class CowComponent(ElementComponent):
             The energy of the cow.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import CowComponent
-        >>> CowComponent.group('cows', 3, energy=4.0).size
+        >>> from skcomplex.models.economics.resources import CowElement
+        >>> CowElement.group('cows', 3, energy=4.0).size
         3
     """
 
@@ -173,7 +173,7 @@ class CowComponent(ElementComponent):
         return []
 
 
-class HerderComponent(ElementComponent):
+class HerderElement(Element):
     """Herder who adds a cow whenever a cow earned more than its upkeep, and sells one when the herd exceeds its quota.
 
     Args:
@@ -199,8 +199,8 @@ class HerderComponent(ElementComponent):
             The largest herd of a herder, an adaptive parameter that a regulator may change.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import HerderComponent
-        >>> HerderComponent.group('herders', 5).size
+        >>> from skcomplex.models.economics.resources import HerderElement
+        >>> HerderElement.group('herders', 5).size
         5
     """
 
@@ -445,7 +445,7 @@ def tragedy_of_the_commons(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    meadow = PastureComponent.group(
+    meadow = PastureElement.group(
         'meadow',
         len(cells),
         location=cells,
@@ -453,7 +453,7 @@ def tragedy_of_the_commons(
         capacity=capacity,
         regrowth=regrowth,
     )
-    herders = HerderComponent.group(
+    herders = HerderElement.group(
         'herders',
         n_herders,
         location=[cells[0]] * n_herders,
@@ -462,7 +462,7 @@ def tragedy_of_the_commons(
         quota=UNLIMITED if quota is None else quota,
     )
     n_cows = n_herders * cows
-    herd = CowComponent.group(
+    herd = CowElement.group(
         'cows',
         n_cows,
         variable=True,

@@ -8,18 +8,18 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 PHEROMONE = 'ground/pheromone.level'
 
-PheromoneComponent = ElementComponent.define(
-    'PheromoneComponent',
+PheromoneElement = Element.define(
+    'PheromoneElement',
     states={'level': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'D': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
@@ -29,7 +29,7 @@ PheromoneComponent = ElementComponent.define(
 )
 
 
-class AntComponent(ElementComponent):
+class AntElement(Element):
     """Ant that searches for food guided by pheromone and carries food home, marking the way with pheromone.
 
     A searching ant moves to a neighbouring cell with a probability that grows with its pheromone and, by `outward`,
@@ -68,8 +68,8 @@ class AntComponent(ElementComponent):
             The pheromone an ant deposits per step home.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import AntComponent
-        >>> AntComponent.group('ants', 5, location=(0, 0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import AntElement
+        >>> AntElement.group('ants', 5, location=(0, 0)).size
         5
     """
 
@@ -181,7 +181,7 @@ def pheromone_foraging(
         ['colony', 'ground']
     """
     nest, food = (5, height // 2), (width - 6, height // 2)
-    ants = AntComponent.group(
+    ants = AntElement.group(
         'ants',
         n_ants,
         location=nest,
@@ -191,9 +191,9 @@ def pheromone_foraging(
         food_y=float(food[1]),
         attraction=attraction,
     )
-    pheromone = FieldComponent(
+    pheromone = FieldElement(
         'pheromone',
-        PheromoneComponent,
+        PheromoneElement,
         LatticeSpace((width, height)),
         boundary={'level': 'zero-flux'},
         values={'D': D, 'evaporation': evaporation},

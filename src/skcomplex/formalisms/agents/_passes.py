@@ -19,7 +19,7 @@ from ...core.base import (
     VisualSpec,
     declarations_of,
 )
-from ...core.components import GroupComponent, probe_laws
+from ...core.components import GroupElement, probe_laws
 from ...core.laws import InvariantQuantity
 from ...core.problems import CompiledAgents, Problem
 from ...core.space import BaseSpace
@@ -152,7 +152,7 @@ def _compiled_agents(
 
 def _is_passive(component: object) -> bool:
     """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
-    return isinstance(component, GroupComponent) and component.on is None and probe_laws(component) == []
+    return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
 
 
 def _bound_paths(node: Node) -> set[str]:

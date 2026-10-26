@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role, state
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
@@ -16,7 +16,7 @@ from skcomplex.formalisms.kinetics import DestructionLaw, EncounterLaw, KineticS
 CLASSES = 9
 
 
-class DensityComponent(ElementComponent):
+class DensityElement(Element):
     """Density of particles at one activity value."""
 
     f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
@@ -75,7 +75,7 @@ def _profile(size=CLASSES):
 def _wealth_system(table=None, time=None, space=None):
     """Return a system of one density on an activity lattice with conservative encounters."""
     return System(
-        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
+        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[
             _exchange(table if table is not None else _exchange_table(CLASSES))('exchange', population='wealth'),
         ],
@@ -139,7 +139,7 @@ def test_parameter_in_transition_table_is_evaluated():
             return [EncounterLaw(s.population.f, s.population.f, 1.0, table)]
 
     system = System(
-        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
+        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[BiasedInteraction('bias', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -158,8 +158,8 @@ def test_proliferation_and_destruction_change_the_density():
     """Test that proliferation adds and destruction removes density at the declared rates."""
     system = System(
         components=[
-            GroupComponent('cells', element=DensityComponent, on='sites', values={'f': _profile()}),
-            GroupComponent('signal', element=DensityComponent, on='sites', values={'f': np.full(CLASSES, 0.1)}),
+            GroupElement('cells', element=DensityElement, on='sites', values={'f': _profile()}),
+            GroupElement('signal', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 0.1)}),
         ],
         interactions=[GrowthInteraction('growth', population='cells', field='signal', mu=0.5, kill=0.2)],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -178,10 +178,10 @@ def test_encounter_reads_a_field_on_a_grid_of_another_size():
     """Test that a candidate density reads a field density on an activity grid of another size."""
     system = System(
         components=[
-            GroupComponent('cells', element=DensityComponent, on='sites', size=CLASSES, values={'f': _profile()}),
-            GroupComponent(
+            GroupElement('cells', element=DensityElement, on='sites', size=CLASSES, values={'f': _profile()}),
+            GroupElement(
                 'signal',
-                element=DensityComponent,
+                element=DensityElement,
                 on='sites',
                 size=3,
                 space=LatticeSpace(3),
@@ -228,7 +228,7 @@ def test_rk4_runs_encounters():
 def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
     system = System(
-        components=[GroupComponent('wealth', element=DensityComponent, size=CLASSES, values={'f': _profile()})],
+        components=[GroupElement('wealth', element=DensityElement, size=CLASSES, values={'f': _profile()})],
         interactions=[_exchange(_exchange_table(CLASSES))('exchange', population='wealth')],
         time=ContinuousTime(),
     )

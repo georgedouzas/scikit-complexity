@@ -8,16 +8,16 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
-class AlievPanfilovComponent(ElementComponent):
+class AlievPanfilovElement(Element):
     """Cardiac tissue of Aliev and Panfilov, an excitable medium with the restitution of heart muscle.
 
     The potential follows `u' = D Δu - k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u +
@@ -53,8 +53,8 @@ class AlievPanfilovComponent(ElementComponent):
             The offset of the recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import AlievPanfilovComponent
-        >>> AlievPanfilovComponent('tissue').k
+        >>> from skcomplex.models.biology.physiology import AlievPanfilovElement
+        >>> AlievPanfilovElement('tissue').k
         8.0
     """
 
@@ -144,4 +144,4 @@ def aliev_panfilov(
     v[:, : columns // 2] = 2.0
     values = {'u': u, 'v': v, 'D': D, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(components=[FieldComponent('tissue', AlievPanfilovComponent, space, values=values)])
+    return System(components=[FieldElement('tissue', AlievPanfilovElement, space, values=values)])

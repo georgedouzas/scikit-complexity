@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, neighbors
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import ObservableQuantity, System
@@ -45,7 +45,7 @@ def _overlap(member: Symbols) -> Expression:
     return member.spin * member.pattern
 
 
-class BondSpinComponent(ElementComponent):
+class BondSpinElement(Element):
     """Ising spin on a square lattice with quenched couplings to its four neighbours, of local energy `-s sum J_k s_k`.
 
     The couplings are constant states of every site, so a bond between two sites is stored at both of them with the same
@@ -78,8 +78,8 @@ class BondSpinComponent(ElementComponent):
             The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import BondSpinComponent
-        >>> BondSpinComponent('spin', J_left=-1.0).J_left
+        >>> from skcomplex.models.physics.statistical_mechanics import BondSpinElement
+        >>> BondSpinElement('spin', J_left=-1.0).J_left
         -1.0
     """
 
@@ -116,7 +116,7 @@ class BondSpinComponent(ElementComponent):
         ]
 
 
-class MattisSpinComponent(BondSpinComponent):
+class MattisSpinElement(BondSpinElement):
     """Spin of the Mattis model, a bond spin that also holds its quenched pattern `xi`, with couplings `J xi_i xi_j`.
 
     Args:
@@ -148,8 +148,8 @@ class MattisSpinComponent(BondSpinComponent):
             The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import MattisSpinComponent
-        >>> MattisSpinComponent('spin', pattern=-1.0).pattern
+        >>> from skcomplex.models.physics.statistical_mechanics import MattisSpinElement
+        >>> MattisSpinElement('spin', pattern=-1.0).pattern
         -1.0
     """
 
@@ -227,7 +227,7 @@ def edwards_anderson(
         error_msg = f"The disorder is 'bimodal' or 'gaussian', not {disorder!r}."
         raise ValidationError(error_msg)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = BondSpinComponent.lattice(
+    group = BondSpinElement.lattice(
         'spins',
         LatticeSpace(shape),
         visual=SPIN_IMAGE,
@@ -303,7 +303,7 @@ def mattis_spin_glass(
     right = J * pattern * np.roll(pattern, -1, axis=1)
     down = J * pattern * np.roll(pattern, -1, axis=0)
     spins = rng.choice([-1.0, 1.0], size=shape)
-    group = MattisSpinComponent.lattice(
+    group = MattisSpinElement.lattice(
         'spins',
         LatticeSpace(shape),
         visual=VisualSpec('image', {'states': ()}),

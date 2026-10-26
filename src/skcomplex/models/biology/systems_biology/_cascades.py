@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -15,7 +15,7 @@ from ....engine.runtime import register_model
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 
 
-class GProteinComponent(ElementComponent):
+class GProteinElement(Element):
     """G protein activated by a hormone pulse and inactivated by its own GTPase, the timer that ends the signal.
 
     The active fraction follows `dg/dt = k_on H(t) (1 - g) - k_gtp g`, where the hormone `H(t)` is a rectangular pulse
@@ -44,8 +44,8 @@ class GProteinComponent(ElementComponent):
             The duration of the hormone pulse.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GProteinComponent
-        >>> GProteinComponent('g_protein').k_gtp
+        >>> from skcomplex.models.biology.systems_biology import GProteinElement
+        >>> GProteinElement('g_protein').k_gtp
         0.5
     """
 
@@ -71,7 +71,7 @@ class GProteinComponent(ElementComponent):
         return [RateLaw(s.g, s.k_on * hormone * (1 - s.g) - s.k_gtp * s.g)]
 
 
-class CascadeStageComponent(ElementComponent):
+class CascadeStageElement(Element):
     """Stage of a signalling cascade, an active enzyme or a messenger, which is inactivated at a constant rate.
 
     Args:
@@ -85,8 +85,8 @@ class CascadeStageComponent(ElementComponent):
             The inactivation rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import CascadeStageComponent
-        >>> CascadeStageComponent('camp', beta=2.0).beta
+        >>> from skcomplex.models.biology.systems_biology import CascadeStageElement
+        >>> CascadeStageElement('camp', beta=2.0).beta
         2.0
     """
 
@@ -229,8 +229,8 @@ def hormone_cascade_amplifier(
     if len(alpha) != len(STAGES) or len(beta) != len(STAGES):
         error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
         raise ValidationError(error_msg)
-    g_protein = GProteinComponent('g_protein', k_on=k_on, k_gtp=k_gtp, hormone=hormone, start=start, width=width)
-    stages = [CascadeStageComponent(label, beta=rate) for label, rate in zip(STAGES, beta, strict=True)]
+    g_protein = GProteinElement('g_protein', k_on=k_on, k_gtp=k_gtp, hormone=hormone, start=start, width=width)
+    stages = [CascadeStageElement(label, beta=rate) for label, rate in zip(STAGES, beta, strict=True)]
     upstreams = ('g_protein', *STAGES[:-1])
     activations = [
         ActivationInteraction(

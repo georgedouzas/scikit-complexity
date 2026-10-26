@@ -6,15 +6,15 @@
 import numpy as np
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
-FisherKPPComponent = ElementComponent.define(
-    'FisherKPPComponent',
+FisherKPPElement = Element.define(
+    'FisherKPPElement',
     states={'u': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE), 'r': 1.0},
     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))],
@@ -66,9 +66,9 @@ def fisher_kpp(
     space = LatticeSpace(length, spacing=spacing)
     return System(
         components=[
-            FieldComponent(
+            FieldElement(
                 'line',
-                FisherKPPComponent,
+                FisherKPPElement,
                 space,
                 boundary={'u': 'zero-flux'},
                 values={'u': u, 'D': D, 'r': r},

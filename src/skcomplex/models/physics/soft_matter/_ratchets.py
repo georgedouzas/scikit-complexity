@@ -15,7 +15,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ._diffusion import BrownianParticleComponent
+from ._diffusion import BrownianParticleElement
 
 
 class TiltedWashboardInteraction(BaseInteraction):
@@ -184,7 +184,7 @@ def tilted_periodic_potential(
         >>> tilted_periodic_potential(10, f=2.0).interactions[0].f
         2.0
     """
-    particles = BrownianParticleComponent.group(
+    particles = BrownianParticleElement.group(
         'particles',
         n_particles,
         x=np.zeros((n_particles, 1)),
@@ -261,7 +261,7 @@ def flashing_ratchet(
     """
     rng = np.random.default_rng(random_state)
     times = np.cumsum(rng.exponential(1 / rate, int(2 * rate * duration) + 10))
-    particles = BrownianParticleComponent.group(
+    particles = BrownianParticleElement.group(
         'particles',
         n_particles,
         x=np.zeros((n_particles, 1)),

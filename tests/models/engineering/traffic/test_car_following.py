@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import sqrt, tanh
 
 from skcomplex.core.base import BaseInteraction
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -24,7 +24,7 @@ def _cars(trajectory, n_cars, variable):
     return np.array([trajectory.values(f'car_{index}.{variable}') for index in range(n_cars)]).T
 
 
-CarComponent = ElementComponent.define('CarComponent', states={'x': 0.0, 'v': 0.0}, laws=lambda s: [RateLaw(s.x, s.v)])
+CarElement = Element.define('CarElement', states={'x': 0.0, 'v': 0.0}, laws=lambda s: [RateLaw(s.x, s.v)])
 
 
 PerCarVelocityInteraction = BaseInteraction.define(
@@ -67,7 +67,7 @@ def _per_car(system, interaction):
     cars, following = system.elements[0], system.interactions[0]
     n_cars, road = cars.size, following.road_length
     elements = [
-        CarComponent(
+        CarElement(
             f'car_{index}',
             x=cars.values['x'][index],
             v=float(np.broadcast_to(cars.values['v'], n_cars)[index]),

@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -93,7 +93,7 @@ def nearest_cab(
     return pairs
 
 
-class RiderComponent(ElementComponent):
+class RiderElement(Element):
     """Rider who waits at a cell for a cab to a destination, and pays the fare when the cab picks it up.
 
     Args:
@@ -116,8 +116,8 @@ class RiderComponent(ElementComponent):
             The money of the rider.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import RiderComponent
-        >>> RiderComponent.group('riders', 2, money=50.0).size
+        >>> from skcomplex.models.engineering.traffic import RiderElement
+        >>> RiderElement.group('riders', 2, money=50.0).size
         2
     """
 
@@ -154,7 +154,7 @@ class RiderComponent(ElementComponent):
         agent.waited += 1
 
 
-class CabComponent(ElementComponent):
+class CabElement(Element):
     """Cab that drives one block a step to its rider, collects the fare, and drives the rider to its destination.
 
     The fare is a base fare plus a fare per block of the trip, paid as a transfer from rider to cab.
@@ -191,8 +191,8 @@ class CabComponent(ElementComponent):
             The fare per block of a trip.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import CabComponent
-        >>> CabComponent.group('cabs', 3).size
+        >>> from skcomplex.models.engineering.traffic import CabElement
+        >>> CabElement.group('cabs', 3).size
         3
     """
 
@@ -417,7 +417,7 @@ def ridesharing(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers((width, height), size=(n_cabs + 1, 2))
-    riders = RiderComponent.group(
+    riders = RiderElement.group(
         'riders',
         1,
         variable=True,
@@ -425,7 +425,7 @@ def ridesharing(
         destination_x=float(rng.integers(width)),
         destination_y=float(rng.integers(height)),
     )
-    cabs = CabComponent.group(
+    cabs = CabElement.group(
         'cabs',
         n_cabs,
         location=[(int(x), int(y)) for x, y in cells[1:]],

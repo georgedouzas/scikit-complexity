@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -21,7 +21,7 @@ def _crowding(
     return weight_first / total * first.volume / first.mature + weight_second / total * second.volume / second.mature
 
 
-class StandComponent(ElementComponent):
+class StandElement(Element):
     """Stand of trees of one successional group, measured by its stem volume.
 
     Args:
@@ -35,8 +35,8 @@ class StandComponent(ElementComponent):
             The stem volume of the group in a mature forest.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StandComponent
-        >>> StandComponent('keora', mature=196.11).mature
+        >>> from skcomplex.models.biology.ecology import StandElement
+        >>> StandElement('keora', mature=196.11).mature
         196.11
     """
 
@@ -215,9 +215,9 @@ def mangrove_succession(
     """
     return System(
         components=[
-            StandComponent('keora', volume=keora, mature=196.11),
-            StandComponent('gewa', volume=gewa, mature=80.0),
-            StandComponent('sundari', volume=sundari, mature=320.0),
+            StandElement('keora', volume=keora, mature=196.11),
+            StandElement('gewa', volume=gewa, mature=80.0),
+            StandElement('sundari', volume=sundari, mature=320.0),
         ],
         interactions=[
             PioneerGrowthInteraction('keora_growth', target='keora', intermediate='gewa', climax='sundari'),

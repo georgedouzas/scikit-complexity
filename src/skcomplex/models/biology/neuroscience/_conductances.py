@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -28,7 +28,7 @@ def _resting_gates(v: float) -> dict[str, float]:
     return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in _gate_rates(v).items()}
 
 
-class HodgkinHuxleyComponent(ElementComponent):
+class HodgkinHuxleyElement(Element):
     """Squid giant axon membrane of Hodgkin and Huxley, with sodium, potassium, and leak currents.
 
     The potential follows `C v' = I - g_Na m³ h (v - E_Na) - g_K n⁴ (v - E_K) - g_L (v - E_L)`, and each gate `x` of
@@ -76,8 +76,8 @@ class HodgkinHuxleyComponent(ElementComponent):
             The applied current.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import HodgkinHuxleyComponent
-        >>> HodgkinHuxleyComponent('axon', I=10.0).g_na
+        >>> from skcomplex.models.biology.neuroscience import HodgkinHuxleyElement
+        >>> HodgkinHuxleyElement('axon', I=10.0).g_na
         120.0
     """
 
@@ -113,7 +113,7 @@ class HodgkinHuxleyComponent(ElementComponent):
         return [RateLaw(s.v, (s.I - currents) / s.C), *gates, EventLaw(s.v, None, direction=1, label='spike')]
 
 
-class FitzHughNagumoNeuronComponent(ElementComponent):
+class FitzHughNagumoNeuronElement(Element):
     """FitzHugh-Nagumo neuron, a fast potential with a cubic nullcline and a slow linear recovery.
 
     The potential follows `v' = v - v³/3 - w + I` and the recovery `w' = epsilon (v + a - b w)`.
@@ -141,8 +141,8 @@ class FitzHughNagumoNeuronComponent(ElementComponent):
             The applied current.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import FitzHughNagumoNeuronComponent
-        >>> FitzHughNagumoNeuronComponent('neuron').epsilon
+        >>> from skcomplex.models.biology.neuroscience import FitzHughNagumoNeuronElement
+        >>> FitzHughNagumoNeuronElement('neuron').epsilon
         0.08
     """
 
@@ -220,7 +220,7 @@ def hodgkin_huxley(
     gates = _resting_gates(v)
     return System(
         components=[
-            HodgkinHuxleyComponent(
+            HodgkinHuxleyElement(
                 'neuron',
                 v=v,
                 I=I,
@@ -284,4 +284,4 @@ def fitzhugh_nagumo_ode(
         >>> fitzhugh_nagumo_ode(I=0.0).elements[0].I
         0.0
     """
-    return System(components=[FitzHughNagumoNeuronComponent('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])
+    return System(components=[FitzHughNagumoNeuronElement('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])

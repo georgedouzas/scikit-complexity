@@ -10,15 +10,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed, mean
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._utils import _order_parameter
 
-PhaseOscillatorComponent = ElementComponent.define(
-    'PhaseOscillatorComponent',
+PhaseOscillatorElement = Element.define(
+    'PhaseOscillatorElement',
     states={'theta': 0.0},
     parameters={'omega': 1.0},
     laws=lambda s: [RateLaw(s.theta, s.omega)],
@@ -31,8 +31,8 @@ DelayedCouplingInteraction = BaseInteraction.define(
     laws=lambda s: [RateLaw(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))],
 )
 
-SitedOscillatorComponent = ElementComponent.define(
-    'SitedOscillatorComponent',
+SitedOscillatorElement = Element.define(
+    'SitedOscillatorElement',
     states={'theta': 0.0, 'x': state(default=0.0, vector=True)},
     parameters={'omega': 0.0},
     laws=lambda s: [RateLaw(s.theta, s.omega)],
@@ -59,8 +59,8 @@ MeanFieldCouplingInteraction = BaseInteraction.define(
     laws=lambda s: [RateLaw(s.target.theta, _mean_field_rate(s))],
 )
 
-MeanFieldAmplitudeComponent = ElementComponent.define(
-    'MeanFieldAmplitudeComponent',
+MeanFieldAmplitudeElement = Element.define(
+    'MeanFieldAmplitudeElement',
     states={'x': 0.1, 'y': 0.0},
     parameters={
         'K': parameter(default=2.0, domain=NumericDomain.NONNEGATIVE),
@@ -200,7 +200,7 @@ def delayed_kuramoto(
     phases = [2 * math.pi * ((seed * 0.618 + index / n_oscillators) % 1.0) for index in range(n_oscillators)]
     omegas = [1.0 + spread * (index / max(n_oscillators - 1, 1) - 0.5) for index in range(n_oscillators)]
     elements = [
-        PhaseOscillatorComponent(f'oscillator_{index}', theta=phases[index], omega=omegas[index])
+        PhaseOscillatorElement(f'oscillator_{index}', theta=phases[index], omega=omegas[index])
         for index in range(n_oscillators)
     ]
     interactions = [
@@ -258,7 +258,7 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
         (10, None)
     """
     rng = np.random.default_rng(seed)
-    oscillators = PhaseOscillatorComponent.group(
+    oscillators = PhaseOscillatorElement.group(
         'oscillators',
         n_oscillators,
         theta=_spread_phases(n_oscillators, seed),
@@ -324,14 +324,14 @@ def kuramoto_sakaguchi_chimera(
     rng = np.random.default_rng(seed)
     alpha, mu, nu = math.pi / 2 - beta, (1 + A) / 2, (1 - A) / 2
     populations = [
-        PhaseOscillatorComponent.group(
+        PhaseOscillatorElement.group(
             'first',
             n_oscillators,
             theta=rng.normal(0.0, spread, n_oscillators),
             omega=0.0,
             visual=VisualSpec('phase_ring', {'phase': 'theta'}),
         ),
-        PhaseOscillatorComponent.group(
+        PhaseOscillatorElement.group(
             'second',
             n_oscillators,
             theta=_spread_phases(n_oscillators, seed + 1),
@@ -403,7 +403,7 @@ def nonlocal_ring_chimera(
         3.5
     """
     weight = 1 / (2 * R)
-    ring = SitedOscillatorComponent.group(
+    ring = SitedOscillatorElement.group(
         'ring',
         n_oscillators,
         theta=_spread_phases(n_oscillators, seed),
@@ -470,4 +470,4 @@ def ott_antonsen(
         >>> ott_antonsen(K=3.0).elements[0].K
         3.0
     """
-    return System(components=[MeanFieldAmplitudeComponent('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])
+    return System(components=[MeanFieldAmplitudeElement('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])

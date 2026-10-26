@@ -125,10 +125,10 @@ class Simulation(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[PopulationComponent('rabbits', n=10)],
+        ...     components=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
@@ -420,10 +420,10 @@ class Simulation(BaseEstimator):
 
         Examples:
             >>> from skcomplex.core.system import System
-            >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
+            >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
             >>> from skcomplex.engine.runtime import Simulation
             >>> system = System(
-            ...     components=[PopulationComponent('rabbits', n=10)],
+            ...     components=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> simulation = Simulation(system, dt=1.0).run(until=5)

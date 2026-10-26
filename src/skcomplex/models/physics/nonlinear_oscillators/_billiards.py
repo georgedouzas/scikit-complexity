@@ -6,7 +6,7 @@
 import numpy as np
 
 from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -61,8 +61,8 @@ def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
     return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
-SinaiBilliardComponent = ElementComponent.define(
-    'SinaiBilliardComponent',
+SinaiBilliardElement = Element.define(
+    'SinaiBilliardElement',
     states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
     parameters={
         'size': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -72,8 +72,8 @@ SinaiBilliardComponent = ElementComponent.define(
     visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls}),
 )
 
-MushroomBilliardComponent = ElementComponent.define(
-    'MushroomBilliardComponent',
+MushroomBilliardElement = Element.define(
+    'MushroomBilliardElement',
     states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
     parameters={
         'radius': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -152,13 +152,13 @@ def billiards(
     Examples:
         >>> from skcomplex.models.physics.nonlinear_oscillators import billiards
         >>> type(billiards('mushroom').elements[0]).__name__
-        'MushroomBilliardComponent'
+        'MushroomBilliardElement'
     """
     if shape == 'sinai':
-        table = SinaiBilliardComponent('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
+        table = SinaiBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
         return System(components=[table])
     if shape == 'mushroom':
-        table = MushroomBilliardComponent(
+        table = MushroomBilliardElement(
             'particle',
             x=x,
             y=y,

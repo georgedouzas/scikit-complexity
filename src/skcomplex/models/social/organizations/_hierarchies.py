@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -16,7 +16,7 @@ from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ContenderComponent(ElementComponent):
+class ContenderElement(Element):
     """Agent of the Bonabeau model, who wanders on a grid and fights the agents it runs into.
 
     Every step an agent's strength relaxes by the factor `1 - relaxation`, and the agent tries to step into a random
@@ -38,10 +38,10 @@ class ContenderComponent(ElementComponent):
             The fraction of its strength an agent loses every step.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import ContenderComponent
-        >>> group = ContenderComponent.group('contenders', 10)
+        >>> from skcomplex.models.social.organizations import ContenderElement
+        >>> group = ContenderElement.group('contenders', 10)
         >>> group.label, group.element.__name__, group.size
-        ('contenders', 'ContenderComponent', 10)
+        ('contenders', 'ContenderElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'strength'})
@@ -141,7 +141,7 @@ def bonabeau_hierarchies(
     """
     size = int(width * height * density)
     cells = np.random.default_rng(random_state).permutation(width * height)[:size]
-    contenders = ContenderComponent.group(
+    contenders = ContenderElement.group(
         'contenders',
         size,
         location=[(int(cell % width), int(cell // width)) for cell in cells],

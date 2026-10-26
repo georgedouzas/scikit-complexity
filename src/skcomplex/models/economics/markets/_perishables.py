@@ -8,7 +8,7 @@ import numpy.typing as npt
 from scipy.special import expit
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -30,7 +30,7 @@ def _first_shop_probabilities(customers: list[AgentView], temperature: float) ->
     return expit(difference / temperature)
 
 
-class CustomerComponent(ElementComponent):
+class CustomerElement(Element):
     """Customer who remembers how satisfied it was with the products of each of two shops.
 
     Args:
@@ -44,8 +44,8 @@ class CustomerComponent(ElementComponent):
             The satisfaction with the second shop.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import CustomerComponent
-        >>> CustomerComponent.group('customers', 10, s1=0.5, s2=0.5).size
+        >>> from skcomplex.models.economics.markets import CustomerElement
+        >>> CustomerElement.group('customers', 10, s1=0.5, s2=0.5).size
         10
     """
 
@@ -66,7 +66,7 @@ class CustomerComponent(ElementComponent):
         return []
 
 
-class ProductComponent(ElementComponent):
+class ProductElement(Element):
     """Product on the shelf of a shop, which ages from the time it was shelved.
 
     Args:
@@ -80,8 +80,8 @@ class ProductComponent(ElementComponent):
             The time at which the product was put on the shelf.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ProductComponent
-        >>> ProductComponent.group('products', 4, shop=[0, 0, 1, 1]).size
+        >>> from skcomplex.models.economics.markets import ProductElement
+        >>> ProductElement.group('products', 4, shop=[0, 0, 1, 1]).size
         4
     """
 
@@ -102,7 +102,7 @@ class ProductComponent(ElementComponent):
         return []
 
 
-class ShopComponent(ElementComponent):
+class ShopElement(Element):
     """Shop of perishable goods, described by its share of customers and the mean freshness of its stock.
 
     Args:
@@ -116,8 +116,8 @@ class ShopComponent(ElementComponent):
             The mean freshness of the products on its shelves.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ShopComponent
-        >>> ShopComponent.group('shops', 2, share=0.5).size
+        >>> from skcomplex.models.economics.markets import ShopElement
+        >>> ShopElement.group('shops', 2, share=0.5).size
         2
     """
 
@@ -294,13 +294,13 @@ def perishable_goods_duopoly(
     )
     return System(
         components=[
-            CustomerComponent.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
-            ProductComponent.group(
+            CustomerElement.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
+            ProductElement.group(
                 'products',
                 N_SHOPS * shelf,
                 shop=np.repeat(np.arange(N_SHOPS), shelf).astype(float),
             ),
-            ShopComponent.group('shops', N_SHOPS),
+            ShopElement.group('shops', N_SHOPS),
         ],
         interactions=[trade],
     )

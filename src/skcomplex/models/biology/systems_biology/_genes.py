@@ -8,13 +8,13 @@ from functools import partial
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class GeneComponent(ElementComponent):
+class GeneElement(Element):
     """Gene whose messenger RNA decays, is translated into protein, and whose protein decays.
 
     The mRNA count `m` decays at rate `delta * m`, translation adds protein at rate `b * m`, and the protein count `p`
@@ -46,8 +46,8 @@ class GeneComponent(ElementComponent):
                 The decay rate of the protein.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GeneComponent
-        >>> GeneComponent('lacI', p=20.0).p
+        >>> from skcomplex.models.biology.systems_biology import GeneElement
+        >>> GeneElement('lacI', p=20.0).p
         20.0
     """
 
@@ -161,7 +161,7 @@ class RepressionInteraction(BaseInteraction):
 def _circuit(
     proteins: Sequence[float],
     edges: Sequence[tuple[int, int]],
-    gene: GeneComponent,
+    gene: GeneElement,
     repression: Callable[..., RepressionInteraction],
 ) -> System:
     """Return copies of a gene with initial protein counts, where the first gene of each edge represses the second."""
@@ -237,7 +237,7 @@ def repressilator(
         >>> [interaction.repressor for interaction in repressilator().interactions]
         ['gene_2', 'gene_0', 'gene_1']
     """
-    gene = GeneComponent('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
+    gene = GeneElement('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
     repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
     return _circuit(proteins, [(2, 0), (0, 1), (1, 2)], gene, repression)
 
@@ -302,7 +302,7 @@ def toggle_switch(
         >>> [element.p for element in toggle_switch((0.0, 50.0)).elements]
         [0.0, 50.0]
     """
-    gene = GeneComponent('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
+    gene = GeneElement('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
     repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
     return _circuit(proteins, [(1, 0), (0, 1)], gene, repression)
 
@@ -364,7 +364,7 @@ def negative_autoregulation(
         >>> negative_autoregulation().interactions[0].repressor
         'gene'
     """
-    gene = GeneComponent('gene', p=p, b=b, beta=beta, delta=delta, stochastic=stochastic)
+    gene = GeneElement('gene', p=p, b=b, beta=beta, delta=delta, stochastic=stochastic)
     feedback = RepressionInteraction(
         'autoregulation',
         repressor='gene',

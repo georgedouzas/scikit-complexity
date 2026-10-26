@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, count, mean, total, where
 from ....core.space import LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -33,7 +33,7 @@ def _magnetization() -> ObservableQuantity:
     return ObservableQuantity('magnetization', group='spins', variable='spin')
 
 
-class FullyConnectedSpinComponent(ElementComponent):
+class FullyConnectedSpinElement(Element):
     """Ising spin coupled to every other spin, flipped at the Glauber rate `1 / (1 + exp(2 s h / T))`.
 
     The local field is `h = J (sum_{j != i} s_j) / N + h_ext` of the Curie-Weiss energy `-(J / N) sum_{i<j} s_i s_j`,
@@ -63,8 +63,8 @@ class FullyConnectedSpinComponent(ElementComponent):
                 The temperature.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpinComponent
-        >>> FullyConnectedSpinComponent('spin').temperature
+        >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpinElement
+        >>> FullyConnectedSpinElement('spin').temperature
         0.5
     """
 
@@ -155,7 +155,7 @@ def curie_weiss(
         10
     """
     spins = _initial_spins(n_spins, initial, random_state)
-    group = FullyConnectedSpinComponent.lattice(
+    group = FullyConnectedSpinElement.lattice(
         'spins',
         LatticeSpace(n_spins),
         visual=SPIN_IMAGE,
@@ -218,7 +218,7 @@ def sherrington_kirkpatrick(
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_spins), (n_spins, n_spins)), 1)
     spins = _initial_spins(n_spins, 'random', rng)
-    group = FullyConnectedSpinComponent.lattice(
+    group = FullyConnectedSpinElement.lattice(
         'spins',
         LatticeSpace(n_spins),
         visual=SPIN_IMAGE,

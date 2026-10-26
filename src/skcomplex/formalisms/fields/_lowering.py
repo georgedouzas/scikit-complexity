@@ -20,7 +20,7 @@ from ...core.laws import where
 from ...core.problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, numpy_function
 from ...core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ...engine.compile import spectral_multiplier
-from ._components import FieldComponent, boundary_of
+from ._components import FieldElement, boundary_of
 from ._spaces import MeshSpace
 
 type Indices = npt.NDArray[np.intp]
@@ -250,15 +250,15 @@ class FieldLowering:
 
     owner: str
     references: dict[Expression, Any]
-    fields: Mapping[str, FieldComponent]
+    fields: Mapping[str, FieldElement]
     initial: Mapping[Expression, float] = field(default_factory=dict)
     shifted: dict[Expression, tuple[Expression, Offset | int]] = field(default_factory=dict)
-    derived: dict[Expression, tuple[FieldComponent, DerivedRead]] = field(default_factory=dict)
+    derived: dict[Expression, tuple[FieldElement, DerivedRead]] = field(default_factory=dict)
     limits: list[float] = field(default_factory=list)
     volume_limits: list[DiffusiveLimit] = field(default_factory=list)
     _tables: dict[tuple[Any, ...], tuple[Indices, float | None]] = field(default_factory=dict)
 
-    def _field_of(self, item: Expression) -> FieldComponent | None:
+    def _field_of(self, item: Expression) -> FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
         reference = self.references[item]
         if reference.source is not Source.MEMBER:
@@ -267,7 +267,7 @@ class FieldLowering:
         if found is None:
             error_msg = (
                 f'A law of {self.owner} applies a differential operator to {item}, which is not a state or parameter '
-                'of a field. Create the group with `FieldComponent`.'
+                'of a field. Create the group with `FieldElement`.'
             )
             raise ValidationError(error_msg)
         return found
@@ -275,7 +275,7 @@ class FieldLowering:
     def _table(
         self,
         item: Expression,
-        place: FieldComponent,
+        place: FieldElement,
         offset: Offset | int,
     ) -> tuple[Indices, float | None, int]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
@@ -360,9 +360,9 @@ class FieldLowering:
             replacements[item] = target
         return expression.subs(replacements)
 
-    def _places(self, expression: Expression) -> dict[int, FieldComponent]:
+    def _places(self, expression: Expression) -> dict[int, FieldElement]:
         """Return the fields an expression reads, through member symbols, neighbour reads, and derived values."""
-        places: dict[int, FieldComponent] = {}
+        places: dict[int, FieldElement] = {}
         for item in SR(expression).variables():
             if item in self.derived:
                 place = self.derived[item][0]
@@ -373,7 +373,7 @@ class FieldLowering:
                 places[id(place)] = place
         return places
 
-    def _place(self, expression: Expression) -> FieldComponent:
+    def _place(self, expression: Expression) -> FieldElement:
         """Return the one field an expression reads, or raise an error."""
         places = self._places(expression)
         discretizations = {place.discretization for place in places.values()}
@@ -466,7 +466,7 @@ class FieldLowering:
         ahead = (self.shift(value, step) - value) / space.spacings_[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
-    def _derived(self, place: FieldComponent, read: DerivedRead) -> Expression:
+    def _derived(self, place: FieldElement, read: DerivedRead) -> Expression:
         """Return a new symbol that stands for a derived value of a field, registered with its reference."""
         target = symbol(f'_derived_{place.label}_{len(self.derived)}')
         entry = next(
@@ -478,7 +478,7 @@ class FieldLowering:
         self.derived[target] = (place, read)
         return target
 
-    def _spectral(self, name: str, operands: list[Any], place: FieldComponent) -> Expression:
+    def _spectral(self, name: str, operands: list[Any], place: FieldElement) -> Expression:
         """Return the symbol of a spectral operator applied to an expression, composing chains of operators."""
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
@@ -501,7 +501,7 @@ class FieldLowering:
         read = DerivedRead(operand, symbols, spectral_apply(multiplier, dimensions), multiplier, dimensions)
         return self._derived(place, read)
 
-    def _finite_element(self, name: str, operand: Expression, place: FieldComponent) -> Expression:
+    def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
         """Return the symbol of the finite element Laplacian of an expression."""
         if name != 'laplacian':
             error_msg = (

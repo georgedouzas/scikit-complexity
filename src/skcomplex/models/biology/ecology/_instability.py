@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp, sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, bernoulli, normal, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -17,7 +17,7 @@ def _nonnegative(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-class UnstablePopulationsComponent(ElementComponent):
+class UnstablePopulationsElement(Element):
     """Resident population `x` and invading population `y`, after equations (13.3) and (13.4) of Jensen.
 
     At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x sigma chi`, an Ornstein-Uhlenbeck step damped by the
@@ -57,8 +57,8 @@ class UnstablePopulationsComponent(ElementComponent):
             The amplitude `sigma` of the noise.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import UnstablePopulationsComponent
-        >>> UnstablePopulationsComponent('populations').p
+        >>> from skcomplex.models.biology.ecology import UnstablePopulationsElement
+        >>> UnstablePopulationsElement('populations').p
         0.001
     """
 
@@ -143,7 +143,7 @@ def intrinsic_instability(
         >>> intrinsic_instability().elements[0].beta
         0.01
     """
-    populations = UnstablePopulationsComponent(
+    populations = UnstablePopulationsElement(
         'populations',
         x=x,
         eta=eta,

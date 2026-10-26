@@ -1,24 +1,24 @@
 """Innovation: technological progress, combinatorial evolution, and the adoption of new products."""
 
-from ._adoption import HouseholdComponent, phone_adoption
+from ._adoption import HouseholdElement, phone_adoption
 from ._bass import bass_diffusion
-from ._diversity import AdjacentPossibleComponent, creative_phase_transition
+from ._diversity import AdjacentPossibleElement, creative_phase_transition
 from ._technology import (
-    Component,
     InventionInteraction,
+    PartElement,
     RedesignInteraction,
-    TechnologyComponent,
+    TechnologyElement,
     arthur_polak,
     nk_technology,
 )
 
 __all__: list[str] = [
-    'AdjacentPossibleComponent',
-    'Component',
-    'HouseholdComponent',
+    'AdjacentPossibleElement',
+    'HouseholdElement',
     'InventionInteraction',
+    'PartElement',
     'RedesignInteraction',
-    'TechnologyComponent',
+    'TechnologyElement',
     'arthur_polak',
     'bass_diffusion',
     'creative_phase_transition',

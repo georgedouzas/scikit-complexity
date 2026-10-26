@@ -8,16 +8,16 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
-ActiveFieldComponent = ElementComponent.define(
-    'ActiveFieldComponent',
+ActiveFieldElement = Element.define(
+    'ActiveFieldElement',
     states={'rho': 0.5, 'nu': 1.0},
     parameters={'a': -1.0, 'b': 1.0, 'c': 1.0, 'd': 1.0, 'e': 0.2, 'f': 0.0, 'g': 0.0},
     laws=lambda s: [
@@ -116,4 +116,4 @@ def directed_percolation_langevin(
         'f': f,
         'g': g,
     }
-    return System(components=[FieldComponent('neurons', ActiveFieldComponent, LatticeSpace(shape), values=values)])
+    return System(components=[FieldElement('neurons', ActiveFieldElement, LatticeSpace(shape), values=values)])

@@ -1,18 +1,18 @@
 """Stochastic processes: random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes."""
 
-from ._branching import IndividualComponent, galton_watson
-from ._counting import BernoulliTrialComponent, PoissonCounterComponent, bernoulli_process, poisson_process
-from ._intermittency import IntermittentVariableComponent, on_off_intermittency
-from ._queues import QueueComponent, birth_death_queue
-from ._reducing import FragmentComponent, ReducingBallComponent, fragmentation, sample_space_reducing
-from ._sources import HiddenMarkovSourceComponent, MarkovSourceComponent, hidden_markov_source, markov_source
-from ._urns import PolyaUrnComponent, polya_urn
+from ._branching import IndividualElement, galton_watson
+from ._counting import BernoulliTrialElement, PoissonCounterElement, bernoulli_process, poisson_process
+from ._intermittency import IntermittentVariableElement, on_off_intermittency
+from ._queues import QueueElement, birth_death_queue
+from ._reducing import FragmentElement, ReducingBallElement, fragmentation, sample_space_reducing
+from ._sources import HiddenMarkovSourceElement, MarkovSourceElement, hidden_markov_source, markov_source
+from ._urns import PolyaUrnElement, polya_urn
 from ._walks import (
-    AgeingWalkerComponent,
-    MemoryWalkerComponent,
-    PersistentWalkerComponent,
-    RandomWalkerComponent,
-    WeakeningParticleComponent,
+    AgeingWalkerElement,
+    MemoryWalkerElement,
+    PersistentWalkerElement,
+    RandomWalkerElement,
+    WeakeningParticleElement,
     ageing_random_walk,
     persistent_random_walk,
     random_walk,
@@ -21,21 +21,21 @@ from ._walks import (
 )
 
 __all__: list[str] = [
-    'AgeingWalkerComponent',
-    'BernoulliTrialComponent',
-    'FragmentComponent',
-    'HiddenMarkovSourceComponent',
-    'IndividualComponent',
-    'IntermittentVariableComponent',
-    'MarkovSourceComponent',
-    'MemoryWalkerComponent',
-    'PersistentWalkerComponent',
-    'PoissonCounterComponent',
-    'PolyaUrnComponent',
-    'QueueComponent',
-    'RandomWalkerComponent',
-    'ReducingBallComponent',
-    'WeakeningParticleComponent',
+    'AgeingWalkerElement',
+    'BernoulliTrialElement',
+    'FragmentElement',
+    'HiddenMarkovSourceElement',
+    'IndividualElement',
+    'IntermittentVariableElement',
+    'MarkovSourceElement',
+    'MemoryWalkerElement',
+    'PersistentWalkerElement',
+    'PoissonCounterElement',
+    'PolyaUrnElement',
+    'QueueElement',
+    'RandomWalkerElement',
+    'ReducingBallElement',
+    'WeakeningParticleElement',
     'ageing_random_walk',
     'bernoulli_process',
     'birth_death_queue',

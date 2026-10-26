@@ -1,6 +1,6 @@
 """Bases of the framework and the helpers they are declared with."""
 
-from ._elements import BaseComponent
+from ._elements import BaseElement
 from ._errors import (
     AnalysisError,
     ArgumentError,
@@ -32,8 +32,8 @@ from ._types import (
     BaseDomain,
     Binding,
     CategoricalDomain,
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Expression,
     Form,
     Indices,
@@ -76,8 +76,8 @@ __all__: list[str] = [
     'ArgumentError',
     'BackendError',
     'BackendWarning',
-    'BaseComponent',
     'BaseDomain',
+    'BaseElement',
     'BaseEstimator',
     'BaseInteraction',
     'BaseLaw',
@@ -85,10 +85,10 @@ __all__: list[str] = [
     'Binding',
     'CapacityError',
     'CategoricalDomain',
-    'ComponentKind',
     'ConservationError',
     'DeclarationError',
     'DomainKind',
+    'ElementKind',
     'ExperimentError',
     'Expression',
     'Form',

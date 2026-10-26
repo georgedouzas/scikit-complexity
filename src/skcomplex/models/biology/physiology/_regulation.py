@@ -6,13 +6,13 @@
 from typing import Any
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class GlucoseControlComponent(ElementComponent):
+class GlucoseControlElement(Element):
     """Blood glucose held near its norm by insulin, which lowers it, and glucagon, which raises it.
 
     The glucose follows `dG/dt = R - (k0 + k_i I) G + k_n N + u(t)`, where `u` is a meal of height `meal` from
@@ -83,8 +83,8 @@ class GlucoseControlComponent(ElementComponent):
                 The rate of extra glucose uptake during the exercise.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import GlucoseControlComponent
-        >>> GlucoseControlComponent('organism').meal_time
+        >>> from skcomplex.models.biology.physiology import GlucoseControlElement
+        >>> GlucoseControlElement('organism').meal_time
         2.0
     """
 
@@ -142,7 +142,7 @@ class GlucoseControlComponent(ElementComponent):
         ]
 
 
-class CoagulationComponent(ElementComponent):
+class CoagulationElement(Element):
     """Coagulation cascade: thrombin amplified by positive feedback, switched off by protein C, and fibrinolysis.
 
     An injury of height `injury` from `injury_time` for `duration` activates thrombin, which activates more of itself
@@ -209,8 +209,8 @@ class CoagulationComponent(ElementComponent):
                 The rate of thrombin activation by the injury.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import CoagulationComponent
-        >>> CoagulationComponent('blood').injury_time
+        >>> from skcomplex.models.biology.physiology import CoagulationElement
+        >>> CoagulationElement('blood').injury_time
         1.0
     """
 
@@ -316,7 +316,7 @@ def glucose_dual_hormone_control(
     """
     k_n = 1.0 if glucagon else 0.0
     insulin, glucagon_level = 2.0 * 0.5, 1.0 * 0.5
-    organism = GlucoseControlComponent(
+    organism = GlucoseControlElement(
         'organism',
         I=insulin,
         N=glucagon_level,
@@ -376,5 +376,5 @@ def coagulation_positive_feedback(
         >>> coagulation_positive_feedback(injury=0.2).elements[0].injury
         0.2
     """
-    blood = CoagulationComponent('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
+    blood = CoagulationElement('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
     return System(components=[blood])

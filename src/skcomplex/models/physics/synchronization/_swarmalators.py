@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -18,7 +18,7 @@ from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
 
 
-class SwarmalatorComponent(ElementComponent):
+class SwarmalatorElement(Element):
     """Oscillator in the plane with a position `x` and a phase `theta` that turns at the natural frequency `omega`.
 
     Args:
@@ -35,8 +35,8 @@ class SwarmalatorComponent(ElementComponent):
             The natural frequency.
 
     Examples:
-        >>> from skcomplex.models.physics.synchronization import SwarmalatorComponent
-        >>> SwarmalatorComponent('unit').omega
+        >>> from skcomplex.models.physics.synchronization import SwarmalatorElement
+        >>> SwarmalatorElement('unit').omega
         0.0
     """
 
@@ -205,7 +205,7 @@ def swarmalators(
         -0.1
     """
     rng = np.random.default_rng(random_state)
-    units = SwarmalatorComponent.group(
+    units = SwarmalatorElement.group(
         'units',
         n_units,
         x=rng.uniform(-1.0, 1.0, (n_units, 2)),

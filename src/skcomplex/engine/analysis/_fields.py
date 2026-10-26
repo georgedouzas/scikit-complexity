@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
 from ...core.base import AnalysisError, VariableKind, declarations_of, symbol
-from ...core.components import ElementComponent
+from ...core.components import Element
 from ...core.laws import RateLaw, Symbols
 from ...core.space import LatticeSpace
 from ...core.system import System
@@ -615,7 +615,7 @@ class _Field(Protocol):
     """Group of members at the sites of a space whose differential operators a discretization evaluates."""
 
     label: str
-    element: type[ElementComponent]
+    element: type[Element]
     space: object
     values: Mapping[str, Any] | None
     discretization: str

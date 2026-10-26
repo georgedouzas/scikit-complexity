@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class QueueComponent(ElementComponent):
+class QueueElement(Element):
     """Queue at a desk, a birth-death process whose length grows by arrivals and shrinks by departures.
 
     Customers arrive at rate `arrival_rate` and leave at rate `service_rate` while the queue is not empty.
@@ -29,8 +29,8 @@ class QueueComponent(ElementComponent):
             The rate of departures from a queue that is not empty.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import QueueComponent
-        >>> QueueComponent('desk', arrival_rate=0.8).arrival_rate
+        >>> from skcomplex.models.mathematics.stochastic_processes import QueueElement
+        >>> QueueElement('desk', arrival_rate=0.8).arrival_rate
         0.8
     """
 
@@ -97,5 +97,5 @@ def birth_death_queue(
         >>> birth_death_queue(5).elements[0].size
         5
     """
-    queue = QueueComponent.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
+    queue = QueueElement.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
     return System(components=[queue])

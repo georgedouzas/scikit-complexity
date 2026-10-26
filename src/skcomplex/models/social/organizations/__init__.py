@@ -1,35 +1,35 @@
 """Organizations: hierarchies, queues, workplaces, and institutions."""
 
-from ._employment import WorkplaceComponent, employment_takeover
-from ._hierarchies import ContenderComponent, bonabeau_hierarchies
-from ._obesity import EaterComponent, RestaurantComponent, basal_metabolic_rate, obesity
-from ._queues import ExecutionInteraction, TaskComponent, priority_queues
-from ._sabotage import EmployeeComponent, SupervisorComponent, insider_sabotage
-from ._trafficking import DailyMovementsInteraction, PremisesComponent, TravellerComponent, trafficking
+from ._employment import WorkplaceElement, employment_takeover
+from ._hierarchies import ContenderElement, bonabeau_hierarchies
+from ._obesity import EaterElement, RestaurantElement, basal_metabolic_rate, obesity
+from ._queues import ExecutionInteraction, TaskElement, priority_queues
+from ._sabotage import EmployeeElement, SupervisorElement, insider_sabotage
+from ._trafficking import DailyMovementsInteraction, PremisesElement, TravellerElement, trafficking
 from ._traps import (
-    ArmsRaceComponent,
-    BurdenComponent,
-    ContestComponent,
+    ArmsRaceElement,
+    BurdenElement,
+    ContestElement,
     escalation,
     shifting_the_burden,
     success_to_the_successful,
 )
 
 __all__: list[str] = [
-    'ArmsRaceComponent',
-    'BurdenComponent',
-    'ContenderComponent',
-    'ContestComponent',
+    'ArmsRaceElement',
+    'BurdenElement',
+    'ContenderElement',
+    'ContestElement',
     'DailyMovementsInteraction',
-    'EaterComponent',
-    'EmployeeComponent',
+    'EaterElement',
+    'EmployeeElement',
     'ExecutionInteraction',
-    'PremisesComponent',
-    'RestaurantComponent',
-    'SupervisorComponent',
-    'TaskComponent',
-    'TravellerComponent',
-    'WorkplaceComponent',
+    'PremisesElement',
+    'RestaurantElement',
+    'SupervisorElement',
+    'TaskElement',
+    'TravellerElement',
+    'WorkplaceElement',
     'basal_metabolic_rate',
     'bonabeau_hierarchies',
     'employment_takeover',

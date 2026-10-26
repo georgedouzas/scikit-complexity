@@ -7,22 +7,22 @@ import math
 
 from sage.all__sagemath_symbolics import pi, sin
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import UpdateLaw, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
-LogisticMapComponent = ElementComponent.define(
-    'LogisticMapComponent',
+LogisticMapElement = Element.define(
+    'LogisticMapElement',
     states={'x': 0.2},
     parameters={'r': 3.7},
     laws=lambda s: [UpdateLaw(s.x, s.r * s.x * (1 - s.x))],
 )
 
-HenonMapComponent = ElementComponent.define(
-    'HenonMapComponent',
+HenonMapElement = Element.define(
+    'HenonMapElement',
     states={'x': 0.0, 'y': 0.0},
     parameters={'a': 1.4, 'b': 0.3},
     laws=lambda s: [UpdateLaw(s.x, 1 - s.a * s.x**2 + s.y), UpdateLaw(s.y, s.b * s.x)],
@@ -54,7 +54,7 @@ def logistic_map(x: float = 0.2, *, r: float = 3.7) -> System:
         >>> logistic_map(r=3.2).elements[0].r
         3.2
     """
-    return System(components=[LogisticMapComponent('map', x=x, r=r)])
+    return System(components=[LogisticMapElement('map', x=x, r=r)])
 
 
 @register_model(
@@ -88,11 +88,11 @@ def henon_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.4, b: float = 0.3)
         >>> henon_map(a=1.2).elements[0].a
         1.2
     """
-    return System(components=[HenonMapComponent('map', x=x, y=y, a=a, b=b)])
+    return System(components=[HenonMapElement('map', x=x, y=y, a=a, b=b)])
 
 
-StandardMapComponent = ElementComponent.define(
-    'StandardMapComponent',
+StandardMapElement = Element.define(
+    'StandardMapElement',
     states={'theta': 0.0, 'p': 2 * math.pi * GOLDEN_MEAN},
     parameters={'K': 1.2},
     laws=lambda s: [
@@ -101,22 +101,22 @@ StandardMapComponent = ElementComponent.define(
     ],
 )
 
-CircleMapComponent = ElementComponent.define(
-    'CircleMapComponent',
+CircleMapElement = Element.define(
+    'CircleMapElement',
     states={'theta': 0.0},
     parameters={'Omega': 0.25, 'K': 0.9},
     laws=lambda s: [UpdateLaw(s.theta, mod(s.theta + s.Omega - s.K / (2 * pi) * sin(2 * pi * s.theta), 1))],
 )
 
-TentMapComponent = ElementComponent.define(
-    'TentMapComponent',
+TentMapElement = Element.define(
+    'TentMapElement',
     states={'x': 0.3},
     parameters={'mu': 1.99},
     laws=lambda s: [UpdateLaw(s.x, s.mu * where(s.x < 1 / 2, s.x, 1 - s.x))],
 )
 
-BakerMapComponent = ElementComponent.define(
-    'BakerMapComponent',
+BakerMapElement = Element.define(
+    'BakerMapElement',
     states={'x': 0.2, 'y': 0.3},
     parameters={'alpha': 1 / 3, 'lambda_a': 1 / 3, 'lambda_b': 2 / 3},
     laws=lambda s: [
@@ -125,8 +125,8 @@ BakerMapComponent = ElementComponent.define(
     ],
 )
 
-TowelMapComponent = ElementComponent.define(
-    'TowelMapComponent',
+TowelMapElement = Element.define(
+    'TowelMapElement',
     states={'x': 0.085, 'y': -0.121, 'z': 0.075},
     parameters={'a': 3.8, 'b': 3.78},
     laws=lambda s: [
@@ -136,15 +136,15 @@ TowelMapComponent = ElementComponent.define(
     ],
 )
 
-IntermittencyMapComponent = ElementComponent.define(
-    'IntermittencyMapComponent',
+IntermittencyMapElement = Element.define(
+    'IntermittencyMapElement',
     states={'x': 0.01},
     parameters={'z': 2.0},
     laws=lambda s: [UpdateLaw(s.x, mod(s.x + s.x**s.z, 1))],
 )
 
-NewtonMapComponent = ElementComponent.define(
-    'NewtonMapComponent',
+NewtonMapElement = Element.define(
+    'NewtonMapElement',
     states={'x': 0.5, 'y': 0.5},
     laws=lambda s: [
         UpdateLaw(s.x, 2 * s.x / 3 + (s.x**2 - s.y**2) / (3 * (s.x**2 + s.y**2) ** 2)),
@@ -152,8 +152,8 @@ NewtonMapComponent = ElementComponent.define(
     ],
 )
 
-CatMapComponent = ElementComponent.define(
-    'CatMapComponent',
+CatMapElement = Element.define(
+    'CatMapElement',
     states={'x': 0.1, 'y': 0.3},
     laws=lambda s: [UpdateLaw(s.x, mod(2 * s.x + s.y, 1)), UpdateLaw(s.y, mod(s.x + s.y, 1))],
 )
@@ -190,7 +190,7 @@ def standard_map(theta: float = 0.0, p: float = 2 * math.pi * GOLDEN_MEAN, *, K:
         >>> standard_map(K=0.5).elements[0].K
         0.5
     """
-    return System(components=[StandardMapComponent('map', theta=theta, p=p, K=K)])
+    return System(components=[StandardMapElement('map', theta=theta, p=p, K=K)])
 
 
 @register_model(
@@ -221,7 +221,7 @@ def circle_map(theta: float = 0.0, *, Omega: float = 0.25, K: float = 0.9) -> Sy
         >>> circle_map(K=1.0).elements[0].K
         1.0
     """
-    return System(components=[CircleMapComponent('map', theta=theta, Omega=Omega, K=K)])
+    return System(components=[CircleMapElement('map', theta=theta, Omega=Omega, K=K)])
 
 
 @register_model(
@@ -249,7 +249,7 @@ def tent_map(x: float = 0.3, *, mu: float = 1.99) -> System:
         >>> tent_map(mu=1.5).elements[0].mu
         1.5
     """
-    return System(components=[TentMapComponent('map', x=x, mu=mu)])
+    return System(components=[TentMapElement('map', x=x, mu=mu)])
 
 
 @register_model(
@@ -297,7 +297,7 @@ def baker_map(
         >>> baker_map(lambda_a=0.2).elements[0].lambda_a
         0.2
     """
-    return System(components=[BakerMapComponent('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)])
+    return System(components=[BakerMapElement('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)])
 
 
 @register_model(
@@ -344,7 +344,7 @@ def towel_map(
         >>> towel_map(a=3.7).elements[0].a
         3.7
     """
-    return System(components=[TowelMapComponent('map', x=x, y=y, z=z, a=a, b=b)])
+    return System(components=[TowelMapElement('map', x=x, y=y, z=z, a=a, b=b)])
 
 
 @register_model(
@@ -372,7 +372,7 @@ def intermittency_map(x: float = 0.01, *, z: float = 2.0) -> System:
         >>> intermittency_map(z=1.5).elements[0].z
         1.5
     """
-    return System(components=[IntermittencyMapComponent('map', x=x, z=z)])
+    return System(components=[IntermittencyMapElement('map', x=x, z=z)])
 
 
 @register_model(
@@ -403,7 +403,7 @@ def newton_raphson_map(x: float = 0.5, y: float = 0.5) -> System:
         >>> newton_raphson_map(x=1.5).elements[0].x
         1.5
     """
-    return System(components=[NewtonMapComponent('map', x=x, y=y)])
+    return System(components=[NewtonMapElement('map', x=x, y=y)])
 
 
 @register_model(
@@ -431,4 +431,4 @@ def cat_map(x: float = 0.1, y: float = 0.3) -> System:
         >>> cat_map(x=0.5).elements[0].x
         0.5
     """
-    return System(components=[CatMapComponent('map', x=x, y=y)])
+    return System(components=[CatMapElement('map', x=x, y=y)])

@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseInteraction, Expression, NumericDomain, ValidationError, VisualSpec, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, mean
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -24,8 +24,8 @@ def _stuart_landau_rates(s: Symbols) -> tuple[Expression, Expression]:
     return s.tau * (growth * s.x - s.omega * s.y), s.tau * (growth * s.y + s.omega * s.x)
 
 
-StuartLandauComponent = ElementComponent.define(
-    'StuartLandauComponent',
+StuartLandauElement = Element.define(
+    'StuartLandauElement',
     states={'x': 1.0, 'y': 0.0},
     parameters={'beta': 1.0, 'omega': 0.0, 'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])],
@@ -151,7 +151,7 @@ def oscillator_death(
     """
     omegas = _frequency_quantiles(n_oscillators, width, distribution)
     x, y = _spread_on_circle(n_oscillators, random_state)
-    oscillators = StuartLandauComponent.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
+    oscillators = StuartLandauElement.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
     return System(
         components=[oscillators],
         interactions=[GlobalCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)],
@@ -222,7 +222,7 @@ def heterogeneous_global_coupling(
     taus = 1 + heterogeneity * (2 * (np.arange(n_systems) + 1 / 2) / n_systems - 1)
     x, y = _spread_on_circle(n_systems, random_state)
     radius = math.sqrt(abs(beta))
-    systems = StuartLandauComponent.group(
+    systems = StuartLandauElement.group(
         'systems',
         n_systems,
         x=radius * x,

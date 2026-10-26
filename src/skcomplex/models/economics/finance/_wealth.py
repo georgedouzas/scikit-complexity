@@ -8,15 +8,15 @@ from collections.abc import Sequence
 import networkx as nx
 
 from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import NoiseLaw, RateLaw, Symbols, count, mean
 from ....core.space import NetworkSpace
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
-SaverComponent = ElementComponent.define(
-    'SaverComponent',
+SaverElement = Element.define(
+    'SaverElement',
     states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
     parameters={
         'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
@@ -35,8 +35,8 @@ def _mean_exchange(s: Symbols) -> Expression:
     return s.J * count() / (count() - 1) * (mean(s.W) - s.W)
 
 
-MeanFieldSaverComponent = ElementComponent.define(
-    'MeanFieldSaverComponent',
+MeanFieldSaverElement = Element.define(
+    'MeanFieldSaverElement',
     states={'W': state(default=1.0, domain=NumericDomain.POSITIVE)},
     parameters={
         'J': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
@@ -96,7 +96,7 @@ def bouchaud_mezard_wealth(
         1.0
     """
     if graph is None:
-        agents: FieldComponent | GroupComponent = MeanFieldSaverComponent.group(
+        agents: FieldElement | GroupElement = MeanFieldSaverElement.group(
             'agents',
             n_agents,
             W=wealth,
@@ -106,5 +106,5 @@ def bouchaud_mezard_wealth(
     else:
         degree = 2 * nx.number_of_edges(graph) / nx.number_of_nodes(graph)
         values = {'W': wealth, 'J': J, 'sigma': sigma, 'degree': degree}
-        agents = FieldComponent('agents', SaverComponent, NetworkSpace(graph), values=values)
+        agents = FieldElement('agents', SaverElement, NetworkSpace(graph), values=values)
     return System(components=[agents])

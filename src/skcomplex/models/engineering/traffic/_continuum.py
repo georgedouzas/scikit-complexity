@@ -7,17 +7,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, FluxLaw, SSPRKSolver, laplacian
+from ....formalisms.fields import FieldElement, FluxLaw, SSPRKSolver, laplacian
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 
-LighthillWhithamRichardsComponent = ElementComponent.define(
-    'LighthillWhithamRichardsComponent',
+LighthillWhithamRichardsElement = Element.define(
+    'LighthillWhithamRichardsElement',
     states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -26,8 +26,8 @@ LighthillWhithamRichardsComponent = ElementComponent.define(
     laws=lambda s: [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')],
 )
 
-PayneComponent = ElementComponent.define(
-    'PayneComponent',
+PayneElement = Element.define(
+    'PayneElement',
     states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
     parameters={
         'vmax': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -41,8 +41,8 @@ PayneComponent = ElementComponent.define(
     ],
 )
 
-KernerKonhauserComponent = ElementComponent.define(
-    'KernerKonhauserComponent',
+KernerKonhauserElement = Element.define(
+    'KernerKonhauserElement',
     states={'rho': state(default=0.3, domain=NumericDomain.NONNEGATIVE), 'q': 0.21},
     parameters={
         'V0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -122,9 +122,9 @@ def lighthill_whitham_richards(
     density = np.where(np.arange(n) < n // 2, upstream, downstream).astype(float)
     values = {'rho': density, 'vmax': vmax, 'rho_max': rho_max}
     space = LatticeSpace(n, spacing=1 / n)
-    road = FieldComponent(
+    road = FieldElement(
         'road',
-        LighthillWhithamRichardsComponent,
+        LighthillWhithamRichardsElement,
         space,
         boundary={'rho': 'zero-flux'},
         values=values,
@@ -186,9 +186,9 @@ def payne(
     """
     rho = _density_bump(n, density, bump)
     values = {'rho': rho, 'q': rho * vmax * (1 - rho / rho_max), 'vmax': vmax, 'rho_max': rho_max, 'tau': tau}
-    road = FieldComponent(
+    road = FieldElement(
         'road',
-        PayneComponent,
+        PayneElement,
         LatticeSpace(n, spacing=1 / n),
         values=values,
         discretization='finite-volume',
@@ -269,5 +269,5 @@ def kerner_konhauser(
         'mu': mu,
     }
     space = LatticeSpace(n, spacing=length / n)
-    road = FieldComponent('road', KernerKonhauserComponent, space, values=values, discretization='finite-volume')
+    road = FieldElement('road', KernerKonhauserElement, space, values=values, discretization='finite-volume')
     return System(components=[road])

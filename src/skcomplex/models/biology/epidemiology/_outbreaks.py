@@ -6,7 +6,7 @@
 import numpy as np
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -22,7 +22,7 @@ def _infected_share(member: Symbols) -> Expression:
     return member.P * member.i
 
 
-class ImmunizingDegreeClassComponent(ElementComponent):
+class ImmunizingDegreeClassElement(Element):
     """Susceptible, infected, and recovered densities of the nodes of one degree, in heterogeneous mean field.
 
     A susceptible node of degree `k` is infected at rate `beta k theta` and an infected node recovers at rate `mu`, so
@@ -57,8 +57,8 @@ class ImmunizingDegreeClassComponent(ElementComponent):
             The probability `P(k)` of the degree.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ImmunizingDegreeClassComponent
-        >>> ImmunizingDegreeClassComponent.group('network', 3, k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2]).size
+        >>> from skcomplex.models.biology.epidemiology import ImmunizingDegreeClassElement
+        >>> ImmunizingDegreeClassElement.group('network', 3, k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2]).size
         3
     """
 
@@ -149,7 +149,7 @@ def heterogeneous_mean_field_sir(
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = ImmunizingDegreeClassComponent.group(
+    classes = ImmunizingDegreeClassElement.group(
         'network',
         len(degrees),
         s=1.0 - infected,

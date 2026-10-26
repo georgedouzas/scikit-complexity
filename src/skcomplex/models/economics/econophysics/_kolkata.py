@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -17,7 +17,7 @@ from ....formalisms.agents import AgentView, ModelView, RuleLaw
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-class DinerComponent(ElementComponent):
+class DinerElement(Element):
     """Diner of the Kolkata Paise Restaurant problem, who picks a restaurant at random every evening.
 
     Args:
@@ -37,8 +37,8 @@ class DinerComponent(ElementComponent):
             The number of restaurants.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import DinerComponent
-        >>> DinerComponent.group('diners', 10, restaurants=10.0).size
+        >>> from skcomplex.models.economics.econophysics import DinerElement
+        >>> DinerElement.group('diners', 10, restaurants=10.0).size
         10
     """
 
@@ -73,7 +73,7 @@ class DinerComponent(ElementComponent):
         agent.restaurant = float(model.rng.integers(int(agent.restaurants)))
 
 
-class CrowdAvoidingDinerComponent(DinerComponent):
+class CrowdAvoidingDinerElement(DinerElement):
     """Diner of the stochastic crowd avoiding strategy, who leaves crowded restaurants.
 
     A diner returns to last evening's restaurant with probability `1 / n`, with `n` the crowd it found there, and
@@ -96,8 +96,8 @@ class CrowdAvoidingDinerComponent(DinerComponent):
             The number of restaurants.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDinerComponent
-        >>> CrowdAvoidingDinerComponent.group('diners', 10, restaurants=10.0).size
+        >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDinerElement
+        >>> CrowdAvoidingDinerElement.group('diners', 10, restaurants=10.0).size
         10
     """
 
@@ -228,13 +228,13 @@ def kolkata_restaurant(
     Examples:
         >>> from skcomplex.models.economics.econophysics import kolkata_restaurant
         >>> kolkata_restaurant(10, strategy='crowd_avoiding').elements[0].element.__name__
-        'CrowdAvoidingDinerComponent'
+        'CrowdAvoidingDinerElement'
     """
     if strategy not in STRATEGIES:
         error_msg = f'Unknown strategy {strategy!r}. Use one of {STRATEGIES}.'
         raise ValueError(error_msg)
     n_restaurants = n_agents if n_restaurants is None else n_restaurants
-    diner = CrowdAvoidingDinerComponent if strategy == 'crowd_avoiding' else DinerComponent
+    diner = CrowdAvoidingDinerElement if strategy == 'crowd_avoiding' else DinerElement
     choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
     diners = diner.group('diners', n_agents, restaurant=choices, restaurants=float(n_restaurants))
     restaurants = RestaurantsInteraction('restaurants', diners='diners', n_restaurants=n_restaurants)

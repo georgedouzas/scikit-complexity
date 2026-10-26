@@ -6,14 +6,14 @@
 from functools import cache
 
 from ....core.base import state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms import fractional  # noqa: F401 - registers the fractional form that these models compile to
 
 
-def _published(element_type: type[ElementComponent]) -> type[ElementComponent]:
+def _published(element_type: type[Element]) -> type[Element]:
     """Return an element type after binding it to its name in this module, so it pickles by reference."""
     globals()[element_type.__name__] = element_type
     return element_type
@@ -25,7 +25,7 @@ def _type_name(prefix: str, order: float) -> str:
 
 
 @cache
-def relaxation_type(order: float) -> type[ElementComponent]:
+def relaxation_type(order: float) -> type[Element]:
     """Return the element type of fractional relaxation `D^alpha x = -lambda x` of an order.
 
     Args:
@@ -42,7 +42,7 @@ def relaxation_type(order: float) -> type[ElementComponent]:
         'FractionalRelaxation_0p5'
     """
     return _published(
-        ElementComponent.define(
+        Element.define(
             _type_name('FractionalRelaxation', order),
             states={'x': state(1.0, order=order)},
             parameters={'lam': 1.0},
@@ -52,7 +52,7 @@ def relaxation_type(order: float) -> type[ElementComponent]:
 
 
 @cache
-def oscillator_type(order: float) -> type[ElementComponent]:
+def oscillator_type(order: float) -> type[Element]:
     """Return the element type of the fractional oscillator `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
 
     Args:
@@ -69,7 +69,7 @@ def oscillator_type(order: float) -> type[ElementComponent]:
         'FractionalOscillator_0p8'
     """
     return _published(
-        ElementComponent.define(
+        Element.define(
             _type_name('FractionalOscillator', order),
             states={'x': state(1.0, order=order), 'v': state(0.0, order=order)},
             parameters={'omega': 1.0, 'gamma': 0.0},
@@ -79,7 +79,7 @@ def oscillator_type(order: float) -> type[ElementComponent]:
 
 
 @cache
-def van_der_pol_type(order: float) -> type[ElementComponent]:
+def van_der_pol_type(order: float) -> type[Element]:
     """Return the element type of the fractional Van der Pol system `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
 
     Args:
@@ -96,7 +96,7 @@ def van_der_pol_type(order: float) -> type[ElementComponent]:
         'FractionalVanDerPol_0p9'
     """
     return _published(
-        ElementComponent.define(
+        Element.define(
             _type_name('FractionalVanDerPol', order),
             states={'x': state(2.0, order=order), 'y': state(0.0, order=order)},
             parameters={'mu': 1.0},
@@ -106,7 +106,7 @@ def van_der_pol_type(order: float) -> type[ElementComponent]:
 
 
 @cache
-def lorenz_type(order: float) -> type[ElementComponent]:
+def lorenz_type(order: float) -> type[Element]:
     """Return the element type of the fractional Lorenz flow, the Lorenz equations with Caputo derivatives of an order.
 
     Args:
@@ -123,7 +123,7 @@ def lorenz_type(order: float) -> type[ElementComponent]:
         'FractionalLorenz_0p99'
     """
     return _published(
-        ElementComponent.define(
+        Element.define(
             _type_name('FractionalLorenz', order),
             states={'x': state(1.0, order=order), 'y': state(1.0, order=order), 'z': state(1.0, order=order)},
             parameters={'sigma': 10.0, 'rho': 28.0, 'beta': 8 / 3},

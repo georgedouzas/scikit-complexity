@@ -1,11 +1,11 @@
 """Fluid dynamics: flows, convection cells, turbulence, shocks, shallow water, wave trains, and kinetic gases."""
 
 from ._flows import (
-    BoussinesqComponent,
-    BurgersComponent,
-    KuramotoSivashinskyComponent,
-    ShallowWaterComponent,
-    VorticityComponent,
+    BoussinesqElement,
+    BurgersElement,
+    KuramotoSivashinskyElement,
+    ShallowWaterElement,
+    VorticityElement,
     burgers,
     decaying_turbulence,
     incompressible_flow,
@@ -13,20 +13,20 @@ from ._flows import (
     rayleigh_benard,
     shallow_water,
 )
-from ._kinetics import CarlemanGasComponent, WaveNumberComponent, discrete_velocity_boltzmann, wave_breaking
-from ._lattice_gases import FHPSiteComponent, fhp_lattice_gas
-from ._marangoni import MarangoniLayerComponent, benard_marangoni
+from ._kinetics import CarlemanGasElement, WaveNumberElement, discrete_velocity_boltzmann, wave_breaking
+from ._lattice_gases import FHPSiteElement, fhp_lattice_gas
+from ._marangoni import MarangoniLayerElement, benard_marangoni
 
 __all__: list[str] = [
-    'BoussinesqComponent',
-    'BurgersComponent',
-    'CarlemanGasComponent',
-    'FHPSiteComponent',
-    'KuramotoSivashinskyComponent',
-    'MarangoniLayerComponent',
-    'ShallowWaterComponent',
-    'VorticityComponent',
-    'WaveNumberComponent',
+    'BoussinesqElement',
+    'BurgersElement',
+    'CarlemanGasElement',
+    'FHPSiteElement',
+    'KuramotoSivashinskyElement',
+    'MarangoniLayerElement',
+    'ShallowWaterElement',
+    'VorticityElement',
+    'WaveNumberElement',
     'benard_marangoni',
     'burgers',
     'decaying_turbulence',

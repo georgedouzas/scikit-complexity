@@ -6,7 +6,7 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -19,7 +19,7 @@ def _transfer(source: Expression, destination: Expression, rate: Expression, *, 
     return [RateLaw(source, -rate), RateLaw(destination, rate)]
 
 
-class BranchComponent(ElementComponent):
+class BranchElement(Element):
     """Branch of a path that ants can take, holding the pheromone marks left by the ants that took it.
 
     Args:
@@ -39,8 +39,8 @@ class BranchComponent(ElementComponent):
                 The rate at which each mark evaporates.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import BranchComponent
-        >>> BranchComponent('left', n=5.0).n
+        >>> from skcomplex.models.biology.collective_behaviour import BranchElement
+        >>> BranchElement('left', n=5.0).n
         5.0
     """
 
@@ -144,7 +144,7 @@ class TrailChoiceInteraction(BaseInteraction):
         return [RateLaw(s.chosen.n, rate)]
 
 
-class RatsComponent(ElementComponent):
+class RatsElement(Element):
     """Rats in one behavioural state, calm or nervous, counted.
 
     Args:
@@ -155,8 +155,8 @@ class RatsComponent(ElementComponent):
             The initial number of rats.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import RatsComponent
-        >>> RatsComponent('calm', n=90.0).n
+        >>> from skcomplex.models.biology.collective_behaviour import RatsElement
+        >>> RatsElement('calm', n=90.0).n
         90.0
     """
 
@@ -280,7 +280,7 @@ def binary_ant_decision(
         >>> [branch.label for branch in binary_ant_decision().elements]
         ['left', 'right']
     """
-    branches = [BranchComponent(label, evaporation=evaporation, stochastic=stochastic) for label in ('left', 'right')]
+    branches = [BranchElement(label, evaporation=evaporation, stochastic=stochastic) for label in ('left', 'right')]
     choices = [
         TrailChoiceInteraction(
             f'choice_{chosen}',
@@ -344,7 +344,7 @@ def rats(
         >>> [group.n for group in rats().elements]
         [95.0, 5.0]
     """
-    groups = [RatsComponent('calm', n=float(n_rats - nervous)), RatsComponent('nervous', n=float(nervous))]
+    groups = [RatsElement('calm', n=float(n_rats - nervous)), RatsElement('nervous', n=float(nervous))]
     transitions = NervousnessInteraction(
         'nervousness',
         calm='calm',

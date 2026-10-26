@@ -7,7 +7,7 @@
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -22,7 +22,7 @@ def _size_observables() -> list[ObservableQuantity]:
     ]
 
 
-class GibratFirmComponent(ElementComponent):
+class GibratFirmElement(Element):
     """Firm whose size is multiplied every step by an independent normal growth factor, `x = lambda x`.
 
     Args:
@@ -42,8 +42,8 @@ class GibratFirmComponent(ElementComponent):
             The standard deviation of the growth factor.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import GibratFirmComponent
-        >>> GibratFirmComponent.group('firms', 10, mu=1.0).size
+        >>> from skcomplex.models.economics.finance import GibratFirmElement
+        >>> GibratFirmElement.group('firms', 10, mu=1.0).size
         10
     """
 
@@ -79,7 +79,7 @@ class GibratFirmComponent(ElementComponent):
         agent.x = agent.x * float(model.rng.normal(agent.mu, agent.sigma))
 
 
-class KestenFirmComponent(ElementComponent):
+class KestenFirmElement(Element):
     """Firm whose size follows Kesten's process, `x = lambda x + b`, with uniform random `lambda` and `b`.
 
     Args:
@@ -102,8 +102,8 @@ class KestenFirmComponent(ElementComponent):
             The upper bound of the additive term.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import KestenFirmComponent
-        >>> KestenFirmComponent.group('firms', 10, b_high=2.0).size
+        >>> from skcomplex.models.economics.finance import KestenFirmElement
+        >>> KestenFirmElement.group('firms', 10, b_high=2.0).size
         10
     """
 
@@ -226,7 +226,7 @@ def gibrat_process(
         >>> gibrat_process(10).elements[0].size
         10
     """
-    firms = GibratFirmComponent.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
+    firms = GibratFirmElement.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
     return System(components=[firms])
 
 
@@ -275,7 +275,7 @@ def multiplicative_process(
         >>> multiplicative_process(c=0.5).interactions[0].c
         0.5
     """
-    firms = GibratFirmComponent.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
+    firms = GibratFirmElement.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
     return System(
         components=[firms],
         interactions=[ReflectingFloorInteraction('floor', firms='firms', c=c)],
@@ -331,7 +331,7 @@ def kesten_process(
         >>> kesten_process(10).elements[0].size
         10
     """
-    firms = KestenFirmComponent.group(
+    firms = KestenFirmElement.group(
         'firms',
         n_firms,
         x=x,

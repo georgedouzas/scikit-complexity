@@ -28,7 +28,7 @@ from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.engine.compile import SOLVERS, missing_declarations
 from skcomplex.engine.solvers import Solver
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.fields import FieldComponent, MeshSpace
+from skcomplex.formalisms.fields import FieldElement, MeshSpace
 from skcomplex.formalisms.lattices import SamplerLaw
 from skcomplex.formalisms.quantum import GeneratorLaw
 
@@ -115,7 +115,7 @@ def test_space_kinds(space, kind):
 
 def test_field_is_a_site_group():
     """Test that fields declare one member per site."""
-    assert str(FieldComponent.component_kind) == 'site-group'
+    assert str(FieldElement.component_kind) == 'site-group'
 
 
 def test_solver_support_names_missing_terms():

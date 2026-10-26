@@ -11,12 +11,12 @@ from sage.all__sagemath_symbolics import exp, tanh
 from scipy.ndimage import convolve
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, delayed, maximum
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 type Array = npt.NDArray[np.float64]
 
@@ -46,7 +46,7 @@ def _link_weights(stimulus: Array, total: float) -> Array:
     return total / np.maximum(neighbours, 1.0)
 
 
-class SpikingNeuronComponent(ElementComponent):
+class SpikingNeuronElement(Element):
     """Leaky integrate-and-fire neuron with an exponential synaptic trace of its own spikes.
 
     The potential follows `tau v' = -v + mu` plus synaptic input. When it reaches `threshold` it is reset and the
@@ -79,8 +79,8 @@ class SpikingNeuronComponent(ElementComponent):
             The decay time of the synaptic trace.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import SpikingNeuronComponent
-        >>> SpikingNeuronComponent('neuron').threshold
+        >>> from skcomplex.models.biology.neuroscience import SpikingNeuronElement
+        >>> SpikingNeuronElement('neuron').threshold
         20.0
     """
 
@@ -157,7 +157,7 @@ class DelayedSynapseInteraction(BaseInteraction):
         return [RateLaw(s.target.v, s.J * delayed(s.source.s, s.D))]
 
 
-class TermanWangComponent(ElementComponent):
+class TermanWangElement(Element):
     """Relaxation oscillator of Terman and Wang, coupled to its lattice neighbours through their active phases.
 
     The fast variable follows `x' = 3x - x³ + 2 - y + I + W m (sum_k m_k H(x_k - theta_x))`, summed over the four
@@ -200,8 +200,8 @@ class TermanWangComponent(ElementComponent):
             The width of the smooth steps.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import TermanWangComponent
-        >>> TermanWangComponent('oscillator').gamma
+        >>> from skcomplex.models.biology.neuroscience import TermanWangElement
+        >>> TermanWangElement('oscillator').gamma
         6.0
     """
 
@@ -235,7 +235,7 @@ class TermanWangComponent(ElementComponent):
         ]
 
 
-class InhibitorComponent(ElementComponent):
+class InhibitorElement(Element):
     """Global inhibitor of a LEGION network, whose activity `z` decays at rate `phi` without drive.
 
     Args:
@@ -249,8 +249,8 @@ class InhibitorComponent(ElementComponent):
             The rate of the inhibitor.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import InhibitorComponent
-        >>> InhibitorComponent('inhibitor').phi
+        >>> from skcomplex.models.biology.neuroscience import InhibitorElement
+        >>> InhibitorElement('inhibitor').phi
         3.0
     """
 
@@ -376,9 +376,7 @@ def delayed_lif_network(
     """
     rng = np.random.default_rng(random_state)
     potentials = rng.uniform(10.0, 20.0, n_neurons)
-    neurons = [
-        SpikingNeuronComponent(f'neuron_{index}', v=float(potentials[index]), mu=mu) for index in range(n_neurons)
-    ]
+    neurons = [SpikingNeuronElement(f'neuron_{index}', v=float(potentials[index]), mu=mu) for index in range(n_neurons)]
     synapses = [
         DelayedSynapseInteraction(
             f'synapse_{source}_{target}',
@@ -453,12 +451,12 @@ def legion(
         'W': _link_weights(marks, W),
         'epsilon': epsilon,
     }
-    oscillators = FieldComponent(
+    oscillators = FieldElement(
         'oscillators',
-        TermanWangComponent,
+        TermanWangElement,
         LatticeSpace(marks.shape),
         boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
         values=values,
     )
     inhibition = GlobalInhibitionInteraction('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(components=[oscillators, InhibitorComponent('inhibitor')], interactions=[inhibition])
+    return System(components=[oscillators, InhibitorElement('inhibitor')], interactions=[inhibition])

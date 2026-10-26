@@ -9,7 +9,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -61,7 +61,7 @@ def _schlogl_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(x, drift), *noises]
 
 
-class SpeciesComponent(ElementComponent):
+class SpeciesElement(Element):
     """Amount of one chemical species, a concentration or a number of molecules.
 
     Args:
@@ -72,8 +72,8 @@ class SpeciesComponent(ElementComponent):
             The initial amount.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import SpeciesComponent
-        >>> SpeciesComponent('substrate', n=300.0).n
+        >>> from skcomplex.models.chemistry.kinetics import SpeciesElement
+        >>> SpeciesElement('substrate', n=300.0).n
         300.0
     """
 
@@ -230,8 +230,8 @@ class DissociationInteraction(BaseInteraction):
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
-SchloglComponent = ElementComponent.define(
-    'SchloglComponent',
+SchloglElement = Element.define(
+    'SchloglElement',
     states={'x': state(default=50.0, domain=NumericDomain.REAL)},
     parameters={'c1': 1.5e-6, 'c2': 2.5e-3, 'c3': 2e-4, 'c4': 3.5, 'A': 1e5, 'B': 2e5},
     laws=_schlogl_laws,
@@ -288,10 +288,10 @@ def michaelis_menten(
     """
     return System(
         components=[
-            SpeciesComponent('E', n=enzyme),
-            SpeciesComponent('S', n=substrate),
-            SpeciesComponent('C'),
-            SpeciesComponent('P'),
+            SpeciesElement('E', n=enzyme),
+            SpeciesElement('S', n=substrate),
+            SpeciesElement('C'),
+            SpeciesElement('P'),
         ],
         interactions=[
             BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
@@ -370,7 +370,7 @@ def chemical_langevin_equation(
         >>> chemical_langevin_equation(c4=3.0).elements[0].c4
         3.0
     """
-    return System(components=[SchloglComponent('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
+    return System(components=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
 
 
 @register_model(
@@ -420,10 +420,10 @@ def chemical_langevin_network(
     """
     return System(
         components=[
-            SpeciesComponent('E', n=enzyme),
-            SpeciesComponent('S', n=substrate),
-            SpeciesComponent('C'),
-            SpeciesComponent('P'),
+            SpeciesElement('E', n=enzyme),
+            SpeciesElement('S', n=substrate),
+            SpeciesElement('C'),
+            SpeciesElement('P'),
         ],
         interactions=[
             BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, langevin=True),

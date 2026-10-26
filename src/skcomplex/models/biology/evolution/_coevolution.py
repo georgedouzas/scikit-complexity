@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
@@ -29,7 +29,7 @@ def _renew(fitness: Array, random: Array) -> Array:
     return random
 
 
-class SpeciesComponent(ElementComponent):
+class SpeciesElement(Element):
     """Species of the Bak-Sneppen model, with a fitness in the unit interval that depends on its neighbours.
 
     Every update replaces the fitness of the least fit species and of its neighbours by new uniform random numbers, and
@@ -52,8 +52,8 @@ class SpeciesComponent(ElementComponent):
                 The initial fitness.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import SpeciesComponent
-        >>> SpeciesComponent('species').updates
+        >>> from skcomplex.models.biology.evolution import SpeciesElement
+        >>> SpeciesElement('species').updates
         200
     """
 
@@ -130,7 +130,7 @@ def bak_sneppen(
     space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).prepare()
     count = int(space.size_ or 0)
     fitness = np.random.default_rng(random_state).random(count)
-    species = SpeciesComponent.lattice(
+    species = SpeciesElement.lattice(
         'species',
         space,
         visual=FITNESS_VISUAL if graph is None else FITNESS_SITES,

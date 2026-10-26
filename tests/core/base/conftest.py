@@ -1,13 +1,13 @@
 """Share the helpers and fixtures of the tests below this directory."""
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import UpdateLaw
 
 HEALTH = NumericDomain.categorical('susceptible', 'infected', 'recovered')
 
 
-PersonComponent = ElementComponent.define('PersonComponent', states={'health': state('susceptible', domain=HEALTH)})
+PersonElement = Element.define('PersonElement', states={'health': state('susceptible', domain=HEALTH)})
 
 
 ProgressionInteraction = BaseInteraction.define(

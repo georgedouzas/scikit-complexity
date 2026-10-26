@@ -9,7 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.core.base import BackendError, NumericDomain, ValidationError, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Call, EquationLaw, EventLaw, JumpLaw, RateLaw, UpdateLaw, derivative, mod, total, where
 from skcomplex.core.problems import Entry, Layout
 from skcomplex.core.space import LatticeSpace, Neighborhood
@@ -23,19 +23,19 @@ from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.fields import (
     CrankNicolsonSolver,
     ETDRK4Solver,
-    FieldComponent,
+    FieldElement,
     IMEX2Solver,
     IMEXEulerSolver,
     laplacian,
 )
 from skcomplex.formalisms.lattices import LocalRuleLaw
 from skcomplex.formalisms.particles import LammpsSolver
-from skcomplex.models.physics.pattern_formation import GinzburgLandauComponent
+from skcomplex.models.physics.pattern_formation import GinzburgLandauElement
 
 STIFF = (IMEXEulerSolver(dt=0.05), IMEX2Solver(dt=0.05), CrankNicolsonSolver(dt=0.05))
 
 
-class PhaseComponent(ElementComponent):
+class PhaseElement(Element):
     """Complex amplitude that turns at a constant frequency."""
 
     z: complex = state(1.0, domain=NumericDomain.COMPLEX)
@@ -46,7 +46,7 @@ class PhaseComponent(ElementComponent):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-class QuadraticComponent(ElementComponent):
+class QuadraticElement(Element):
     """Complex quadratic map `z -> z^2 + c`."""
 
     z: complex = state(0.0, domain=NumericDomain.COMPLEX)
@@ -57,7 +57,7 @@ class QuadraticComponent(ElementComponent):
         return [UpdateLaw(s.z, s.z**2 + s.c)]
 
 
-class ReadoutComponent(ElementComponent):
+class ReadoutElement(Element):
     """Rotation of a complex state with its modulus read into a real state."""
 
     z: complex = state(2.0, domain=NumericDomain.COMPLEX)
@@ -68,7 +68,7 @@ class ReadoutComponent(ElementComponent):
         return [UpdateLaw(s.z, s.z * exp(I * 0.3)), UpdateLaw(s.r, abs(s.z))]
 
 
-class StuartComponent(ElementComponent):
+class StuartElement(Element):
     """Stuart-Landau oscillator, whose law is not holomorphic."""
 
     z: complex = state(0.5 + 0.2j, domain=NumericDomain.COMPLEX)
@@ -78,7 +78,7 @@ class StuartComponent(ElementComponent):
         return [RateLaw(s.z, (1 + I) * s.z - abs(s.z) ** 2 * s.z)]
 
 
-class SplitStuartComponent(ElementComponent):
+class SplitStuartElement(Element):
     """Stuart-Landau oscillator written with its real and imaginary parts."""
 
     u: float = state(0.5)
@@ -90,7 +90,7 @@ class SplitStuartComponent(ElementComponent):
         return [RateLaw(s.u, s.u - s.v - square * s.u), RateLaw(s.v, s.u + s.v - square * s.v)]
 
 
-class ComplexGinzburgLandauComponent(ElementComponent):
+class ComplexGinzburgLandauElement(Element):
     """Complex Ginzburg-Landau equation with one complex field."""
 
     A: complex = state(0.0, domain=NumericDomain.COMPLEX)
@@ -102,7 +102,7 @@ class ComplexGinzburgLandauComponent(ElementComponent):
         return [RateLaw(s.A, s.A + (1 + I * s.b) * laplacian(s.A) - (1 + I * s.c) * abs(s.A) ** 2 * s.A)]
 
 
-class SchrodingerComponent(ElementComponent):
+class SchrodingerElement(Element):
     """Free Schrödinger equation."""
 
     psi: complex = state(0.0, domain=NumericDomain.COMPLEX)
@@ -126,12 +126,12 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
     values = {'A': u + 1j * v}
     joined = System(
         components=[
-            FieldComponent('m', ComplexGinzburgLandauComponent, space, values=values, discretization=discretization),
+            FieldElement('m', ComplexGinzburgLandauElement, space, values=values, discretization=discretization),
         ],
     )
     split = System(
         components=[
-            FieldComponent('m', GinzburgLandauComponent, space, values={'u': u, 'v': v}, discretization=discretization),
+            FieldElement('m', GinzburgLandauElement, space, values={'u': u, 'v': v}, discretization=discretization),
         ],
     )
     return joined, split
@@ -139,7 +139,7 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
 
 def test_complex_state_reads_back_its_initial_value():
     """Test that a complex default is stored as a pair of floats and read back as a complex number."""
-    problem = compile_system(System(components=[PhaseComponent('osc', z=1 + 2j)]))
+    problem = compile_system(System(components=[PhaseElement('osc', z=1 + 2j)]))
     assert problem.initial_state.tolist() == [1.0, 2.0]
     assert problem.states.read(problem.initial_state, 'osc.z') == 1 + 2j
 
@@ -147,19 +147,19 @@ def test_complex_state_reads_back_its_initial_value():
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
     with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*real domain.*Domain\.COMPLEX'):
-        compile_system(System(components=[PhaseComponent('osc', omega=1j)]))
+        compile_system(System(components=[PhaseElement('osc', omega=1j)]))
 
 
 def test_real_state_accepts_complex_value_with_zero_imaginary_part():
     """Test that a complex value with a zero imaginary part is a real value."""
-    problem = compile_system(System(components=[PhaseComponent('osc', omega=3 + 0j)]))
+    problem = compile_system(System(components=[PhaseElement('osc', omega=3 + 0j)]))
     assert problem.parameters.read(problem.initial_parameters, 'osc.omega') == 3.0
 
 
 def test_complex_parameter_per_site_is_read_and_updated():
     """Test that every site reads its own complex parameter, and that an update changes the next step."""
     c = np.arange(16).reshape(4, 4) * (1 + 1j)
-    system = System(components=[FieldComponent('grid', QuadraticComponent, LatticeSpace((4, 4)), values={'c': c})])
+    system = System(components=[FieldElement('grid', QuadraticElement, LatticeSpace((4, 4)), values={'c': c})])
     simulation = Simulation(system, dt=1).run(until=1)
     assert np.allclose(simulation.trajectory_.lattice('grid.z')[1], c)
     simulation.update_parameters({'grid.c': 2j})
@@ -192,7 +192,7 @@ def test_complex_component_is_located_by_its_part():
 def test_harmonic_phase_turns_on_the_unit_circle():
     """Test that `dz/dt = 2 i z` reaches `exp(20 i)` at time 10 with modulus 1 at every frame."""
     trajectory = Simulation(
-        System(components=[PhaseComponent('osc')]),
+        System(components=[PhaseElement('osc')]),
         solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
         dt=0.5,
     )
@@ -205,7 +205,7 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
-    trajectory = Simulation(System(components=[ReadoutComponent('a')]), backend=backend, dt=1).run(until=5).trajectory_
+    trajectory = Simulation(System(components=[ReadoutElement('a')]), backend=backend, dt=1).run(until=5).trajectory_
     assert trajectory.values('a.r').dtype == np.float64
     assert np.allclose(trajectory.values('a.r')[1:], 2.0)
     assert np.allclose(trajectory.values('a.z')[-1], 2 * np.exp(1.5j))
@@ -214,44 +214,44 @@ def test_real_state_reads_modulus_of_complex_state(backend):
 def test_complex_value_for_real_state_is_rejected():
     """Test that a complex value for a real state names the law, the state, and the ways out."""
 
-    class WrongComponent(ElementComponent):
+    class WrongElement(Element):
         x: float = state(1.0)
 
         def laws(self, s):
             return [RateLaw(s.x, I * s.x)]
 
     with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*COMPLEX'):
-        compile_system(System(components=[WrongComponent('a')]))
+        compile_system(System(components=[WrongElement('a')]))
 
 
 def test_ordering_complex_value_is_rejected():
     """Test that a condition `z > 2` on a complex state suggests the modulus or the real part."""
 
-    class OrderedComponent(ElementComponent):
+    class OrderedElement(Element):
         z: complex = state(1.0, domain=NumericDomain.COMPLEX)
 
         def laws(self, s):
             return [UpdateLaw(s.z, where(s.z > 2, s.z, 2 * s.z))]
 
     with pytest.raises(ValidationError, match=r'UpdateLaw of a .*no order.*abs.*real_part'):
-        compile_system(System(components=[OrderedComponent('a')]))
+        compile_system(System(components=[OrderedElement('a')]))
 
 
 def test_complex_functions_split_into_parts():
     """Test that the parts, conjugate, argument, and a sum over a group give the values NumPy gives."""
 
-    class PartsComponent(ElementComponent):
+    class PartsElement(Element):
         z: complex = state(3 + 4j, domain=NumericDomain.COMPLEX)
         w: complex = state(0.0, domain=NumericDomain.COMPLEX)
 
         def laws(self, s):
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.w, real_part(s.z) + I * imag_part(conjugate(s.z)) + arg(s.z))]
 
-    problem = compile_system(System(components=[PartsComponent('a')]))
+    problem = compile_system(System(components=[PartsElement('a')]))
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.isclose(problem.states.read(updated, 'a.w'), 3 - 4j + np.angle(3 + 4j))
 
-    class MeanComponent(ElementComponent):
+    class MeanElement(Element):
         z: complex = state(0.0, domain=NumericDomain.COMPLEX)
         m: complex = state(0.0, domain=NumericDomain.COMPLEX)
 
@@ -259,7 +259,7 @@ def test_complex_functions_split_into_parts():
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.m, total(exp(I * s.z)))]
 
     values = np.array([0.0, 1.0, 2.0])
-    problem = compile_system(System(components=[MeanComponent.group('g', 3, z=values)]))
+    problem = compile_system(System(components=[MeanElement.group('g', 3, z=values)]))
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.allclose(problem.states.read(updated, 'g.m'), np.exp(1j * values).sum())
 
@@ -269,7 +269,7 @@ def test_backends_agree_on_complex_map():
     rng = np.random.default_rng(0)
     z = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     c = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
-    system = System(components=[QuadraticComponent.group('points', 10_000, z=z, c=c)])
+    system = System(components=[QuadraticElement.group('points', 10_000, z=z, c=c)])
     reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=NumbaBackend())
     x, p = reference.initial_state, reference.initial_parameters
     expected, result = reference.update(0.0, x, p), compiled.update(0.0, x, p)
@@ -316,8 +316,8 @@ def test_complex_kernels_are_cached_on_disk(tmp_path):
 )
 def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
-    joined = Simulation(System(components=[StuartComponent('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
-    split = Simulation(System(components=[SplitStuartComponent('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
+    joined = Simulation(System(components=[StuartElement('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
+    split = Simulation(System(components=[SplitStuartElement('o')]), solver=solver, dt=0.5).run(until=5).trajectory_
     assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
 
 
@@ -354,7 +354,7 @@ def test_free_schrodinger_equation_keeps_the_norm():
     space = LatticeSpace((256,), spacing=0.25)
     system = System(
         components=[
-            FieldComponent('wave', SchrodingerComponent, space, values={'psi': packet}, discretization='spectral'),
+            FieldElement('wave', SchrodingerElement, space, values={'psi': packet}, discretization='spectral'),
         ],
     )
     trajectory = Simulation(system, solver=ETDRK4Solver(dt=0.01), dt=0.5).run(until=5).trajectory_
@@ -364,7 +364,7 @@ def test_free_schrodinger_equation_keeps_the_norm():
 
 def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
-    values = Simulation(System(components=[PhaseComponent('osc')]), dt=0.1).run(until=5).trajectory_.values('osc.z')
+    values = Simulation(System(components=[PhaseElement('osc')]), dt=0.1).run(until=5).trajectory_.values('osc.z')
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
         power_spectrum(values)
     assert power_spectrum(values.real)[1].size
@@ -373,20 +373,20 @@ def test_power_spectrum_rejects_complex_series():
 def test_lammps_backend_rejects_complex_state():
     """Test that the LAMMPS backend names the complex state it cannot run."""
     with pytest.raises(BackendError, match=r'LAMMPS backend.*complex state osc\.z'):
-        Simulation(System(components=[PhaseComponent('osc')]), solver=LammpsSolver(), dt=0.1).run(until=0.1)
+        Simulation(System(components=[PhaseElement('osc')]), solver=LammpsSolver(), dt=0.1).run(until=0.1)
 
 
 def test_mesa_backend_rejects_complex_agent_state():
     """Test that an agent type with a complex state names the state and the Mesa backend."""
 
-    class WalkerComponent(ElementComponent):
+    class WalkerElement(Element):
         z: complex = state(0.0, domain=NumericDomain.COMPLEX)
 
         def laws(self, s):
             return [RuleLaw(lambda agent, model: None)]
 
     with pytest.raises(BackendError, match=r'walkers.*complex state z.*Mesa'):
-        compile_system(System(components=[WalkerComponent.group('walkers', 3)]))
+        compile_system(System(components=[WalkerElement.group('walkers', 3)]))
 
 
 def _constant(t, z):
@@ -407,16 +407,14 @@ def _size(s):
 def test_complex_equation_and_event_split_into_parts():
     """Test that a second-order complex equation and an event on a complex state run on their parts."""
 
-    class OscillatorComponent(ElementComponent):
+    class OscillatorElement(Element):
         z: complex = state(1.0, domain=NumericDomain.COMPLEX, order=2, initial=(1j,))
 
         def laws(self, s):
             return [EquationLaw(derivative(s.z, 2) == -s.z), EventLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
-    trajectory = (
-        Simulation(System(components=[OscillatorComponent('o')]), solver=solver, dt=0.5).run(until=3).trajectory_
-    )
+    trajectory = Simulation(System(components=[OscillatorElement('o')]), solver=solver, dt=0.5).run(until=3).trajectory_
     assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 
 
@@ -435,7 +433,7 @@ def test_complex_equation_and_event_split_into_parts():
 )
 def test_unsupported_complex_laws_are_rejected(law, message):
     """Test that a law the compiler cannot split names what it takes."""
-    bad = ElementComponent.define('BadComponent', states={'z': state(1.0, domain=NumericDomain.COMPLEX)}, laws=law)
+    bad = Element.define('BadElement', states={'z': state(1.0, domain=NumericDomain.COMPLEX)}, laws=law)
     with pytest.raises(ValidationError, match=message):
         compile_system(System(components=[bad('a')]))
 
@@ -443,7 +441,7 @@ def test_unsupported_complex_laws_are_rejected(law, message):
 def test_complex_observable_is_complex():
     """Test that an observable of a complex state is complex, and the observable of its modulus is real."""
     system = System(
-        components=[PhaseComponent('osc', z=3 + 4j, omega=0.0)],
+        components=[PhaseElement('osc', z=3 + 4j, omega=0.0)],
     )
     observables = [ObservableQuantity('double', _double), ObservableQuantity('size', _size)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=0.5).trajectory_

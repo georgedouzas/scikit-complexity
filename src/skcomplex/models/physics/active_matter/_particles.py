@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -24,7 +24,7 @@ type Array = npt.NDArray[np.float64]
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
 
-class ActiveParticleComponent(ElementComponent):
+class ActiveParticleElement(Element):
     """Self-propelled particle in the plane, `dx = v (cos theta, sin theta) dt + sqrt(2 D_t) dW`.
 
     The orientation turns at the angular velocity `omega` and diffuses, `dtheta = omega dt + sqrt(2 D_r) dW`. With
@@ -53,8 +53,8 @@ class ActiveParticleComponent(ElementComponent):
             The angular velocity of a chiral particle.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import ActiveParticleComponent
-        >>> ActiveParticleComponent('swimmer', speed=2.0).speed
+        >>> from skcomplex.models.physics.active_matter import ActiveParticleElement
+        >>> ActiveParticleElement('swimmer', speed=2.0).speed
         2.0
     """
 
@@ -85,7 +85,7 @@ class ActiveParticleComponent(ElementComponent):
         ]
 
 
-class OrnsteinUhlenbeckParticleComponent(ElementComponent):
+class OrnsteinUhlenbeckParticleElement(Element):
     """Active Ornstein-Uhlenbeck particle, whose propulsion velocity `u` is an Ornstein-Uhlenbeck process.
 
     The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
@@ -111,8 +111,8 @@ class OrnsteinUhlenbeckParticleComponent(ElementComponent):
             The translational diffusion coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import OrnsteinUhlenbeckParticleComponent
-        >>> OrnsteinUhlenbeckParticleComponent('swimmer').tau
+        >>> from skcomplex.models.physics.active_matter import OrnsteinUhlenbeckParticleElement
+        >>> OrnsteinUhlenbeckParticleElement('swimmer').tau
         1.0
     """
 
@@ -142,7 +142,7 @@ class OrnsteinUhlenbeckParticleComponent(ElementComponent):
         ]
 
 
-class DepotParticleComponent(ElementComponent):
+class DepotParticleElement(Element):
     """Brownian particle pumped by an internal energy depot, as in the model of Schweitzer, Ebeling, and Tilch.
 
     The depot takes energy at the rate `q`, loses it at the rate `c e`, and converts it into motion at the rate
@@ -178,8 +178,8 @@ class DepotParticleComponent(ElementComponent):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import DepotParticleComponent
-        >>> DepotParticleComponent('walker').q
+        >>> from skcomplex.models.physics.active_matter import DepotParticleElement
+        >>> DepotParticleElement('walker').q
         10.0
     """
 
@@ -212,7 +212,7 @@ class DepotParticleComponent(ElementComponent):
         ]
 
 
-class TumblerComponent(ElementComponent):
+class TumblerElement(Element):
     """Run-and-tumble agent in a periodic square, which runs straight and tumbles to a random direction.
 
     Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
@@ -235,8 +235,8 @@ class TumblerComponent(ElementComponent):
             The side of the periodic square.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import TumblerComponent
-        >>> TumblerComponent('bacterium').speed
+        >>> from skcomplex.models.physics.active_matter import TumblerElement
+        >>> TumblerElement('bacterium').speed
         0.1
     """
 
@@ -335,7 +335,7 @@ def active_brownian_particles(
         10
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticleComponent.group(
+    group = ActiveParticleElement.group(
         'swimmers',
         n_particles,
         x=positions,
@@ -399,7 +399,7 @@ def chiral_active_particles(
         1.0
     """
     positions, angles = _swimmers(n_particles, size, random_state)
-    group = ActiveParticleComponent.group(
+    group = ActiveParticleElement.group(
         'swimmers',
         n_particles,
         x=positions,
@@ -462,7 +462,7 @@ def active_ornstein_uhlenbeck_particles(
     rng = np.random.default_rng(random_state)
     positions = rng.uniform(0.0, size, (n_particles, 2))
     propulsion = rng.normal(0.0, math.sqrt(D / tau), (n_particles, 2))
-    group = OrnsteinUhlenbeckParticleComponent.group(
+    group = OrnsteinUhlenbeckParticleElement.group(
         'swimmers',
         n_particles,
         x=positions,
@@ -518,7 +518,7 @@ def run_and_tumble(
         10
     """
     positions, angles = _swimmers(n_agents, size, random_state)
-    group = TumblerComponent.group(
+    group = TumblerElement.group(
         'bacteria',
         n_agents,
         location=positions,
@@ -580,5 +580,5 @@ def depot_brownian_particles(
         10.0
     """
     velocities = np.random.default_rng(random_state).normal(0.0, 0.01, (n_particles, 2))
-    group = DepotParticleComponent.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
+    group = DepotParticleElement.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
     return System(components=[group], space=ContinuousSpace(n_dim=2))

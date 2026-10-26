@@ -10,13 +10,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.particles import PairPotentialInteraction, ParticleComponent
+from ....formalisms.particles import PairPotentialInteraction, ParticleElement
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
@@ -32,7 +32,7 @@ def _limited(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
     return velocity * min(max(speed, low), high) / speed
 
 
-class BoidComponent(ElementComponent):
+class BoidElement(Element):
     """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
 
     Every step a boid sees the boids within `radius`. Cohesion steers it toward their center, separation away from
@@ -77,8 +77,8 @@ class BoidComponent(ElementComponent):
             The height of the torus.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import BoidComponent
-        >>> BoidComponent.group('flock', 10, location=(5.0, 5.0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import BoidElement
+        >>> BoidElement.group('flock', 10, location=(5.0, 5.0)).size
         10
     """
 
@@ -295,7 +295,7 @@ def boids(
     """
     rng = np.random.default_rng(random_state)
     headings = rng.uniform(0.0, 2 * math.pi, n_boids)
-    flock = BoidComponent.group(
+    flock = BoidElement.group(
         'flock',
         n_boids,
         location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 2))],
@@ -369,7 +369,7 @@ def bird_swarm(
     """
     rng = np.random.default_rng(random_state)
     positions, velocities = rng.uniform(-3.0, 3.0, (n_birds, 2)), rng.normal(0.0, 1.0, (n_birds, 2))
-    birds = ParticleComponent.group('birds', n_birds, x=positions, v=velocities)
+    birds = ParticleElement.group('birds', n_birds, x=positions, v=velocities)
     potential = MorsePotentialInteraction(
         'flocking',
         first='birds',

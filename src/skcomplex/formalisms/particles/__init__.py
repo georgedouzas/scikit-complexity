@@ -2,7 +2,7 @@
 
 from .._formalism import Formalism, register
 from ._backends import NATIVE_FIXES, NATIVE_PAIRS, LammpsFix, LammpsSolver, register_lammps_fix, register_lammps_pair
-from ._components import ParticleComponent
+from ._components import ParticleElement
 from ._interactions import PairPotentialInteraction, PotentialInteraction
 
 __all__: list[str] = [
@@ -11,7 +11,7 @@ __all__: list[str] = [
     'LammpsFix',
     'LammpsSolver',
     'PairPotentialInteraction',
-    'ParticleComponent',
+    'ParticleElement',
     'PotentialInteraction',
     'register_lammps_fix',
     'register_lammps_pair',
@@ -20,7 +20,7 @@ __all__: list[str] = [
 register(
     Formalism(
         'particles',
-        components=(ParticleComponent, PotentialInteraction, PairPotentialInteraction),
+        components=(ParticleElement, PotentialInteraction, PairPotentialInteraction),
         solvers={'lammps': LammpsSolver},
     ),
 )

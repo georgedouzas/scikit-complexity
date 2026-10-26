@@ -8,14 +8,14 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, bernoulli, normal
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
-PersistentWalkerComponent = ElementComponent.define(
-    'PersistentWalkerComponent',
+PersistentWalkerElement = Element.define(
+    'PersistentWalkerElement',
     states={
         'd': state(default=1.0, domain=NumericDomain.INTEGER),
         'x': state(default=0.0, domain=NumericDomain.INTEGER),
@@ -27,8 +27,8 @@ PersistentWalkerComponent = ElementComponent.define(
     ],
 )
 
-MemoryWalkerComponent = ElementComponent.define(
-    'MemoryWalkerComponent',
+MemoryWalkerElement = Element.define(
+    'MemoryWalkerElement',
     states={'x': 0.0, 'v': 0.0},
     parameters={
         'alpha': parameter(0.5, domain=NumericDomain.NONNEGATIVE),
@@ -37,8 +37,8 @@ MemoryWalkerComponent = ElementComponent.define(
     laws=lambda s: [UpdateLaw(s.x, s.x + s.v), UpdateLaw(s.v, s.alpha * s.v + normal('xi', 0, s.sigma))],
 )
 
-RandomWalkerComponent = ElementComponent.define(
-    'RandomWalkerComponent',
+RandomWalkerElement = Element.define(
+    'RandomWalkerElement',
     states={'x': state(default=0.0, domain=NumericDomain.INTEGER)},
     parameters={
         'rate': parameter(1.0, domain=NumericDomain.NONNEGATIVE),
@@ -47,8 +47,8 @@ RandomWalkerComponent = ElementComponent.define(
     laws=lambda s: [JumpLaw(s.rate * s.bias, {s.x: 1}), JumpLaw(s.rate * (1 - s.bias), {s.x: -1})],
 )
 
-WeakeningParticleComponent = ElementComponent.define(
-    'WeakeningParticleComponent',
+WeakeningParticleElement = Element.define(
+    'WeakeningParticleElement',
     states={'x': 0.0},
     parameters={
         'k': parameter(1.0, domain=NumericDomain.POSITIVE),
@@ -59,7 +59,7 @@ WeakeningParticleComponent = ElementComponent.define(
 )
 
 
-class AgeingWalkerComponent(ElementComponent):
+class AgeingWalkerElement(Element):
     """Walker that steps up with a probability that decays with the number of its earlier up steps.
 
     After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise.
@@ -81,10 +81,10 @@ class AgeingWalkerComponent(ElementComponent):
             The exponent of the decay of the up probability with the number of up steps.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import AgeingWalkerComponent
-        >>> group = AgeingWalkerComponent.group('walkers', 10, nu=0.5)
+        >>> from skcomplex.models.mathematics.stochastic_processes import AgeingWalkerElement
+        >>> group = AgeingWalkerElement.group('walkers', 10, nu=0.5)
         >>> group.label, group.element.__name__, group.size
-        ('walkers', 'AgeingWalkerComponent', 10)
+        ('walkers', 'AgeingWalkerElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'x'})
@@ -154,7 +154,7 @@ def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -
         >>> random_walk(20).elements[0].size
         20
     """
-    return System(components=[RandomWalkerComponent.group('walkers', n_walkers, rate=rate, bias=bias)])
+    return System(components=[RandomWalkerElement.group('walkers', n_walkers, rate=rate, bias=bias)])
 
 
 @register_model(
@@ -198,7 +198,7 @@ def weakening_ornstein_uhlenbeck(
         >>> weakening_ornstein_uhlenbeck(10).elements[0].size
         10
     """
-    return System(components=[WeakeningParticleComponent.group('particles', n_particles, k=k, ell=ell, D=D)])
+    return System(components=[WeakeningParticleElement.group('particles', n_particles, k=k, ell=ell, D=D)])
 
 
 @register_model(
@@ -232,7 +232,7 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
         >>> ageing_random_walk(5).elements[0].size
         5
     """
-    return System(components=[AgeingWalkerComponent.group('walkers', n_walkers, p=p, nu=nu)])
+    return System(components=[AgeingWalkerElement.group('walkers', n_walkers, p=p, nu=nu)])
 
 
 @register_model(
@@ -274,7 +274,7 @@ def persistent_random_walk(
     """
     directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
     return System(
-        components=[PersistentWalkerComponent.group('walkers', n_walkers, d=directions, persistence=persistence)],
+        components=[PersistentWalkerElement.group('walkers', n_walkers, d=directions, persistence=persistence)],
     )
 
 
@@ -311,4 +311,4 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
         >>> random_walk_with_memory(10).elements[0].size
         10
     """
-    return System(components=[MemoryWalkerComponent.group('walkers', n_walkers, alpha=alpha, sigma=sigma)])
+    return System(components=[MemoryWalkerElement.group('walkers', n_walkers, alpha=alpha, sigma=sigma)])

@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -15,7 +15,7 @@ def _saturating(rate: Expression, constant: Expression, amount: Expression) -> E
     return rate * amount / (constant + amount)
 
 
-class PerClockComponent(ElementComponent):
+class PerClockElement(Element):
     """PER protein clock of Drosophila, after Goldbeter: per mRNA, three phosphorylation forms, and nuclear PER.
 
     The mRNA `M` is transcribed under repression by nuclear PER and degraded. Cytosolic PER is translated as `P0`,
@@ -87,8 +87,8 @@ class PerClockComponent(ElementComponent):
             The Michaelis constant of the phosphorylations and dephosphorylations.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import PerClockComponent
-        >>> PerClockComponent('clock').v_s
+        >>> from skcomplex.models.biology.systems_biology import PerClockElement
+        >>> PerClockElement('clock').v_s
         0.76
     """
 
@@ -177,4 +177,4 @@ def circadian_clock(
         >>> circadian_clock(v_d=1.2).elements[0].v_d
         1.2
     """
-    return System(components=[PerClockComponent('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])
+    return System(components=[PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])

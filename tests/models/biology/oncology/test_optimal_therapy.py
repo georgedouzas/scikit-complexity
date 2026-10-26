@@ -5,13 +5,13 @@ import pytest
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
-from skcomplex.models.biology.oncology import TumourImmuneChemotherapyComponent
+from skcomplex.models.biology.oncology import TumourImmuneChemotherapyElement
 
 
 def test_optimal_chemotherapy_shrinks_the_tumour():
     """Test that the optimal infusion ends with a smaller tumour than no treatment, starting at the largest dose."""
     treated = run('optimal_chemotherapy').trajectory_
-    untreated = Simulation(System(components=[TumourImmuneChemotherapyComponent('patient')]), dt=0.25).run(until=30.0)
+    untreated = Simulation(System(components=[TumourImmuneChemotherapyElement('patient')]), dt=0.25).run(until=30.0)
     assert treated.values('patient.u')[0] == pytest.approx(1.0)
     assert treated.values('patient.A')[-1] < 0.5 * untreated.trajectory_.values('patient.A')[-1]
 

@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -160,7 +160,7 @@ def security_density(s: Symbols, forces: int) -> Expression:
     return moment(s.f, 0, np.arange(forces, dtype=float))
 
 
-class CitizensComponent(ElementComponent):
+class CitizensElement(Element):
     """Density of citizens at one criminality class, a member of a distribution over criminality.
 
     Args:
@@ -171,15 +171,15 @@ class CitizensComponent(ElementComponent):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import CitizensComponent
-        >>> CitizensComponent.group('citizens', 5, f=0.2).size
+        >>> from skcomplex.models.social.crowds import CitizensElement
+        >>> CitizensElement.group('citizens', 5, f=0.2).size
         5
     """
 
     f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class SecurityAgentsComponent(ElementComponent):
+class SecurityAgentsElement(Element):
     """Density of security agents at one efficacy class, with the share of new recruits that join the class.
 
     Args:
@@ -193,8 +193,8 @@ class SecurityAgentsComponent(ElementComponent):
             The share of new recruits that join the efficacy class.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import SecurityAgentsComponent
-        >>> SecurityAgentsComponent.group('security', 3, share=[0.5, 0.3, 0.2]).size
+        >>> from skcomplex.models.social.crowds import SecurityAgentsElement
+        >>> SecurityAgentsElement.group('security', 3, share=[0.5, 0.3, 0.2]).size
         3
     """
 
@@ -456,10 +456,10 @@ def criminality(
     citizens[0], citizens[-1] = 1.0 - criminals, criminals
     return System(
         components=[
-            GroupComponent('citizens', element=CitizensComponent, size=classes, on='sites', values={'f': citizens}),
-            GroupComponent(
+            GroupElement('citizens', element=CitizensElement, size=classes, on='sites', values={'f': citizens}),
+            GroupElement(
                 'security',
-                element=SecurityAgentsComponent,
+                element=SecurityAgentsElement,
                 size=forces,
                 on='sites',
                 space=LatticeSpace(forces, boundary='fixed'),

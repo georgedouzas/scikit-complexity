@@ -1,15 +1,15 @@
 """Pattern formation: amplitude equations, rolls, phase ordering, and nonreciprocal conserved fields."""
 
-from ._conserved import NonreciprocalMixtureComponent, nonreciprocal_cahn_hilliard
-from ._ordering import AllenCahnComponent, CahnHilliardComponent, allen_cahn, cahn_hilliard
-from ._patterns import GinzburgLandauComponent, SwiftHohenbergComponent, complex_ginzburg_landau, swift_hohenberg
+from ._conserved import NonreciprocalMixtureElement, nonreciprocal_cahn_hilliard
+from ._ordering import AllenCahnElement, CahnHilliardElement, allen_cahn, cahn_hilliard
+from ._patterns import GinzburgLandauElement, SwiftHohenbergElement, complex_ginzburg_landau, swift_hohenberg
 
 __all__: list[str] = [
-    'AllenCahnComponent',
-    'CahnHilliardComponent',
-    'GinzburgLandauComponent',
-    'NonreciprocalMixtureComponent',
-    'SwiftHohenbergComponent',
+    'AllenCahnElement',
+    'CahnHilliardElement',
+    'GinzburgLandauElement',
+    'NonreciprocalMixtureElement',
+    'SwiftHohenbergElement',
     'allen_cahn',
     'cahn_hilliard',
     'complex_ginzburg_landau',

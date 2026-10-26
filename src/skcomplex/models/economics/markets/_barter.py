@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import ObservableQuantity, System
@@ -80,7 +80,7 @@ def contract_curve(
     return b * (1 - a) * x * total_cigarettes / (a * (1 - b) * (total_chocolate - x) + b * (1 - a) * x)
 
 
-class BartererComponent(ElementComponent):
+class BartererElement(Element):
     """Barterer who holds chocolate and cigarettes and values them with Cobb-Douglas weights.
 
     Args:
@@ -100,8 +100,8 @@ class BartererComponent(ElementComponent):
             The Cobb-Douglas weight of cigarettes.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import BartererComponent
-        >>> BartererComponent.group('barterers', 2, chocolate=[8.0, 2.0]).size
+        >>> from skcomplex.models.economics.markets import BartererElement
+        >>> BartererElement.group('barterers', 2, chocolate=[8.0, 2.0]).size
         2
     """
 
@@ -198,7 +198,7 @@ def barter(
             'cigarettes': rng.uniform(min(cigarettes), max(cigarettes), n_barterers),
         }
         shares = rng.uniform(min(weights), max(weights), n_barterers)
-    barterers = BartererComponent.group(
+    barterers = BartererElement.group(
         'barterers',
         n_barterers,
         variable=True,

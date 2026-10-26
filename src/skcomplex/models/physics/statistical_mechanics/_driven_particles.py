@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, shift_member, where
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
@@ -47,7 +47,7 @@ def _tree_layout(n_levels: int, branches: int) -> Array:
     return np.concatenate(rings)
 
 
-class ParticleSiteComponent(ElementComponent):
+class ParticleSiteElement(Element):
     """Site of a lattice of particles, holding the number `n` of particles or quanta on it.
 
     Args:
@@ -58,15 +58,15 @@ class ParticleSiteComponent(ElementComponent):
             The initial number of particles.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ParticleSiteComponent
-        >>> ParticleSiteComponent('site', n=3.0).n
+        >>> from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement
+        >>> ParticleSiteElement('site', n=3.0).n
         3.0
     """
 
     n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class TreeNodeComponent(ParticleSiteComponent):
+class TreeNodeElement(ParticleSiteElement):
     """Node of a tree that holds a number `n` of energy quanta, drawn at a fixed position.
 
     Args:
@@ -80,8 +80,8 @@ class TreeNodeComponent(ParticleSiteComponent):
             The position of the node in the drawing of the tree.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import TreeNodeComponent
-        >>> TreeNodeComponent('root').n
+        >>> from skcomplex.models.physics.statistical_mechanics import TreeNodeElement
+        >>> TreeNodeElement('root').n
         0.0
     """
 
@@ -354,7 +354,7 @@ def zero_range_process(
         (20.0, 1)
     """
     occupations = _scatter(round(density * n_sites), n_sites, random_state)
-    sites = ParticleSiteComponent.lattice('sites', LatticeSpace(n_sites), n=occupations)
+    sites = ParticleSiteElement.lattice('sites', LatticeSpace(n_sites), n=occupations)
     return System(components=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=p, q=q, b=b)])
 
 
@@ -417,7 +417,7 @@ def dissipative_zero_range(
         (13, 14)
     """
     n_nodes = _level_start(n_levels + 1, branches)
-    nodes = TreeNodeComponent.group('nodes', n_nodes, x=_tree_layout(n_levels, branches))
+    nodes = TreeNodeElement.group('nodes', n_nodes, x=_tree_layout(n_levels, branches))
     interactions: list[BaseInteraction] = []
     for level in range(1, n_levels):
         rate = nu * float(branches ** (level - 1)) ** alpha
@@ -493,7 +493,7 @@ def asep(
         3
     """
     occupied = (np.random.default_rng(random_state).random(n_sites) < density).astype(float)
-    lane = ParticleSiteComponent.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
+    lane = ParticleSiteElement.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
     interactions = [
         ExclusionHopsInteraction('hops', sites='lane', p=p, q=q),
         ReservoirInteraction('entry', sites=['lane[0]'], entry=alpha, exclusion=True),

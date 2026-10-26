@@ -18,8 +18,8 @@ import numpy as np
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -184,9 +184,9 @@ class NumbaBackend(BaseBackend):
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     components=[PopulationComponent.group('herds', 2, n=[1.0, 2.0])],
+        ...     components=[PopulationElement.group('herds', 2, n=[1.0, 2.0])],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
         ... )
         >>> problem = compile_system(system, backend='numba')
@@ -199,7 +199,7 @@ class NumbaBackend(BaseBackend):
         space=set(SpaceKind.registered()),
         laws=set(LawKind.registered()),
         domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
-        components=set(ComponentKind),
+        components=set(ElementKind),
         noise=set(NoiseKind),
         orders=set(OrderKind),
     )

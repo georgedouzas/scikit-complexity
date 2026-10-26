@@ -8,17 +8,17 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
 from ....formalisms.quantum import DissipatorLaw, GeneratorLaw
-from ..realizations.quantum import SiteComponent
+from ..realizations.quantum import SiteElement
 
-WaveFunctionComponent = ElementComponent.define(
-    'WaveFunctionComponent',
+WaveFunctionElement = Element.define(
+    'WaveFunctionElement',
     states={'u': 0.0, 'w': 0.0},
     parameters={'D': parameter(default=0.5, domain=NumericDomain.POSITIVE), 'V': 0.0},
     laws=lambda s: [
@@ -207,12 +207,12 @@ def schrodinger(
             interactions.append(PositionDephasingInteraction('dephasing', target='packet', gamma=gamma))
         return System(
             'schrodinger',
-            components=[SiteComponent('packet', space=space, initial=amplitudes)],
+            components=[SiteElement('packet', space=space, initial=amplitudes)],
             interactions=interactions,
         )
-    packet = FieldComponent(
+    packet = FieldElement(
         'packet',
-        WaveFunctionComponent,
+        WaveFunctionElement,
         space,
         values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
         discretization='spectral',

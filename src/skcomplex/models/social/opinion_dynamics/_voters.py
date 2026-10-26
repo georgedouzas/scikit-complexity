@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, Totalistic
 from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
@@ -24,7 +24,7 @@ type Array = npt.NDArray[np.float64]
 MAJORITY = 5
 
 
-class VoterComponent(ElementComponent):
+class VoterElement(Element):
     """Agent of the voter model, who adopts the opinion of a random neighbour on a network.
 
     Args:
@@ -35,10 +35,10 @@ class VoterComponent(ElementComponent):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import VoterComponent
-        >>> group = VoterComponent.group('voters', 20, opinion=1.0)
+        >>> from skcomplex.models.social.opinion_dynamics import VoterElement
+        >>> group = VoterElement.group('voters', 20, opinion=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('voters', 'VoterComponent', 20)
+        ('voters', 'VoterElement', 20)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -72,7 +72,7 @@ class VoterComponent(ElementComponent):
             agent.opinion = neighbors[int(model.rng.integers(len(neighbors)))].opinion
 
 
-class MajorityVoterComponent(ElementComponent):
+class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
 
     Args:
@@ -83,8 +83,8 @@ class MajorityVoterComponent(ElementComponent):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import MajorityVoterComponent
-        >>> MajorityVoterComponent('cell', opinion=1).opinion
+        >>> from skcomplex.models.social.opinion_dynamics import MajorityVoterElement
+        >>> MajorityVoterElement('cell', opinion=1).opinion
         1
     """
 
@@ -106,7 +106,7 @@ class MajorityVoterComponent(ElementComponent):
         ]
 
 
-class VariantVoterComponent(ElementComponent):
+class VariantVoterElement(Element):
     """Agent of the voter model variants: an imitator, a threshold voter, or a contrarian.
 
     With a threshold of 0 the agent copies a random neighbour, as in the voter model. With a positive threshold it
@@ -128,10 +128,10 @@ class VariantVoterComponent(ElementComponent):
             neighbour.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import VariantVoterComponent
-        >>> group = VariantVoterComponent.group('voters', 10, threshold=0.5)
+        >>> from skcomplex.models.social.opinion_dynamics import VariantVoterElement
+        >>> group = VariantVoterElement.group('voters', 10, threshold=0.5)
         >>> group.label, group.element.__name__, group.size
-        ('voters', 'VariantVoterComponent', 10)
+        ('voters', 'VariantVoterElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -215,7 +215,7 @@ def majority_rule(
         100
     """
     values = _random_cells(shape, density, random_state)
-    return System(components=[MajorityVoterComponent.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
+    return System(components=[MajorityVoterElement.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
 
 
 @register_model(
@@ -256,7 +256,7 @@ def voter_model(
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
     opinions = (rng.random(size) < share).astype(float)
-    return System(components=[VoterComponent.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
+    return System(components=[VoterElement.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -305,7 +305,7 @@ def voter_variants(
     rng = np.random.default_rng(random_state)
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    voters = VariantVoterComponent.group(
+    voters = VariantVoterElement.group(
         'voters',
         size,
         opinion=(rng.random(size) < share).astype(float),

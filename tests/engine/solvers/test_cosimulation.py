@@ -15,7 +15,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import AggregateQuantity, ElementComponent
+from skcomplex.core.components import AggregateQuantity, Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -26,14 +26,14 @@ from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     MortalityInteraction,
-    PopulationComponent,
+    PopulationElement,
     PredationInteraction,
 )
-from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.economics.resources import harvesting
 
 
-class BreederComponent(ElementComponent):
+class BreederElement(Element):
     """Agent that creates one offspring every step."""
 
     def laws(self, s):
@@ -45,7 +45,7 @@ class BreederComponent(ElementComponent):
         agent.create()
 
 
-class IdleComponent(ElementComponent):
+class IdleElement(Element):
     """Agent that keeps its wealth and records the soil it sees."""
 
     wealth: float = state(1.0)
@@ -93,12 +93,12 @@ def _lotka_volterra():
         components=[
             System(
                 'prey',
-                components=[PopulationComponent('rabbits', n=40)],
+                components=[PopulationElement('rabbits', n=40)],
                 interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000)],
             ),
             System(
                 'predators',
-                components=[PopulationComponent('foxes', n=9)],
+                components=[PopulationElement('foxes', n=9)],
                 interactions=[MortalityInteraction('death', target='foxes', d=0.4)],
             ),
         ],
@@ -110,10 +110,10 @@ def _counting_system(agents=3, reduce='count', variable=None):
     """Return land first, then a village of breeders with an aggregate that a land rate reads."""
     return System(
         components=[
-            System('land', components=[PopulationComponent('soil', n=0.0)]),
+            System('land', components=[PopulationElement('soil', n=0.0)]),
             System(
                 'village',
-                components=[BreederComponent.group('farmers', agents, variable=True)],
+                components=[BreederElement.group('farmers', agents, variable=True)],
                 aggregates=[AggregateQuantity('size', group='farmers', reduce=reduce, variable=variable)],
             ),
         ],
@@ -135,8 +135,8 @@ def test_laws_join_the_partition_of_their_target():
     """Test that one interaction's rate and rule join the partitions of their targets, the rate counted per farmer."""
     system = System(
         components=[
-            System('land', components=[PopulationComponent('soil', n=0.0)]),
-            System('village', components=[IdleComponent.group('farmers', 2)]),
+            System('land', components=[PopulationElement('soil', n=0.0)]),
+            System('village', components=[IdleElement.group('farmers', 2)]),
         ],
         interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
     )
@@ -152,7 +152,7 @@ def test_mixed_leaf_subsystem_names_itself():
         components=[
             System(
                 'economy',
-                components=[MarketComponent('market'), PopulationComponent('herd')],
+                components=[MarketElement('market'), PopulationElement('herd')],
                 interactions=[
                     CobwebInteraction('cobweb', target='market'),
                     ExponentialGrowthInteraction('growth', target='herd'),
@@ -170,12 +170,12 @@ def test_mix_across_subsystems_gives_partitions():
         components=[
             System(
                 'market',
-                components=[MarketComponent('wheat')],
+                components=[MarketElement('wheat')],
                 interactions=[CobwebInteraction('cobweb', target='wheat')],
             ),
             System(
                 'herd',
-                components=[PopulationComponent('sheep')],
+                components=[PopulationElement('sheep')],
                 interactions=[ExponentialGrowthInteraction('growth', target='sheep')],
             ),
         ],
@@ -206,10 +206,10 @@ def test_aggregate_reductions_of_agent_states(reduce, expected):
     """Test that aggregates sum, average, and reduce an agent state with a custom function."""
     system = System(
         components=[
-            System('land', components=[PopulationComponent('soil')]),
+            System('land', components=[PopulationElement('soil')]),
             System(
                 'village',
-                components=[IdleComponent.group('farmers', 3)],
+                components=[IdleElement.group('farmers', 3)],
                 aggregates=[AggregateQuantity('total', group='farmers', reduce=reduce, variable='wealth')],
             ),
         ],
@@ -225,13 +225,13 @@ def test_aggregate_reduces_element_group():
         components=[
             System(
                 'herds',
-                components=[PopulationComponent.group('herd', 3, n=[1.0, 2.0, 3.0])],
+                components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 3.0])],
                 aggregates=[AggregateQuantity('total', group='herd', reduce='sum', variable='n')],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
             System(
                 'market',
-                components=[MarketComponent('wheat')],
+                components=[MarketElement('wheat')],
                 interactions=[CobwebInteraction('cobweb', target='wheat')],
             ),
         ],
@@ -246,10 +246,10 @@ def test_agent_rules_read_other_partitions():
         components=[
             System(
                 'land',
-                components=[PopulationComponent('soil', n=5.0)],
+                components=[PopulationElement('soil', n=5.0)],
                 interactions=[ExponentialGrowthInteraction('growth', target='soil', r=1.0)],
             ),
-            System('village', components=[IdleComponent.group('farmers', 2)]),
+            System('village', components=[IdleElement.group('farmers', 2)]),
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -274,10 +274,10 @@ def test_gauss_seidel_reads_already_advanced_values():
         components=[
             System(
                 'village',
-                components=[BreederComponent.group('farmers', 3, variable=True)],
+                components=[BreederElement.group('farmers', 3, variable=True)],
                 aggregates=[AggregateQuantity('size', group='farmers')],
             ),
-            System('land', components=[PopulationComponent('soil', n=0.0)]),
+            System('land', components=[PopulationElement('soil', n=0.0)]),
         ],
         interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
     )

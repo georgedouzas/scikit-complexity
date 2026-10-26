@@ -8,7 +8,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -22,7 +22,7 @@ def _price(s: Symbols) -> Expression:
     return s.market.a - s.market.b * s.total
 
 
-class DuopolistComponent(ElementComponent):
+class DuopolistElement(Element):
     """Firm of a Cournot duopoly, described by its output and its constant marginal cost.
 
     Args:
@@ -36,8 +36,8 @@ class DuopolistComponent(ElementComponent):
             The marginal cost.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import DuopolistComponent
-        >>> DuopolistComponent.group('firms', 2, output=[100.0, 100.0]).size
+        >>> from skcomplex.models.economics.markets import DuopolistElement
+        >>> DuopolistElement.group('firms', 2, output=[100.0, 100.0]).size
         2
     """
 
@@ -166,7 +166,7 @@ def cournot_duopoly(
         >>> cournot_duopoly(error=0.01).interactions[0].error
         0.01
     """
-    firms = DuopolistComponent.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
+    firms = DuopolistElement.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
     return System(
         components=[firms],
         interactions=[CournotAdjustmentInteraction('market', firms='firms', a=a, b=b, error=error)],

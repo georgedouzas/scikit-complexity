@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
@@ -17,7 +17,7 @@ from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ThresholdNodeComponent(ElementComponent):
+class ThresholdNodeElement(Element):
     """Node of the Watts cascade model, which becomes active once the share of active neighbours reaches its threshold.
 
     Args:
@@ -31,10 +31,10 @@ class ThresholdNodeComponent(ElementComponent):
             The share of active neighbours at which the node becomes active.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import ThresholdNodeComponent
-        >>> group = ThresholdNodeComponent.group('nodes', 10, threshold=0.18)
+        >>> from skcomplex.models.social.spreading import ThresholdNodeElement
+        >>> group = ThresholdNodeElement.group('nodes', 10, threshold=0.18)
         >>> group.label, group.element.__name__, group.size
-        ('nodes', 'ThresholdNodeComponent', 10)
+        ('nodes', 'ThresholdNodeElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
@@ -114,5 +114,5 @@ def watts_cascades(
     size = nx.number_of_nodes(graph)
     active = np.zeros(size)
     active[rng.choice(size, seeds, replace=False)] = 1.0
-    nodes = ThresholdNodeComponent.group('nodes', size, active=active, threshold=threshold)
+    nodes = ThresholdNodeElement.group('nodes', size, active=active, threshold=threshold)
     return System(components=[nodes], space=NetworkSpace(graph))

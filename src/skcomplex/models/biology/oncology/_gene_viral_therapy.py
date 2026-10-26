@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -13,7 +13,7 @@ from ....engine.solvers import ScipyODESolver
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class TcrGeneTherapyComponent(ElementComponent):
+class TcrGeneTherapyElement(Element):
     """Effector cells and tumour cells under a gene therapy that makes the T cells express a tumour receptor.
 
     The effector cells follow `dE/dt = s + alpha A - d1 E + r1 E / (E + g1)` and the tumour cells
@@ -57,8 +57,8 @@ class TcrGeneTherapyComponent(ElementComponent):
             The half-saturation constant of the kill.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TcrGeneTherapyComponent
-        >>> TcrGeneTherapyComponent('site').r2
+        >>> from skcomplex.models.biology.oncology import TcrGeneTherapyElement
+        >>> TcrGeneTherapyElement('site').r2
         0.18
     """
 
@@ -92,7 +92,7 @@ class TcrGeneTherapyComponent(ElementComponent):
         ]
 
 
-class SirnaTgfBetaComponent(ElementComponent):
+class SirnaTgfBetaElement(Element):
     """Effector cells, tumour cells, IL-2, TGF-beta, and the siRNA that silences the production of TGF-beta.
 
     The model extends Kirschner and Panetta. TGF-beta lowers the recruitment and the IL-2 driven proliferation of
@@ -191,8 +191,8 @@ class SirnaTgfBetaComponent(ElementComponent):
             The decay rate of siRNA.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import SirnaTgfBetaComponent
-        >>> SirnaTgfBetaComponent('site').rho4
+        >>> from skcomplex.models.biology.oncology import SirnaTgfBetaElement
+        >>> SirnaTgfBetaElement('site').rho4
         300000000.0
     """
 
@@ -249,7 +249,7 @@ class SirnaTgfBetaComponent(ElementComponent):
         ]
 
 
-class OncolyticVirusComponent(ElementComponent):
+class OncolyticVirusElement(Element):
     """Uninfected and infected tumour cells that share a carrying capacity, with infection by mass action.
 
     In units of the carrying capacity and of the growth time of uninfected cells, the uninfected cells follow
@@ -275,8 +275,8 @@ class OncolyticVirusComponent(ElementComponent):
             The death rate of infected cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OncolyticVirusComponent
-        >>> OncolyticVirusComponent('tumour').alpha
+        >>> from skcomplex.models.biology.oncology import OncolyticVirusElement
+        >>> OncolyticVirusElement('tumour').alpha
         1.0
     """
 
@@ -303,7 +303,7 @@ class OncolyticVirusComponent(ElementComponent):
         return [RateLaw(AU, AU * room - infection), RateLaw(AV, s.r * AV * room + infection - s.d * AV)]
 
 
-class OncolyticVirusDendriticComponent(ElementComponent):
+class OncolyticVirusDendriticElement(Element):
     """Tumour cells, an oncolytic adenovirus, activated and naive T cells, and injected dendritic cells.
 
     The uninfected cells grow at the rate `r1` and the virus infects them at the rate `alpha AU V / Atot`, where
@@ -382,8 +382,8 @@ class OncolyticVirusDendriticComponent(ElementComponent):
             The injection rate of dendritic cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OncolyticVirusDendriticComponent
-        >>> OncolyticVirusDendriticComponent('site').r2
+        >>> from skcomplex.models.biology.oncology import OncolyticVirusDendriticElement
+        >>> OncolyticVirusDendriticElement('site').r2
         3500.0
     """
 
@@ -505,7 +505,7 @@ def tcr_gene_therapy(
         >>> tcr_gene_therapy().elements[0].g2
         100000.0
     """
-    site = TcrGeneTherapyComponent('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
+    site = TcrGeneTherapyElement('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
     return System(components=[site])
 
 
@@ -571,7 +571,7 @@ def sirna_tgf_beta(
         >>> sirna_tgf_beta(u=1e6).elements[0].u
         1000000.0
     """
-    site = SirnaTgfBetaComponent('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
+    site = SirnaTgfBetaElement('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
     return System(components=[site])
 
 
@@ -615,7 +615,7 @@ def oncolytic_virus(AU: float = 0.1, AV: float = 1e-4, *, alpha: float = 1.0, r:
         >>> oncolytic_virus(alpha=1.5).elements[0].alpha
         1.5
     """
-    return System(components=[OncolyticVirusComponent('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
+    return System(components=[OncolyticVirusElement('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
 
 
 @register_model(
@@ -672,4 +672,4 @@ def oncolytic_virus_dendritic(
         >>> oncolytic_virus_dendritic(ud=0.0).elements[0].ud
         0.0
     """
-    return System(components=[OncolyticVirusDendriticComponent('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])
+    return System(components=[OncolyticVirusDendriticElement('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])

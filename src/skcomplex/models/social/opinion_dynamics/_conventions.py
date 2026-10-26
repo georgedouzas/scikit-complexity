@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -32,7 +32,7 @@ def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Genera
     speaker.words, hearer.words = spoken, heard
 
 
-class NamerComponent(ElementComponent):
+class NamerElement(Element):
     """Agent of the naming game, with an inventory of the words it knows for one object.
 
     The inventory is an indicator vector over the lexicon, with one slot per agent for the word that agent invents
@@ -47,10 +47,10 @@ class NamerComponent(ElementComponent):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.models.social.opinion_dynamics import NamerComponent
-        >>> group = NamerComponent.group('namers', 5, words=np.zeros((5, 5)))
+        >>> from skcomplex.models.social.opinion_dynamics import NamerElement
+        >>> group = NamerElement.group('namers', 5, words=np.zeros((5, 5)))
         >>> group.label, group.element.__name__, group.size
-        ('namers', 'NamerComponent', 5)
+        ('namers', 'NamerElement', 5)
     """
 
     words: npt.ArrayLike = state(default=0.0, vector=True)
@@ -127,5 +127,5 @@ def naming_game(n_agents: int = 50) -> System:
         >>> naming_game(10).elements[0].size
         10
     """
-    namers = NamerComponent.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
+    namers = NamerElement.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
     return System(components=[namers], interactions=[NamingGamesInteraction('games', target='namers')])

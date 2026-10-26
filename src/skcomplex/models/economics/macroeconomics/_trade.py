@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
-TradingEconomyComponent = ElementComponent.define(
-    'TradingEconomyComponent',
+TradingEconomyElement = Element.define(
+    'TradingEconomyElement',
     states={
         'E': state(default=0.885, domain=NumericDomain.POSITIVE),
         'X': state(default=32.0, domain=NumericDomain.NONNEGATIVE),
@@ -137,7 +137,7 @@ def exchange_rates(
         0.885
     """
     rate = imports * world_price / (exports * home_price)
-    home = TradingEconomyComponent(
+    home = TradingEconomyElement(
         'home',
         E=rate,
         X=exports,

@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -24,7 +24,7 @@ def _saturating(n: Expression, bd: Expression) -> Expression:
     return n / (bd + n)
 
 
-class TumourImmuneChemotherapyComponent(ElementComponent):
+class TumourImmuneChemotherapyElement(Element):
     """Immune, tumour, and normal cells that compete and that a drug kills, after de Pillis and Radunskaya.
 
     The immune cells follow `dE/dt = s + rho E A / (alpha + A) - d1 E - c1 E A - a1 (1 - exp(-U)) E`, the tumour
@@ -100,8 +100,8 @@ class TumourImmuneChemotherapyComponent(ElementComponent):
             The constant infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourImmuneChemotherapyComponent
-        >>> TumourImmuneChemotherapyComponent('patient', u=1.0).u
+        >>> from skcomplex.models.biology.oncology import TumourImmuneChemotherapyElement
+        >>> TumourImmuneChemotherapyElement('patient', u=1.0).u
         1.0
     """
 
@@ -148,7 +148,7 @@ class TumourImmuneChemotherapyComponent(ElementComponent):
         ]
 
 
-class MultidrugResistanceComponent(ElementComponent):
+class MultidrugResistanceElement(Element):
     """Tumour cells split by their resistance to three drugs, each given by a constant infusion with its toxicity.
 
     The sensitive cells `S`, the cells resistant to one drug `R1`, `R2`, `R3`, to two drugs `R12`, `R13`, `R23`, and
@@ -255,8 +255,8 @@ class MultidrugResistanceComponent(ElementComponent):
             The infusion rate of drug 3.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import MultidrugResistanceComponent
-        >>> MultidrugResistanceComponent('tumour').Uth
+        >>> from skcomplex.models.biology.oncology import MultidrugResistanceElement
+        >>> MultidrugResistanceElement('tumour').Uth
         10.0
     """
 
@@ -323,7 +323,7 @@ class MultidrugResistanceComponent(ElementComponent):
         ]
 
 
-class ResistanceSwitchingComponent(ElementComponent):
+class ResistanceSwitchingElement(Element):
     """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch, under a constant dose.
 
     With the total `V = S + Rm + Rp`, the sensitive cells follow
@@ -386,8 +386,8 @@ class ResistanceSwitchingComponent(ElementComponent):
             The effective dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ResistanceSwitchingComponent
-        >>> ResistanceSwitchingComponent('tumour').alpha_m
+        >>> from skcomplex.models.biology.oncology import ResistanceSwitchingElement
+        >>> ResistanceSwitchingElement('tumour').alpha_m
         0.01
     """
 
@@ -431,7 +431,7 @@ class ResistanceSwitchingComponent(ElementComponent):
         ]
 
 
-class RestingHuntingChemotherapyComponent(ElementComponent):
+class RestingHuntingChemotherapyElement(Element):
     """Hunting immune cells recruited from resting cells after a delay, a tumour, and a drug that kills all three.
 
     The hunting cells follow `dE/dt = m1 E Q(t - tau) - d1 E - c1 A E - a E / (bd + E) U`, the resting cells
@@ -499,8 +499,8 @@ class RestingHuntingChemotherapyComponent(ElementComponent):
             The constant infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import RestingHuntingChemotherapyComponent
-        >>> RestingHuntingChemotherapyComponent('patient').tau
+        >>> from skcomplex.models.biology.oncology import RestingHuntingChemotherapyElement
+        >>> RestingHuntingChemotherapyElement('patient').tau
         45.6
     """
 
@@ -545,7 +545,7 @@ class RestingHuntingChemotherapyComponent(ElementComponent):
         ]
 
 
-class MetastasisChemotherapyComponent(ElementComponent):
+class MetastasisChemotherapyElement(Element):
     """Normal and tumour cells at a primary and a secondary site, each with its drug, and a delayed migration.
 
     At each site the normal and tumour cells grow logistically, compete, and a drug kills them with a saturating
@@ -658,8 +658,8 @@ class MetastasisChemotherapyComponent(ElementComponent):
             The infusion rate of the drug at the secondary site.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import MetastasisChemotherapyComponent
-        >>> MetastasisChemotherapyComponent('patient').epsilon
+        >>> from skcomplex.models.biology.oncology import MetastasisChemotherapyElement
+        >>> MetastasisChemotherapyElement('patient').epsilon
         0.0001
     """
 
@@ -778,7 +778,7 @@ def de_pillis_radunskaya(
         >>> de_pillis_radunskaya(u=1.0).elements[0].u
         1.0
     """
-    return System(components=[TumourImmuneChemotherapyComponent('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
+    return System(components=[TumourImmuneChemotherapyElement('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
 
 
 @register_model(
@@ -831,7 +831,7 @@ def multidrug_resistance(
         >>> multidrug_resistance(u2=0.0).elements[0].u2
         0.0
     """
-    return System(components=[MultidrugResistanceComponent('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
+    return System(components=[MultidrugResistanceElement('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
 
 
 @register_model(
@@ -899,7 +899,7 @@ def drug_resistance_switching(
         >>> drug_resistance_switching(alpha_m=0.0).elements[0].alpha_m
         0.0
     """
-    tumour = ResistanceSwitchingComponent(
+    tumour = ResistanceSwitchingElement(
         'tumour',
         S=S,
         u=u,
@@ -963,7 +963,7 @@ def delayed_resting_hunting_chemotherapy(
         >>> delayed_resting_hunting_chemotherapy(tau=10.0).elements[0].tau
         10.0
     """
-    return System(components=[RestingHuntingChemotherapyComponent('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
+    return System(components=[RestingHuntingChemotherapyElement('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
 
 
 @register_model(
@@ -1024,5 +1024,5 @@ def delayed_metastasis(
         650.0
     """
     return System(
-        components=[MetastasisChemotherapyComponent('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)],
+        components=[MetastasisChemotherapyElement('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)],
     )

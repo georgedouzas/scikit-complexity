@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
-from skcomplex.models.economics.macroeconomics import EconomyComponent, SolowGrowthInteraction
+from skcomplex.models.economics.macroeconomics import EconomyElement, SolowGrowthInteraction
 
 
 @pytest.mark.parametrize('cv', [0.6, 1.2])
@@ -21,7 +21,7 @@ def test_solow_reaches_steady_state():
     """Test that Solow capital approaches `(s / delta) ** (1 / (1 - alpha))`."""
     s, alpha, delta = 0.3, 0.4, 0.1
     system = System(
-        components=[EconomyComponent('country', k=1.0)],
+        components=[EconomyElement('country', k=1.0)],
         interactions=[SolowGrowthInteraction('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
     capital = Simulation(system, dt=10.0).run(until=300).trajectory_.values('country.k')[-1]

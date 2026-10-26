@@ -10,7 +10,7 @@ import rerun as rr
 from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import NumericDomain, VisualSpec, state
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -26,11 +26,11 @@ from skcomplex.engine.viz import (
     resolve_visual,
 )
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.fields import FieldComponent
-from skcomplex.formalisms.particles import ParticleComponent
+from skcomplex.formalisms.fields import FieldElement
+from skcomplex.formalisms.particles import ParticleElement
 from skcomplex.formalisms.topology import add_node
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
 from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
@@ -60,7 +60,7 @@ def _run(system, observer, until=1.0, dt=0.1):
 def test_rerun_observer_saves_recording(tmp_path):
     """Test that a recording file is written."""
     path = tmp_path / 'run.rrd'
-    system = System(components=[PopulationComponent('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = System(components=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
     _run(system, RerunObserver('test', save_path=path))
     assert path.exists()
     assert path.stat().st_size > 0
@@ -69,7 +69,7 @@ def test_rerun_observer_saves_recording(tmp_path):
 def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
     """Test that many observers in one process, as in the docs build, do not accumulate recording threads."""
     psutil = pytest.importorskip('psutil')
-    system = System(components=[PopulationComponent('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = System(components=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
     _run(system, RerunObserver('test', save_path=tmp_path / 'first.rrd'))
     before = psutil.Process().num_threads()
     for index in range(20):
@@ -80,7 +80,7 @@ def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
 def test_rerun_observer_interval_thins_frames(tmp_path):
     """Test that only every n-th frame is logged."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)
-    system = System(components=[PopulationComponent('a')])
+    system = System(components=[PopulationElement('a')])
     _run(system, observer, until=0.99, dt=0.01)
     assert observer.logged_frames_ == 10
 
@@ -88,7 +88,7 @@ def test_rerun_observer_interval_thins_frames(tmp_path):
 def test_scalars_visual_logs_nested_paths():
     """Test that scalar states are logged under the element path."""
     recording = LoggedPaths()
-    system = System(components=[System('meadow', components=[PopulationComponent('rabbits')])])
+    system = System(components=[System('meadow', components=[PopulationElement('rabbits')])])
     simulation = Simulation(system).run(until=0.0)
     element = simulation.problem_.elements[0]
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
@@ -100,7 +100,7 @@ def test_scalars_visual_logs_nested_paths():
 def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
     system = System(
-        components=[ParticleComponent('ball')],
+        components=[ParticleElement('ball')],
         interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
     )
@@ -123,7 +123,7 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    system = System(components=[PopulationComponent('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
+    system = System(components=[PopulationElement('a')], interactions=[ExponentialGrowthInteraction('g', target='a')])
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
     assert logged.count('a/n') == 3
@@ -137,7 +137,7 @@ def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path)
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
     observer = RerunObserver('test', spawn=True)
-    _run(System(components=[PopulationComponent('a')]), observer, until=0.0)
+    _run(System(components=[PopulationElement('a')]), observer, until=0.0)
     assert calls[0]['executable_path'] == str(viewer)
     assert calls[0]['recording'] is observer.recording_
 
@@ -147,7 +147,7 @@ def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
-    _run(System(components=[PopulationComponent('a')]), RerunObserver('test', spawn=True), until=0.0)
+    _run(System(components=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert calls[0]['executable_path'] is None
 
 
@@ -190,7 +190,7 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 def test_points_colored_by_speed_follow_the_color_scale():
     """Test that faster members get colors further along the color scale."""
     system = System(
-        components=[ParticleComponent.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
+        components=[ParticleElement.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
         space=ContinuousSpace(n_dim=2),
     )
     simulation = Simulation(system).run(until=0.0)
@@ -245,7 +245,7 @@ def test_voter_network_logs_graph_with_opinion_colors(monkeypatch, tmp_path):
 def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     """Test that an agent removed between frames is absent from the next batch."""
 
-    class MortalComponent(ElementComponent):
+    class MortalElement(Element):
         """Agent that removes itself when its id is 1."""
 
         def laws(self, s):
@@ -261,7 +261,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
         monkeypatch,
         tmp_path,
         System(
-            components=[MortalComponent.group('mortals', 3, variable=True)],
+            components=[MortalElement.group('mortals', 3, variable=True)],
             space=LatticeSpace((5, 5), boundary='fixed'),
         ),
         1,
@@ -272,7 +272,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     assert '1' not in labels[1]
 
 
-class TurningComponent(ElementComponent):
+class TurningElement(Element):
     """Complex amplitude that turns at unit frequency."""
 
     z: complex = state(1.0, domain=NumericDomain.COMPLEX)
@@ -300,7 +300,7 @@ def _logged(monkeypatch, tmp_path, system):
 def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
     """Test that a complex field at `medium` logs a modulus and a phase image for every logged frame."""
     values = {'z': np.exp(1j * np.linspace(-np.pi, np.pi, 64)).reshape(8, 8)}
-    system = System(components=[FieldComponent('medium', TurningComponent, LatticeSpace((8, 8)), values=values)])
+    system = System(components=[FieldElement('medium', TurningElement, LatticeSpace((8, 8)), values=values)])
     logged = _logged(monkeypatch, tmp_path, system)
     assert logged.count(('medium/z/modulus', 'Image')) == 3
     assert logged.count(('medium/z/phase', 'Image')) == 3
@@ -309,14 +309,14 @@ def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
 
 def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
     """Test that a complex state of a single element logs its real and imaginary parts as series."""
-    logged = _logged(monkeypatch, tmp_path, System(components=[TurningComponent('osc')]))
+    logged = _logged(monkeypatch, tmp_path, System(components=[TurningElement('osc')]))
     assert logged.count(('osc/z/real', 'Scalars')) == 3
     assert logged.count(('osc/z/imag', 'Scalars')) == 3
 
 
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
-    problem = compile_system(System(components=[FieldComponent('medium', TurningComponent, LatticeSpace((4, 4)))]))
+    problem = compile_system(System(components=[FieldElement('medium', TurningElement, LatticeSpace((4, 4)))]))
     views = ImageVisual().prepare(problem.elements[0], problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 
@@ -364,19 +364,19 @@ class _AllLogs:
 
 def test_changing_network_logs_present_nodes_and_changed_edges():
     """Test that a growing network logs the nodes present at every frame and its edges at every frame they change."""
-    NodeComponent = ElementComponent.define(
-        'NodeComponent',
+    NodeElement = Element.define(
+        'NodeElement',
         states={'age': 0.0},
         laws=lambda s: [UpdateLaw(s.age, s.age + 1)],
     )
-    LinkComponent = ElementComponent.define('LinkComponent')
-    GrowthComponent = ElementComponent.define('GrowthComponent', laws=lambda s: [UpdateLaw(add_node(edges=1), 1)])
+    LinkElement = Element.define('LinkElement')
+    GrowthElement = Element.define('GrowthElement', laws=lambda s: [UpdateLaw(add_node(edges=1), 1)])
     space = NetworkSpace.complete(2)
     system = System(
         components=[
-            GroupComponent('nodes', element=NodeComponent, space=space, on='sites', variable=True, capacity=10),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True, capacity=10),
-            GrowthComponent('growth'),
+            GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=10),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=10),
+            GrowthElement('growth'),
         ],
         time=DiscreteTime(),
     )

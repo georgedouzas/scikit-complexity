@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -29,8 +29,8 @@ def _contest_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-ContestComponent = ElementComponent.define(
-    'ContestComponent',
+ContestElement = Element.define(
+    'ContestElement',
     states={
         'a': state(default=55.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
         'b': state(default=45.0, domain=NumericDomain.NONNEGATIVE, quantity='resources'),
@@ -60,8 +60,8 @@ def _burden_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-BurdenComponent = ElementComponent.define(
-    'BurdenComponent',
+BurdenElement = Element.define(
+    'BurdenElement',
     states={
         'capability': state(default=0.5, domain=NumericDomain.NONNEGATIVE, quantity='capability'),
         'intervention': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='intervention'),
@@ -103,8 +103,8 @@ def _escalation_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-ArmsRaceComponent = ElementComponent.define(
-    'ArmsRaceComponent',
+ArmsRaceElement = Element.define(
+    'ArmsRaceElement',
     states={
         'a': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
         'b': state(default=10.5, domain=NumericDomain.NONNEGATIVE, quantity='arms'),
@@ -164,7 +164,7 @@ def success_to_the_successful(
         >>> success_to_the_successful(a=60.0).elements[0].a
         60.0
     """
-    return System(components=[ContestComponent('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
+    return System(components=[ContestElement('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
 
 
 @register_model(
@@ -224,7 +224,7 @@ def shifting_the_burden(
         >>> shifting_the_burden(fix_rate=0.0).elements[0].fix_rate
         0.0
     """
-    burden = BurdenComponent(
+    burden = BurdenElement(
         'burden',
         capability=capability,
         intervention=intervention,
@@ -285,7 +285,7 @@ def escalation(
         >>> escalation(margin=0.2).elements[0].margin
         0.2
     """
-    race = ArmsRaceComponent(
+    race = ArmsRaceElement(
         'race',
         a=a,
         b=b,

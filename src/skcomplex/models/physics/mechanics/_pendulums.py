@@ -9,14 +9,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
 from ....core.base import BaseInteraction, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, EventLaw, RateLaw, Symbols, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent, PotentialInteraction
+from ....formalisms.particles import ParticleElement, PotentialInteraction
 from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction
-from ._mechanics import PendulumComponent
+from ._mechanics import PendulumElement
 
 
 def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
@@ -30,8 +30,8 @@ def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
     return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
 
 
-DoublePendulumComponent = ElementComponent.define(
-    'DoublePendulumComponent',
+DoublePendulumElement = Element.define(
+    'DoublePendulumElement',
     states={
         'theta1': state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2),
         'theta2': state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2),
@@ -84,8 +84,8 @@ PendulumSpringInteraction = BaseInteraction.define(
     ],
 )
 
-CartPendulumComponent = ElementComponent.define(
-    'CartPendulumComponent',
+CartPendulumElement = Element.define(
+    'CartPendulumElement',
     states={'y': state(default=0.0, order=2), 'theta': state(default=0.5, domain=NumericDomain.ANGLE, order=2)},
     parameters={
         'm1': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -106,8 +106,8 @@ CartPendulumComponent = ElementComponent.define(
     visual=VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]}),
 )
 
-ParametricPendulumComponent = ElementComponent.define(
-    'ParametricPendulumComponent',
+ParametricPendulumElement = Element.define(
+    'ParametricPendulumElement',
     states={'theta': state(default=0.1, domain=NumericDomain.ANGLE, order=2)},
     parameters={
         'g': parameter(default=9.81, domain=NumericDomain.POSITIVE),
@@ -126,8 +126,8 @@ ParametricPendulumComponent = ElementComponent.define(
     ],
 )
 
-BallisticPendulumComponent = ElementComponent.define(
-    'BallisticPendulumComponent',
+BallisticPendulumElement = Element.define(
+    'BallisticPendulumElement',
     states={'x': state(default=-1.0, order=2), 'theta': state(default=0.0, domain=NumericDomain.ANGLE, order=2)},
     parameters={
         'm': parameter(default=0.01, domain=NumericDomain.POSITIVE),
@@ -150,8 +150,8 @@ BallisticPendulumComponent = ElementComponent.define(
     ],
 )
 
-ClockPendulumComponent = ElementComponent.define(
-    'ClockPendulumComponent',
+ClockPendulumElement = Element.define(
+    'ClockPendulumElement',
     states={'theta': state(default=0.2, order=2), 'x': state(default=0.0, order=2)},
     parameters={
         'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -307,7 +307,7 @@ def double_pendulum(
     """
     return System(
         components=[
-            DoublePendulumComponent(
+            DoublePendulumElement(
                 'pendulum',
                 theta1=theta1,
                 theta2=theta2,
@@ -382,8 +382,8 @@ def coupled_pendulums(
     """
     return System(
         components=[
-            PendulumComponent('left', theta=theta1, m=m1, l=l1, g=g),
-            PendulumComponent('right', theta=theta2, m=m2, l=l2, g=g),
+            PendulumElement('left', theta=theta1, m=m1, l=l1, g=g),
+            PendulumElement('right', theta=theta2, m=m2, l=l2, g=g),
         ],
         interactions=[PendulumSpringInteraction('spring', first='left', second='right', k=k)],
     )
@@ -442,7 +442,7 @@ def cart_pendulum(
         >>> cart_pendulum(m1=5.0).elements[0].m1
         5.0
     """
-    return System(components=[CartPendulumComponent('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
+    return System(components=[CartPendulumElement('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
 
 
 @register_model(
@@ -499,7 +499,7 @@ def parametric_pendulum(
     """
     return System(
         components=[
-            ParametricPendulumComponent(
+            ParametricPendulumElement(
                 'swing',
                 theta=theta,
                 theta_d1=omega,
@@ -577,7 +577,7 @@ def magnetic_pendulum(
         for index, angle in enumerate(angles)
     ]
     return System(
-        components=[ParticleComponent('bob', x=[x, y], v=[0.0, 0.0])],
+        components=[ParticleElement('bob', x=[x, y], v=[0.0, 0.0])],
         interactions=[
             HarmonicPotentialInteraction('string', target='bob', k=omega**2),
             LinearDragInteraction('friction', target='bob', gamma=q),
@@ -636,7 +636,7 @@ def ballistic_pendulum(
         >>> ballistic_pendulum(distance=2.0).elements[0].x
         -2.0
     """
-    return System(components=[BallisticPendulumComponent('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
+    return System(components=[BallisticPendulumElement('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
 
 
 @register_model(
@@ -708,7 +708,7 @@ def huygens_clocks(
         2
     """
     clocks = [
-        ClockPendulumComponent(
+        ClockPendulumElement(
             f'clock_{index}',
             theta=theta if index == 0 else 0.0,
             m=m,

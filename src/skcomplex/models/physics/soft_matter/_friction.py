@@ -6,13 +6,13 @@
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols, both, pulse_train, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
 def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
@@ -29,8 +29,8 @@ def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-FrictionalBlockComponent = ElementComponent.define(
-    'FrictionalBlockComponent',
+FrictionalBlockElement = Element.define(
+    'FrictionalBlockElement',
     states={'x': 0.0, 'v': 0.0},
     parameters={
         'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -115,9 +115,9 @@ def shaken_spring_block(
         >>> shaken_spring_block(5).elements[0].prepare().size_
         5
     """
-    chain = FieldComponent(
+    chain = FieldElement(
         'chain',
-        FrictionalBlockComponent,
+        FrictionalBlockElement,
         LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={

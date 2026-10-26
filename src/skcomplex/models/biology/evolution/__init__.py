@@ -1,10 +1,10 @@
 """Evolution: evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution."""
 
-from ._coevolution import SpeciesComponent, bak_sneppen
+from ._coevolution import SpeciesElement, bak_sneppen
 from ._finite_populations import (
     AdaptiveClimbingInteraction,
-    ClimberComponent,
-    IndividualComponent,
+    ClimberElement,
+    IndividualElement,
     MoranStepInteraction,
     TangledNatureStepInteraction,
     adaptive_climbing,
@@ -13,56 +13,56 @@ from ._finite_populations import (
     tangled_nature,
 )
 from ._games import (
-    CyclicSpeciesComponent,
+    CyclicSpeciesElement,
     ReplicationInteraction,
-    StrategyComponent,
+    StrategyElement,
     replicator_dynamics,
     rock_paper_scissors,
 )
 from ._networks import (
-    CatalyticLinkComponent,
-    ChemicalComponent,
-    CouplingComponent,
+    CatalyticLinkElement,
+    ChemicalElement,
     CouplingDriftInteraction,
+    CouplingElement,
     DependencyFieldInteraction,
-    TaxonComponent,
+    TaxonElement,
     jain_krishna,
     sole_manrubia,
 )
 from ._prebiotic import (
     CatalysisInteraction,
-    GenotypeClassComponent,
-    MasterSequenceComponent,
-    MoleculeComponent,
+    GenotypeClassElement,
+    MasterSequenceElement,
+    MoleculeElement,
     MutationInteraction,
     eigen_quasispecies,
     hypercycles,
 )
-from ._substitutions import LocusComponent, SubstitutionInteraction, origin_fixation_walk
+from ._substitutions import LocusElement, SubstitutionInteraction, origin_fixation_walk
 
 __all__: list[str] = [
     'AdaptiveClimbingInteraction',
     'CatalysisInteraction',
-    'CatalyticLinkComponent',
-    'ChemicalComponent',
-    'ClimberComponent',
-    'CouplingComponent',
+    'CatalyticLinkElement',
+    'ChemicalElement',
+    'ClimberElement',
     'CouplingDriftInteraction',
-    'CyclicSpeciesComponent',
+    'CouplingElement',
+    'CyclicSpeciesElement',
     'DependencyFieldInteraction',
-    'GenotypeClassComponent',
-    'IndividualComponent',
-    'LocusComponent',
-    'MasterSequenceComponent',
-    'MoleculeComponent',
+    'GenotypeClassElement',
+    'IndividualElement',
+    'LocusElement',
+    'MasterSequenceElement',
+    'MoleculeElement',
     'MoranStepInteraction',
     'MutationInteraction',
     'ReplicationInteraction',
-    'SpeciesComponent',
-    'StrategyComponent',
+    'SpeciesElement',
+    'StrategyElement',
     'SubstitutionInteraction',
     'TangledNatureStepInteraction',
-    'TaxonComponent',
+    'TaxonElement',
     'adaptive_climbing',
     'bak_sneppen',
     'eigen_quasispecies',

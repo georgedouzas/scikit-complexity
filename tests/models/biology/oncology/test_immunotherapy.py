@@ -5,7 +5,7 @@ import numpy as np
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import (
-    KirschnerPanettaTumourComponent,
+    KirschnerPanettaTumourElement,
     anti_pd1_checkpoint,
     delayed_dc_vaccine,
     dendritic_cell_vaccine,
@@ -28,7 +28,7 @@ def _count_peaks(values):
 
 def test_kirschner_panetta_is_not_registered_twice():
     """Test that the scaled tumour of the immunotherapy model is a new element, not the book's dimensional one."""
-    assert KirschnerPanettaTumourComponent('site').alpha1 == 2e7
+    assert KirschnerPanettaTumourElement('site').alpha1 == 2e7
 
 
 def test_kirschner_panetta_oscillates_untreated_and_clears_when_treated():

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import AnalysisError, NumericDomain, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import (
@@ -28,8 +28,8 @@ from skcomplex.engine.experiments import Experiment
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 
-BirthDeathComponent = ElementComponent.define(
-    'BirthDeathComponent',
+BirthDeathElement = Element.define(
+    'BirthDeathElement',
     states={'n': state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)},
     parameters={'birth': parameter(5.0), 'death': parameter(0.5)},
     laws=lambda s: [JumpLaw(s.birth, {s.n: 1}), JumpLaw(s.death * s.n, {s.n: -1})],
@@ -65,7 +65,7 @@ def test_series_of_an_ode():
 
 def test_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
-    system = System(components=[BirthDeathComponent('cells')])
+    system = System(components=[BirthDeathElement('cells')])
     trajectory = Simulation(system, dt=0.01, random_state=0).run(until=20).trajectory_
     path = path_of(trajectory)
     assert path.label == 'cells.n'

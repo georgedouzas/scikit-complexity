@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ...core.base import DomainKind, ElementKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
 from ...core.problems import Problem
 from ._hybrid import reject_hybrid
 from ._stepper import Solver, register_solver
@@ -23,11 +23,11 @@ class IterationSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+        >>> from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.engine.solvers import IterationSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[MarketComponent('m', price=1)],
+        ...         components=[MarketElement('m', price=1)],
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
@@ -42,12 +42,12 @@ class IterationSolver(Solver):
         laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.VARIABLE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.VARIABLE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )

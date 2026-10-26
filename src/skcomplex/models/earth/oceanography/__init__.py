@@ -1,8 +1,8 @@
 """Oceanography: the thermohaline circulation."""
 
-from ._thermohaline import StommelBoxesComponent, stommel
+from ._thermohaline import StommelBoxesElement, stommel
 
 __all__: list[str] = [
-    'StommelBoxesComponent',
+    'StommelBoxesElement',
     'stommel',
 ]

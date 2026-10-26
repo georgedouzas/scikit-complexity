@@ -1,34 +1,34 @@
 """Statistical mechanics: gases, fluids, spin models, lattice processes, urns, and master equations."""
 
-from ._absorbing_processes import ReactingParticlesComponent, absorbing_birth_death
+from ._absorbing_processes import ReactingParticlesElement, absorbing_birth_death
 from ._driven_particles import (
     ExclusionHopsInteraction,
-    ParticleSiteComponent,
+    ParticleSiteElement,
     ReservoirInteraction,
-    TreeNodeComponent,
+    TreeNodeElement,
     ZeroRangeHopInteraction,
     ZeroRangeHopsInteraction,
     asep,
     dissipative_zero_range,
     zero_range_process,
 )
-from ._fully_connected_spins import FullyConnectedSpinComponent, curie_weiss, sherrington_kirkpatrick
+from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
-from ._graph_spins import GraphIsingSpinComponent, graph_ising
+from ._graph_spins import GraphIsingSpinElement, graph_ising
 from ._master_equations import (
-    MicrostateComponent,
-    OrderParameterComponent,
-    ZoneComponent,
+    MicrostateElement,
+    OrderParameterElement,
+    ZoneElement,
     discrete_master_equation,
     landau_relaxation,
     two_phase_zone_exchange,
 )
 from ._processes import (
-    ContactSiteComponent,
-    ExclusionSiteComponent,
-    PercolationSiteComponent,
-    Q2RSpinComponent,
-    WalkerComponent,
+    ContactSiteElement,
+    ExclusionSiteElement,
+    PercolationSiteElement,
+    Q2RSpinElement,
+    WalkerElement,
     contact_process,
     diffusion_limited_aggregation,
     q2r,
@@ -43,39 +43,39 @@ from ._quantum_spins import (
     quantum_heisenberg,
     total_magnetization,
 )
-from ._spin_glasses import BondSpinComponent, MattisSpinComponent, edwards_anderson, mattis_spin_glass
-from ._spins import IsingSpinComponent, PottsSpinComponent, XYSpinComponent, ising, potts, xy
-from ._traps import TrapWalkerComponent, trap_model
-from ._urns import EhrenfestUrnComponent, ehrenfest_urn
+from ._spin_glasses import BondSpinElement, MattisSpinElement, edwards_anderson, mattis_spin_glass
+from ._spins import IsingSpinElement, PottsSpinElement, XYSpinElement, ising, potts, xy
+from ._traps import TrapWalkerElement, trap_model
+from ._urns import EhrenfestUrnElement, ehrenfest_urn
 
 __all__: list[str] = [
-    'BondSpinComponent',
-    'ContactSiteComponent',
+    'BondSpinElement',
+    'ContactSiteElement',
     'DephasingInteraction',
-    'EhrenfestUrnComponent',
+    'EhrenfestUrnElement',
     'ExclusionHopsInteraction',
-    'ExclusionSiteComponent',
-    'FullyConnectedSpinComponent',
-    'GraphIsingSpinComponent',
-    'IsingSpinComponent',
-    'MattisSpinComponent',
-    'MicrostateComponent',
-    'OrderParameterComponent',
-    'ParticleSiteComponent',
-    'PercolationSiteComponent',
-    'PottsSpinComponent',
-    'Q2RSpinComponent',
-    'ReactingParticlesComponent',
+    'ExclusionSiteElement',
+    'FullyConnectedSpinElement',
+    'GraphIsingSpinElement',
+    'IsingSpinElement',
+    'MattisSpinElement',
+    'MicrostateElement',
+    'OrderParameterElement',
+    'ParticleSiteElement',
+    'PercolationSiteElement',
+    'PottsSpinElement',
+    'Q2RSpinElement',
+    'ReactingParticlesElement',
     'ReservoirInteraction',
-    'TrapWalkerComponent',
-    'TreeNodeComponent',
-    'WalkerComponent',
+    'TrapWalkerElement',
+    'TreeNodeElement',
+    'WalkerElement',
     'XXZExchangeInteraction',
-    'XYSpinComponent',
+    'XYSpinElement',
     'ZeemanFieldInteraction',
     'ZeroRangeHopInteraction',
     'ZeroRangeHopsInteraction',
-    'ZoneComponent',
+    'ZoneElement',
     'absorbing_birth_death',
     'asep',
     'contact_process',

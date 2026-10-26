@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class AssetComponent(ElementComponent):
+class AssetElement(Element):
     """Traded asset described by its price.
 
     Args:
@@ -21,8 +21,8 @@ class AssetComponent(ElementComponent):
             The initial price.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import AssetComponent
-        >>> AssetComponent('stock', price=100.0).price
+        >>> from skcomplex.models.economics.finance import AssetElement
+        >>> AssetElement('stock', price=100.0).price
         100.0
     """
 
@@ -98,6 +98,6 @@ def geometric_brownian_motion(price: float = 100.0, *, mu: float = 0.05, sigma: 
         0.3
     """
     return System(
-        components=[AssetComponent('asset', price=price)],
+        components=[AssetElement('asset', price=price)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='asset', mu=mu, sigma=sigma)],
     )

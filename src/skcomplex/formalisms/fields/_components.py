@@ -6,14 +6,14 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from ...core.base import ComponentKind, VisualSpec
-from ...core.components import ElementComponent, GroupComponent
+from ...core.base import ElementKind, VisualSpec
+from ...core.components import Element, GroupElement
 from ...core.space import BaseSpace, LatticeSpace, NetworkSpace
 from ._laws import FIELD_BOUNDARIES
 from ._spaces import MeshSpace
 
 
-class FieldComponent(GroupComponent):
+class FieldElement(GroupElement):
     """Group of members of one element type at the sites of a lattice or the nodes of a network.
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
@@ -54,28 +54,28 @@ class FieldComponent(GroupComponent):
             or even about its middle, represents walls there, such as the free-slip walls of convection.
 
     Examples:
-        >>> from skcomplex.core.components import ElementComponent
-        >>> from skcomplex.formalisms.fields import FieldComponent, laplacian
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.formalisms.fields import FieldElement, laplacian
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.space import LatticeSpace
-        >>> HeatComponent = ElementComponent.define(
-        ...     'HeatComponent',
+        >>> HeatElement = Element.define(
+        ...     'HeatElement',
         ...     states={'u': 0.0},
         ...     parameters={'D': 1.0},
         ...     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
         ... )
-        >>> FieldComponent('plate', HeatComponent, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).prepare().size_
+        >>> FieldElement('plate', HeatElement, LatticeSpace((10, 20)), boundary={'u': 'zero-flux'}).prepare().size_
         200
-        >>> FieldComponent('plate', HeatComponent, LatticeSpace((4, 4))).prepare().default_visual_.kind
+        >>> FieldElement('plate', HeatElement, LatticeSpace((4, 4))).prepare().default_visual_.kind
         'image'
     """
 
-    component_kind: ClassVar[ComponentKind] = ComponentKind.SITE_GROUP
+    component_kind: ClassVar[ElementKind] = ElementKind.SITE_GROUP
 
     def __init__(
         self,
         label: str,
-        element: type[ElementComponent],
+        element: type[Element],
         space: LatticeSpace | NetworkSpace | MeshSpace,
         *,
         boundary: Mapping[str, Any] | None = None,
@@ -111,7 +111,7 @@ class FieldComponent(GroupComponent):
             self.default_visual_ = declared
 
 
-def boundary_of(field: FieldComponent, state: str) -> tuple[str, Any]:
+def boundary_of(field: FieldElement, state: str) -> tuple[str, Any]:
     """Return the boundary condition of a state of a field and its fixed value.
 
     Args:
@@ -131,12 +131,12 @@ def boundary_of(field: FieldComponent, state: str) -> tuple[str, Any]:
             The boundary condition is not one of the three.
 
     Examples:
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.space import LatticeSpace
-        >>> from skcomplex.formalisms.fields import FieldComponent
+        >>> from skcomplex.formalisms.fields import FieldElement
         >>> from skcomplex.formalisms.fields._components import boundary_of
-        >>> HeatComponent = ElementComponent.define('HeatComponent', states={'u': 0.0})
-        >>> plate = FieldComponent('plate', HeatComponent, LatticeSpace((4, 4)), boundary={'u': ('fixed', 1)})
+        >>> HeatElement = Element.define('HeatElement', states={'u': 0.0})
+        >>> plate = FieldElement('plate', HeatElement, LatticeSpace((4, 4)), boundary={'u': ('fixed', 1)})
         >>> boundary_of(plate, 'u')
         ('fixed', 1.0)
     """

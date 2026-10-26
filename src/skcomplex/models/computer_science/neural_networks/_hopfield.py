@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
@@ -27,7 +27,7 @@ def _hebbian_weights(patterns: Array) -> Array:
     return weights
 
 
-class NeuronComponent(ElementComponent):
+class NeuronElement(Element):
     """Binary neuron of a Hopfield network, which aligns with the sign of its weighted input when it updates.
 
     The neuron sits on its node of a complete graph and holds the weights of its incoming links, one per node.
@@ -43,10 +43,10 @@ class NeuronComponent(ElementComponent):
             The weights of the links from every node, an array with one value per node.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import NeuronComponent
-        >>> group = NeuronComponent.group('neurons', 4, spin=1.0)
+        >>> from skcomplex.models.computer_science.neural_networks import NeuronElement
+        >>> group = NeuronElement.group('neurons', 4, spin=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('neurons', 'NeuronComponent', 4)
+        ('neurons', 'NeuronElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})
@@ -133,5 +133,5 @@ def hopfield(
     )
     size = stored.shape[1]
     spins = np.where(rng.random(size) < noise, -stored[0], stored[0])
-    neurons = NeuronComponent.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
+    neurons = NeuronElement.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
     return System(components=[neurons], space=NetworkSpace(nx.complete_graph(size)))

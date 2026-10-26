@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -58,7 +58,7 @@ def _rehire(agent: AgentView, model: ModelView) -> None:
     agent.days = agent.mean_feeling = agent.first = agent.expectation = 0.0
 
 
-class SupervisorComponent(ElementComponent):
+class SupervisorElement(Element):
     """Supervisor of the insider sabotage model, who wanders between adjacent cells.
 
     Args:
@@ -66,10 +66,10 @@ class SupervisorComponent(ElementComponent):
             The label of the agent or group.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import SupervisorComponent
-        >>> group = SupervisorComponent.group('supervisors', 3)
+        >>> from skcomplex.models.social.organizations import SupervisorElement
+        >>> group = SupervisorElement.group('supervisors', 3)
         >>> group.label, group.element.__name__, group.size
-        ('supervisors', 'SupervisorComponent', 3)
+        ('supervisors', 'SupervisorElement', 3)
     """
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
@@ -86,7 +86,7 @@ class SupervisorComponent(ElementComponent):
         return [RuleLaw(_wander)]
 
 
-class EmployeeComponent(ElementComponent):
+class EmployeeElement(Element):
     """Employee of the insider sabotage model, whose risk is the sum of five factors.
 
     The risk is `R = P + D + S + K + A`: the predisposition `P`, the disgruntlement `D` of predisposed employees
@@ -169,10 +169,10 @@ class EmployeeComponent(ElementComponent):
             The variance of the daily growth of skill.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import EmployeeComponent
-        >>> group = EmployeeComponent.group('employees', 10, affect=0.5)
+        >>> from skcomplex.models.social.organizations import EmployeeElement
+        >>> group = EmployeeElement.group('employees', 10, affect=0.5)
         >>> group.label, group.element.__name__, group.size
-        ('employees', 'EmployeeComponent', 10)
+        ('employees', 'EmployeeElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)})
@@ -277,7 +277,7 @@ def insider_sabotage(
     rng = np.random.default_rng(random_state)
     predisposed = (rng.random(n_employees) < PREDISPOSED).astype(float)
     affect = rng.choice(AFFECTS, n_employees, p=AFFECT_SHARES)
-    employees = EmployeeComponent.group(
+    employees = EmployeeElement.group(
         'employees',
         n_employees,
         predisposed=predisposed,
@@ -285,7 +285,7 @@ def insider_sabotage(
         risk=predisposed + affect,
         turnover=turnover,
     )
-    supervisors = SupervisorComponent.group('supervisors', n_supervisors)
+    supervisors = SupervisorElement.group('supervisors', n_supervisors)
     return System(
         components=[employees, supervisors],
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),

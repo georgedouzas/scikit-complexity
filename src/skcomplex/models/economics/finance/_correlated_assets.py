@@ -11,7 +11,7 @@ from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ._assets import AssetComponent
+from ._assets import AssetElement
 
 
 class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
@@ -120,7 +120,7 @@ def correlated_geometric_brownian_motion(
     labels = ('first', 'second')
     market = WienerProcess('market', dimension=2, covariance=[[1.0, rho], [rho, 1.0]])
     return System(
-        components=[AssetComponent(label, price=price) for label, price in zip(labels, prices, strict=True)],
+        components=[AssetElement(label, price=price) for label, price in zip(labels, prices, strict=True)],
         interactions=[
             CorrelatedGeometricBrownianMotionInteraction(
                 f'{label}_motion',

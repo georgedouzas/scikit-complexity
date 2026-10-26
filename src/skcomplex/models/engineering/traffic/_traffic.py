@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -19,7 +19,7 @@ from ....formalisms.lattices import LocalRuleLaw
 type Array = npt.NDArray[np.float64]
 
 
-class RoadComponent(ElementComponent):
+class RoadElement(Element):
     """Cell of the Nagel-Schreckenberg road: the velocity of the car on it, or -1 when it is empty.
 
     Every step, cars accelerate by one up to `vmax`, brake to the gap ahead, slow down by one with probability
@@ -42,8 +42,8 @@ class RoadComponent(ElementComponent):
                 The probability of random braking.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import RoadComponent
-        >>> RoadComponent('cell').vmax
+        >>> from skcomplex.models.engineering.traffic import RoadElement
+        >>> RoadElement('cell').vmax
         5
     """
 
@@ -136,5 +136,5 @@ def nagel_schreckenberg(
     rng = np.random.default_rng(random_state)
     velocity = np.full(length, -1.0)
     velocity[rng.choice(length, size=round(density * length), replace=False)] = 0.0
-    road = RoadComponent.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
+    road = RoadElement.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
     return System(components=[road])

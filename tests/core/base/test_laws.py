@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import (
-    BaseComponent,
+    BaseElement,
     BaseLaw,
     BaseQuantity,
     LawClass,
@@ -92,7 +92,7 @@ def test_quantity_is_a_quantity_only(quantity):
     """Test that every quantity derives from the quantity base and from neither the law nor the component base."""
     assert issubclass(quantity, BaseQuantity)
     assert not issubclass(quantity, BaseLaw)
-    assert not issubclass(quantity, BaseComponent)
+    assert not issubclass(quantity, BaseElement)
 
 
 @pytest.mark.parametrize('quantity', QUANTITIES, ids=lambda quantity: quantity.__name__)

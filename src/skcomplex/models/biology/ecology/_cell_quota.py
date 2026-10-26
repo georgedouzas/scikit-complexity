@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class QuotaPhytoplanktonComponent(ElementComponent):
+class QuotaPhytoplanktonElement(Element):
     """Phytoplankton that grows on the nutrient stored in its cells, the Droop cell-quota model.
 
     The quota follows `dQ/dt = vmax R / (g + R) - r_inf (1 - q / Q) Q`, the Michaelis-Menten uptake from the
@@ -45,8 +45,8 @@ class QuotaPhytoplanktonComponent(ElementComponent):
             The death rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import QuotaPhytoplanktonComponent
-        >>> QuotaPhytoplanktonComponent('algae', R=2.0).R
+        >>> from skcomplex.models.biology.ecology import QuotaPhytoplanktonElement
+        >>> QuotaPhytoplanktonElement('algae', R=2.0).R
         2.0
     """
 
@@ -135,5 +135,5 @@ def droop_cell_quota(
         >>> droop_cell_quota(R=4.0).elements[0].R
         4.0
     """
-    algae = QuotaPhytoplanktonComponent('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
+    algae = QuotaPhytoplanktonElement('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
     return System(components=[algae])

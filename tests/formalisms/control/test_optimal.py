@@ -3,14 +3,14 @@
 import pytest
 
 from skcomplex.core.base import SolverError, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
 
 
-class FreeComponent(ElementComponent):
+class FreeElement(Element):
     """State with an unbounded adaptive parameter and no objective."""
 
     x: float = state(1.0)
@@ -24,7 +24,7 @@ class FreeComponent(ElementComponent):
 def test_optimal_control_needs_an_objective():
     """Test that a system without an objective is rejected by the optimal control solvers."""
     with pytest.raises(SolverError, match='one objective'):
-        Simulation(System(components=[FreeComponent('plant')]), solver=PontryaginSolver()).run(until=1.0)
+        Simulation(System(components=[FreeElement('plant')]), solver=PontryaginSolver()).run(until=1.0)
 
 
 def test_optimal_control_stops_at_the_horizon(linear_quadratic):

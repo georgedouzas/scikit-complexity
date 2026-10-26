@@ -284,7 +284,7 @@ def default_blueprint(
         >>> from skcomplex.models import create
         >>> blueprint = default_blueprint(create('lotka_volterra'))
         >>> [(type(view).__name__, str(view.name)) for view in blueprint.root_container.contents]
-        [('TimeSeriesView', 'PopulationComponent')]
+        [('TimeSeriesView', 'PopulationElement')]
         >>> blueprint = default_blueprint(create('gray_scott', shape=(16, 16)), primary='cells/v')
         >>> [str(view.origin) for view in blueprint.root_container.contents]
         ['cells/v', 'cells/u']

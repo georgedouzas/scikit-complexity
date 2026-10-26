@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ...engine.runtime import Frame
 from ...engine.viz import BaseVisual, colors_of, log_scalars
-from ._components import PatchComponent, WordComponent
+from ._components import PatchElement, WordElement
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 
 MARGIN = 0.03
@@ -29,7 +29,7 @@ def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | 
     if declared is not None:
         xmin, ymin, xmax, ymax = (float(item) for item in declared)
         return (xmin, ymin, xmax, ymax)
-    if not isinstance(component, PatchComponent) or not component.prototiles:
+    if not isinstance(component, PatchElement) or not component.prototiles:
         return None
     tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
     names = [prototile.name for prototile in component.prototiles]
@@ -156,9 +156,9 @@ class GeometryVisual(BaseVisual):
         path = element.path
         series = rrb.TimeSeriesView(origin=f'{path}/counts', name=f'{path} counts')
         component = element.element
-        if not isinstance(component, WordComponent | PatchComponent):
+        if not isinstance(component, WordElement | PatchElement):
             return [rrb.GraphView(origin=path, name=path), series]
-        geometry = component.geometry if isinstance(component, WordComponent) else None
+        geometry = component.geometry if isinstance(component, WordElement) else None
         if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]
         bounds = _bounds_of(element) if isinstance(element, CompiledElement) else None

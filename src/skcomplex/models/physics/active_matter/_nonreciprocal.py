@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import ObservableQuantity, System
@@ -41,7 +41,7 @@ def _heading_b(member: Symbols) -> Expression:
     return 2 * member.species * exp(I * member.theta)
 
 
-class NonreciprocalMoverComponent(ElementComponent):
+class NonreciprocalMoverElement(Element):
     """Vicsek mover of species A (0) or B (1), which aligns with the neighbours within `radius` by species couplings.
 
     Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
@@ -87,8 +87,8 @@ class NonreciprocalMoverComponent(ElementComponent):
                 The alignment of B with B.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import NonreciprocalMoverComponent
-        >>> NonreciprocalMoverComponent('mover', J_ba=-1.0).J_ba
+        >>> from skcomplex.models.physics.active_matter import NonreciprocalMoverElement
+        >>> NonreciprocalMoverElement('mover', J_ba=-1.0).J_ba
         -1.0
     """
 
@@ -192,7 +192,7 @@ def nonreciprocal_vicsek(
     """
     rng = np.random.default_rng(random_state)
     species = (np.arange(n_movers) % 2).astype(float)
-    movers = NonreciprocalMoverComponent.group(
+    movers = NonreciprocalMoverElement.group(
         'movers',
         n_movers,
         x=rng.uniform(0, size, (n_movers, 2)),

@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -24,7 +24,7 @@ def _initial_stream(seed: int | None) -> np.random.Generator:
     return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
 
 
-class TaxonComponent(ElementComponent):
+class TaxonElement(Element):
     """Species of an ecosystem that survives while the sum of the influences of the species it depends on is positive.
 
     The field `h` of the species is the sum of the couplings of its edges to the species it depends on. A species whose
@@ -47,8 +47,8 @@ class TaxonComponent(ElementComponent):
                 The number of steps since the species appeared.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import TaxonComponent
-        >>> TaxonComponent('species').k
+        >>> from skcomplex.models.biology.evolution import TaxonElement
+        >>> TaxonElement('species').k
         5
     """
 
@@ -84,7 +84,7 @@ class TaxonComponent(ElementComponent):
         ]
 
 
-class CouplingComponent(ElementComponent):
+class CouplingElement(Element):
     """Edge from a species to a species it depends on, with the coupling `J` between them.
 
     A new edge, marked `fresh`, draws its coupling uniformly from `[-1, 1]` at its first step.
@@ -100,8 +100,8 @@ class CouplingComponent(ElementComponent):
             Whether the edge has not drawn its coupling yet.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CouplingComponent
-        >>> CouplingComponent('edge').fresh
+        >>> from skcomplex.models.biology.evolution import CouplingElement
+        >>> CouplingElement('edge').fresh
         1.0
     """
 
@@ -190,7 +190,7 @@ class DependencyFieldInteraction(BaseInteraction):
         return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.J))]
 
 
-class ChemicalComponent(ElementComponent):
+class ChemicalElement(Element):
     """Molecular species of a pool whose relative population grows with the populations of its catalysts.
 
     The populations follow the catalytic network: every species gains `h` times the populations of the species that
@@ -227,8 +227,8 @@ class ChemicalComponent(ElementComponent):
                 The number of steps between two graph updates.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import ChemicalComponent
-        >>> ChemicalComponent('species').period
+        >>> from skcomplex.models.biology.evolution import ChemicalElement
+        >>> ChemicalElement('species').period
         10.0
     """
 
@@ -280,7 +280,7 @@ class ChemicalComponent(ElementComponent):
         ]
 
 
-class CatalyticLinkComponent(ElementComponent):
+class CatalyticLinkElement(Element):
     """Catalytic link from a species to a species that catalyses it, which carries no state of its own.
 
     Args:
@@ -288,8 +288,8 @@ class CatalyticLinkComponent(ElementComponent):
             The label of the link or of the group of links.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CatalyticLinkComponent
-        >>> CatalyticLinkComponent('link').label
+        >>> from skcomplex.models.biology.evolution import CatalyticLinkElement
+        >>> CatalyticLinkElement('link').label
         'link'
     """
 
@@ -348,9 +348,9 @@ def sole_manrubia(
     couplings = rng.uniform(-1, 1, edges)
     sources, _ = space.edges_[None]
     fields = np.bincount(sources, weights=couplings, minlength=n)
-    species = GroupComponent(
+    species = GroupElement(
         'species',
-        element=TaxonComponent,
+        element=TaxonElement,
         space=space,
         on='sites',
         variable=True,
@@ -358,9 +358,9 @@ def sole_manrubia(
         values={'h': fields, 'k': k},
         visual=VisualSpec('sites', {'states': ['age']}),
     )
-    edge_group = GroupComponent(
+    edge_group = GroupElement(
         'couplings',
-        element=CouplingComponent,
+        element=CouplingElement,
         space=space,
         on='edges',
         variable=True,
@@ -428,9 +428,9 @@ def jain_krishna(
     rng = _initial_stream(seed)
     graph = nx.gnp_random_graph(n, p, seed=int(rng.integers(2**31)), directed=True)
     space = NetworkSpace(graph)
-    species = GroupComponent(
+    species = GroupElement(
         'species',
-        element=ChemicalComponent,
+        element=ChemicalElement,
         space=space,
         on='sites',
         variable=True,
@@ -446,9 +446,9 @@ def jain_krishna(
         },
         visual=VisualSpec('sites', {'states': ['x']}),
     )
-    links = GroupComponent(
+    links = GroupElement(
         'links',
-        element=CatalyticLinkComponent,
+        element=CatalyticLinkElement,
         space=space,
         on='edges',
         variable=True,

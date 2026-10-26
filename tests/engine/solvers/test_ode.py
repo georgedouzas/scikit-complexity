@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, ValidationError, parameter, role
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import EventLaw, RateLaw, delayed, mean, step, total, where
 from skcomplex.core.problems import BaseSolver
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
@@ -19,13 +19,13 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver, Solver, VelocityVerletSolver
-from skcomplex.formalisms.fields import CrankNicolsonSolver, FieldComponent, laplacian
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.fields import CrankNicolsonSolver, FieldElement, laplacian
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
-    FisherKPPComponent,
-    PopulationComponent,
+    FisherKPPElement,
+    PopulationElement,
     fisher_kpp,
 )
 from skcomplex.models.physics.heat import heat_diffusion
@@ -35,7 +35,7 @@ from skcomplex.models.physics.mechanics import harmonic_oscillator
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
     system = System(
-        components=[PopulationComponent('a', n=1)],
+        components=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     return compile_system(system)
@@ -64,7 +64,7 @@ class ExplosionInteraction(BaseInteraction):
 def test_scipy_ode_failure_raises_error():
     """Test that an integrator failure raises a named error."""
     problem = compile_system(
-        System(components=[PopulationComponent('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')]),
+        System(components=[PopulationElement('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')]),
     )
     stepper = ScipyODESolver()
     stepper.prepare(problem, np.random.default_rng(0))
@@ -89,12 +89,12 @@ def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
 
 def _relaxing_group(size):
     """Return a group whose members relax to their mean, so every member reads every other one."""
-    RelaxComponent = ElementComponent.define(
-        'RelaxComponent',
+    RelaxElement = Element.define(
+        'RelaxElement',
         states={'x': 0.0},
         laws=lambda s: [RateLaw(s.x, -(s.x - mean(s.x)))],
     )
-    return System(components=[RelaxComponent.group('cells', size, x=np.linspace(0.0, 1.0, size))])
+    return System(components=[RelaxElement.group('cells', size, x=np.linspace(0.0, 1.0, size))])
 
 
 def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
@@ -111,8 +111,8 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
         Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODESolver(method='LSODA')).run(until=1)
 
 
-TubComponent = ElementComponent.define(
-    'TubComponent',
+TubElement = Element.define(
+    'TubElement',
     states={'water': 20.0},
     laws=lambda s: [RateLaw(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))],
 )
@@ -120,7 +120,7 @@ TubComponent = ElementComponent.define(
 
 def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
     """Test that a group of tubs resting empty on their drain switch finishes with RK45, and explicit LSODA stalls."""
-    tubs = System(components=[TubComponent.group('tubs', 1, water=[20.0])])
+    tubs = System(components=[TubElement.group('tubs', 1, water=[20.0])])
     with pytest.warns(UserWarning, match='LSODA stalled'):
         simulation = Simulation(tubs, dt=1).run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
@@ -131,12 +131,12 @@ def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     """Test that an oscillator at rest, forced by `sin(t)`, leaves its zero drift at time 0 and follows the solution."""
-    ForcedComponent = ElementComponent.define(
-        'ForcedComponent',
+    ForcedElement = Element.define(
+        'ForcedElement',
         states={'x': 0.0, 'v': 0.0},
         laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, -4 * s.x + sin(s.t))],
     )
-    simulation = Simulation(System(components=[ForcedComponent('oscillator')]), dt=0.01).run(until=5)
+    simulation = Simulation(System(components=[ForcedElement('oscillator')]), dt=0.01).run(until=5)
     times = simulation.trajectory_.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
     np.testing.assert_allclose(simulation.trajectory_.values('oscillator.x'), expected, atol=1e-6)
@@ -145,7 +145,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
 def _decay():
     """Return the system of exponential decay."""
     return System(
-        components=[PopulationComponent('a', n=1)],
+        components=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=-1.0)],
     )
 
@@ -178,8 +178,8 @@ def test_scipy_ode_restarts_on_parameter_change():
     assert np.all(values[500:] == values[500])
 
 
-ChatterComponent = ElementComponent.define(
-    'ChatterComponent',
+ChatterElement = Element.define(
+    'ChatterElement',
     states={'w': 20.0},
     laws=lambda s: [RateLaw(s.w, 5 - 10 * ceil(s.w / 100))],
 )
@@ -188,7 +188,7 @@ ChatterComponent = ElementComponent.define(
 def test_default_solver_names_a_state_sliding_along_a_discontinuity():
     """Test that a state sliding along a switch no event sees ends in a named error instead of a run without end."""
     with pytest.warns(UserWarning, match='LSODA stalled'), pytest.raises(SolverError, match='slides along'):
-        Simulation(System(components=[ChatterComponent('tub')]), dt=1).run(until=6)
+        Simulation(System(components=[ChatterElement('tub')]), dt=1).run(until=6)
 
 
 def test_default_solver_names_a_blow_up():
@@ -272,8 +272,8 @@ def _event_run(jacobian):
     return time.perf_counter() - start, times[-1]
 
 
-DiffusiveHutchinsonComponent = ElementComponent.define(
-    'DiffusiveHutchinsonComponent',
+DiffusiveHutchinsonElement = Element.define(
+    'DiffusiveHutchinsonElement',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.2},
     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
@@ -284,9 +284,9 @@ def _hutchinson_run(jacobian):
     """Return the duration and the final state of a diffusive Hutchinson equation on 2000 points with BDF."""
     size = 2000
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
-    field = FieldComponent(
+    field = FieldElement(
         'line',
-        DiffusiveHutchinsonComponent,
+        DiffusiveHutchinsonElement,
         LatticeSpace(size, spacing=0.05),
         values={'u': initial},
     )
@@ -312,8 +312,8 @@ ThresholdInteraction = BaseInteraction.define(
 )
 
 
-UnitRateHutchinsonComponent = ElementComponent.define(
-    'UnitRateHutchinsonComponent',
+UnitRateHutchinsonElement = Element.define(
+    'UnitRateHutchinsonElement',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.0},
     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))],
@@ -347,7 +347,7 @@ def _event_time(size, jacobian):
     """Return the time of the terminal event of Fisher-KPP when its total grows by half."""
     initial = (np.arange(size) < 0.05 * size).astype(float)
     space = LatticeSpace(size, spacing=0.05)
-    field = FieldComponent('line', FisherKPPComponent, space, boundary={'u': 'zero-flux'}, values={'u': initial})
+    field = FieldElement('line', FisherKPPElement, space, boundary={'u': 'zero-flux'}, values={'u': initial})
     simulation = Simulation(
         System(
             components=[field],
@@ -362,9 +362,9 @@ def _event_time(size, jacobian):
 def _hutchinson(size, jacobian):
     """Return the final state of a diffusive Hutchinson equation run with BDF."""
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
-    field = FieldComponent(
+    field = FieldElement(
         'line',
-        UnitRateHutchinsonComponent,
+        UnitRateHutchinsonElement,
         LatticeSpace(size, spacing=0.05),
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
@@ -380,7 +380,7 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     size = float(np.sqrt(n))
     rng = np.random.default_rng(0)
     system = System(
-        components=[ParticleComponent.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
+        components=[ParticleElement.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
             SoftSphereInteraction('soft', first='gas', second='gas', cutoff=1.0),
         ],
@@ -492,9 +492,9 @@ def test_lsoda_without_narrow_band_receives_nothing():
     """Test that LSODA receives no bandwidths when periodic edges make the band as wide as the line."""
     system = System(
         components=[
-            FieldComponent(
+            FieldElement(
                 'line',
-                FisherKPPComponent,
+                FisherKPPElement,
                 LatticeSpace(50, spacing=0.25),
                 boundary={'u': 'periodic'},
                 values={'u': np.linspace(0, 1, 50)},
@@ -508,12 +508,12 @@ def test_lsoda_without_narrow_band_receives_nothing():
 
 def test_dense_pattern_is_not_passed():
     """Test that a pattern denser than one half is not passed."""
-    MemberComponent = ElementComponent.define(
-        'MixedComponent',
+    MemberElement = Element.define(
+        'MixedElement',
         states={'x': 0.0},
         laws=lambda s: [RateLaw(s.x, -s.x + 0.1 * total(s.x))],
     )
-    problem = compile_system(System(components=[MemberComponent.group('group', 10, x=np.arange(10.0))]))
+    problem = compile_system(System(components=[MemberElement.group('group', 10, x=np.arange(10.0))]))
     _, stepper = _advance(problem, method='BDF')
     assert stepper.jacobian_options_ == {}
     assert stepper.jacobian_pattern_ is None
@@ -541,12 +541,12 @@ def test_unknown_option_raises():
 
 def test_exact_option_with_callable_law_raises_on_initialize():
     """Test that asking for the exact Jacobian of a callable law raises when initializing."""
-    DecayComponent = ElementComponent.define(
-        'DecayComponent',
+    DecayElement = Element.define(
+        'DecayElement',
         states={'u': 0.0},
         laws=lambda s: [RateLaw(s.u, _callable_rate)],
     )
-    problem = compile_system(System(components=[FieldComponent('line', DecayComponent, LatticeSpace(10))]))
+    problem = compile_system(System(components=[FieldElement('line', DecayElement, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match="jacobian='auto'"):
         ScipyODESolver(method='BDF', jacobian='exact').prepare(problem, np.random.default_rng(0))
 

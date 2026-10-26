@@ -29,7 +29,7 @@ from ...core.base import (
     symbols_of,
     vector,
 )
-from ...core.components import AggregateQuantity, ElementComponent, GroupComponent
+from ...core.components import AggregateQuantity, Element, GroupElement
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.problems import BaseProblem, Entry, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
 from ...core.problems._problem import real_components_of
@@ -128,10 +128,10 @@ def _system_paths(system: System, scope: str = '') -> Iterator[str]:
 
 
 def _attached_component(
-    component: ElementComponent | GroupComponent | System,
+    component: Element | GroupElement | System,
     by_scope: dict[str, list[ObservableQuantity]],
     scope: str,
-) -> ElementComponent | GroupComponent | System:
+) -> Element | GroupElement | System:
     """Return a nested system with its observables attached, or the component."""
     if isinstance(component, System):
         return _attached(component, by_scope, _join(scope, component.label))
@@ -362,7 +362,7 @@ def check_held_reads(problem: Problem, held: list[str]) -> None:
             raise ValidationError(error_msg)
 
 
-class _AggregateElement(ElementComponent):
+class _AggregateElement(Element):
     """Element that holds the value of an aggregate in its state `value`, so roles bind the aggregate's path."""
 
     value: float = state(default=0.0)
@@ -491,8 +491,8 @@ class ObservableEvaluator:
     Examples:
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.system import ObservableQuantity, System
-        >>> from skcomplex.models.biology.ecology import PopulationComponent
-        >>> system = System(components=[PopulationComponent.group('herd', 2, n=[2.0, 6.0])])
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> system = System(components=[PopulationElement.group('herd', 2, n=[2.0, 6.0])])
         >>> total = ObservableQuantity('total', group='herd', reduce='sum', variable='n')
         >>> problem = compile_system(system, observables=[total])
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)

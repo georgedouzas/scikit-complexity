@@ -9,18 +9,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Expression, NumericDomain, parameter, role, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ....formalisms.fields import FieldComponent, laplacian
-from ....formalisms.particles import ParticleComponent, PotentialInteraction
+from ....formalisms.fields import FieldElement, laplacian
+from ....formalisms.particles import ParticleElement, PotentialInteraction
 from ..realizations.particles import SpringInteraction
 
-WaveStringComponent = ElementComponent.define(
-    'WaveStringComponent',
+WaveStringElement = Element.define(
+    'WaveStringElement',
     states={'u': 0.0, 'v': 0.0},
     parameters={'c': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))],
@@ -148,7 +148,7 @@ def spring_chain(
     positions = spacing * np.arange(1, n_masses + 1)
     heights = _pluck(positions, length, pluck, pluck_at) if pluck else np.zeros(n_masses)
     masses = [
-        ParticleComponent(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
+        ParticleElement(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
         for index in range(n_masses)
     ]
     springs = [
@@ -213,9 +213,9 @@ def standing_waves(
     shape = amplitude * np.sin(mode * math.pi * positions / length)
     space = LatticeSpace(n_sites, spacing=spacing)
     edges = ('fixed', 0.0)
-    string = FieldComponent(
+    string = FieldElement(
         'string',
-        WaveStringComponent,
+        WaveStringElement,
         space,
         boundary={'u': edges, 'v': edges},
         values={'u': shape, 'c': c},

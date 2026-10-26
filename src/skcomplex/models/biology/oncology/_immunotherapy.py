@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import log
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed, pulse_train, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -28,7 +28,7 @@ def _saturation(x: Expression, half: Expression) -> Expression:
     return x / (half + x)
 
 
-class KirschnerPanettaTumourComponent(ElementComponent):
+class KirschnerPanettaTumourElement(Element):
     """Effector cells, tumour cells, and IL-2 under adoptive cellular therapy and IL-2 injection.
 
     The effector cells follow `dE/dt = alpha_a A - d1 E + a1 u1 + rho1 E C / (alpha1 + C)`, the tumour
@@ -94,8 +94,8 @@ class KirschnerPanettaTumourComponent(ElementComponent):
             The IL-2 injection input.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import KirschnerPanettaTumourComponent
-        >>> KirschnerPanettaTumourComponent('site').rho1
+        >>> from skcomplex.models.biology.oncology import KirschnerPanettaTumourElement
+        >>> KirschnerPanettaTumourElement('site').rho1
         0.1245
     """
 
@@ -137,7 +137,7 @@ class KirschnerPanettaTumourComponent(ElementComponent):
         ]
 
 
-class VaccinatedTumourComponent(ElementComponent):
+class VaccinatedTumourElement(Element):
     """Helper T cells, cytotoxic T cells, tumour cells, dendritic cells, and IL-2 under dendritic-cell vaccination.
 
     The helper cells follow `dEH/dt = s1 + rho1 ED r1 EH (1 - b1 EH) - d1 EH`, the cytotoxic cells
@@ -234,8 +234,8 @@ class VaccinatedTumourComponent(ElementComponent):
                 The injection rate of dendritic cells during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VaccinatedTumourComponent
-        >>> VaccinatedTumourComponent('site').r3
+        >>> from skcomplex.models.biology.oncology import VaccinatedTumourElement
+        >>> VaccinatedTumourElement('site').r3
         0.02
     """
 
@@ -301,7 +301,7 @@ class VaccinatedTumourComponent(ElementComponent):
         ]
 
 
-class CheckpointTumourComponent(ElementComponent):
+class CheckpointTumourElement(Element):
     """Activated T cells, tumour cells, and an anti-PD-1 drug that frees T cells from PD-1-PD-L1 inhibition.
 
     The T cells follow `dE/dt = (r1 ENC C1 / (C1_50 + C1) + r2 E C2 / (C2_50 + C2)) / (1 + UPP / psi_pp) - d1 E`, with
@@ -384,8 +384,8 @@ class CheckpointTumourComponent(ElementComponent):
             The infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CheckpointTumourComponent
-        >>> CheckpointTumourComponent('site').a_rho
+        >>> from skcomplex.models.biology.oncology import CheckpointTumourElement
+        >>> CheckpointTumourElement('site').a_rho
         57.5
     """
 
@@ -437,7 +437,7 @@ class CheckpointTumourComponent(ElementComponent):
         ]
 
 
-class DelayedVaccinatedTumourComponent(ElementComponent):
+class DelayedVaccinatedTumourElement(Element):
     """Tumour, natural killer cells, naive and mature CD8+ cells, dendritic cells, IL-2, regulatory, and helper cells.
 
     The equations are those of Padmanabhan et al. (4.13) to (4.21), with the delays `tau1`, `tau2`, and `tau3` of one
@@ -631,8 +631,8 @@ class DelayedVaccinatedTumourComponent(ElementComponent):
                 The injection rate of dendritic cells during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import DelayedVaccinatedTumourComponent
-        >>> DelayedVaccinatedTumourComponent('site').tau1
+        >>> from skcomplex.models.biology.oncology import DelayedVaccinatedTumourElement
+        >>> DelayedVaccinatedTumourElement('site').tau1
         1.26
     """
 
@@ -749,7 +749,7 @@ class DelayedVaccinatedTumourComponent(ElementComponent):
         ]
 
 
-class SuppressedTumourComponent(ElementComponent):
+class SuppressedTumourElement(Element):
     """Tumour, dendritic cells, proliferating and active T cells, IL-2, IL-10, and TGF-beta.
 
     The equations are those of Padmanabhan et al. (4.22) to (4.33). The tumour grows by the smooth minimum
@@ -939,8 +939,8 @@ class SuppressedTumourComponent(ElementComponent):
             The memory regulatory T cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import SuppressedTumourComponent
-        >>> SuppressedTumourComponent('site').lambda_a
+        >>> from skcomplex.models.biology.oncology import SuppressedTumourElement
+        >>> SuppressedTumourElement('site').lambda_a
         0.5
     """
 
@@ -1118,7 +1118,7 @@ def kirschner_panetta(
         >>> kirschner_panetta(u1=1.0).elements[0].u1
         1.0
     """
-    site = KirschnerPanettaTumourComponent(
+    site = KirschnerPanettaTumourElement(
         'site',
         E=E,
         A=A,
@@ -1195,7 +1195,7 @@ def dendritic_cell_vaccine(
         >>> dendritic_cell_vaccine(dose=0.0).elements[0].dose
         0.0
     """
-    site = VaccinatedTumourComponent(
+    site = VaccinatedTumourElement(
         'site',
         A=A,
         rho2=rho2,
@@ -1271,7 +1271,7 @@ def anti_pd1_checkpoint(
         >>> anti_pd1_checkpoint(u_ap=0.0).elements[0].u_ap
         0.0
     """
-    site = CheckpointTumourComponent('site', E=E, A=A, u_ap=u_ap, sigma=sigma, ENC=ENC, r3=r3, b=b, c_l=c_l)
+    site = CheckpointTumourElement('site', E=E, A=A, u_ap=u_ap, sigma=sigma, ENC=ENC, r3=r3, b=b, c_l=c_l)
     return System(components=[site])
 
 
@@ -1339,7 +1339,7 @@ def delayed_dc_vaccine(
         >>> delayed_dc_vaccine(tau2=0.5).elements[0].tau2
         0.5
     """
-    site = DelayedVaccinatedTumourComponent(
+    site = DelayedVaccinatedTumourElement(
         'site',
         dose=dose,
         period=period,
@@ -1409,5 +1409,5 @@ def tumour_immune_suppression(
         >>> tumour_immune_suppression(alpha_a=1.0).elements[0].alpha_a
         1.0
     """
-    site = SuppressedTumourComponent('site', alpha_a=alpha_a, r1=r1, r2=r2, EMC=EMC, EMH=EMH, EMR=EMR)
+    site = SuppressedTumourElement('site', alpha_a=alpha_a, r1=r1, r2=r2, EMC=EMC, EMH=EMH, EMR=EMR)
     return System(components=[site])

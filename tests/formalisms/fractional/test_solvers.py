@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Form, SolverError, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import mittag_leffler
@@ -18,7 +18,7 @@ from skcomplex.formalisms.fractional import FractionalABMSolver, GrunwaldLetniko
 SCHEMES = [GrunwaldLetnikovSolver, L1Solver, FractionalABMSolver]
 
 
-class RelaxingComponent(ElementComponent):
+class RelaxingElement(Element):
     """Element whose state relaxes with a Caputo derivative of order 0.6."""
 
     x: float = state(1.0, order=0.6)
@@ -28,7 +28,7 @@ class RelaxingComponent(ElementComponent):
         return [RateLaw(s.x, -s.x)]
 
 
-class DecayingComponent(ElementComponent):
+class DecayingElement(Element):
     """Element whose state decays exponentially."""
 
     x: float = state(1.0, order=1)
@@ -38,7 +38,7 @@ class DecayingComponent(ElementComponent):
         return [RateLaw(s.x, -s.x)]
 
 
-class MixedComponent(ElementComponent):
+class MixedElement(Element):
     """Element with a fractional state and an ordinary state."""
 
     x: float = state(1.0, order=0.5)
@@ -49,7 +49,7 @@ class MixedComponent(ElementComponent):
         return [RateLaw(s.x, -s.x), RateLaw(s.y, -s.y)]
 
 
-class CounterComponent(ElementComponent):
+class CounterElement(Element):
     """Element whose state counts the steps of a discrete map."""
 
     k: float = state(0.0)
@@ -72,7 +72,7 @@ def _advance(stepper, problem, until, frames=1):
 
 def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
     """Test that a rate law on a state of order 0.6 compiles to the fractional form with the order of every state."""
-    problem = compile_system(System(components=[MixedComponent('a')]))
+    problem = compile_system(System(components=[MixedElement('a')]))
     assert problem.form == Form.FRACTIONAL
     assert problem.orders.tolist() == [0.5, 1.0]
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [-1.0, -1.0]
@@ -80,7 +80,7 @@ def test_compile_system_rate_law_on_fractional_state_gives_fractional_form():
 
 def test_compile_system_order_one_gives_ode_form():
     """Test that a state of order 1 compiles to the ODE form without orders."""
-    problem = compile_system(System(components=[DecayingComponent('a')]))
+    problem = compile_system(System(components=[DecayingElement('a')]))
     assert problem.form == Form.ODE
     assert problem.orders.size == 0
 
@@ -89,7 +89,7 @@ def test_compile_system_order_one_gives_ode_form():
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_scheme_converges_to_mittag_leffler_relaxation(scheme, backend):
     """Test that a scheme matches E_0.6(-t^0.6) at time 5, with a smaller error for the smaller step."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]), backend=backend)
+    problem = compile_system(System(components=[RelaxingElement('a')]), backend=backend)
     exact = float(mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     errors = [abs(_advance(scheme(dt=dt), problem, 5.0)[0] - exact) for dt in (0.01, 0.005)]
     assert errors[0] < 1e-3
@@ -99,7 +99,7 @@ def test_scheme_converges_to_mittag_leffler_relaxation(scheme, backend):
 @pytest.mark.parametrize('scheme', [GrunwaldLetnikovSolver, L1Solver])
 def test_scheme_short_memory_matches_full_memory(scheme):
     """Test that a memory window of 10 time units stays within 1e-3 of the whole history at time 20."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]))
+    problem = compile_system(System(components=[RelaxingElement('a')]))
     full = _advance(scheme(dt=0.01), problem, 20.0)
     short = _advance(scheme(dt=0.01, memory=10.0), problem, 20.0, frames=20)
     assert abs(short[0] - full[0]) < 1e-3
@@ -108,14 +108,14 @@ def test_scheme_short_memory_matches_full_memory(scheme):
 @pytest.mark.parametrize('scheme', SCHEMES)
 def test_scheme_of_order_one_matches_exponential_decay(scheme):
     """Test that a scheme on a state of order 1 follows the exponential decay."""
-    problem = compile_system(System(components=[DecayingComponent('a')]))
+    problem = compile_system(System(components=[DecayingElement('a')]))
     assert _advance(scheme(dt=0.001), problem, 1.0)[0] == pytest.approx(math.exp(-1.0), abs=1e-3)
 
 
 @pytest.mark.parametrize('scheme', SCHEMES)
 def test_scheme_frames_continue_the_history(scheme):
     """Test that advancing in several frames gives the run of one frame, with ordinary states along."""
-    problem = compile_system(System(components=[MixedComponent('a')]))
+    problem = compile_system(System(components=[MixedElement('a')]))
     whole = _advance(scheme(dt=0.01), problem, 2.0)
     framed = _advance(scheme(dt=0.01), problem, 2.0, frames=8)
     assert framed == pytest.approx(whole, abs=1e-12)
@@ -124,7 +124,7 @@ def test_scheme_frames_continue_the_history(scheme):
 
 def test_scheme_restarts_after_a_change_of_a_fractional_state():
     """Test that a change of a fractional state between frames starts a new history from the changed state."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]))
+    problem = compile_system(System(components=[RelaxingElement('a')]))
     stepper = GrunwaldLetnikovSolver(dt=0.01)
     stepper.prepare(problem, np.random.default_rng(0))
     p = problem.initial_parameters
@@ -136,7 +136,7 @@ def test_scheme_restarts_after_a_change_of_a_fractional_state():
 
 def test_scheme_rejects_times_off_the_grid():
     """Test that a frame that does not fall on the grid of the run is rejected."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]))
+    problem = compile_system(System(components=[RelaxingElement('a')]))
     stepper = L1Solver(dt=0.1)
     stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='multiple of dt'):
@@ -146,7 +146,7 @@ def test_scheme_rejects_times_off_the_grid():
 @pytest.mark.parametrize(('stepper', 'match'), [(L1Solver(dt=0.0), 'dt'), (L1Solver(memory=-1.0), 'memory')])
 def test_scheme_rejects_invalid_settings(stepper, match):
     """Test that a step or a memory window that is not positive is rejected."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]))
+    problem = compile_system(System(components=[RelaxingElement('a')]))
     stepper.prepare(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match=match):
         stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
@@ -154,14 +154,14 @@ def test_scheme_rejects_invalid_settings(stepper, match):
 
 def test_ordinary_stepper_rejects_fractional_form():
     """Test that an ODE stepper rejects a problem of the fractional form."""
-    problem = compile_system(System(components=[RelaxingComponent('a')]))
+    problem = compile_system(System(components=[RelaxingElement('a')]))
     with pytest.raises(SolverError, match='fractional differential equations'):
         RK4Solver().prepare(problem, np.random.default_rng(0))
 
 
 def test_simulation_runs_fractional_system_with_default_solver():
     """Test that a simulation runs a fractional system with the fractional predictor-corrector by default."""
-    simulation = Simulation(System(components=[RelaxingComponent('a')]), dt=0.5).run(until=5.0)
+    simulation = Simulation(System(components=[RelaxingElement('a')]), dt=0.5).run(until=5.0)
     assert isinstance(simulation.stepper_, FractionalABMSolver)
     exact = float(mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
@@ -171,8 +171,8 @@ def test_cosimulation_runs_fractional_partition():
     """Test that a fractional subsystem runs as a partition of the fractional form next to a discrete map."""
     system = System(
         components=[
-            System('memory', components=[RelaxingComponent('a')]),
-            System('steps', components=[CounterComponent('c')]),
+            System('memory', components=[RelaxingElement('a')]),
+            System('steps', components=[CounterElement('c')]),
         ],
     )
     simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).run(until=5.0)

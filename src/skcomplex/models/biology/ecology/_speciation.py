@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -23,7 +23,7 @@ def _richness(species: Array) -> float:
     return float(len(np.unique(species)))
 
 
-class OrganismComponent(ElementComponent):
+class OrganismElement(Element):
     """Individual of a neutral community, labelled by its species.
 
     Args:
@@ -34,8 +34,8 @@ class OrganismComponent(ElementComponent):
             The label of the species.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import OrganismComponent
-        >>> OrganismComponent.group('community', 10, species=0.0).size
+        >>> from skcomplex.models.biology.ecology import OrganismElement
+        >>> OrganismElement.group('community', 10, species=0.0).size
         10
     """
 
@@ -162,6 +162,6 @@ def neutral_biodiversity(
     """
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)
     return System(
-        components=[OrganismComponent.group('community', individuals, species=labels)],
+        components=[OrganismElement.group('community', individuals, species=labels)],
         interactions=[NeutralReplacementInteraction('replacement', community='community', nu=nu)],
     )

@@ -13,14 +13,14 @@ import qutip
 import scipy.sparse as sp
 
 from .....core.base import ValidationError, VisualSpec, state
-from .....core.components import ElementComponent
+from .....core.components import Element
 from .....core.space import BaseSpace, LatticeSpace, NetworkSpace, neighbor_pairs
 from .....formalisms.quantum import HilbertDomain, LocalOperator, Operator, QuantumView, sparse_matrix
 
 DIGEST_SIZE = 8
 
 
-def _spin_space(element: 'SpinComponent') -> HilbertDomain:
+def _spin_space(element: 'SpinElement') -> HilbertDomain:
     """Return the space of a spin of quantum number `j`, from `m = j` down to `m = -j`."""
     size = 2 * element.j + 1
     if not float(size).is_integer() or size < 2:  # noqa: PLR2004
@@ -49,7 +49,7 @@ QUBIT = HilbertDomain(
 )
 
 
-def _mode_space(element: 'ModeComponent') -> HilbertDomain:
+def _mode_space(element: 'ModeElement') -> HilbertDomain:
     """Return the space of a bosonic mode truncated at a number of quanta."""
     quanta = element.quanta
     if isinstance(quanta, bool) or not isinstance(quanta, int | np.integer) or quanta < 1:
@@ -64,7 +64,7 @@ def _mode_space(element: 'ModeComponent') -> HilbertDomain:
     return HilbertDomain(size, operators, display='number')
 
 
-def _site_space(element: 'SiteComponent') -> HilbertDomain:
+def _site_space(element: 'SiteElement') -> HilbertDomain:
     """Return the space of a particle on the sites of a lattice or a network, with its Laplacian and adjacency."""
     space = element.space
     if isinstance(space, LatticeSpace | NetworkSpace):
@@ -79,7 +79,7 @@ def _site_space(element: 'SiteComponent') -> HilbertDomain:
     return HilbertDomain(size, operators, display=None)
 
 
-class SpinComponent(ElementComponent):
+class SpinElement(Element):
     """Spin of quantum number `j`, with the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index.
@@ -99,8 +99,8 @@ class SpinComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import SpinComponent
-        >>> QuantumView(SpinComponent('s', j=1)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SpinElement
+        >>> QuantumView(SpinElement('s', j=1)).dimension
         3
     """
 
@@ -118,7 +118,7 @@ class SpinComponent(ElementComponent):
         self.j = j
 
 
-class QubitComponent(ElementComponent):
+class QubitElement(Element):
     """Two-level system with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The state `'up'`, also `'excited'`, is index 0 with `z = 1`, and `'down'`, also `'ground'`, is index 1.
@@ -132,8 +132,8 @@ class QubitComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
-        >>> sorted(QuantumView(QubitComponent('q')).local_operators())
+        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
+        >>> sorted(QuantumView(QubitElement('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
     """
 
@@ -141,7 +141,7 @@ class QubitComponent(ElementComponent):
     initial: Any = state('up', domain=QUBIT)
 
 
-class ModeComponent(ElementComponent):
+class ModeElement(Element):
     """Bosonic mode truncated at a number of quanta, with `annihilate`, `create`, and `number`.
 
     Args:
@@ -159,8 +159,8 @@ class ModeComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import ModeComponent
-        >>> QuantumView(ModeComponent('cavity', quanta=4)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import ModeElement
+        >>> QuantumView(ModeElement('cavity', quanta=4)).dimension
         5
     """
 
@@ -178,7 +178,7 @@ class ModeComponent(ElementComponent):
         self.quanta = quanta
 
 
-class SiteComponent(ElementComponent):
+class SiteElement(Element):
     """Single particle on the sites of a lattice or a network, whose basis state `k` is the particle at site `k`.
 
     Its namespace holds the Laplacian of the space, `laplacian`, spectral on a periodic lattice and of finite
@@ -202,8 +202,8 @@ class SiteComponent(ElementComponent):
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
         >>> from skcomplex.core.space import LatticeSpace
-        >>> from skcomplex.models.physics.realizations.quantum import SiteComponent
-        >>> QuantumView(SiteComponent('particle', space=LatticeSpace(16))).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SiteElement
+        >>> QuantumView(SiteElement('particle', space=LatticeSpace(16))).dimension
         16
     """
 

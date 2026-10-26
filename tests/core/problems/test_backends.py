@@ -19,7 +19,7 @@ from skcomplex.core.base import (
     role,
     vector,
 )
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.problems import BaseBackend, Lowering
 from skcomplex.core.space import ContinuousSpace
@@ -34,10 +34,10 @@ from skcomplex.engine.solvers import (
     RK4Solver,
     VelocityVerletSolver,
 )
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import PopulationComponent
-from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.physics.realizations.particles import HarmonicPotentialInteraction
 
 CUTOFF = 2.5
@@ -132,7 +132,7 @@ def _lennard_jones_gas(n=400, period=None):
     size = side * 1.2 + 1.0
     return System(
         components=[
-            ParticleComponent.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2))),
+            ParticleElement.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2))),
         ],
         interactions=[
             LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=period),
@@ -144,7 +144,7 @@ def _lennard_jones_gas(n=400, period=None):
 def _herds(interaction, n=5):
     """Return a group of populations with one interaction."""
     return System(
-        components=[PopulationComponent.group('herds', n, n=np.linspace(1.0, 50.0, n))],
+        components=[PopulationElement.group('herds', n, n=np.linspace(1.0, 50.0, n))],
         interactions=[interaction],
     )
 
@@ -152,7 +152,7 @@ def _herds(interaction, n=5):
 def _epidemic():
     """Return a stochastic epidemic over a group of towns."""
     return System(
-        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
+        components=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -173,13 +173,13 @@ def test_backend_prepares_the_form_and_runs_the_kernels(backend):
 def test_compile_unknown_backend_raises_error():
     """Test that an unknown backend names the registered ones."""
     with pytest.raises(BackendError, match='numba, numpy'):
-        compile_system(System(components=[PopulationComponent('a')]), backend='gpu')
+        compile_system(System(components=[PopulationElement('a')]), backend='gpu')
 
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(components=[ParticleComponent.group('gas', 1000)], space=ContinuousSpace(n_dim=2))
-    small = System(components=[PopulationComponent('a'), PopulationComponent('b')])
+    large = System(components=[ParticleElement.group('gas', 1000)], space=ContinuousSpace(n_dim=2))
+    small = System(components=[PopulationElement('a'), PopulationElement('b')])
     assert compile_system(large).backend == 'numba'
     assert compile_system(small).backend == 'numpy'
 
@@ -207,8 +207,8 @@ def test_backends_agree_on_two_groups(numba_backend):
     rng = np.random.default_rng(1)
     system = System(
         components=[
-            ParticleComponent.group('a', 150, x=rng.uniform(0, 12, (150, 2))),
-            ParticleComponent.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
+            ParticleElement.group('a', 150, x=rng.uniform(0, 12, (150, 2))),
+            ParticleElement.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
         ],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -255,12 +255,12 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         calls.append(t)
         return [-y, x]
 
-    PairComponent = ElementComponent.define(
-        'PairComponent',
+    PairElement = Element.define(
+        'PairElement',
         states={'x': 1.0, 'y': 0.0},
         laws=lambda s: [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))],
     )
-    trajectory = Simulation(System(components=[PairComponent('pair')]), backend='numpy').run(until=4).trajectory_
+    trajectory = Simulation(System(components=[PairElement('pair')]), backend='numpy').run(until=4).trajectory_
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
@@ -361,7 +361,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
 
     problem = compile_system(
         System(
-            components=[PopulationComponent.group('a', 2, n=1.0)],
+            components=[PopulationElement.group('a', 2, n=1.0)],
             interactions=[GrowthInteraction('g', target='a')],
         ),
         backend=numba_backend if backend == 'numba' else backend,
@@ -420,7 +420,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = System(
-        components=[ParticleComponent.group('p', 1, x=[[1.0]], v=[[0.0]])],
+        components=[ParticleElement.group('p', 1, x=[[1.0]], v=[[0.0]])],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )

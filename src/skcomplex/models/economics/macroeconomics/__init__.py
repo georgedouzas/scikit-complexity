@@ -1,57 +1,57 @@
 """Macroeconomics: growth, business cycles, investment, international trade, and mortal monetary economies."""
 
-from ._banking import DepositorComponent, RegulatorInteraction, ReserveBankComponent, fractional_reserve_banking
-from ._capital import CapitalStockComponent, capital_stock
-from ._credit import BankComponent, CreditMarketInteraction, FirmComponent, credit_networks
-from ._firms import InvestingFirmComponent, toy_firm_investment
-from ._growth import EconomyComponent, IncomeComponent, SolowGrowthInteraction, multiplier_accelerator, solow
+from ._banking import DepositorElement, RegulatorInteraction, ReserveBankElement, fractional_reserve_banking
+from ._capital import CapitalStockElement, capital_stock
+from ._credit import BankElement, CreditMarketInteraction, FirmElement, credit_networks
+from ._firms import InvestingFirmElement, toy_firm_investment
+from ._growth import EconomyElement, IncomeElement, SolowGrowthInteraction, multiplier_accelerator, solow
 from ._metaphoria import (
-    BusinessComponent,
+    BusinessElement,
     CensusInteraction,
-    CentralBankComponent,
+    CentralBankElement,
     CommonsInteraction,
     FoodMarketInteraction,
     LabourMarketInteraction,
-    PlotComponent,
-    SettlerComponent,
+    PlotElement,
+    SettlerElement,
     metaphoria,
 )
 from ._monetary import (
     CircuitInteraction,
-    FirmsComponent,
-    HouseholdsComponent,
-    MonetaryBankComponent,
+    FirmsElement,
+    HouseholdsElement,
+    MonetaryBankElement,
     stock_flow_consistent_economy,
 )
-from ._optimal_growth import RamseyEconomyComponent, optimal_consumption
-from ._trade import TradingEconomyComponent, exchange_rates
+from ._optimal_growth import RamseyEconomyElement, optimal_consumption
+from ._trade import TradingEconomyElement, exchange_rates
 
 __all__: list[str] = [
-    'BankComponent',
-    'BusinessComponent',
-    'CapitalStockComponent',
+    'BankElement',
+    'BusinessElement',
+    'CapitalStockElement',
     'CensusInteraction',
-    'CentralBankComponent',
+    'CentralBankElement',
     'CircuitInteraction',
     'CommonsInteraction',
     'CreditMarketInteraction',
-    'DepositorComponent',
-    'EconomyComponent',
-    'FirmComponent',
-    'FirmsComponent',
+    'DepositorElement',
+    'EconomyElement',
+    'FirmElement',
+    'FirmsElement',
     'FoodMarketInteraction',
-    'HouseholdsComponent',
-    'IncomeComponent',
-    'InvestingFirmComponent',
+    'HouseholdsElement',
+    'IncomeElement',
+    'InvestingFirmElement',
     'LabourMarketInteraction',
-    'MonetaryBankComponent',
-    'PlotComponent',
-    'RamseyEconomyComponent',
+    'MonetaryBankElement',
+    'PlotElement',
+    'RamseyEconomyElement',
     'RegulatorInteraction',
-    'ReserveBankComponent',
-    'SettlerComponent',
+    'ReserveBankElement',
+    'SettlerElement',
     'SolowGrowthInteraction',
-    'TradingEconomyComponent',
+    'TradingEconomyElement',
     'capital_stock',
     'credit_networks',
     'exchange_rates',

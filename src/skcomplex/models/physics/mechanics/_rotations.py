@@ -8,13 +8,13 @@ import math
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-RotatingSwingComponent = ElementComponent.define(
-    'RotatingSwingComponent',
+RotatingSwingElement = Element.define(
+    'RotatingSwingElement',
     states={
         'phi': state(default=0.0, domain=NumericDomain.ANGLE, order=2),
         'theta': state(default=0.1, order=2),
@@ -51,8 +51,8 @@ RotatingSwingComponent = ElementComponent.define(
     ],
 )
 
-RotatingBallComponent = ElementComponent.define(
-    'RotatingBallComponent',
+RotatingBallElement = Element.define(
+    'RotatingBallElement',
     states={'theta': state(default=0.0, domain=NumericDomain.ANGLE)},
     parameters={
         'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -63,8 +63,8 @@ RotatingBallComponent = ElementComponent.define(
     laws=lambda s: [RateLaw(s.theta, s.H / (s.m * s.r**2 * sin(s.beta) ** 2))],
 )
 
-GyroscopeComponent = ElementComponent.define(
-    'GyroscopeComponent',
+GyroscopeElement = Element.define(
+    'GyroscopeElement',
     states={
         'alpha': state(default=0.0, domain=NumericDomain.ANGLE, order=2),
         'beta': state(default=0.3, order=2),
@@ -174,7 +174,7 @@ def rotating_swing(
     """
     return System(
         components=[
-            RotatingSwingComponent(
+            RotatingSwingElement(
                 'swing',
                 phi_d1=omega,
                 theta=theta,
@@ -235,8 +235,8 @@ def rotating_balls_on_rods(
     momentum = m * omega * r**2 * math.sin(beta) ** 2
     return System(
         components=[
-            RotatingBallComponent('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
-            RotatingBallComponent('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
+            RotatingBallElement('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
+            RotatingBallElement('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
         ],
     )
 
@@ -306,7 +306,7 @@ def gimballed_gyroscope(
     """
     return System(
         components=[
-            GyroscopeComponent(
+            GyroscopeElement(
                 'gyroscope',
                 beta=beta,
                 gamma_d1=spin,

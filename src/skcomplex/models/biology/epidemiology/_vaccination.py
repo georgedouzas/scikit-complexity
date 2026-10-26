@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -20,7 +20,7 @@ def _vaccinated(s: Symbols) -> Expression:
     return vaccinated
 
 
-class VaccinatedPopulationComponent(ElementComponent):
+class VaccinatedPopulationElement(Element):
     """Susceptible, infected, and recovered fractions of a population vaccinated at a bounded rate.
 
     The fractions follow `S' = -beta S I - u S`, `I' = beta S I - gamma I`, and `R' = gamma I + u S`, where the
@@ -56,8 +56,8 @@ class VaccinatedPopulationComponent(ElementComponent):
             The weight of the squared vaccination rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import VaccinatedPopulationComponent
-        >>> VaccinatedPopulationComponent('population', I=0.01).I
+        >>> from skcomplex.models.biology.epidemiology import VaccinatedPopulationElement
+        >>> VaccinatedPopulationElement('population', I=0.01).I
         0.01
     """
 
@@ -153,7 +153,7 @@ def sir_vaccination(
         >>> sir_vaccination(beta=0.3).components[0].beta
         0.3
     """
-    population = VaccinatedPopulationComponent(
+    population = VaccinatedPopulationElement(
         'population',
         S=S,
         I=I,

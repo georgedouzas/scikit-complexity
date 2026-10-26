@@ -173,12 +173,12 @@ class SiteVisual(BaseVisual):
             >>> import networkx as nx
             >>> from skcomplex.core.base import state
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.core.components import ElementComponent
+            >>> from skcomplex.core.components import Element
             >>> from skcomplex.core.space import NetworkSpace
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.viz import SiteVisual
-            >>> NodeComponent = ElementComponent.define('NodeComponent', states={'value': state(0.0)})
-            >>> system = System(components=[NodeComponent.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
+            >>> NodeElement = Element.define('NodeElement', states={'value': state(0.0)})
+            >>> system = System(components=[NodeElement.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)
             >>> [type(view).__name__ for view in SiteVisual().prepare(problem.elements[0], problem).views_]
             ['GraphView']

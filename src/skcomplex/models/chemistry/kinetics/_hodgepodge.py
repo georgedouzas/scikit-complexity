@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -20,7 +20,7 @@ from ....formalisms.lattices import LocalRuleLaw
 type Array = npt.NDArray[np.float64]
 
 
-class HodgepodgeCellComponent(ElementComponent):
+class HodgepodgeCellElement(Element):
     """Cell of the hodgepodge machine of Gerhardt and Schuster, healthy at 0, infected below `n`, and ill at `n`.
 
     Healthy cells catch the infection from their infected and ill neighbours, infected cells worsen by the mean of their
@@ -46,8 +46,8 @@ class HodgepodgeCellComponent(ElementComponent):
             The speed of the infection.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import HodgepodgeCellComponent
-        >>> HodgepodgeCellComponent('cell').n
+        >>> from skcomplex.models.chemistry.kinetics import HodgepodgeCellElement
+        >>> HodgepodgeCellElement('cell').n
         100.0
     """
 
@@ -127,4 +127,4 @@ def hodgepodge(
     """
     levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(components=[HodgepodgeCellComponent.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])
+    return System(components=[HodgepodgeCellElement.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])

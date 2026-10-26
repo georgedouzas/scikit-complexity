@@ -9,7 +9,7 @@ from ....core.base import BaseInteraction, VisualSpec
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent
+from ....formalisms.particles import ParticleElement
 from ..realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 
@@ -64,13 +64,13 @@ def ideal_gas(
         >>> from skcomplex.models.physics.statistical_mechanics import ideal_gas
         >>> group = ideal_gas(1000, random_state=0).elements[0]
         >>> group.label, group.element.__name__, group.size
-        ('gas', 'ParticleComponent', 1000)
+        ('gas', 'ParticleElement', 1000)
     """
     rng = np.random.default_rng(random_state)
     velocities = rng.normal(0.0, np.sqrt(kT / mass), size=(n_molecules, n_dim))
     velocities -= velocities.mean(axis=0)
     visual = VisualSpec('points', {'position': 'x', 'radius': size / 200, 'color_by': 'v', 'states': ()})
-    molecules = ParticleComponent.group(
+    molecules = ParticleElement.group(
         label,
         n_molecules,
         x=rng.uniform(0.0, size, size=(n_molecules, n_dim)),
@@ -140,7 +140,7 @@ def lennard_jones_fluid(
     if temperature is not None:
         interactions.append(LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature))
     return System(
-        components=[ParticleComponent.group('fluid', n_particles, x=positions, v=velocities)],
+        components=[ParticleElement.group('fluid', n_particles, x=positions, v=velocities)],
         interactions=interactions,
         space=ContinuousSpace(size, size, boundary='periodic'),
     )

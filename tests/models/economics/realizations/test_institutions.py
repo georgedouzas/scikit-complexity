@@ -9,7 +9,7 @@ from skcomplex.models.economics.realizations import (
     InstitutionInteraction,
 )
 
-from .conftest import TraderComponent
+from .conftest import TraderElement
 
 
 def _report_total(model):
@@ -20,7 +20,7 @@ def _report_total(model):
 def test_undeclared_report_raises():
     """Reporting a name the owner does not declare raises an error."""
     system = System(
-        components=[TraderComponent.group('traders', 1)],
+        components=[TraderElement.group('traders', 1)],
         interactions=[InstitutionInteraction('reader', rule=_report_total)],
     )
     with pytest.raises(SimulationError, match='declare'):
@@ -39,7 +39,7 @@ def test_observable_and_set_parameter_by_view():
                 model.set_parameter('missing', 1.0)
 
     system = System(
-        components=[TraderComponent.group('traders', 4, money=2.0)],
+        components=[TraderElement.group('traders', 4, money=2.0)],
         interactions=[ReaderInteraction('reader')],
     )
     observables = [ObservableQuantity('wealth', group='traders', variable='money', reduce='sum')]

@@ -1,12 +1,12 @@
 """Segregation: residential sorting of agents."""
 
-from ._blocks import BlockMovesInteraction, DwellerComponent, stochastic_schelling
-from ._schelling import ResidentComponent, schelling
+from ._blocks import BlockMovesInteraction, DwellerElement, stochastic_schelling
+from ._schelling import ResidentElement, schelling
 
 __all__: list[str] = [
     'BlockMovesInteraction',
-    'DwellerComponent',
-    'ResidentComponent',
+    'DwellerElement',
+    'ResidentElement',
     'schelling',
     'stochastic_schelling',
 ]

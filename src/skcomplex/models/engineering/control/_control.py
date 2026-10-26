@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import cos, pi, sin
 
 from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, derivative, step, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -54,8 +54,8 @@ def _energy_of_satellite(s: Symbols) -> Expression:
     return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
 
 
-RoomComponent = ElementComponent.define(
-    'RoomComponent',
+RoomElement = Element.define(
+    'RoomElement',
     states={'T': 10.0},
     parameters={
         'setting': 18.0,
@@ -73,8 +73,8 @@ RoomComponent = ElementComponent.define(
     ],
 )
 
-ControlledProcessComponent = ElementComponent.define(
-    'ControlledProcessComponent',
+ControlledProcessElement = Element.define(
+    'ControlledProcessElement',
     states={'y': 0.0, 'integral': 0.0},
     parameters={
         'tau': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -96,8 +96,8 @@ ControlledProcessComponent = ElementComponent.define(
     ],
 )
 
-SwingingPendulumComponent = ElementComponent.define(
-    'SwingingPendulumComponent',
+SwingingPendulumElement = Element.define(
+    'SwingingPendulumElement',
     states={'theta': state(default=0.0, order=2), 'f': state(default=0.0, order=2)},
     parameters={
         'omega': parameter(default=1.5652475842498528, domain=NumericDomain.POSITIVE),
@@ -109,8 +109,8 @@ SwingingPendulumComponent = ElementComponent.define(
     ],
 )
 
-SatelliteComponent = ElementComponent.define(
-    'SatelliteComponent',
+SatelliteElement = Element.define(
+    'SatelliteElement',
     states={'s': state(default=0.314, domain=NumericDomain.POSITIVE, order=2), 'theta': 0.0},
     parameters={
         'Lz': parameter(default=0.7, domain=NumericDomain.POSITIVE),
@@ -174,7 +174,7 @@ def thermostat(
         >>> thermostat(leak=0.3).elements[0].leak
         0.3
     """
-    room = RoomComponent('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
+    room = RoomElement('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
     return System(components=[room])
 
 
@@ -241,7 +241,7 @@ def pid_loop(
         >>> pid_loop(Ki=0.0).elements[0].Ki
         0.0
     """
-    process = ControlledProcessComponent(
+    process = ControlledProcessElement(
         'process',
         y=y,
         integral=0.0,
@@ -298,7 +298,7 @@ def pendulum_swing_up(
         >>> pendulum_swing_up(mu=0.2).elements[0].mu
         0.2
     """
-    pendulum = SwingingPendulumComponent('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
+    pendulum = SwingingPendulumElement('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
     return System(components=[pendulum])
 
 
@@ -355,7 +355,7 @@ def satellite_transfer(
         >>> satellite_transfer().elements[0].Lz
         0.7
     """
-    satellite = SatelliteComponent(
+    satellite = SatelliteElement(
         'satellite',
         s=s,
         s_d1=velocity,

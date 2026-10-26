@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import NetworkSpace
 from ....core.system import ObservableQuantity, System
@@ -22,8 +22,8 @@ BLOCK_SIZE = 100
 IN_DEGREE = 16
 OUT_DEGREE = 2
 
-NetworkMeasuresComponent = ElementComponent.define(
-    'NetworkMeasuresComponent',
+NetworkMeasuresElement = Element.define(
+    'NetworkMeasuresElement',
     parameters={
         'path_length': 0.0,
         'assortativity': 0.0,
@@ -34,7 +34,7 @@ NetworkMeasuresComponent = ElementComponent.define(
 )
 
 
-class NetworkNodeComponent(ElementComponent):
+class NetworkNodeElement(Element):
     """Node of a network that carries its degree, clustering, betweenness, and community.
 
     Args:
@@ -54,10 +54,10 @@ class NetworkNodeComponent(ElementComponent):
             The index of the community of the node.
 
     Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkNodeComponent
-        >>> group = NetworkNodeComponent.group('nodes', 3)
+        >>> from skcomplex.models.mathematics.networks import NetworkNodeElement
+        >>> group = NetworkNodeElement.group('nodes', 3)
         >>> group.label, group.element.__name__, group.size
-        ('nodes', 'NetworkNodeComponent', 3)
+        ('nodes', 'NetworkNodeElement', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'community'})
@@ -200,7 +200,7 @@ def network_structure_analysis(
     clustering = nx.clustering(network)
     betweenness = centrality(network, 'betweenness')
     nodes = list(network.nodes())
-    group = NetworkNodeComponent.group(
+    group = NetworkNodeElement.group(
         'nodes',
         len(nodes),
         location=nodes,
@@ -214,7 +214,7 @@ def network_structure_analysis(
         if null_samples
         else 0.0
     )
-    measures = NetworkMeasuresComponent(
+    measures = NetworkMeasuresElement(
         'measures',
         path_length=summary.path_length,
         assortativity=float(assortativity(network)),

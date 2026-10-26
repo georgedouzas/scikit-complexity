@@ -6,11 +6,11 @@
 from sage.all__sagemath_symbolics import pi, sin
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed
 
 
-class PopulationComponent(ElementComponent):
+class PopulationElement(Element):
     """Population of one species.
 
     Args:
@@ -21,8 +21,8 @@ class PopulationComponent(ElementComponent):
             The initial size.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PopulationComponent
-        >>> PopulationComponent('rabbits', n=40).n
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> PopulationElement('rabbits', n=40).n
         40
     """
 

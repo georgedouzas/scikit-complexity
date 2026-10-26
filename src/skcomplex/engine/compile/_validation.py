@@ -39,7 +39,7 @@ from ...core.base import (
     declarations_of,
     law_classes,
 )
-from ...core.components import ElementComponent, GroupComponent, WienerProcess
+from ...core.components import Element, GroupElement, WienerProcess
 from ...core.laws import JumpLaw, NoiseLaw, ObjectiveQuantity, neighborhoods_in, values_of
 from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend, Entry
@@ -394,7 +394,7 @@ def _order_issues(nodes: list[Node]) -> list[Issue]:
     fractional = [
         (node.path, name, declaration.order)
         for node in nodes
-        if isinstance(node.component, ElementComponent | GroupComponent)
+        if isinstance(node.component, Element | GroupElement)
         for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
         if declaration.is_fractional
     ]

@@ -132,7 +132,7 @@ def _compiled_request(
     if (request.on_edges or request.edges) and request.layer not in network.edges:
         error_msg = (
             f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
-            'layer has no variable edge group. Add `GroupComponent(..., on="edges", variable=True)` on the layer.'
+            'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
         )
         raise ValidationError(error_msg)
     needs = {'remove-edge': 'edge', 'rewire': 'edge', 'add-edge': 'node', 'remove-node': 'node'}.get(request.kind)

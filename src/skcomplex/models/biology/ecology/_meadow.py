@@ -8,7 +8,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -21,7 +21,7 @@ def _cell(agent: AgentView) -> tuple[int, ...]:
     return tuple(int(item) for item in np.atleast_1d(cast('Any', agent.location)))
 
 
-class PastureComponent(ElementComponent):
+class PastureElement(Element):
     """Patch of grass that regrows logistically every week, `G' = G + g G (1 - G)`.
 
     Args:
@@ -35,8 +35,8 @@ class PastureComponent(ElementComponent):
             The weekly growth rate `g` of the grass.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PastureComponent
-        >>> PastureComponent.group('pasture', 4, growth=0.1).size
+        >>> from skcomplex.models.biology.ecology import PastureElement
+        >>> PastureElement.group('pasture', 4, growth=0.1).size
         4
     """
 
@@ -71,7 +71,7 @@ class PastureComponent(ElementComponent):
         agent.grass += agent.growth * agent.grass * (1 - agent.grass)
 
 
-class CowComponent(ElementComponent):
+class CowElement(Element):
     """Cow of the meadow, which the grazing and herding interactions feed and move every week.
 
     Args:
@@ -82,8 +82,8 @@ class CowComponent(ElementComponent):
             The grass a cow eats in a week.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import CowComponent
-        >>> CowComponent.group('cows', 10).size
+        >>> from skcomplex.models.biology.ecology import CowElement
+        >>> CowElement.group('cows', 10).size
         10
     """
 
@@ -268,8 +268,8 @@ def meadow_capacity(
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
         components=[
-            PastureComponent.group('pasture', len(cells), variable=True, location=cells, growth=growth),
-            CowComponent.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
+            PastureElement.group('pasture', len(cells), variable=True, location=cells, growth=growth),
+            CowElement.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
         ],
         interactions=[
             GrazingInteraction('grazing', cows='cows', pasture='pasture'),

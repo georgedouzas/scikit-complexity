@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import ObservableQuantity, System
@@ -40,7 +40,7 @@ def _largest_share(lent: Array) -> float:
     return float(lent.max() / total) if total > 0 else float('nan')
 
 
-class FirmComponent(ElementComponent):
+class FirmElement(Element):
     """Firm that borrows in proportion to its net worth, invests at a random return, and defaults on negative worth.
 
     Every step the firm asks for `leverage` times its net worth from its bank, invests its net worth and the loan at
@@ -97,8 +97,8 @@ class FirmComponent(ElementComponent):
                 The net worth of an entrant.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import FirmComponent
-        >>> FirmComponent.group('firms', 10, net_worth=5.0).size
+        >>> from skcomplex.models.economics.macroeconomics import FirmElement
+        >>> FirmElement.group('firms', 10, net_worth=5.0).size
         10
     """
 
@@ -178,7 +178,7 @@ class FirmComponent(ElementComponent):
         agent.defaulted, agent.partner = 1, -1
 
 
-class BankComponent(ElementComponent):
+class BankElement(Element):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
@@ -210,8 +210,8 @@ class BankComponent(ElementComponent):
             The smallest ratio of equity to loans.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import BankComponent
-        >>> BankComponent.group('banks', 5, equity=100.0).size
+        >>> from skcomplex.models.economics.macroeconomics import BankElement
+        >>> BankElement.group('banks', 5, equity=100.0).size
         5
     """
 
@@ -410,14 +410,14 @@ def credit_networks(
         ['firms', 'banks']
     """
     rng = np.random.default_rng(random_state)
-    lenders = BankComponent.group(
+    lenders = BankElement.group(
         'banks',
         banks,
         equity=equity * rng.uniform(0.5, 1.5, banks),
         alpha=alpha,
         capital_ratio=capital_ratio,
     )
-    borrowers = FirmComponent.group(
+    borrowers = FirmElement.group(
         'firms',
         firms,
         net_worth=net_worth,

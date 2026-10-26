@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -30,7 +30,7 @@ def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | N
     return next((car for car in model.agents(agent.group) if int(car.rank) == rank and car != agent), None)
 
 
-class MotoristComponent(ElementComponent):
+class MotoristElement(Element):
     """Car of Charbonneau's traffic model, which brakes when it is closer than a safe distance to the car ahead.
 
     Args:
@@ -59,8 +59,8 @@ class MotoristComponent(ElementComponent):
             The largest speed.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import MotoristComponent
-        >>> MotoristComponent.group('cars', 3, x=[0.0, 10.0, 20.0]).size
+        >>> from skcomplex.models.engineering.traffic import MotoristElement
+        >>> MotoristElement.group('cars', 3, x=[0.0, 10.0, 20.0]).size
         3
     """
 
@@ -171,7 +171,7 @@ class CarelessBrakingInteraction(BaseInteraction):
             car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
 
 
-class DriverComponent(ElementComponent):
+class DriverElement(Element):
     """Driver on a ring road who accelerates as much as allowed and stops when the speed would cause a collision.
 
     The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
@@ -204,8 +204,8 @@ class DriverComponent(ElementComponent):
             The relative amplitude of the random error of speed.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import DriverComponent
-        >>> DriverComponent.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
+        >>> from skcomplex.models.engineering.traffic import DriverElement
+        >>> DriverElement.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
         2
     """
 
@@ -300,7 +300,7 @@ def charbonneau_traffic(
     """
     rng = np.random.default_rng(random_state)
     positions = np.cumsum(rng.uniform(3.0, 17.0, n_cars))
-    cars = MotoristComponent.group(
+    cars = MotoristElement.group(
         'cars',
         n_cars,
         x=positions,
@@ -356,7 +356,7 @@ def ring_road_drivers(
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)
-    drivers = DriverComponent.group(
+    drivers = DriverElement.group(
         'drivers',
         n_cars,
         location=[(float(position), ROAD_WIDTH / 2) for position in positions],

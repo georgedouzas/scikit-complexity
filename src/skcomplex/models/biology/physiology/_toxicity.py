@@ -6,13 +6,13 @@
 from typing import Any
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse_train, step
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class DrugToxicityComponent(ElementComponent):
+class DrugToxicityElement(Element):
     """Drug in the plasma, given in a train of infusions and eliminated, and the toxicity it accumulates.
 
     The plasma concentration follows `dc/dt = u(t) - k c`, where the infusion `u` is `dose` for `width` time units
@@ -50,8 +50,8 @@ class DrugToxicityComponent(ElementComponent):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import DrugToxicityComponent
-        >>> DrugToxicityComponent('patient', doses=4).doses
+        >>> from skcomplex.models.biology.physiology import DrugToxicityElement
+        >>> DrugToxicityElement('patient', doses=4).doses
         4
     """
 
@@ -138,5 +138,5 @@ def drug_toxicity(
         >>> drug_toxicity(eta=0.0).elements[0].eta
         0.0
     """
-    patient = DrugToxicityComponent('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
+    patient = DrugToxicityElement('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
     return System(components=[patient])

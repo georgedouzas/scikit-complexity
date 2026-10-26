@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols, delayed, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -42,7 +42,7 @@ def _angle_between(first: float, second: float) -> float:
     return abs((first - second + math.pi) % (2 * math.pi) - math.pi)
 
 
-class LightSensitiveRobotComponent(ElementComponent):
+class LightSensitiveRobotElement(Element):
     """Robot in a Gaussian light field that slows down in light, reacting to the light it measured a delay ago.
 
     The robot moves at the speed `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses
@@ -87,8 +87,8 @@ class LightSensitiveRobotComponent(ElementComponent):
                 The radius of the well.
 
     Examples:
-        >>> from skcomplex.models.engineering.robotics import LightSensitiveRobotComponent
-        >>> LightSensitiveRobotComponent('robot', delay=5.0).delay
+        >>> from skcomplex.models.engineering.robotics import LightSensitiveRobotElement
+        >>> LightSensitiveRobotElement('robot', delay=5.0).delay
         5.0
     """
 
@@ -135,7 +135,7 @@ class LightSensitiveRobotComponent(ElementComponent):
         ]
 
 
-class SwarmRobotComponent(ElementComponent):
+class SwarmRobotElement(Element):
     """Robot of the swarmtaxis algorithm, which keeps in radio contact with the swarm and avoids its neighbours.
 
     Every step the robot counts the robots within its radio range. When it loses a connection and has fewer than
@@ -186,8 +186,8 @@ class SwarmRobotComponent(ElementComponent):
             The side of the square arena, whose walls stop the robot.
 
     Examples:
-        >>> from skcomplex.models.engineering.robotics import SwarmRobotComponent
-        >>> SwarmRobotComponent.group('robots', 2, location=[(1.0, 1.0), (2.0, 1.0)]).size
+        >>> from skcomplex.models.engineering.robotics import SwarmRobotElement
+        >>> SwarmRobotElement.group('robots', 2, location=[(1.0, 1.0), (2.0, 1.0)]).size
         2
     """
 
@@ -329,7 +329,7 @@ def light_seeking_robots(
         4
     """
     headings = np.linspace(0.0, 2 * np.pi, n_robots, endpoint=False)
-    robots = LightSensitiveRobotComponent.group(
+    robots = LightSensitiveRobotElement.group(
         'robots',
         n_robots,
         x=np.zeros(n_robots),
@@ -407,7 +407,7 @@ def swarmtaxis(
     rng = np.random.default_rng(random_state)
     start = np.array([size / 5, size / 2])
     points = np.clip(start + rng.normal(0.0, spread, (n_robots, 2)), 0.0, size)
-    robots = SwarmRobotComponent.group(
+    robots = SwarmRobotElement.group(
         'robots',
         n_robots,
         location=[tuple(map(float, point)) for point in points],

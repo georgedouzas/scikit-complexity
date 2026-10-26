@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
@@ -17,7 +17,7 @@ from skcomplex.engine.viz import RerunObserver, resolve_visual
 from skcomplex.formalisms.fields import (
     CrankNicolsonSolver,
     ETDRK4Solver,
-    FieldComponent,
+    FieldElement,
     FluxLaw,
     IMEX2Solver,
     IMEXEulerSolver,
@@ -38,8 +38,8 @@ from skcomplex.models.physics.fluids import (
 from skcomplex.models.physics.heat import harmonic, heat_l_shape
 from skcomplex.models.physics.pattern_formation import swift_hohenberg
 
-HeatComponent = ElementComponent.define(
-    'HeatComponent',
+HeatElement = Element.define(
+    'HeatElement',
     states={'u': 0.0},
     laws=lambda s: [RateLaw(s.u, laplacian(s.u))],
 )
@@ -52,9 +52,9 @@ def _diffused(discretization):
     positions = np.arange(n) * spacing
     initial = np.sin(3 * positions) + 0.5 * np.cos(5 * positions)
     exact = np.exp(-9 * 0.1) * np.sin(3 * positions) + 0.5 * np.exp(-25 * 0.1) * np.cos(5 * positions)
-    rod = FieldComponent(
+    rod = FieldElement(
         'rod',
-        HeatComponent,
+        HeatElement,
         LatticeSpace(n, spacing=spacing),
         values={'u': initial},
         discretization=discretization,
@@ -122,7 +122,7 @@ def test_steppers_need_linear_terms():
         Simulation(logistic_growth(), solver=IMEXEulerSolver()).run(until=1)
     with pytest.raises(SolverError, match='spectral'):
         Simulation(
-            System(components=[FieldComponent('rod', HeatComponent, LatticeSpace(8))]),
+            System(components=[FieldElement('rod', HeatElement, LatticeSpace(8))]),
             dt=1,
             solver=ETDRK4Solver(),
         ).run(until=1)
@@ -143,15 +143,15 @@ def test_burgers_shock_is_conservative():
 @pytest.mark.parametrize('riemann', ['rusanov', 'godunov'])
 def test_numerical_fluxes_conserve(riemann):
     """Test that the Rusanov and Godunov fluxes conserve the total of a shock without overshoots."""
-    ShockComponent = ElementComponent.define(
-        'ShockComponent',
+    ShockElement = Element.define(
+        'ShockElement',
         states={'u': 0.0},
         laws=lambda s: [FluxLaw(s.u, s.u**2 / 2, riemann=riemann)],
     )
     initial = 1.5 + np.sin((np.arange(100) + 0.5) * 2 * math.pi / 100)
-    line = FieldComponent(
+    line = FieldElement(
         'line',
-        ShockComponent,
+        ShockElement,
         LatticeSpace(100, spacing=2 * math.pi / 100),
         values={'u': initial},
         discretization='finite-volume',
@@ -171,13 +171,13 @@ def test_dam_break_conserves_water():
 
 def test_fluxes_need_finite_volume_field():
     """Test that flux laws on a finite-difference field are rejected."""
-    ShockComponent = ElementComponent.define(
-        'ShockComponent',
+    ShockElement = Element.define(
+        'ShockElement',
         states={'u': 0.0},
         laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
     )
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(components=[FieldComponent('line', ShockComponent, LatticeSpace(10))]))
+        compile_system(System(components=[FieldElement('line', ShockElement, LatticeSpace(10))]))
 
 
 def test_l_shaped_steady_state_converges_at_second_order():
@@ -239,20 +239,20 @@ def test_convection_onset():
 
 def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
-    rod = FieldComponent('rod', HeatComponent, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
+    rod = FieldElement('rod', HeatElement, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
         compile_system(System(components=[rod]))
 
 
 def test_poisson_needs_spectral_field():
     """Test that solving a Poisson equation on a finite-difference field is rejected."""
-    PotentialComponent = ElementComponent.define(
-        'PotentialComponent',
+    PotentialElement = Element.define(
+        'PotentialElement',
         states={'u': 0.0},
         laws=lambda s: [RateLaw(s.u, inverse_laplacian(s.u))],
     )
     with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(components=[FieldComponent('rod', PotentialComponent, LatticeSpace(8))]))
+        compile_system(System(components=[FieldElement('rod', PotentialElement, LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
@@ -291,14 +291,14 @@ def test_viscous_burgers_respects_diffusive_limit():
     n = 200
     spacing = 2 * math.pi / n
     initial = 1.5 + np.sin((np.arange(n) + 0.5) * spacing)
-    ViscousComponent = ElementComponent.define(
-        'ViscousComponent',
+    ViscousElement = Element.define(
+        'ViscousElement',
         states={'u': 0.0},
         parameters={'nu': 0.5},
         laws=_viscous_burgers_laws,
     )
     space = LatticeSpace(n, spacing=spacing)
-    field = FieldComponent('line', ViscousComponent, space, values={'u': initial}, discretization='finite-volume')
+    field = FieldElement('line', ViscousElement, space, values={'u': initial}, discretization='finite-volume')
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (

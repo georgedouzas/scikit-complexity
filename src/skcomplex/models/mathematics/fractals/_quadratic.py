@@ -9,12 +9,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import UpdateLaw, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent
+from ....formalisms.fields import FieldElement
 
 type Window = tuple[float, float, float, float]
 
@@ -22,8 +22,8 @@ ESCAPE_IMAGE = VisualSpec('image', {'states': ('n',), 'low': 0.0})
 MANDELBROT_WINDOW: Window = (-2.2, 0.8, -1.2, 1.2)
 JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
-QuadraticMapComponent = ElementComponent.define(
-    'QuadraticMapComponent',
+QuadraticMapElement = Element.define(
+    'QuadraticMapElement',
     states={
         'z': state(0.0, domain=NumericDomain.COMPLEX),
         'n': state(0.0, domain=NumericDomain.NONNEGATIVE_INTEGER),
@@ -53,7 +53,7 @@ def _escape_field(shape: Sequence[int], z: object, c: object, radius: float) -> 
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
     return System(
-        components=[FieldComponent('plane', QuadraticMapComponent, space, values=values, visual=ESCAPE_IMAGE)],
+        components=[FieldElement('plane', QuadraticMapElement, space, values=values, visual=ESCAPE_IMAGE)],
     )
 
 

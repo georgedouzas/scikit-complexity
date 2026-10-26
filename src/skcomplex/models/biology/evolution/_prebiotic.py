@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -21,7 +21,7 @@ def _mean_fitness(master: Symbols) -> Expression:
     return master.x + (1 - master.sigma) * (1 - master.x)
 
 
-class GenotypeClassComponent(ElementComponent):
+class GenotypeClassElement(Element):
     """Share of a population whose genomes lie a given number of point mutations away from the master sequence.
 
     Args:
@@ -32,15 +32,15 @@ class GenotypeClassComponent(ElementComponent):
             The initial share.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import GenotypeClassComponent
-        >>> GenotypeClassComponent('k1', x=0.1).x
+        >>> from skcomplex.models.biology.evolution import GenotypeClassElement
+        >>> GenotypeClassElement('k1', x=0.1).x
         0.1
     """
 
     x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class MasterSequenceComponent(GenotypeClassComponent):
+class MasterSequenceElement(GenotypeClassElement):
     """Share of the population with the fittest genome, in a sharp-peak landscape where every other genome is less fit.
 
     The master sequence has fitness 1 and every other genome `1 - sigma`. A genome mutates at one locus with
@@ -60,8 +60,8 @@ class MasterSequenceComponent(GenotypeClassComponent):
             The selective disadvantage of the other genomes.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import MasterSequenceComponent
-        >>> MasterSequenceComponent('master', u=0.2).u
+        >>> from skcomplex.models.biology.evolution import MasterSequenceElement
+        >>> MasterSequenceElement('master', u=0.2).u
         0.2
     """
 
@@ -146,8 +146,8 @@ class MutationInteraction(BaseInteraction):
         return [UpdateLaw(s.target.x, gained / _mean_fitness(s.master))]
 
 
-MoleculeComponent = ElementComponent.define(
-    'MoleculeComponent',
+MoleculeElement = Element.define(
+    'MoleculeElement',
     states={'x': state(default=0.5, domain=NumericDomain.NONNEGATIVE)},
     parameters={'growth': 0.0},
 )
@@ -246,8 +246,8 @@ def eigen_quasispecies(classes: int = 12, *, u: float = 0.3, sigma: float = 0.5)
     """
     labels = ['master', *(f'k{k}' for k in range(1, classes + 1))]
     elements = [
-        MasterSequenceComponent('master', x=1.0, u=u, sigma=sigma),
-        *(GenotypeClassComponent(label) for label in labels[1:]),
+        MasterSequenceElement('master', x=1.0, u=u, sigma=sigma),
+        *(GenotypeClassElement(label) for label in labels[1:]),
     ]
     interactions = [
         MutationInteraction(
@@ -315,7 +315,7 @@ def hypercycles(
     else:
         error_msg = f'Unknown topology {topology!r}. Use cycle or complete.'
         raise ValidationError(error_msg)
-    soup = MoleculeComponent.group(
+    soup = MoleculeElement.group(
         'soup',
         molecules,
         x=[1 / molecules] * molecules,

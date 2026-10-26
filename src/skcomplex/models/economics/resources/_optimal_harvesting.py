@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -22,7 +22,7 @@ def _catch(s: Symbols) -> Expression:
     return catch
 
 
-class HarvestedResourceComponent(ElementComponent):
+class HarvestedResourceElement(Element):
     """Logistic resource whose harvest effort is a bounded control input, after Clark.
 
     The stock follows `x' = r x (1 - x / K) - q E x` under the effort `E` between 0 and its largest value. The
@@ -60,8 +60,8 @@ class HarvestedResourceComponent(ElementComponent):
             The discount rate.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import HarvestedResourceComponent
-        >>> HarvestedResourceComponent('resource', x=0.5).x
+        >>> from skcomplex.models.economics.resources import HarvestedResourceElement
+        >>> HarvestedResourceElement('resource', x=0.5).x
         0.5
     """
 
@@ -157,5 +157,5 @@ def optimal_harvesting(
         >>> optimal_harvesting(delta=0.05).components[0].delta
         0.05
     """
-    resource = HarvestedResourceComponent('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
+    resource = HarvestedResourceElement('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
     return System(components=[resource])

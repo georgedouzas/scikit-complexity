@@ -10,12 +10,12 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 from ...core.base import (
-    BaseComponent,
+    BaseElement,
     BaseInteraction,
     BaseLaw,
     BaseQuantity,
-    ComponentKind,
     DeclarationError,
+    ElementKind,
     Expression,
     LawKind,
     Registry,
@@ -33,7 +33,7 @@ from ...core.base import (
     symbol,
     symbols_of,
 )
-from ...core.components import GroupComponent
+from ...core.components import GroupElement
 from ...core.laws import (
     AuxiliaryQuantity,
     BoundaryLaw,
@@ -152,15 +152,15 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
     }
 
 
-def _component_kind(node: Node) -> ComponentKind:
+def _component_kind(node: Node) -> ElementKind:
     """Return the kind of the component of a node."""
-    if isinstance(node.component, GroupComponent) and node.component.variable:
-        return ComponentKind.VARIABLE_GROUP
-    if isinstance(node.component, GroupComponent):
-        parts = {'sites': ComponentKind.SITE_GROUP, 'edges': ComponentKind.EDGE_GROUP}
-        parts['hyperedges'] = ComponentKind.HYPEREDGE_GROUP
+    if isinstance(node.component, GroupElement) and node.component.variable:
+        return ElementKind.VARIABLE_GROUP
+    if isinstance(node.component, GroupElement):
+        parts = {'sites': ElementKind.SITE_GROUP, 'edges': ElementKind.EDGE_GROUP}
+        parts['hyperedges'] = ElementKind.HYPEREDGE_GROUP
         return parts.get(node.component.on or '', node.component.component_kind)
-    return ComponentKind.ELEMENT
+    return ElementKind.ELEMENT
 
 
 def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
@@ -173,7 +173,7 @@ def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
     return declaration is not None and declaration.vector
 
 
-def declared_quantities(spec: KernelSpec, component: BaseComponent | BaseInteraction) -> list[BaseQuantity]:
+def declared_quantities(spec: KernelSpec, component: BaseElement | BaseInteraction) -> list[BaseQuantity]:
     """Return the checked auxiliaries, invariants, and objectives a component returns for its namespace.
 
     Args:
@@ -217,7 +217,7 @@ def _records_of(
     records = []
     quantities = []
     for spec in specs_of(block, elements, declarations.time, observe.evaluate):
-        component = cast('BaseComponent | BaseInteraction', component_of(block.node))
+        component = cast('BaseElement | BaseInteraction', component_of(block.node))
         quantities += [(spec.owner, quantity) for quantity in declared_quantities(spec, component)]
         for law in declared_laws(spec, component):
             items = [item for target in law.targets for item in components_of(target)]
@@ -458,7 +458,7 @@ class CensusRecord:
     law: BaseLaw
     targets: tuple[Entry, ...]
     vectors: frozenset[str]
-    component: ComponentKind
+    component: ElementKind
     space: BaseSpace | None
     processes: tuple[ProcessKey | None, ...] = ()
     driven: tuple[tuple[str, int], ...] = ()

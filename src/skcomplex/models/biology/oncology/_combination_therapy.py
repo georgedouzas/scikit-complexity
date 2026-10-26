@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import exp, log, sin
 
 from ....core.base import BaseLaw, Expression, NumericDomain, ParameterError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -34,7 +34,7 @@ def _total_toxicity(s: Any) -> Expression:  # noqa: ANN401
     return (_toxicity(tumour.c_an, tumour.tox_an) + _toxicity(tumour.c_im, tumour.tox_im)) / 2
 
 
-class ChemoimmunotherapyTumourComponent(ElementComponent):
+class ChemoimmunotherapyTumourElement(Element):
     """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under chemotherapy, IL-2, and TIL injection.
 
     The tumour `A` grows logistically and NK cells `N` and CD8 T cells `E` kill it. CD8 T cells kill at the rate
@@ -174,8 +174,8 @@ class ChemoimmunotherapyTumourComponent(ElementComponent):
                 The rate of chemotherapy infusion during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ChemoimmunotherapyTumourComponent
-        >>> ChemoimmunotherapyTumourComponent('tumour').r1
+        >>> from skcomplex.models.biology.oncology import ChemoimmunotherapyTumourElement
+        >>> ChemoimmunotherapyTumourElement('tumour').r1
         0.431
     """
 
@@ -264,7 +264,7 @@ class ChemoimmunotherapyTumourComponent(ElementComponent):
         ]
 
 
-class ClonalTumourComponent(ElementComponent):
+class ClonalTumourElement(Element):
     """Two competing tumour clones and an immune response under chemotherapy and a dendritic-cell vaccine.
 
     Each clone grows logistically, competes with the other clone and with the immune cells `E`, and dies at the
@@ -330,8 +330,8 @@ class ClonalTumourComponent(ElementComponent):
             The level of the immunotherapeutic agent.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ClonalTumourComponent
-        >>> ClonalTumourComponent('tumour').theta
+        >>> from skcomplex.models.biology.oncology import ClonalTumourElement
+        >>> ClonalTumourElement('tumour').theta
         300000.0
     """
 
@@ -375,7 +375,7 @@ class ClonalTumourComponent(ElementComponent):
         ]
 
 
-class ChemovirotherapyTumourComponent(ElementComponent):
+class ChemovirotherapyTumourElement(Element):
     """Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
 
     The uninfected cells `AU` grow logistically, the virus `V` infects them, and infected cells `AV` burst at the rate
@@ -436,8 +436,8 @@ class ChemovirotherapyTumourComponent(ElementComponent):
                 The infusion rate of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumourComponent
-        >>> ChemovirotherapyTumourComponent('tumour', infusion='periodic').infusion
+        >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumourElement
+        >>> ChemovirotherapyTumourElement('tumour', infusion='periodic').infusion
         'periodic'
     """
 
@@ -495,7 +495,7 @@ class ChemovirotherapyTumourComponent(ElementComponent):
         ]
 
 
-class GliomaBrainComponent(ElementComponent):
+class GliomaBrainElement(Element):
     """Glia, neurons, and a glioma under temozolomide and an oncolytic virus.
 
     Normal glia `G` and the glioma compete. Neurons `N` die in proportion to the loss of glia,
@@ -580,8 +580,8 @@ class GliomaBrainComponent(ElementComponent):
             The infusion rate of the drug, in mg per m² per day.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import GliomaBrainComponent
-        >>> GliomaBrainComponent('brain').u1
+        >>> from skcomplex.models.biology.oncology import GliomaBrainElement
+        >>> GliomaBrainElement('brain').u1
         400.0
     """
 
@@ -635,7 +635,7 @@ class GliomaBrainComponent(ElementComponent):
         ]
 
 
-class Her2TumourComponent(ElementComponent):
+class Her2TumourElement(Element):
     """HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
 
     The tumour grows logistically, `dA/dt = r (1 - DIm) (1 - A / (kc - DCh)) A`. The bound antibody `Ab` lowers the
@@ -705,8 +705,8 @@ class Her2TumourComponent(ElementComponent):
                 The level of free paclitaxel from its dose on, in pmol.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import Her2TumourComponent
-        >>> Her2TumourComponent('tumour').kc
+        >>> from skcomplex.models.biology.oncology import Her2TumourElement
+        >>> Her2TumourElement('tumour').kc
         0.67
     """
 
@@ -763,7 +763,7 @@ class Her2TumourComponent(ElementComponent):
         ]
 
 
-class AngiogenesisImmunotherapyTumourComponent(ElementComponent):
+class AngiogenesisImmunotherapyTumourElement(Element):
     """Tumour with its vasculature and effector cells under bevacizumab and atezolizumab, with resistance.
 
     The tumour `A` grows by the Hahnfeldt law toward its vascular capacity `Vb` and effector cells `E` kill it. The
@@ -901,8 +901,8 @@ class AngiogenesisImmunotherapyTumourComponent(ElementComponent):
                 The dose of the immunotherapeutic drug, in mg per kg.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AngiogenesisImmunotherapyTumourComponent
-        >>> AngiogenesisImmunotherapyTumourComponent('tumour').Vb
+        >>> from skcomplex.models.biology.oncology import AngiogenesisImmunotherapyTumourElement
+        >>> AngiogenesisImmunotherapyTumourElement('tumour').Vb
         625.0
     """
 
@@ -1069,7 +1069,7 @@ def chemoimmunotherapy(
         >>> chemoimmunotherapy(u_til=0.0).elements[0].u_til
         0.0
     """
-    tumour = ChemoimmunotherapyTumourComponent(
+    tumour = ChemoimmunotherapyTumourElement(
         'tumour',
         A=A,
         N=N,
@@ -1145,7 +1145,7 @@ def clonal_chemoimmunotherapy(
         >>> clonal_chemoimmunotherapy(u_vaccine=0.0).elements[0].u_vaccine
         0.0
     """
-    tumour = ClonalTumourComponent(
+    tumour = ClonalTumourElement(
         'tumour',
         A1=A1,
         A2=A2,
@@ -1206,7 +1206,7 @@ def chemovirotherapy(
         >>> chemovirotherapy(infusion='exponential').elements[0].infusion
         'exponential'
     """
-    return System(components=[ChemovirotherapyTumourComponent('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
+    return System(components=[ChemovirotherapyTumourElement('tumour', AU=AU, V=V, U=U, u1=u1, infusion=infusion)])
 
 
 @register_model(
@@ -1248,7 +1248,7 @@ def glioma_chemovirotherapy(
         >>> glioma_chemovirotherapy(u1=0.0).elements[0].u1
         0.0
     """
-    return System(components=[GliomaBrainComponent('brain', AU=AU, V=V, u1=u1)])
+    return System(components=[GliomaBrainElement('brain', AU=AU, V=V, u1=u1)])
 
 
 @register_model(
@@ -1308,7 +1308,7 @@ def her2_targeted_therapy(
         >>> her2_targeted_therapy(sigma=1.5).elements[0].sigma
         1.5
     """
-    tumour = Her2TumourComponent(
+    tumour = Her2TumourElement(
         'tumour',
         A=A,
         antibody=antibody,
@@ -1389,7 +1389,7 @@ def angiogenesis_immunotherapy(
         >>> angiogenesis_immunotherapy(dose_an=0.0).elements[0].dose_an
         0.0
     """
-    tumour = AngiogenesisImmunotherapyTumourComponent(
+    tumour = AngiogenesisImmunotherapyTumourElement(
         'tumour',
         A=A,
         Vb=Vb,

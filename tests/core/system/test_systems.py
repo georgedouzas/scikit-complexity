@@ -16,7 +16,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import AggregateQuantity, ElementComponent, GroupComponent
+from skcomplex.core.components import AggregateQuantity, Element, GroupElement
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
@@ -24,13 +24,13 @@ from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
 from skcomplex.formalisms.quantum import GeneratorLaw, HilbertDomain, QuantumView, is_quantum
-from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, StructureDomain, WordComponent, structure_of
-from skcomplex.models.biology.ecology import PopulationComponent
+from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, StructureDomain, WordElement, structure_of
+from skcomplex.models.biology.ecology import PopulationElement
 
 
-class StockComponent(ElementComponent):
+class StockElement(Element):
     """Element with one nonnegative state."""
 
     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
@@ -47,7 +47,7 @@ class GrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class CounterComponent(ElementComponent):
+class CounterElement(Element):
     """Element whose state grows by one every step."""
 
     k: float = state(0.0)
@@ -61,7 +61,7 @@ def test_four_part_system_runs():
     """Test that a system of components, interactions, no space, and continuous time runs and lists its parameters."""
     system = System(
         'ecology',
-        components=[StockComponent('rabbits'), StockComponent('foxes')],
+        components=[StockElement('rabbits'), StockElement('foxes')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
         space=None,
         time=ContinuousTime(),
@@ -74,7 +74,7 @@ def test_four_part_system_runs():
 def test_systems_nest_as_components():
     """Test that nested systems are components and an interaction couples their elements by path."""
     system = System(
-        components=[System('meadow', components=[StockComponent('rabbits', n=2.0)])],
+        components=[System('meadow', components=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
     assert system.systems[0].label == 'meadow'
@@ -85,7 +85,7 @@ def test_systems_nest_as_components():
 
 def test_duplicate_labels_are_reported():
     """Test that two direct children with one label give one issue at the system that names the label."""
-    report = validate(System('farm', components=[StockComponent('a'), StockComponent('a')]))
+    report = validate(System('farm', components=[StockElement('a'), StockElement('a')]))
     (issue,) = report.errors
     assert issue.path == 'farm'
     assert "'a'" in issue.message
@@ -94,7 +94,7 @@ def test_duplicate_labels_are_reported():
 def test_rate_under_discrete_time_is_reported():
     """Test that a rate law in a system of discrete time is reported with the time it needs."""
     system = System(
-        components=[StockComponent('a')],
+        components=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=DiscreteTime(),
     )
@@ -106,7 +106,7 @@ def test_rate_under_discrete_time_is_reported():
 
 def test_nested_system_inherits_time():
     """Test that a nested system without a time is checked against the time of its parent."""
-    nested = System('inner', components=[CounterComponent('clock')])
+    nested = System('inner', components=[CounterElement('clock')])
     assert validate(System(components=[nested], time=DiscreteTime())).ok
     (issue,) = validate(System(components=[nested], time=ContinuousTime())).errors
     assert issue.path == 'inner/clock'
@@ -121,7 +121,7 @@ def test_unknown_schedule_is_rejected():
 def test_static_time_rejects_dynamic_laws():
     """Test that a static system holding a rate law is reported."""
     system = System(
-        components=[StockComponent('a')],
+        components=[StockElement('a')],
         interactions=[GrowthInteraction('g', target='a')],
         time=StaticTime(),
     )
@@ -131,7 +131,7 @@ def test_static_time_rejects_dynamic_laws():
 def test_periodic_space_wraps_positions_without_box_component():
     """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
     system = System(
-        components=[ParticleComponent('p', x=[0.9, 0.5], v=[1.0, 0.0])],
+        components=[ParticleElement('p', x=[0.9, 0.5], v=[1.0, 0.0])],
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
@@ -165,7 +165,7 @@ def test_network_hyperedges_hold_nodes_of_the_graph():
         NetworkSpace(graph, hyperedges=[(0, 7)]).prepare()
 
 
-class CellComponent(ElementComponent):
+class CellElement(Element):
     """Element whose members divide every step."""
 
     size: float = state(1.0)
@@ -181,14 +181,14 @@ class CellComponent(ElementComponent):
 
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
-    system = System(components=[GroupComponent('cells', element=CellComponent, size=10, variable=True)])
+    system = System(components=[GroupElement('cells', element=CellElement, size=10, variable=True)])
     trajectory = Simulation(system).run(until=3).trajectory_
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
 def test_group_on_edges_has_one_member_per_edge():
     """Test that a group on the edges of a network with 30 edges holds 30 members, sized from the inherited space."""
-    weights = GroupComponent('weights', element=StockComponent, on='edges')
+    weights = GroupElement('weights', element=StockElement, on='edges')
     problem = compile_system(System(components=[weights], space=NetworkSpace(nx.cycle_graph(30))))
     assert problem.states.entry('weights.n').shape == (30,)
 
@@ -196,14 +196,14 @@ def test_group_on_edges_has_one_member_per_edge():
 def test_group_on_edges_outside_a_network_is_reported():
     """Test that a group on edges in a lattice space is reported with the space it needs."""
     (issue,) = validate(
-        System(components=[GroupComponent('weights', element=StockComponent, on='edges')], space=LatticeSpace(4)),
+        System(components=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4)),
     ).errors
     assert 'need a network space' in issue.message
 
 
 def test_unknown_part_is_rejected():
     """Test that checking a group on a part other than sites, edges, and hyperedges raises an error."""
-    group = GroupComponent('cells', element=StockComponent, on='faces', space=LatticeSpace(4))
+    group = GroupElement('cells', element=StockElement, on='faces', space=LatticeSpace(4))
     with pytest.raises(SpaceError, match='faces'):
         group.check()
 
@@ -215,7 +215,7 @@ PAULI = HilbertDomain(
 )
 
 
-class TwoLevelComponent(ElementComponent):
+class TwoLevelElement(Element):
     """Element whose only state lies in a two-dimensional Hilbert space, driven by the operator `x`."""
 
     psi: object = state('up', domain=PAULI)
@@ -227,21 +227,21 @@ class TwoLevelComponent(ElementComponent):
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that a plain element with a state in a Hilbert space and a generator law runs unitary dynamics."""
-    simulation = Simulation(System(components=[TwoLevelComponent('q')]), solver='unitary', dt=np.pi).run(until=np.pi)
+    simulation = Simulation(System(components=[TwoLevelElement('q')]), solver='unitary', dt=np.pi).run(until=np.pi)
     assert str(simulation.problem_.form.name) == 'QUANTUM'
-    assert QuantumView(TwoLevelComponent('q', psi='down')).initial_vector().tolist() == [0j, 1 + 0j]
-    assert is_quantum(TwoLevelComponent)
-    assert not is_quantum(StockComponent)
+    assert QuantumView(TwoLevelElement('q', psi='down')).initial_vector().tolist() == [0j, 1 + 0j]
+    assert is_quantum(TwoLevelElement)
+    assert not is_quantum(StockElement)
 
 
 def test_sequence_state_is_rewritten_in_parallel():
     """Test that an element with a sequence state is rewritten by its productions at every step."""
     rules = [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-    AlgaeComponent = WordComponent.define('AlgaeComponent', laws=lambda s: [RewriteLaw(rules)])
-    system = System(components=[AlgaeComponent('algae', axiom='A')])
+    AlgaeElement = WordElement.define('AlgaeElement', laws=lambda s: [RewriteLaw(rules)])
+    system = System(components=[AlgaeElement('algae', axiom='A')])
     trajectory = Simulation(system).run(until=4).trajectory_
     assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
-    assert structure_of(WordComponent) == 'sequence'
+    assert structure_of(WordElement) == 'sequence'
 
 
 def test_structured_domains_name_their_kind():
@@ -283,7 +283,7 @@ def test_pairs_binding_needs_its_roles_and_cutoff():
         second: str = role()
 
     system = System(
-        components=[StockComponent.group('herd', 3)],
+        components=[StockElement.group('herd', 3)],
         interactions=[ContactInteraction('c', first='herd', second='herd')],
     )
     issue = next(issue for issue in validate(system).errors if issue.code == 'binding')
@@ -300,7 +300,7 @@ def test_hyperedges_binding_needs_a_network_with_hyperedges():
         target: str = role()
 
     system = System(
-        components=[StockComponent.lattice('nodes', LatticeSpace(4))],
+        components=[StockElement.lattice('nodes', LatticeSpace(4))],
         interactions=[TriadicInteraction('triads', target='nodes')],
     )
     (issue,) = [issue for issue in validate(system).errors if issue.code == 'binding']
@@ -319,14 +319,14 @@ class SoftSphereInteraction(PairPotentialInteraction):
 
 def test_system_prints_its_parameters():
     """Test that a system prints the parameters it was given, through scikit-learn."""
-    system = System('meadow', components=[PopulationComponent('rabbits')])
-    assert repr(system) == "System(components=[PopulationComponent(label='rabbits', n=1.0)], label='meadow')"
+    system = System('meadow', components=[PopulationElement('rabbits')])
+    assert repr(system) == "System(components=[PopulationElement(label='rabbits', n=1.0)], label='meadow')"
 
 
 def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = System(
-        components=[ParticleComponent.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
+        components=[ParticleElement.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
         space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
@@ -339,7 +339,7 @@ def test_pair_interaction_conserves_momentum():
     """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
     rng = np.random.default_rng(0)
     system = System(
-        components=[ParticleComponent.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
+        components=[ParticleElement.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=0.2)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -350,7 +350,7 @@ def test_pair_interaction_conserves_momentum():
 
 def test_aggregates_are_their_own_argument():
     """Test that a system holds its aggregates apart from its components, which hold elements, groups, and systems."""
-    farmers = PopulationComponent.group('farmers', 3)
+    farmers = PopulationElement.group('farmers', 3)
     size = AggregateQuantity('size', group='farmers')
     village = System('village', components=[farmers], aggregates=[size])
     assert village.aggregates == [size]

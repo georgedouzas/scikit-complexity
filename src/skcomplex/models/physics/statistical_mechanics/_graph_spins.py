@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, neighbors
 from ....core.space import Adjacency, NetworkSpace
 from ....core.system import System
@@ -20,7 +20,7 @@ NODES = 400
 DEGREE = 4
 
 
-class GraphIsingSpinComponent(ElementComponent):
+class GraphIsingSpinElement(Element):
     """Ising spin on a node of a graph, with local energy `-J s sum(neighbours) - h s` over the node's edges.
 
     The sampler updates the classes of a proper coloring of the graph in turn, so no two neighbours flip together.
@@ -48,8 +48,8 @@ class GraphIsingSpinComponent(ElementComponent):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpinComponent
-        >>> GraphIsingSpinComponent('spin').sampler
+        >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpinElement
+        >>> GraphIsingSpinElement('spin').sampler
         'metropolis'
     """
 
@@ -148,7 +148,7 @@ def graph_ising(
     size = graph.number_of_nodes()
     spins = np.ones(size) if initial == 'up' else rng.choice([-1.0, 1.0], size=size)
     space = NetworkSpace(graph)
-    group = GraphIsingSpinComponent.lattice(
+    group = GraphIsingSpinElement.lattice(
         'spins',
         space,
         spin=spins,

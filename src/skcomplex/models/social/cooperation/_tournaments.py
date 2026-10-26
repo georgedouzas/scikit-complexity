@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -78,7 +78,7 @@ def _offspring(parent: AgentView, rng: np.random.Generator) -> Array:
     return genome
 
 
-class StrategistComponent(ElementComponent):
+class StrategistElement(Element):
     """Agent of the prisoner's dilemma tournament, with a genome of responses and the fitness of its last games.
 
     Args:
@@ -99,10 +99,10 @@ class StrategistComponent(ElementComponent):
             The probability that an offspring has one gene flipped.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import StrategistComponent
-        >>> group = StrategistComponent.group('agents', 10, genome=[1.0] * 7)
+        >>> from skcomplex.models.social.cooperation import StrategistElement
+        >>> group = StrategistElement.group('agents', 10, genome=[1.0] * 7)
         >>> group.label, group.element.__name__, group.size
-        ('agents', 'StrategistComponent', 10)
+        ('agents', 'StrategistElement', 10)
     """
 
     genome: npt.ArrayLike = state(default=1.0, vector=True)
@@ -236,7 +236,7 @@ def prisoners_dilemma_tournament(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
     visual = VisualSpec('traits', {'color_by': 'fitness'})
-    agents = StrategistComponent.group(
+    agents = StrategistElement.group(
         'agents',
         n_agents,
         genome=genomes,

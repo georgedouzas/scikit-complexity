@@ -4,25 +4,25 @@ from ._car_following import delayed_car_following, intelligent_driver_model, opt
 from ._continuum import kerner_konhauser, lighthill_whitham_richards, payne
 from ._drivers import (
     CarelessBrakingInteraction,
-    DriverComponent,
-    MotoristComponent,
+    DriverElement,
+    MotoristElement,
     charbonneau_traffic,
     ring_road_drivers,
 )
-from ._langevin import LangevinDrivingInteraction, TrafficMomentsComponent, langevin_traffic, traffic_density_equation
-from ._ridesharing import CabComponent, DispatchInteraction, RiderComponent, nearest_cab, ridesharing
-from ._traffic import RoadComponent, nagel_schreckenberg
+from ._langevin import LangevinDrivingInteraction, TrafficMomentsElement, langevin_traffic, traffic_density_equation
+from ._ridesharing import CabElement, DispatchInteraction, RiderElement, nearest_cab, ridesharing
+from ._traffic import RoadElement, nagel_schreckenberg
 
 __all__: list[str] = [
-    'CabComponent',
+    'CabElement',
     'CarelessBrakingInteraction',
     'DispatchInteraction',
-    'DriverComponent',
+    'DriverElement',
     'LangevinDrivingInteraction',
-    'MotoristComponent',
-    'RiderComponent',
-    'RoadComponent',
-    'TrafficMomentsComponent',
+    'MotoristElement',
+    'RiderElement',
+    'RoadElement',
+    'TrafficMomentsElement',
     'charbonneau_traffic',
     'delayed_car_following',
     'intelligent_driver_model',

@@ -5,7 +5,7 @@
 
 from ....core.system import System
 from ....engine.runtime import register_model
-from ._compartments import CompartmentComponent, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
+from ._compartments import CompartmentElement, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 
 
 @register_model(
@@ -55,9 +55,9 @@ def sir(
     """
     return System(
         components=[
-            CompartmentComponent('S', n=susceptible),
-            CompartmentComponent('I', n=infected),
-            CompartmentComponent('R', n=recovered),
+            CompartmentElement('S', n=susceptible),
+            CompartmentElement('I', n=infected),
+            CompartmentElement('R', n=recovered),
         ],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
@@ -110,7 +110,7 @@ def sis(
         ['S', 'I']
     """
     return System(
-        components=[CompartmentComponent('S', n=susceptible), CompartmentComponent('I', n=infected)],
+        components=[CompartmentElement('S', n=susceptible), CompartmentElement('I', n=infected)],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),
             RecoveryInteraction('recovery', infected='I', recovered='S', gamma=gamma, stochastic=stochastic),
@@ -171,9 +171,9 @@ def sirs(
     """
     return System(
         components=[
-            CompartmentComponent('S', n=susceptible),
-            CompartmentComponent('I', n=infected),
-            CompartmentComponent('R', n=recovered),
+            CompartmentElement('S', n=susceptible),
+            CompartmentElement('I', n=infected),
+            CompartmentElement('R', n=recovered),
         ],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=beta, stochastic=stochastic),

@@ -10,7 +10,7 @@
 
 ## 2. Element names
 
-- [ ] 2.1 Rename `BaseComponent` to `BaseElement`, `ElementComponent` to `Element`, `GroupComponent` to
+- [x] 2.1 Rename `BaseComponent` to `BaseElement`, `ElementComponent` to `Element`, `GroupComponent` to
   `GroupElement`, `FieldComponent` to `FieldElement`, `ComponentKind` to `ElementKind`, and every class ending in
   `Component` to end in `Element`. Use a codemod kept in the scratchpad, and cover `src`, `tests`, `docs`, and
   `inventory.toml`. Verify with the scenarios "Hierarchy", "Model names", and "Derived classes".

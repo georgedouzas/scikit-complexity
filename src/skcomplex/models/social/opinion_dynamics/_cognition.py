@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import NetworkSpace
 from ....core.system import System
@@ -64,7 +64,7 @@ def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
     return current
 
 
-class ThinkerComponent(ElementComponent):
+class ThinkerElement(Element):
     """Agent of the cognitive consistency model, with the valences of the concepts of its belief network.
 
     Args:
@@ -78,10 +78,10 @@ class ThinkerComponent(ElementComponent):
             The fraction of every valence lost per update of the belief network.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ThinkerComponent
-        >>> group = ThinkerComponent.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
+        >>> from skcomplex.models.social.opinion_dynamics import ThinkerElement
+        >>> group = ThinkerElement.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
         >>> group.label, group.element.__name__, group.size
-        ('thinkers', 'ThinkerComponent', 5)
+        ('thinkers', 'ThinkerElement', 5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)})
@@ -188,7 +188,7 @@ def cognitive_consistency(
     size = nx.number_of_nodes(graph)
     signs = np.where(np.random.default_rng(random_state).random(size) < positive, 1.0, -1.0)
     valences = signs[:, None] * np.array(POSITIVE)
-    thinkers = ThinkerComponent.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
+    thinkers = ThinkerElement.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
     return System(
         components=[thinkers],
         interactions=[ConversationsInteraction('talks', target='thinkers')],

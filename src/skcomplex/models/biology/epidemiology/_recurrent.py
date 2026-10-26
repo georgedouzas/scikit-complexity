@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, lag, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -18,7 +18,7 @@ def _infected_or_immune(center: Symbols) -> Expression:
     return center.x + past
 
 
-class EpidemicCenterComponent(ElementComponent):
+class EpidemicCenterElement(Element):
     """City in a discrete-time SIRS epidemic, where an infection lasts one step and immunity `recovery` steps.
 
     The state keeps the infected fractions of the last 12 steps, so the recovery time is at most 12.
@@ -37,8 +37,8 @@ class EpidemicCenterComponent(ElementComponent):
             The number of steps a recovered individual stays immune, at most 12.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import EpidemicCenterComponent
-        >>> EpidemicCenterComponent('city', x=0.01).recovery
+        >>> from skcomplex.models.biology.epidemiology import EpidemicCenterElement
+        >>> EpidemicCenterElement('city', x=0.01).recovery
         6
     """
 
@@ -139,8 +139,8 @@ def delayed_sirs(
     """
     return System(
         components=[
-            EpidemicCenterComponent('first', x=first, a=a, recovery=recovery),
-            EpidemicCenterComponent('second', x=second, a=a, recovery=recovery),
+            EpidemicCenterElement('first', x=first, a=a, recovery=recovery),
+            EpidemicCenterElement('second', x=second, a=a, recovery=recovery),
         ],
         interactions=[
             VisitsInteraction('visits_first', home='first', away='second', e=e),

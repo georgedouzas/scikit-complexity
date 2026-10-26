@@ -184,12 +184,12 @@ def register_model(
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationComponent
+        >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> from skcomplex.engine.runtime import create, register_model
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
-        ...     return System(components=[PopulationComponent('a', n=n)])
+        ...     return System(components=[PopulationElement('a', n=n)])
         >>> create('constant_population').components[0].n
         3.0
     """

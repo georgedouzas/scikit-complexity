@@ -22,12 +22,12 @@ from ...core.base import (
     declarations_of,
     symbol,
 )
-from ...core.components import ElementComponent, GroupComponent
+from ...core.components import Element, GroupElement
 from ...core.laws import Symbols
 from ...core.problems import BaseProblem, CompiledElement, Entry, Layout
 from ...core.system import System
 from ...engine.compile import BaseSystemCompiler, Node, flatten_system
-from ._components import HostGraphComponent, PatchComponent, structure_of
+from ._components import HostGraphElement, PatchElement, structure_of
 from ._laws import GraphProductionLaw, Production, ProductionLaw, RewritingError, RewritingLaw, SubstitutionLaw
 from ._structures import GraphStructure, PatchStructure
 from ._words import IDENTIFIER, CompiledWord, Parameters
@@ -43,7 +43,7 @@ def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
 
 def _type_of(component: object) -> type:
     """Return the element type of a group, or the type of any other component."""
-    return component.element if isinstance(component, GroupComponent) else type(component)
+    return component.element if isinstance(component, GroupElement) else type(component)
 
 
 def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, Symbols], dict[str, Any]]:
@@ -151,18 +151,18 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, WordComponent
-        >>> class AlgaeComponent(WordComponent):
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, WordElement
+        >>> class AlgaeElement(WordElement):
         ...     def laws(self, s):
         ...         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
-        >>> problem = compile_system(System(components=[AlgaeComponent('algae', axiom='A')]))
+        >>> problem = compile_system(System(components=[AlgaeElement('algae', axiom='A')]))
         >>> problem.form.value, problem.states.names
         ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
     """
     nodes = flatten_system(system)
     elements = {node.path: node for node in nodes if structure_of(_type_of(node.component))}
     for node in nodes:
-        if isinstance(node.component, GroupComponent) and structure_of(node.component.element):
+        if isinstance(node.component, GroupElement) and structure_of(node.component.element):
             error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
             raise RewritingError(error_msg)
         if node.path not in elements:
@@ -183,7 +183,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
     compiled_elements = []
     for item in compiled:
         names = [*item.counted, 'size']
-        component = cast('ElementComponent', elements[item.path].component)
+        component = cast('Element', elements[item.path].component)
         compiled_elements.append(
             CompiledElement(
                 path=item.path,
@@ -230,7 +230,7 @@ class CompiledPatch:
     def __init__(
         self,
         path: str,
-        patch: PatchComponent,
+        patch: PatchElement,
         substitutions: Sequence[SubstitutionLaw],
         parameters: Parameters,
     ) -> None:
@@ -368,7 +368,7 @@ class CompiledGraph:
             The graph productions that target it, applied one after the other within a generation.
     """
 
-    def __init__(self, path: str, host: HostGraphComponent, productions: Sequence[GraphProductionLaw]) -> None:
+    def __init__(self, path: str, host: HostGraphElement, productions: Sequence[GraphProductionLaw]) -> None:
         self.path = path
         self.graph = host.graph
         self.max_size = int(host.max_size)

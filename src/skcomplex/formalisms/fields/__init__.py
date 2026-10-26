@@ -2,7 +2,7 @@
 
 from .. import lattices  # noqa: F401 - registers the formalism that fields builds on
 from .._formalism import Formalism, register
-from ._components import FieldComponent
+from ._components import FieldElement
 from ._laws import FluxLaw, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._lowering import mesh_laplacian
 from ._passes import (
@@ -20,7 +20,7 @@ __all__: list[str] = [
     'ConservedNoisePass',
     'CrankNicolsonSolver',
     'ETDRK4Solver',
-    'FieldComponent',
+    'FieldElement',
     'FieldFunctionsPass',
     'FieldJacobianPass',
     'FieldProblemPass',
@@ -44,7 +44,7 @@ register(
         'fields',
         depends=('lattices',),
         laws=(FluxLaw,),
-        components=(FieldComponent,),
+        components=(FieldElement,),
         spaces=(MeshSpace,),
         passes=(LowerFieldsPass(), ConservedNoisePass(), FieldFunctionsPass(), FieldJacobianPass(), FieldProblemPass()),
         solvers={

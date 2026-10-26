@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class ReactingParticlesComponent(ElementComponent):
+class ReactingParticlesElement(Element):
     """Number `n` of particles in a volume `V`, with the reactions `A -> 2A`, `A -> 0`, and `2A -> A`.
 
     A particle branches at rate `kappa`, decays at rate `nu`, and every pair annihilates at rate `lambda / V`, so
@@ -40,8 +40,8 @@ class ReactingParticlesComponent(ElementComponent):
             The rate at which a particle appears in the empty state.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ReactingParticlesComponent
-        >>> ReactingParticlesComponent('particles').kappa
+        >>> from skcomplex.models.physics.statistical_mechanics import ReactingParticlesElement
+        >>> ReactingParticlesElement('particles').kappa
         2.0
     """
 
@@ -121,7 +121,7 @@ def absorbing_birth_death(
         >>> absorbing_birth_death(volume=50.0).elements[0].n
         50.0
     """
-    particles = ReactingParticlesComponent(
+    particles = ReactingParticlesElement(
         'particles',
         n=float(round(density * volume)),
         kappa=kappa,

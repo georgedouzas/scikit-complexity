@@ -6,13 +6,13 @@
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseInteraction, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-GridNodeComponent = ElementComponent.define(
-    'GridNodeComponent',
+GridNodeElement = Element.define(
+    'GridNodeElement',
     states={'phi': state(default=0.0, order=2)},
     parameters={'P': 1.0, 'gamma': parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))],
@@ -81,7 +81,7 @@ def power_grid(
         9
     """
     elements = [
-        GridNodeComponent(
+        GridNodeElement(
             f'node_{index}',
             phi=0.0,
             phi_d1=0.0,

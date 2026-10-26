@@ -6,7 +6,7 @@
 from typing import Any
 
 from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -14,7 +14,7 @@ from ....engine.runtime import register_model
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 
 
-class AdaptiveResponderComponent(ElementComponent):
+class AdaptiveResponderElement(Element):
     """System that counters episodes of demand on a critical parameter and pays for its response in four costs.
 
     The excursion of the critical parameter follows `de/dt = (1 - a) s(t) - c e - k0 e`, where the stimulus `s` is a
@@ -97,8 +97,8 @@ class AdaptiveResponderComponent(ElementComponent):
                 The cost per unit time of a unit of extra capacity or of anticipation.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import AdaptiveResponderComponent
-        >>> AdaptiveResponderComponent('organism').period
+        >>> from skcomplex.models.biology.physiology import AdaptiveResponderElement
+        >>> AdaptiveResponderElement('organism').period
         10.0
     """
 
@@ -215,7 +215,7 @@ def adaptive_response_costs(
         error_msg = f'Unknown strategy {strategy!r}. Use one of {", ".join(STRATEGIES)}.'
         raise ValidationError(error_msg)
     eta, anticipation = STRATEGIES[strategy]
-    organism = AdaptiveResponderComponent(
+    organism = AdaptiveResponderElement(
         'organism',
         eta=eta,
         anticipation=anticipation,

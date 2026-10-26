@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -45,7 +45,7 @@ def strategy_table(code: float, memory: int) -> Bits:
     return np.random.default_rng(int(code)).integers(0, 2, 2**memory)
 
 
-class SpeculatorComponent(ElementComponent):
+class SpeculatorElement(Element):
     """Agent of the minority game, who holds two strategies and plays the one with the higher virtual score.
 
     Args:
@@ -71,8 +71,8 @@ class SpeculatorComponent(ElementComponent):
             The net number of times the agent was in the minority.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import SpeculatorComponent
-        >>> SpeculatorComponent.group('players', 11, first=3, second=5).size
+        >>> from skcomplex.models.economics.econophysics import SpeculatorElement
+        >>> SpeculatorElement.group('players', 11, first=3, second=5).size
         11
     """
 
@@ -254,7 +254,7 @@ def minority_game(
         error_msg = f'The minority game needs an odd number of agents, got {n_agents}.'
         raise ValueError(error_msg)
     codes = np.random.default_rng(random_state).integers(MAX_SEED, size=(2, n_agents)).astype(float)
-    players = SpeculatorComponent.group('players', n_agents, first=codes[0], second=codes[1])
+    players = SpeculatorElement.group('players', n_agents, first=codes[0], second=codes[1])
     period = period if evolutionary else 0
     game = MinorityGameInteraction('game', players='players', memory=memory, period=period, fraction=fraction)
     return System(components=[players], interactions=[game])

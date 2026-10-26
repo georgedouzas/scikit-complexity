@@ -8,7 +8,7 @@ import pytest
 from sage.all__sagemath_symbolics import exp
 
 from skcomplex.core.base import BaseLaw, NumericDomain, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import ObjectiveQuantity, RateLaw, Symbols
 from skcomplex.core.system import System
 
@@ -17,7 +17,7 @@ HORIZON = 1.0
 type Control = Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
 
 
-class IntegratorComponent(ElementComponent):
+class IntegratorElement(Element):
     """Scalar state driven by its control, with a quadratic running cost."""
 
     x: float = state(1.0)
@@ -32,7 +32,7 @@ class IntegratorComponent(ElementComponent):
         return [ObjectiveQuantity('objective', (s.x**2 + s.u**2) / 2)]
 
 
-class FisheryComponent(ElementComponent):
+class FisheryElement(Element):
     """Logistic resource harvested with bounded effort for a discounted profit."""
 
     x: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
@@ -64,10 +64,10 @@ def riccati_control() -> Control:
 @pytest.fixture
 def linear_quadratic() -> System:
     """Return the scalar linear-quadratic problem `x' = u`, `x(0) = 1`, with cost `∫ (x^2 + u^2) / 2 dt`."""
-    return System(components=[IntegratorComponent('plant')])
+    return System(components=[IntegratorElement('plant')])
 
 
 @pytest.fixture
 def harvesting() -> System:
     """Return the discounted harvest of a logistic resource with bounded effort."""
-    return System(components=[FisheryComponent('fishery')])
+    return System(components=[FisheryElement('fishery')])

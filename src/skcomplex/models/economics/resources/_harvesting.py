@@ -6,14 +6,14 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import AggregateQuantity, ElementComponent
+from ....core.components import AggregateQuantity, Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
-StockComponent = ElementComponent.define(
-    'StockComponent',
+StockElement = Element.define(
+    'StockElement',
     states={'n': state(default=1000.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'r': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
@@ -23,7 +23,7 @@ StockComponent = ElementComponent.define(
 )
 
 
-class FarmerComponent(ElementComponent):
+class FarmerElement(Element):
     """Farmer who adds the catch of every step to its wealth, reading the resource from the other partition.
 
     Args:
@@ -43,8 +43,8 @@ class FarmerComponent(ElementComponent):
                 The initial wealth.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import FarmerComponent
-        >>> FarmerComponent.group('farmers', 10).size
+        >>> from skcomplex.models.economics.resources import FarmerElement
+        >>> FarmerElement.group('farmers', 10).size
         10
     """
 
@@ -161,10 +161,10 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         >>> [subsystem.label for subsystem in harvesting().systems]
         ['land', 'village']
     """
-    land = System('land', components=[StockComponent('stock', n=K, r=r, K=K)])
+    land = System('land', components=[StockElement('stock', n=K, r=r, K=K)])
     village = System(
         'village',
-        components=[FarmerComponent.group('farmers', farmers)],
+        components=[FarmerElement.group('farmers', farmers)],
         aggregates=[AggregateQuantity('size', group='farmers')],
     )
     harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=effort)

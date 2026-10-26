@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, neighbors, where
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -20,7 +20,7 @@ from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 NEAREST = Neighborhood.von_neumann()
 
 
-class IsingSpinComponent(ElementComponent):
+class IsingSpinElement(Element):
     """Spin of the Ising model, up at 1 or down at -1, with local energy `-J s sum(neighbours) - h s`.
 
     Args:
@@ -46,8 +46,8 @@ class IsingSpinComponent(ElementComponent):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import IsingSpinComponent
-        >>> IsingSpinComponent('spin').temperature
+        >>> from skcomplex.models.physics.statistical_mechanics import IsingSpinElement
+        >>> IsingSpinElement('spin').temperature
         2.0
     """
 
@@ -81,7 +81,7 @@ class IsingSpinComponent(ElementComponent):
         return [SampleLaw(Energy(energy, NEAREST), MoveLaw.flip(s.spin), SamplerLaw(self.sampler, s.temperature))]
 
 
-class PottsSpinComponent(ElementComponent):
+class PottsSpinElement(Element):
     """Spin of the q-state Potts model, with local energy `-J` times the number of neighbours in the same state.
 
     Args:
@@ -107,8 +107,8 @@ class PottsSpinComponent(ElementComponent):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import PottsSpinComponent
-        >>> PottsSpinComponent('spin').q
+        >>> from skcomplex.models.physics.statistical_mechanics import PottsSpinElement
+        >>> PottsSpinElement('spin').q
         3
     """
 
@@ -149,7 +149,7 @@ class PottsSpinComponent(ElementComponent):
         ]
 
 
-class XYSpinComponent(ElementComponent):
+class XYSpinElement(Element):
     """Planar spin of the XY model, an angle with local energy `-J sum(cos(theta - neighbours))`.
 
     Args:
@@ -172,8 +172,8 @@ class XYSpinComponent(ElementComponent):
                 The temperature in units of the coupling.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import XYSpinComponent
-        >>> XYSpinComponent('spin').width
+        >>> from skcomplex.models.physics.statistical_mechanics import XYSpinElement
+        >>> XYSpinElement('spin').width
         1.0
     """
 
@@ -273,7 +273,7 @@ def ising(
     shape = _square(size)
     spins = np.ones(shape) if initial == 'up' else np.random.default_rng(random_state).choice([-1.0, 1.0], size=shape)
     space = LatticeSpace(shape)
-    group = IsingSpinComponent.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
+    group = IsingSpinElement.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
     return System(components=[group])
 
 
@@ -325,7 +325,7 @@ def potts(
     shape = _square(size)
     colors = np.random.default_rng(random_state).integers(0, q, size=shape).astype(float)
     space = LatticeSpace(shape)
-    group = PottsSpinComponent.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
+    group = PottsSpinElement.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
     return System(components=[group])
 
 
@@ -373,5 +373,5 @@ def xy(
     shape = _square(size)
     angles = np.random.default_rng(random_state).uniform(0, 2 * np.pi, size=shape)
     space = LatticeSpace(shape)
-    group = XYSpinComponent.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
+    group = XYSpinElement.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
     return System(components=[group])

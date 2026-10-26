@@ -9,15 +9,15 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, UpdateLaw, shift_member
 from ....core.space import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
-class ContourCellComponent(ElementComponent):
+class ContourCellElement(Element):
     """Logistic cell of a closed contour that takes up the signalling molecules of the next cell through a power map.
 
     The concentration of cell `i` follows `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic
@@ -41,8 +41,8 @@ class ContourCellComponent(ElementComponent):
             The affinity of the cell for the uptake of signalling molecules.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import ContourCellComponent
-        >>> ContourCellComponent('cells').r
+        >>> from skcomplex.models.biology.physiology import ContourCellElement
+        >>> ContourCellElement('cells').r
         2.5
     """
 
@@ -65,7 +65,7 @@ class ContourCellComponent(ElementComponent):
         return [UpdateLaw(s.x, (1 - s.c) * s.r * s.x * (1 - s.x) + s.c * shift_member(s.x, 1) ** s.p)]
 
 
-class ExchangingCellComponent(ElementComponent):
+class ExchangingCellElement(Element):
     """Cell that metabolizes a substance and exchanges it with its neighbours through gap junctions and nanotubes.
 
     The concentration follows `dx_i/dt = -alpha_i x_i / (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the
@@ -96,8 +96,8 @@ class ExchangingCellComponent(ElementComponent):
             The number of neighbours of the cell.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import ExchangingCellComponent
-        >>> ExchangingCellComponent('cells').g
+        >>> from skcomplex.models.biology.physiology import ExchangingCellElement
+        >>> ExchangingCellElement('cells').g
         0.1
     """
 
@@ -171,7 +171,7 @@ def closed_contour_cell_exchange(
         5
     """
     rng = np.random.default_rng(random_state)
-    cells = ContourCellComponent.group(
+    cells = ContourCellElement.group(
         'cells',
         n_cells,
         x=rng.uniform(0.2, 0.8, n_cells),
@@ -254,5 +254,5 @@ def nanotube_gap_junction_exchange(
         'xi': xi,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    cells = FieldComponent('cells', ExchangingCellComponent, NetworkSpace(graph), values=values)
+    cells = FieldElement('cells', ExchangingCellElement, NetworkSpace(graph), values=values)
     return System(components=[cells], time=ContinuousTime())

@@ -11,8 +11,8 @@ import numpy as np
 from sklearn.base import clone
 
 from ...core.base import (
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -64,19 +64,19 @@ class CoSimulationSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(
         ...     components=[
         ...         System(
         ...             'a',
-        ...             components=[PopulationComponent('x', n=1)],
+        ...             components=[PopulationElement('x', n=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
         ...         ),
         ...         System(
         ...             'b',
-        ...             components=[PopulationComponent('y', n=1)],
+        ...             components=[PopulationElement('y', n=1)],
         ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
         ...         ),
         ...     ],
@@ -107,11 +107,11 @@ class CoSimulationSolver(Solver):
         },
         domains=set(DomainKind),
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.VARIABLE_GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.VARIABLE_GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.SYSTEM,
         },
         noise=set(NoiseKind),
         orders=set(OrderKind),

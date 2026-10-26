@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
 from skcomplex.models.economics.finance import (
-    AssetComponent,
+    AssetElement,
     GeometricBrownianMotionInteraction,
     geometric_brownian_motion,
 )
@@ -24,7 +24,7 @@ from ...conftest import _correlated
 def test_euler_maruyama_without_noise_matches_ode():
     """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
     system = System(
-        components=[AssetComponent('s', price=1.0)],
+        components=[AssetElement('s', price=1.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='s', mu=1.0, sigma=0.0)],
     )
     problem = compile_system(system)
@@ -37,7 +37,7 @@ def test_euler_maruyama_without_noise_matches_ode():
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
     problem = compile_system(
-        System(components=[AssetComponent('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
+        System(components=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
     )
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.prepare(problem, np.random.default_rng(0))
@@ -61,8 +61,8 @@ def test_euler_maruyama_same_seed_on_both_backends():
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)
 
 
-PairComponent = ElementComponent.define(
-    'PairComponent',
+PairElement = Element.define(
+    'PairElement',
     states={'x': 1.0, 'y': 1.0},
     laws=lambda s: [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')],
 )
@@ -74,7 +74,7 @@ def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
     trajectory = (
         Simulation(
-            System(components=[PairComponent('pair')]),
+            System(components=[PairElement('pair')]),
             backend=backend,
             solver=stepper(dt=0.01),
             random_state=0,
@@ -103,15 +103,15 @@ def test_correlated_increments_reproduce_covariance(backend):
 def test_shared_stratonovich_process_has_exact_mean():
     """Test that `dX = s Y o dW`, `dY = s X o dW` on one process has the mean `(X0 + Y0) exp(s^2 / 2)` at time 1."""
     sigma = 0.5
-    CrossComponent = ElementComponent.define(
-        'CrossComponent',
+    CrossElement = Element.define(
+        'CrossElement',
         states={'x': 1.0, 'y': 0.5},
         laws=lambda s: [
             NoiseLaw(s.x, sigma * s.y, convention='stratonovich', process='common'),
             NoiseLaw(s.y, sigma * s.x, convention='stratonovich', process='common'),
         ],
     )
-    system = System(components=[CrossComponent.group('crosses', 4000)])
+    system = System(components=[CrossElement.group('crosses', 4000)])
     state = Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).run(until=1).state_
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)

@@ -13,8 +13,8 @@ import qutip
 import scipy.sparse as sp
 
 from ...core.base import (
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     OrderKind,
@@ -67,7 +67,7 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         space=set(SpaceKind.registered()),
         laws={LawKind.GENERATOR, LawKind.DISSIPATOR},
         domains={DomainKind.HILBERT},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP},
         orders={OrderKind.INTEGER},
     )
 
@@ -228,10 +228,10 @@ class UnitarySolver(QuantumSolver):
         >>> from skcomplex.formalisms.quantum import GeneratorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
         >>> from operator import attrgetter
-        >>> RabiComponent = QubitComponent.define('RabiComponent', laws=lambda s: [GeneratorLaw(s.x / 2)])
-        >>> system = System(components=[RabiComponent('q')])
+        >>> RabiElement = QubitElement.define('RabiElement', laws=lambda s: [GeneratorLaw(s.x / 2)])
+        >>> system = System(components=[RabiElement('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).run(until=np.pi)
         >>> float(round(simulation.trajectory_.values('z')[-1], 6))
@@ -272,10 +272,10 @@ class LindbladSolver(QuantumSolver):
         >>> from skcomplex.formalisms.quantum import DissipatorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
         >>> from operator import attrgetter
-        >>> DecayingComponent = QubitComponent.define('DecayingComponent', laws=lambda s: [DissipatorLaw(s.minus, 0.5)])
-        >>> system = System(components=[DecayingComponent('q')])
+        >>> DecayingElement = QubitElement.define('DecayingElement', laws=lambda s: [DissipatorLaw(s.minus, 0.5)])
+        >>> system = System(components=[DecayingElement('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).run(until=2.0)
         >>> bool(abs((1 + simulation.trajectory_.values('z')[-1]) / 2 - np.exp(-1.0)) < 1e-6)
@@ -318,10 +318,10 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> from skcomplex.formalisms.quantum import DissipatorLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.quantum import expectation
-        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
+        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
         >>> from operator import attrgetter
-        >>> DecayingComponent = QubitComponent.define('DecayingComponent', laws=lambda s: [DissipatorLaw(s.minus, 1.0)])
-        >>> system = System(components=[DecayingComponent('q')])
+        >>> DecayingElement = QubitElement.define('DecayingElement', laws=lambda s: [DissipatorLaw(s.minus, 1.0)])
+        >>> system = System(components=[DecayingElement('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=QuantumTrajectoriesSolver(), dt=1.0, random_state=0, observables=z)
         >>> simulation = simulation.run(until=20.0)

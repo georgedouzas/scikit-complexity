@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import InvariantQuantity, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -100,7 +100,7 @@ def _shops(left: Sequence[Any], right: Sequence[Any], rng: np.random.Generator, 
     return pairs
 
 
-class PlotComponent(ElementComponent):
+class PlotElement(Element):
     """Patch of land whose food grows back by a share of its capacity every step, harvested against a resistance.
 
     Args:
@@ -120,8 +120,8 @@ class PlotComponent(ElementComponent):
             The share of the capacity that grows back in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import PlotComponent
-        >>> PlotComponent('patch').regrowth
+        >>> from skcomplex.models.economics.macroeconomics import PlotElement
+        >>> PlotElement('patch').regrowth
         1.0
     """
 
@@ -156,7 +156,7 @@ class PlotComponent(ElementComponent):
         agent.food = min(agent.capacity, agent.food + agent.regrowth * agent.capacity)
 
 
-class SettlerComponent(ElementComponent):
+class SettlerElement(Element):
     """Mortal person who eats, ages, raises children, moves, and, in the monetary economy, works and founds firms.
 
     Every step a person eats `need` food and starves when its food runs out, and past `lifespan` it dies of old age
@@ -241,8 +241,8 @@ class SettlerComponent(ElementComponent):
             One in the monetary economy, zero among hunter-gatherers.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import SettlerComponent
-        >>> SettlerComponent.group('people', 3, variable=True).size
+        >>> from skcomplex.models.economics.macroeconomics import SettlerElement
+        >>> SettlerElement.group('people', 3, variable=True).size
         3
     """
 
@@ -351,7 +351,7 @@ class SettlerComponent(ElementComponent):
         agent.harvested = 0.0
 
 
-class BusinessComponent(ElementComponent):
+class BusinessElement(Element):
     """Firm on a patch that harvests with its workers, pays wages with money it borrows, and sells food in its shop.
 
     Every step the workers pool their labour on the firm's patch, the firm pays each the wage, borrowing what it
@@ -405,8 +405,8 @@ class BusinessComponent(ElementComponent):
             The stock above which the firm lowers its price and lays off.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import BusinessComponent
-        >>> BusinessComponent.group('businesses', 2, variable=True).size
+        >>> from skcomplex.models.economics.macroeconomics import BusinessElement
+        >>> BusinessElement.group('businesses', 2, variable=True).size
         2
     """
 
@@ -506,7 +506,7 @@ class BusinessComponent(ElementComponent):
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
 
-class CentralBankComponent(ElementComponent):
+class CentralBankElement(Element):
     """Bank that creates money as loans and pays its interest income to a random person as a dividend.
 
     The money it issued, a negative holding, and the loans it holds sum to zero after every step, so every unit of
@@ -523,8 +523,8 @@ class CentralBankComponent(ElementComponent):
             The loans the bank holds.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import CentralBankComponent
-        >>> CentralBankComponent.group('bank', 1).size
+        >>> from skcomplex.models.economics.macroeconomics import CentralBankElement
+        >>> CentralBankElement.group('bank', 1).size
         1
     """
 
@@ -885,7 +885,7 @@ def metaphoria(
     space = LatticeSpace(shape)
     sites = list(np.ndindex(*shape))
     capacity = rng.uniform(0.0, max_food, len(sites))
-    patches = PlotComponent.group(
+    patches = PlotElement.group(
         'patches',
         len(sites),
         location=sites,
@@ -896,7 +896,7 @@ def metaphoria(
     )
     cells = rng.integers(0, shape, size=(n_people, len(shape)))
     traits: dict[str, Any] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
-    people = SettlerComponent.group(
+    people = SettlerElement.group(
         'people',
         n_people,
         variable=True,
@@ -908,7 +908,7 @@ def metaphoria(
         **traits,
     )
     firms = rng.integers(0, shape, size=(n_firms, len(shape)))
-    businesses = BusinessComponent.group(
+    businesses = BusinessElement.group(
         'businesses',
         n_firms,
         variable=True,
@@ -916,7 +916,7 @@ def metaphoria(
         interest=interest,
         repayment=repayment,
     )
-    bank = CentralBankComponent.group('bank', 1, location=(0,) * len(shape))
+    bank = CentralBankElement.group('bank', 1, location=(0,) * len(shape))
     economy = [businesses, bank] if mode == 'monetary' else []
     exchange: list[BaseInteraction] = (
         [CommonsInteraction('commons', people='people')]

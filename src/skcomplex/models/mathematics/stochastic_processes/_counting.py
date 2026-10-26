@@ -6,21 +6,21 @@
 from typing import ClassVar
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
-PoissonCounterComponent = ElementComponent.define(
-    'PoissonCounterComponent',
+PoissonCounterElement = Element.define(
+    'PoissonCounterElement',
     states={'count': state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)},
     parameters={'rate': parameter(1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [JumpLaw(s.rate, {s.count: 1})],
 )
 
 
-class BernoulliTrialComponent(ElementComponent):
+class BernoulliTrialElement(Element):
     """Sequence of independent trials, each a success with the same probability.
 
     Args:
@@ -37,10 +37,10 @@ class BernoulliTrialComponent(ElementComponent):
             The probability of a success.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrialComponent
-        >>> group = BernoulliTrialComponent.group('trials', 4, p=0.2)
+        >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrialElement
+        >>> group = BernoulliTrialElement.group('trials', 4, p=0.2)
         >>> group.label, group.element.__name__, group.size
-        ('trials', 'BernoulliTrialComponent', 4)
+        ('trials', 'BernoulliTrialElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'successes'})
@@ -100,7 +100,7 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
         >>> bernoulli_process(3).elements[0].size
         3
     """
-    return System(components=[BernoulliTrialComponent.group('trials', n_sequences, p=p)])
+    return System(components=[BernoulliTrialElement.group('trials', n_sequences, p=p)])
 
 
 @register_model(
@@ -128,4 +128,4 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
         >>> poisson_process(5).elements[0].size
         5
     """
-    return System(components=[PoissonCounterComponent.group('counters', n_processes, rate=rate)])
+    return System(components=[PoissonCounterElement.group('counters', n_processes, rate=rate)])

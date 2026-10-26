@@ -10,17 +10,17 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, IMEXEulerSolver, MeshSpace, laplacian
+from ....formalisms.fields import FieldElement, IMEXEulerSolver, MeshSpace, laplacian
 
 type Array = npt.NDArray[np.float64]
 
-HeatComponent = ElementComponent.define(
-    'HeatComponent',
+HeatElement = Element.define(
+    'HeatElement',
     states={'u': 0.0},
     parameters={'D': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u))],
@@ -71,7 +71,7 @@ def heat_diffusion(
     condition = ('fixed', 0.0) if boundary == 'fixed' else boundary
     space = LatticeSpace(shape, spacing=spacing)
     return System(
-        components=[FieldComponent('plate', HeatComponent, space, boundary={'u': condition}, values={'u': u, 'D': D})],
+        components=[FieldElement('plate', HeatElement, space, boundary={'u': condition}, values={'u': u, 'D': D})],
     )
 
 
@@ -136,9 +136,9 @@ def heat_l_shape(
     mesh = MeshSpace.l_shape(refine)
     return System(
         components=[
-            FieldComponent(
+            FieldElement(
                 'plate',
-                HeatComponent,
+                HeatElement,
                 mesh,
                 boundary={'u': ('fixed', temperature)},
                 values={'D': D},

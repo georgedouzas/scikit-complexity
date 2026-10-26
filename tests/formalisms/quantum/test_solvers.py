@@ -19,23 +19,23 @@ from skcomplex.formalisms.quantum import (
     UnitarySolver,
     expectation,
 )
-from skcomplex.models.physics.realizations.quantum import QubitComponent, SpinComponent
+from skcomplex.models.physics.realizations.quantum import QubitElement, SpinElement
 
 OMEGA = 2.0
 GAMMA = 0.5
 
-RabiComponent = QubitComponent.define(
-    'RabiComponent',
+RabiElement = QubitElement.define(
+    'RabiElement',
     parameters={'omega': OMEGA},
     laws=lambda s: [GeneratorLaw(s.omega / 2 * s.x)],
 )
-DecayingComponent = QubitComponent.define(
-    'DecayingComponent',
+DecayingElement = QubitElement.define(
+    'DecayingElement',
     parameters={'gamma': GAMMA},
     laws=lambda s: [DissipatorLaw(s.minus, s.gamma)],
 )
-DephasedComponent = QubitComponent.define(
-    'DephasedComponent',
+DephasedElement = QubitElement.define(
+    'DephasedElement',
     laws=lambda s: [GeneratorLaw(s.x), DissipatorLaw(s.z, 0.3)],
 )
 
@@ -67,14 +67,14 @@ def _chain(n_sites, **values):
     """Return a Heisenberg chain from a Néel state."""
     labels = ['up', 'down'] * (n_sites // 2)
     return System(
-        components=[SpinComponent.lattice('chain', LatticeSpace(n_sites), initial=labels)],
+        components=[SpinElement.lattice('chain', LatticeSpace(n_sites), initial=labels)],
         interactions=[XXZInteraction('xxz', target='chain', **values)],
     )
 
 
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
-    system = System(components=[RabiComponent('q')])
+    system = System(components=[RabiElement('q')])
     simulation = Simulation(system, solver='unitary', dt=0.05, observables=Z).run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
     assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
@@ -93,12 +93,12 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(System(components=[DecayingComponent('q')]), solver='unitary').run(until=1.0)
+        Simulation(System(components=[DecayingElement('q')]), solver='unitary').run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
-    system = System(components=[DecayingComponent('q')])
+    system = System(components=[DecayingElement('q')])
     simulation = Simulation(system, dt=0.5, observables=Z).run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
@@ -109,7 +109,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
-    trajectory = Simulation(System(components=[DephasedComponent('q')]), dt=0.2).run(until=4.0).trajectory_
+    trajectory = Simulation(System(components=[DephasedElement('q')]), dt=0.2).run(until=4.0).trajectory_
     purity = trajectory.values('purity')
     assert purity[0] == pytest.approx(1)
     assert np.all(np.diff(purity) <= 1e-10)
@@ -117,7 +117,7 @@ def test_lindblad_evolution_lowers_purity():
 
 def test_quantum_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
-    system = System(components=[DecayingComponent('q')])
+    system = System(components=[DecayingElement('q')])
     runs = [
         Simulation(system, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=3, observables=Z).run(until=10.0)
         for _ in range(2)
@@ -128,7 +128,7 @@ def test_quantum_trajectories_are_reproducible():
 
 def test_quantum_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
-    system = System(components=[DecayingComponent('q')])
+    system = System(components=[DecayingElement('q')])
     problem = compile_system(system, observables=Z)
     rng = np.random.default_rng(0)
     values = np.array(

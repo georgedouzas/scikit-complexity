@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role, state, symbol
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import ObservableQuantity, System
@@ -17,13 +17,13 @@ ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)
 PROFILE = np.array([0.05, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05, 0.03, 0.02])
 
 
-class DensityComponent(ElementComponent):
+class DensityElement(Element):
     """Density of particles at one activity value."""
 
     f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class RecorderComponent(ElementComponent):
+class RecorderElement(Element):
     """Element whose rate is the mean activity of a distribution."""
 
     y: float = state(default=0.0)
@@ -80,7 +80,7 @@ OBSERVABLES = [
 def _system():
     """Return a distribution of wealth over 9 classes as a site group on a lattice of 9 sites."""
     return System(
-        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE})],
+        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
         interactions=[UpwardInteraction('upward', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -123,8 +123,8 @@ def test_law_reads_a_moment():
     """Test that a rate law reads the mean activity moment of a distribution."""
     system = System(
         components=[
-            GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE}),
-            RecorderComponent('recorder'),
+            GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE}),
+            RecorderElement('recorder'),
         ],
         interactions=[ReadMeanInteraction('read', recorder='recorder', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
@@ -149,7 +149,7 @@ def test_moment_inside_a_group_law_is_shared():
             return [RateLaw(s.population.f, moment(s.population.f, 1, ACTIVITIES))]
 
     system = System(
-        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': PROFILE})],
+        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': PROFILE})],
         interactions=[RelaxInteraction('relax', population='wealth')],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),

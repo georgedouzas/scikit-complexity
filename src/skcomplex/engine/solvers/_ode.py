@@ -16,7 +16,7 @@ from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
+    ElementKind,
     Expression,
     Form,
     LawKind,
@@ -217,11 +217,11 @@ class ScipyODESolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.solvers import ScipyODESolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationComponent('a', n=1)],
+        ...         components=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
@@ -237,11 +237,11 @@ class ScipyODESolver(Solver):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.ENCOUNTER},
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )
@@ -638,11 +638,11 @@ class RK4Solver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.solvers import RK4Solver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[PopulationComponent('a', n=1)],
+        ...         components=[PopulationElement('a', n=1)],
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
@@ -665,11 +665,11 @@ class RK4Solver(Solver):
         },
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )
@@ -785,12 +785,12 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.formalisms.particles import ParticleComponent
+        >>> from skcomplex.formalisms.particles import ParticleElement
         >>> from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
         >>> from skcomplex.engine.solvers import VelocityVerletSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[ParticleComponent('ball')],
+        ...         components=[ParticleElement('ball')],
         ...         interactions=[ConstantForceInteraction('push', target='ball', F=2.0)],
         ...         space=ContinuousSpace(n_dim=1),
         ...     ),
@@ -805,7 +805,7 @@ class VelocityVerletSolver(Solver):
         space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
         orders={OrderKind.INTEGER},
     )
 

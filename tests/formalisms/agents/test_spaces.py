@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SimulationError, ValidationError, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.space import DiscreteTime, Schedule
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -26,7 +26,7 @@ def test_phase_rejects_unknown_activation():
         PhasesSchedule([Phase('trade', activation='parallel')]).check()
 
 
-class EmployerComponent(ElementComponent):
+class EmployerElement(Element):
     """Test helper Employer."""
 
     offer: float = state(0.0)
@@ -40,7 +40,7 @@ class EmployerComponent(ElementComponent):
         agent.offer = model.time + 1.0
 
 
-class WorkerComponent(ElementComponent):
+class WorkerElement(Element):
     """Test helper Worker."""
 
     accepted: float = state(-1.0)
@@ -60,7 +60,7 @@ class WorkerComponent(ElementComponent):
 def test_offer_before_acceptance():
     """Every acceptance refers to an offer made earlier in the same step."""
     system = System(
-        components=[WorkerComponent.group('workers', 5), EmployerComponent.group('employers', 3)],
+        components=[WorkerElement.group('workers', 5), EmployerElement.group('employers', 3)],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('offers'), Phase('acceptance')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=10).trajectory_
@@ -71,7 +71,7 @@ def test_offer_before_acceptance():
 
 def test_undeclared_phase_raises():
     """A rule in a phase that the system does not declare raises an error."""
-    system = System(components=[EmployerComponent.group('employers', 2)])
+    system = System(components=[EmployerElement.group('employers', 2)])
     with pytest.raises(SimulationError, match='offers'):
         Simulation(system).run(until=1)
 
@@ -79,7 +79,7 @@ def test_undeclared_phase_raises():
 def test_phases_keep_unphased_models():
     """Rules without a phase run in the default phase."""
 
-    class CounterComponent(ElementComponent):
+    class CounterElement(Element):
         count: float = state(0.0)
 
         def laws(self, s):
@@ -89,7 +89,7 @@ def test_phases_keep_unphased_models():
             agent.count += 1
 
     system = System(
-        components=[CounterComponent.group('counters', 3)],
+        components=[CounterElement.group('counters', 3)],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('extra', repeat=2)])),
     )
     trajectory = Simulation(system, random_state=0).run(until=4).trajectory_
@@ -100,23 +100,23 @@ def test_sequential_and_by_type_order():
     """Sequential activation follows creation, and by-type activation follows the listed groups."""
     seen = []
 
-    class FirstComponent(ElementComponent):
+    class FirstElement(Element):
         def laws(self, s):
             return [RuleLaw(lambda agent, model: seen.append(('first', agent.id)), phase='go')]
 
-    class SecondComponent(ElementComponent):
+    class SecondElement(Element):
         def laws(self, s):
             return [RuleLaw(lambda agent, model: seen.append(('second', agent.id)), phase='go')]
 
     system = System(
-        components=[FirstComponent.group('first', 3), SecondComponent.group('second', 3)],
+        components=[FirstElement.group('first', 3), SecondElement.group('second', 3)],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('go', activation='by-type', groups=['second', 'first'])])),
     )
     Simulation(system, random_state=0).run(until=1)
     assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
     seen.clear()
     sequential = System(
-        components=[FirstComponent.group('first', 3), SecondComponent.group('second', 3)],
+        components=[FirstElement.group('first', 3), SecondElement.group('second', 3)],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('go', 'sequential')])),
     )
     Simulation(sequential, random_state=0).run(until=1)

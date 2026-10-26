@@ -9,13 +9,13 @@ from typing import Any
 from sage.all__sagemath_symbolics import cos, sqrt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DoubleWellComponent = ElementComponent.define(
-    'DoubleWellComponent',
+DoubleWellElement = Element.define(
+    'DoubleWellElement',
     states={'x': -1.0},
     parameters={
         'amplitude': 0.1,
@@ -69,10 +69,10 @@ def stochastic_resonance(
         >>> stochastic_resonance(D=0.2).elements[0].D
         0.2
     """
-    return System(components=[DoubleWellComponent('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
+    return System(components=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
 
 
-class WallParticleComponent(ElementComponent):
+class WallParticleElement(Element):
     """Brownian particle whose diffusion slows near a wall, with multiplicative noise of a chosen convention.
 
     Args:
@@ -98,8 +98,8 @@ class WallParticleComponent(ElementComponent):
                 The settling velocity far from the wall.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import WallParticleComponent
-        >>> WallParticleComponent('bead').convention
+        >>> from skcomplex.models.physics.soft_matter import WallParticleElement
+        >>> WallParticleElement('bead').convention
         'anti-ito'
     """
 
@@ -182,5 +182,5 @@ def brownian_near_wall(
         >>> brownian_near_wall(convention='ito').components[0].convention
         'ito'
     """
-    particle = WallParticleComponent('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
+    particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
     return System(components=[particle])

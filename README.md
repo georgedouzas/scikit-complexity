@@ -80,10 +80,10 @@ A predator and prey model assembles from ready-made interactions:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
+from skcomplex.models.biology.ecology import LogisticGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
 
 system = System(
-    components=[PopulationComponent('rabbits', n=40), PopulationComponent('foxes', n=9)],
+    components=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
     interactions=[
         LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000),
         PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
@@ -124,7 +124,7 @@ bound to its roles:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
+from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
 
 from skcomplex.engine.analysis import equations_of
 from skcomplex.core.base import NumericDomain, parameter, role
@@ -141,7 +141,7 @@ class HarvestInteraction(BaseInteraction):
 
 
 harvested = System(
-    components=[PopulationComponent('fish', n=500)],
+    components=[PopulationElement('fish', n=500)],
     interactions=[LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000), HarvestInteraction('fishing', target='fish', h=0.1)],
 )
 print(equations_of(harvested)['fish.n'])

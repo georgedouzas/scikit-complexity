@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, neighbors, where
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -17,7 +17,7 @@ from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
 
-class DiscussantComponent(ElementComponent):
+class DiscussantElement(Element):
     """Agent of the Deffuant model, with a continuous opinion and a confidence bound.
 
     Args:
@@ -34,10 +34,10 @@ class DiscussantComponent(ElementComponent):
             The fraction of the opinion difference by which each agent of a compromising pair moves.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import DiscussantComponent
-        >>> group = DiscussantComponent.group('people', 10, opinion=0.5)
+        >>> from skcomplex.models.social.opinion_dynamics import DiscussantElement
+        >>> group = DiscussantElement.group('people', 10, opinion=0.5)
         >>> group.label, group.element.__name__, group.size
-        ('people', 'DiscussantComponent', 10)
+        ('people', 'DiscussantElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -141,7 +141,7 @@ def deffuant(
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
     visual = VisualSpec('traits', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
-    people = DiscussantComponent.group(
+    people = DiscussantElement.group(
         'people',
         n_agents,
         opinion=opinions,
@@ -152,7 +152,7 @@ def deffuant(
     return System(components=[people], interactions=[EncountersInteraction('meetings', target='people')])
 
 
-class ConfidentComponent(ElementComponent):
+class ConfidentElement(Element):
     """Agent of the Hegselmann-Krause model, who moves to the mean opinion of the neighbours within its confidence.
 
     Every step all agents update at once to the mean opinion of the neighbours, themselves included, whose opinions
@@ -169,8 +169,8 @@ class ConfidentComponent(ElementComponent):
             The largest opinion difference of a neighbour an agent still listens to.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ConfidentComponent
-        >>> ConfidentComponent('people', confidence=0.1).confidence
+        >>> from skcomplex.models.social.opinion_dynamics import ConfidentElement
+        >>> ConfidentElement('people', confidence=0.1).confidence
         0.1
     """
 
@@ -239,5 +239,5 @@ def hegselmann_krause(
     """
     space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
     opinions = np.random.default_rng(random_state).random(space.size_)
-    people = ConfidentComponent.lattice('people', space, opinion=opinions, confidence=confidence)
+    people = ConfidentElement.lattice('people', space, opinion=opinions, confidence=confidence)
     return System(components=[people], time=DiscreteTime())

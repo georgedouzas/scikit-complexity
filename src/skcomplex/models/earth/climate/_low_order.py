@@ -6,7 +6,7 @@
 import numpy as np
 
 from ....core.base import BaseLaw, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -21,8 +21,8 @@ def _lorenz_96_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.x, vector(rates))]
 
 
-Lorenz84Component = ElementComponent.define(
-    'Lorenz84Component',
+Lorenz84Element = Element.define(
+    'Lorenz84Element',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0},
     parameters={'a': 0.25, 'b': 4.0, 'F': 8.0, 'G': 1.0},
     laws=lambda s: [
@@ -32,15 +32,15 @@ Lorenz84Component = ElementComponent.define(
     ],
 )
 
-Lorenz96Component = ElementComponent.define(
-    'Lorenz96Component',
+Lorenz96Element = Element.define(
+    'Lorenz96Element',
     states={'x': state(default=8.0, vector=True)},
     parameters={'F': 8.0},
     laws=_lorenz_96_laws,
 )
 
-GeodynamoComponent = ElementComponent.define(
-    'GeodynamoComponent',
+GeodynamoElement = Element.define(
+    'GeodynamoElement',
     states={'Q': 0.1, 'D': 0.1, 'V': 0.1},
     parameters={'mu': 0.119, 'nu': 0.1, 'Gamma': 0.9},
     laws=lambda s: [
@@ -103,7 +103,7 @@ def lorenz_84(
         >>> lorenz_84(G=1.25).elements[0].G
         1.25
     """
-    return System(components=[Lorenz84Component('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
+    return System(components=[Lorenz84Element('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
 
 
 @register_model(
@@ -144,7 +144,7 @@ def lorenz_96(
     """
     values = np.full(n_sites, float(F))
     values[0] += perturbation
-    return System(components=[Lorenz96Component('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
+    return System(components=[Lorenz96Element('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
 
 
 @register_model(
@@ -196,4 +196,4 @@ def geodynamo(
         >>> geodynamo(mu=0.12).elements[0].mu
         0.12
     """
-    return System(components=[GeodynamoComponent('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])
+    return System(components=[GeodynamoElement('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])

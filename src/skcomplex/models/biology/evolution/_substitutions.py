@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, total
 from ....core.space import LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -39,7 +39,7 @@ def _genome_fitness(s: Symbols) -> Expression:
     return s.substitution.F0 + s.field_share + s.coupling_share
 
 
-class LocusComponent(ElementComponent):
+class LocusElement(Element):
     """Locus of the genome shared by a monomorphic population, with an allele of `-1` or `1`.
 
     Args:
@@ -53,8 +53,8 @@ class LocusComponent(ElementComponent):
             The random field of the locus, the fitness gained by the allele `1` over the allele `-1`, halved.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import LocusComponent
-        >>> LocusComponent.group('genome', 10, h=0.05).size
+        >>> from skcomplex.models.biology.evolution import LocusElement
+        >>> LocusElement.group('genome', 10, h=0.05).size
         10
     """
 
@@ -222,7 +222,7 @@ def origin_fixation_walk(
     upper = np.triu(rng.normal(0.0, coupling / np.sqrt(loci), (loci, loci)), 1)
     matrix = upper + upper.T
     couplings = matrix if coupling else None
-    genome = LocusComponent.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
+    genome = LocusElement.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
     return System(
         components=[genome],
         interactions=[SubstitutionInteraction('substitution', genome='genome', N=N, mu=mu, F0=F0, couplings=couplings)],

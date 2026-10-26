@@ -8,11 +8,11 @@ from typing import ClassVar
 import numpy.typing as npt
 
 from ...core.base import BaseLaw, NumericDomain, Requires, SpaceKind, VisualSpec, parameter, state
-from ...core.components import ElementComponent
+from ...core.components import Element
 from ...core.laws import RateLaw, Symbols
 
 
-class ParticleComponent(ElementComponent):
+class ParticleElement(Element):
     """Point particle with a position, a velocity, and a mass.
 
     The particle moves with its velocity, and every force on it changes its velocity by the force divided by its mass.
@@ -31,9 +31,9 @@ class ParticleComponent(ElementComponent):
             The mass.
 
     Examples:
-        >>> from skcomplex.formalisms.particles import ParticleComponent
-        >>> ParticleComponent('ball', x=[0, 1], m=2.0)
-        ParticleComponent(label='ball', m=2.0, v=0.0, x=[0, 1])
+        >>> from skcomplex.formalisms.particles import ParticleElement
+        >>> ParticleElement('ball', x=[0, 1], m=2.0)
+        ParticleElement(label='ball', m=2.0, v=0.0, x=[0, 1])
     """
 
     requires: ClassVar[Requires] = Requires(space={SpaceKind.CONTINUOUS})

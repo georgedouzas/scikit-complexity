@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
@@ -53,7 +53,7 @@ def _book_profit(trade: Trade, model: ModelView) -> None:
     seller.profit += trade.quantity * (trade.price - seller.value)
 
 
-class ZeroIntelligenceBuyerComponent(ElementComponent):
+class ZeroIntelligenceBuyerElement(Element):
     """Buyer of one unit per trading period who bids a random price, below its value under the budget constraint.
 
     In every round of a trading period, a buyer that has not bought yet bids a price drawn uniformly from 0 to its
@@ -82,8 +82,8 @@ class ZeroIntelligenceBuyerComponent(ElementComponent):
             One when the buyer never bids above its value, zero otherwise.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ZeroIntelligenceBuyerComponent
-        >>> ZeroIntelligenceBuyerComponent.group('buyers', 5, value=100.0).size
+        >>> from skcomplex.models.economics.markets import ZeroIntelligenceBuyerElement
+        >>> ZeroIntelligenceBuyerElement.group('buyers', 5, value=100.0).size
         5
     """
 
@@ -121,7 +121,7 @@ class ZeroIntelligenceBuyerComponent(ElementComponent):
         agent.bid = float(model.rng.uniform(0.0, top))
 
 
-class ZeroIntelligenceSellerComponent(ElementComponent):
+class ZeroIntelligenceSellerElement(Element):
     """Seller of one unit per trading period who asks a random price, above its cost under the budget constraint.
 
     In every round of a trading period, a seller that has not sold yet asks a price drawn uniformly from its cost, or
@@ -150,8 +150,8 @@ class ZeroIntelligenceSellerComponent(ElementComponent):
             One when the seller never asks below its cost, zero otherwise.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ZeroIntelligenceSellerComponent
-        >>> ZeroIntelligenceSellerComponent.group('sellers', 5, value=50.0).size
+        >>> from skcomplex.models.economics.markets import ZeroIntelligenceSellerElement
+        >>> ZeroIntelligenceSellerElement.group('sellers', 5, value=50.0).size
         5
     """
 
@@ -298,8 +298,8 @@ def double_auction(
     values = rng.uniform(0.25 * ceiling, ceiling, n_buyers)
     costs = rng.uniform(0.0, 0.75 * ceiling, n_sellers)
     limit = float(constrained)
-    buyers = ZeroIntelligenceBuyerComponent.group('buyers', n_buyers, value=values, ceiling=ceiling, constrained=limit)
-    sellers = ZeroIntelligenceSellerComponent.group(
+    buyers = ZeroIntelligenceBuyerElement.group('buyers', n_buyers, value=values, ceiling=ceiling, constrained=limit)
+    sellers = ZeroIntelligenceSellerElement.group(
         'sellers',
         n_sellers,
         value=costs,

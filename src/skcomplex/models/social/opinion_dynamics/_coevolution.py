@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -30,7 +30,7 @@ def _opposite(node: Symbols) -> object:
     return 1 - node.opinion
 
 
-class TieComponent(ElementComponent):
+class TieElement(Element):
     """Edge of a coevolving network, which holds no state of its own.
 
     Args:
@@ -38,13 +38,13 @@ class TieComponent(ElementComponent):
             The label of the edge group.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import TieComponent
-        >>> TieComponent('ties').label
+        >>> from skcomplex.models.social.opinion_dynamics import TieElement
+        >>> TieElement('ties').label
         'ties'
     """
 
 
-class CoevolvingVoterComponent(ElementComponent):
+class CoevolvingVoterElement(Element):
     """Voter of a coevolving network, with a binary opinion, its degree, and its number of discordant neighbours.
 
     Every step a voter is active with probability `activity` and picks a random neighbour. When the neighbour
@@ -68,8 +68,8 @@ class CoevolvingVoterComponent(ElementComponent):
             The probability that an active voter with a discordant neighbour rewires instead of copying.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CoevolvingVoterComponent
-        >>> CoevolvingVoterComponent('voters', rewiring=0.3).rewiring
+        >>> from skcomplex.models.social.opinion_dynamics import CoevolvingVoterElement
+        >>> CoevolvingVoterElement('voters', rewiring=0.3).rewiring
         0.3
     """
 
@@ -147,7 +147,7 @@ class SeparationInteraction(BaseInteraction):
         ]
 
 
-class ClubMemberComponent(ElementComponent):
+class ClubMemberElement(Element):
     """Agent that is in a club (spin 1) or out of it (spin 0), aligned by a heat bath with the agents it knows.
 
     Every step an agent reconsiders with probability `deciding` and then joins with probability
@@ -181,8 +181,8 @@ class ClubMemberComponent(ElementComponent):
             The probability that a reconsidered acquaintance across the club boundary dissolves and reforms.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ClubMemberComponent
-        >>> ClubMemberComponent('agents', beta=2.0).beta
+        >>> from skcomplex.models.social.opinion_dynamics import ClubMemberElement
+        >>> ClubMemberElement('agents', beta=2.0).beta
         2.0
     """
 
@@ -215,9 +215,9 @@ class ClubMemberComponent(ElementComponent):
         ]
 
 
-def _coevolving(element: type[ElementComponent], space: NetworkSpace, opinions: np.ndarray, **values: object) -> System:
+def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarray, **values: object) -> System:
     """Return a coevolving network of agents with opinions and its variable ties, rewired by separation."""
-    agents = GroupComponent(
+    agents = GroupElement(
         'voters',
         element=element,
         on='sites',
@@ -226,7 +226,7 @@ def _coevolving(element: type[ElementComponent], space: NetworkSpace, opinions: 
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )
-    ties = GroupComponent('ties', element=TieComponent, on='edges', variable=True)
+    ties = GroupElement('ties', element=TieElement, on='edges', variable=True)
     separation = SeparationInteraction('separation', voters='voters', ties='ties')
     return System(components=[agents, ties], interactions=[separation], space=space, time=DiscreteTime())
 
@@ -281,7 +281,7 @@ def coevolving_voter(
     rng = np.random.default_rng(random_state)
     space = NetworkSpace.erdos_renyi(n_voters, mean_degree / (n_voters - 1), seed=rng)
     opinions = (rng.random(n_voters) < 0.5).astype(float)  # noqa: PLR2004
-    return _coevolving(CoevolvingVoterComponent, space, opinions, rewiring=rewiring, activity=activity)
+    return _coevolving(CoevolvingVoterElement, space, opinions, rewiring=rewiring, activity=activity)
 
 
 @register_model(
@@ -333,9 +333,9 @@ def join_a_club(
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import join_a_club
         >>> join_a_club(30).components[0].element.__name__
-        'ClubMemberComponent'
+        'ClubMemberElement'
     """
     rng = np.random.default_rng(random_state)
     space = NetworkSpace.erdos_renyi(n_agents, mean_degree / (n_agents - 1), seed=rng)
     opinions = (rng.random(n_agents) < 0.5).astype(float)  # noqa: PLR2004
-    return _coevolving(ClubMemberComponent, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)
+    return _coevolving(ClubMemberElement, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)

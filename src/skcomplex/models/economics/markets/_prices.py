@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-QuadraticSupplyMarketComponent = ElementComponent.define(
-    'QuadraticSupplyMarketComponent',
+QuadraticSupplyMarketElement = Element.define(
+    'QuadraticSupplyMarketElement',
     states={'P': state(default=1.0, domain=NumericDomain.REAL)},
     parameters={
         'k': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -77,7 +77,7 @@ def riccati_prices(
         >>> riccati_prices(gamma=-0.2).elements[0].gamma
         -0.2
     """
-    market = QuadraticSupplyMarketComponent(
+    market = QuadraticSupplyMarketElement(
         'market',
         P=price,
         k=k,

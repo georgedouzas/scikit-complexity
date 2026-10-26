@@ -8,7 +8,7 @@ import numpy.typing as npt
 import pytest
 
 from skcomplex.core.base import BaseInteraction, BaseLaw, parameter, role
-from skcomplex.core.components import ElementComponent, WienerProcess
+from skcomplex.core.components import Element, WienerProcess
 from skcomplex.core.laws import NoiseLaw, RateLaw, Symbols, UpdateLaw
 from skcomplex.core.system import System
 
@@ -43,19 +43,19 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(pytest.mark.skip(reason=reason))
 
 
-NodeComponent = ElementComponent.define('NodeComponent', states={'x': 0.0})
-HoldingComponent = ElementComponent.define('HoldingComponent', states={'n': 0.0})
+NodeElement = Element.define('NodeElement', states={'x': 0.0})
+HoldingElement = Element.define('HoldingElement', states={'n': 0.0})
 
 
 def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
     """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
     elements = [
-        NodeComponent('a', x=1.0),
-        NodeComponent('b', x=2.0),
-        NodeComponent('c', x=4.0),
-        NodeComponent('hub', x=8.0),
-        NodeComponent('target'),
-        NodeComponent.group('nodes', 10, x=np.arange(10.0)),
+        NodeElement('a', x=1.0),
+        NodeElement('b', x=2.0),
+        NodeElement('c', x=4.0),
+        NodeElement('hub', x=8.0),
+        NodeElement('target'),
+        NodeElement.group('nodes', 10, x=np.arange(10.0)),
     ]
     return System(
         components=elements,
@@ -66,7 +66,7 @@ def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0)
 def _correlated(covariance: npt.ArrayLike | None) -> System:
     """Return two holdings driven by a `WienerProcess` of a covariance."""
     return System(
-        components=[HoldingComponent('a'), HoldingComponent('b')],
+        components=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             DriveInteraction(
                 'drive',

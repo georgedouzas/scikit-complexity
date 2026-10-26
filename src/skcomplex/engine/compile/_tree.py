@@ -27,7 +27,7 @@ from ...core.base import (
     declarations_of,
     has_trait,
 )
-from ...core.components import ElementComponent, GroupComponent, WienerProcess, probe_laws
+from ...core.components import Element, GroupElement, WienerProcess, probe_laws
 from ...core.space import BaseSpace, LatticeSpace, NetworkSpace
 from ...core.system import System
 
@@ -60,7 +60,7 @@ def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
         raise ValidationError(error_msg)
 
 
-def _check_group(group: GroupComponent, scope: str) -> None:
+def _check_group(group: GroupElement, scope: str) -> None:
     """Raise an error for a group with an element type or size that is not valid."""
     where = f'Group {group.label!r} in {scope or "the root system"}'
     if group.size is None and group.on is not None:
@@ -84,7 +84,7 @@ def _check_group(group: GroupComponent, scope: str) -> None:
         _check_network_lattice(space, group.size, where)
 
 
-def _check_part(part: ElementComponent | GroupComponent | BaseInteraction, scope: str) -> None:
+def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> None:
     """Check the arguments of an element, group, or interaction, raising its error with the path of the part."""
     try:
         part.check()
@@ -141,8 +141,8 @@ def _check_processes(system: System, scope: str, labels: set[str]) -> None:
 
 def _check_children(system: System, scope: str) -> None:
     """Raise an error for a child of the wrong type or a duplicated label."""
-    children: list[tuple[ElementComponent | GroupComponent | BaseInteraction | System, type | tuple[type, ...]]] = [
-        *((element, (ElementComponent, GroupComponent)) for element in system.elements),
+    children: list[tuple[Element | GroupElement | BaseInteraction | System, type | tuple[type, ...]]] = [
+        *((element, (Element, GroupElement)) for element in system.elements),
         *((interaction, BaseInteraction) for interaction in system.interactions),
         *((child, System) for child in system.systems),
     ]
@@ -157,7 +157,7 @@ def _check_children(system: System, scope: str) -> None:
         _check_label(child.label, scope)
         if not isinstance(child, System):
             _check_part(child, scope)
-        if isinstance(child, GroupComponent):
+        if isinstance(child, GroupElement):
             _check_group(child, scope)
         if child.label in labels:
             error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
@@ -166,9 +166,9 @@ def _check_children(system: System, scope: str) -> None:
     _check_processes(system, scope, labels)
 
 
-def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) -> ElementComponent | GroupComponent:
+def _sized(element: Element | GroupElement, space: BaseSpace | None) -> Element | GroupElement:
     """Return a group prepared with its size, a copy when the size counts the parts of the space it inherits."""
-    if not isinstance(element, GroupComponent):
+    if not isinstance(element, GroupElement):
         return element
     if element.size is None and element.space is None:
         return copy.copy(element).prepare(space)
@@ -176,13 +176,13 @@ def _sized(element: ElementComponent | GroupComponent, space: BaseSpace | None) 
 
 
 def _with_capacity(
-    element: ElementComponent | GroupComponent,
+    element: Element | GroupElement,
     space: BaseSpace | None,
-) -> tuple[ElementComponent | GroupComponent, int | None]:
+) -> tuple[Element | GroupElement, int | None]:
     """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
     if not is_topology_group(element, space):
         return element, None
-    group = cast('GroupComponent', element)
+    group = cast('GroupElement', element)
     initial = group.size_
     capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
     if capacity < initial:
@@ -261,7 +261,7 @@ class Node:
 
     path: str
     scope: str
-    component: ElementComponent | GroupComponent | BaseInteraction | WienerProcess
+    component: Element | GroupElement | BaseInteraction | WienerProcess
     space: BaseSpace | None
     agent: bool = False
     active: int | None = None
@@ -269,7 +269,7 @@ class Node:
     @property
     def members(self) -> int | None:
         """Size of a group, or `None` for a single element or an interaction."""
-        return self.component.size_ if isinstance(self.component, GroupComponent) else None
+        return self.component.size_ if isinstance(self.component, GroupElement) else None
 
     @property
     def is_agent(self) -> bool:
@@ -277,9 +277,9 @@ class Node:
         return self.agent
 
     @property
-    def component_type(self) -> type[ElementComponent] | type[BaseInteraction]:
+    def component_type(self) -> type[Element] | type[BaseInteraction]:
         """Element type of a group, or the type of an element or interaction."""
-        return self.component.element if isinstance(self.component, GroupComponent) else type(self.component)
+        return self.component.element if isinstance(self.component, GroupElement) else type(self.component)
 
     def value_of(self, variable: str) -> Any:  # noqa: ANN401
         """Return the value of a variable, or the element type's default for a group that does not set it.
@@ -292,7 +292,7 @@ class Node:
             value:
                 The value given by the user or the default.
         """
-        if not isinstance(self.component, GroupComponent):
+        if not isinstance(self.component, GroupElement):
             return getattr(self.component, variable)
         values = self.component.values or {}
         default = self.component.element.get_default(variable)
@@ -416,7 +416,7 @@ def is_topology_group(component: object, space: BaseSpace | None) -> bool:
         topology_group:
             Whether the group runs with a capacity layout.
     """
-    if not (isinstance(component, GroupComponent) and component.variable and component.on in {'sites', 'edges'}):
+    if not (isinstance(component, GroupElement) and component.variable and component.on in {'sites', 'edges'}):
         return False
     if not isinstance(space, NetworkSpace):
         return False

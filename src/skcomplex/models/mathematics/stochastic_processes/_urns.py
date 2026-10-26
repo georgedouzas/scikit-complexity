@@ -6,13 +6,13 @@
 from typing import Any
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class PolyaUrnComponent(ElementComponent):
+class PolyaUrnElement(Element):
     """Urn of red and blue balls, from which a drawn ball returns with extra balls of its color.
 
     Draws happen at rate 1, and a draw picks a color with probability proportional to its number of balls, so the
@@ -35,8 +35,8 @@ class PolyaUrnComponent(ElementComponent):
                 The initial number of blue balls.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrnComponent
-        >>> PolyaUrnComponent('urn', added=2).added
+        >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrnElement
+        >>> PolyaUrnElement('urn', added=2).added
         2
     """
 
@@ -101,4 +101,4 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
         >>> polya_urn(3).elements[0].size
         3
     """
-    return System(components=[PolyaUrnComponent.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])
+    return System(components=[PolyaUrnElement.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])

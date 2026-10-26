@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, mean, total
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -32,7 +32,7 @@ def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]
     return [center + width * math.tan(math.pi * ((index + 0.5) / size - 0.5)) for index in range(size)]
 
 
-class WilsonCowanComponent(ElementComponent):
+class WilsonCowanElement(Element):
     """Excitatory and inhibitory populations of Wilson and Cowan, as fractions of active cells.
 
     The excitatory activity follows `tau_e E' = -E + (k_e - r_e E) S_e(c1 E - c2 I + P)` and the inhibitory activity
@@ -92,8 +92,8 @@ class WilsonCowanComponent(ElementComponent):
             The time constant of the inhibitory population.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import WilsonCowanComponent
-        >>> WilsonCowanComponent('cortex', P=1.25).c1
+        >>> from skcomplex.models.biology.neuroscience import WilsonCowanElement
+        >>> WilsonCowanElement('cortex', P=1.25).c1
         16.0
     """
 
@@ -138,7 +138,7 @@ class WilsonCowanComponent(ElementComponent):
         return [RateLaw(s.E, (-s.E + excitation) / s.tau_e), RateLaw(s.I, (-s.I + inhibition) / s.tau_i)]
 
 
-class ThetaNeuronComponent(ElementComponent):
+class ThetaNeuronElement(Element):
     """Theta neuron of Ermentrout and Kopell, `theta' = (1 - cos theta) + (1 + cos theta) eta`, a spiking phase.
 
     The neuron fires when its phase passes π. With `eta > 0` it fires periodically with period `π / sqrt(eta)`, and
@@ -156,8 +156,8 @@ class ThetaNeuronComponent(ElementComponent):
             The excitability.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import ThetaNeuronComponent
-        >>> ThetaNeuronComponent.group('neurons', 10, eta=0.5).size
+        >>> from skcomplex.models.biology.neuroscience import ThetaNeuronElement
+        >>> ThetaNeuronElement.group('neurons', 10, eta=0.5).size
         10
     """
 
@@ -237,7 +237,7 @@ class PulseCouplingInteraction(BaseInteraction):
         return [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
-class RateUnitComponent(ElementComponent):
+class RateUnitElement(Element):
     """Neural unit of a competitive network, whose activity grows with its input and saturates, `tau x' = x (I - x)`.
 
     Args:
@@ -254,8 +254,8 @@ class RateUnitComponent(ElementComponent):
             The time constant.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import RateUnitComponent
-        >>> RateUnitComponent('unit', I=1.2).I
+        >>> from skcomplex.models.biology.neuroscience import RateUnitElement
+        >>> RateUnitElement('unit', I=1.2).I
         1.2
     """
 
@@ -314,7 +314,7 @@ class MutualInhibitionInteraction(BaseInteraction):
         return [RateLaw(unit.x, -s.beta * unit.x * (total(unit.x) - unit.x) / unit.tau)]
 
 
-class PolyhomeostaticNeuronComponent(ElementComponent):
+class PolyhomeostaticNeuronElement(Element):
     """Rate neuron that adapts its gain and threshold so that its firing rate becomes exponentially distributed.
 
     The membrane potential `x` integrates the input `I0 + A sin(omega t)` with rate `Gamma`, and the neuron fires at
@@ -357,8 +357,8 @@ class PolyhomeostaticNeuronComponent(ElementComponent):
             The angular frequency of the periodic input.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import PolyhomeostaticNeuronComponent
-        >>> PolyhomeostaticNeuronComponent('neuron').mu
+        >>> from skcomplex.models.biology.neuroscience import PolyhomeostaticNeuronElement
+        >>> PolyhomeostaticNeuronElement('neuron').mu
         0.2
     """
 
@@ -449,7 +449,7 @@ def wilson_cowan(
         >>> wilson_cowan(P=0.0).elements[0].P
         0.0
     """
-    return System(components=[WilsonCowanComponent('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
+    return System(components=[WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
 
 
 @register_model(
@@ -504,7 +504,7 @@ def theta_neurons(
         20
     """
     phases = np.random.default_rng(random_state).uniform(0.0, 2 * math.pi, n_neurons)
-    neurons = ThetaNeuronComponent.group(
+    neurons = ThetaNeuronElement.group(
         'neurons',
         n_neurons,
         theta=phases,
@@ -558,7 +558,7 @@ def winners_take_all(
         >>> len(winners_take_all((1.0, 2.0, 3.0)).interactions)
         1
     """
-    units = [RateUnitComponent(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
+    units = [RateUnitElement(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
     inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=beta)
     return System(components=units, interactions=[inhibition])
 
@@ -612,5 +612,5 @@ def polyhomeostatic_neuron(
         >>> polyhomeostatic_neuron(mu=0.1).elements[0].mu
         0.1
     """
-    neuron = PolyhomeostaticNeuronComponent('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
+    neuron = PolyhomeostaticNeuronElement('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
     return System(components=[neuron])

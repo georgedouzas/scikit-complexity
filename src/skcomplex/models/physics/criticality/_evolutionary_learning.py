@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import tanh
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, total, uniform, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -31,7 +31,7 @@ def _sk_couplings(n_agents: int, rng: np.random.Generator) -> Array:
     return upper + upper.T
 
 
-class LearnerComponent(ElementComponent):
+class LearnerElement(Element):
     """Agent of the evolutionary Sherrington-Kirkpatrick game, who learns a binary action and may be replaced.
 
     The agent keeps an incentive `Q`, the value of action +1, and plays the action `s = ±1` by the softmax policy at
@@ -79,8 +79,8 @@ class LearnerComponent(ElementComponent):
                 The largest temperature of a newcomer.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import LearnerComponent
-        >>> LearnerComponent('agent').memory
+        >>> from skcomplex.models.physics.criticality import LearnerElement
+        >>> LearnerElement('agent').memory
         0.75
     """
 
@@ -206,7 +206,7 @@ def evolutionary_sk_game(
         temperatures = rng.uniform(0.0, max_temperature, n_agents)
     else:
         temperatures = np.broadcast_to(np.asarray(temperature, dtype=float), (n_agents,)).copy()
-    agents = LearnerComponent.group(
+    agents = LearnerElement.group(
         'agents',
         n_agents,
         visual=TEMPERATURE_VISUAL,

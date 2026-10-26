@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -16,7 +16,7 @@ from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ResidentComponent(ElementComponent):
+class ResidentElement(Element):
     """Resident of the Schelling model, who moves to an empty cell while too few neighbours share its kind.
 
     Args:
@@ -30,10 +30,10 @@ class ResidentComponent(ElementComponent):
             The smallest share of neighbours of the same kind that keeps a resident in place.
 
     Examples:
-        >>> from skcomplex.models.social.segregation import ResidentComponent
-        >>> group = ResidentComponent.group('residents', 10, kind=1.0)
+        >>> from skcomplex.models.social.segregation import ResidentElement
+        >>> group = ResidentElement.group('residents', 10, kind=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('residents', 'ResidentComponent', 10)
+        ('residents', 'ResidentElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})
@@ -119,5 +119,5 @@ def schelling(
     rng = np.random.default_rng(random_state)
     size = int(width * height * density)
     kinds = (rng.random(size) < minority).astype(float)
-    residents = ResidentComponent.group('residents', size, kind=kinds, threshold=threshold)
+    residents = ResidentElement.group('residents', size, kind=kinds, threshold=threshold)
     return System(components=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))

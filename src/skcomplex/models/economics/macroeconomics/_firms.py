@@ -6,14 +6,14 @@
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class InvestingFirmComponent(ElementComponent):
+class InvestingFirmElement(Element):
     """Firm of the toy business-cycle model, which invests a share of its last profit and sells at a random price.
 
     Every period the firm invests `I = gamma * Z`, accumulates capital `K = K + I`, produces `Y = phi * K`, borrows
@@ -55,8 +55,8 @@ class InvestingFirmComponent(ElementComponent):
             The constant part of the price.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import InvestingFirmComponent
-        >>> InvestingFirmComponent.group('firms', 10, gamma=1.2).size
+        >>> from skcomplex.models.economics.macroeconomics import InvestingFirmElement
+        >>> InvestingFirmElement.group('firms', 10, gamma=1.2).size
         10
     """
 
@@ -154,5 +154,5 @@ def toy_firm_investment(
         20
     """
     profits = pbar + 2.0 * np.random.default_rng(random_state).random(n_firms)
-    firms = InvestingFirmComponent.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
+    firms = InvestingFirmElement.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
     return System(components=[firms])

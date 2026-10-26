@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -33,8 +33,8 @@ def _energy_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-EnergySectorComponent = ElementComponent.define(
-    'EnergySectorComponent',
+EnergySectorElement = Element.define(
+    'EnergySectorElement',
     states={
         'reserve': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='energy'),
         'capacity': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
@@ -108,7 +108,7 @@ def energy_return(
         >>> energy_return(initial_eroi=20.0).elements[0].initial_eroi
         20.0
     """
-    sector = EnergySectorComponent(
+    sector = EnergySectorElement(
         'energy',
         reserve=reserve,
         capacity=capacity,

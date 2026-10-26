@@ -8,18 +8,18 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 type Array = npt.NDArray[np.float64]
 
-GrayScottComponent = ElementComponent.define(
-    'GrayScottComponent',
+GrayScottElement = Element.define(
+    'GrayScottElement',
     states={'u': 1.0, 'v': 0.0},
     parameters={'Du': 0.16, 'Dv': 0.08, 'F': 0.035, 'k': 0.065},
     laws=lambda s: [
@@ -28,8 +28,8 @@ GrayScottComponent = ElementComponent.define(
     ],
 )
 
-BrusselatorComponent = ElementComponent.define(
-    'BrusselatorComponent',
+BrusselatorElement = Element.define(
+    'BrusselatorElement',
     states={'u': 1.0, 'v': 3.0},
     parameters={'a': 1.0, 'b': 3.0, 'Du': 1.0, 'Dv': 8.0},
     laws=lambda s: [
@@ -38,8 +38,8 @@ BrusselatorComponent = ElementComponent.define(
     ],
 )
 
-SchnakenbergComponent = ElementComponent.define(
-    'SchnakenbergComponent',
+SchnakenbergElement = Element.define(
+    'SchnakenbergElement',
     states={'u': 1.0, 'v': 0.9},
     parameters={'a': 0.1, 'b': 0.9, 'Du': 1.0, 'Dv': 40.0},
     laws=lambda s: [
@@ -105,7 +105,7 @@ def gray_scott(
     u[middle], v[middle] = 0.5, 0.25
     noise = _noise(shape, 0.01, random_state)
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(components=[FieldComponent('cells', GrayScottComponent, LatticeSpace(shape), values=values)])
+    return System(components=[FieldElement('cells', GrayScottElement, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -162,7 +162,7 @@ def brusselator(
         'Du': Du,
         'Dv': Dv,
     }
-    return System(components=[FieldComponent('cells', BrusselatorComponent, LatticeSpace(shape), values=values)])
+    return System(components=[FieldElement('cells', BrusselatorElement, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -229,6 +229,6 @@ def schnakenberg(
     }
     return System(
         components=[
-            FieldComponent('cells', SchnakenbergComponent, LatticeSpace(shape, spacing=spacing), values=values),
+            FieldElement('cells', SchnakenbergElement, LatticeSpace(shape, spacing=spacing), values=values),
         ],
     )

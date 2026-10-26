@@ -40,10 +40,10 @@ def test_order_passes_keeps_the_given_order_of_refiners():
     """Test that refiners of one field that the fields leave unordered run in the order they are given."""
     passes = [
         _pass('Produce', (), ('lowered',)),
-        _pass('SecondComponent', ('lowered',), ('lowered',)),
-        _pass('FirstComponent', ('lowered',), ('lowered',)),
+        _pass('SecondElement', ('lowered',), ('lowered',)),
+        _pass('FirstElement', ('lowered',), ('lowered',)),
     ]
-    assert _names(order_passes(passes)) == ['Produce', 'SecondComponent', 'FirstComponent']
+    assert _names(order_passes(passes)) == ['Produce', 'SecondElement', 'FirstElement']
 
 
 def test_order_passes_names_a_missing_input():
@@ -76,7 +76,7 @@ def test_run_passes_runs_only_what_a_field_needs():
         _pass('Problem', ('lowered',), ('problem',), log),
         _pass('Lower', ('layout',), ('lowered',), log),
         _pass('Layout', ('system',), ('layout',), log),
-        _pass('OtherComponent', ('system',), ('census',), log),
+        _pass('OtherElement', ('system',), ('census',), log),
     ]
     compilation = Compilation(System())
     run_passes(compilation, passes, until='lowered')

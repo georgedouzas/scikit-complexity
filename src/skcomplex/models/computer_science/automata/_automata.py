@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -21,7 +21,7 @@ from ._codes import Wolfram, life
 type Array = npt.NDArray[np.float64]
 
 
-class ElementaryCellComponent(ElementComponent):
+class ElementaryCellElement(Element):
     """Cell of a one-dimensional automaton that follows an elementary rule by its Wolfram number.
 
     Args:
@@ -38,8 +38,8 @@ class ElementaryCellComponent(ElementComponent):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import ElementaryCellComponent
-        >>> ElementaryCellComponent('cell', rule=110).rule
+        >>> from skcomplex.models.computer_science.automata import ElementaryCellElement
+        >>> ElementaryCellElement('cell', rule=110).rule
         110
     """
 
@@ -69,7 +69,7 @@ class ElementaryCellComponent(ElementComponent):
         return [LocalRuleLaw(s.alive, Neighborhood.radius(), Wolfram(self.rule))]
 
 
-class LifeCellComponent(ElementComponent):
+class LifeCellElement(Element):
     """Cell of a life-like automaton, born and surviving by its number of live Moore neighbours.
 
     Args:
@@ -89,8 +89,8 @@ class LifeCellComponent(ElementComponent):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import LifeCellComponent
-        >>> LifeCellComponent('cell').survive
+        >>> from skcomplex.models.computer_science.automata import LifeCellElement
+        >>> LifeCellElement('cell').survive
         (2, 3)
     """
 
@@ -134,7 +134,7 @@ def _ant_rule(*values: Array) -> tuple[Array, Array]:
     return color, ant
 
 
-class AntCellComponent(ElementComponent):
+class AntCellElement(Element):
     """Cell of Langton's ant: a color, and the heading of the ant on it or -1.
 
     The ant turns right on a white cell and left on a black one, flips the cell's color, and moves one cell forward.
@@ -150,8 +150,8 @@ class AntCellComponent(ElementComponent):
             The initial heading of an ant on the cell, 0 to 3 for north, east, south, and west, or -1 for none.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import AntCellComponent
-        >>> AntCellComponent('cell').ant
+        >>> from skcomplex.models.computer_science.automata import AntCellElement
+        >>> AntCellElement('cell').ant
         -1
     """
 
@@ -210,7 +210,7 @@ def elementary_automaton(rule: int = 30, *, size: int = 101, initial: Sequence[f
     values = np.zeros(size) if initial is None else np.asarray(initial, dtype=float)
     if initial is None:
         values[size // 2] = 1.0
-    return System(components=[ElementaryCellComponent.lattice('cells', LatticeSpace(size), alive=values, rule=rule)])
+    return System(components=[ElementaryCellElement.lattice('cells', LatticeSpace(size), alive=values, rule=rule)])
 
 
 @register_model(
@@ -261,7 +261,7 @@ def game_of_life(
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
     return System(
-        components=[LifeCellComponent.lattice('cells', space, alive=values, born=tuple(born), survive=tuple(survive))],
+        components=[LifeCellElement.lattice('cells', space, alive=values, born=tuple(born), survive=tuple(survive))],
     )
 
 
@@ -292,4 +292,4 @@ def langtons_ant(shape: Sequence[int] = (80, 80), *, heading: int = 0) -> System
     """
     ant = np.full(tuple(shape), -1.0)
     ant[shape[0] // 2, shape[1] // 2] = heading
-    return System(components=[AntCellComponent.lattice('cells', LatticeSpace(tuple(shape)), ant=ant)])
+    return System(components=[AntCellElement.lattice('cells', LatticeSpace(tuple(shape)), ant=ant)])

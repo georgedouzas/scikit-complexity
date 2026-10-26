@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, bernoulli, neighbors, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -19,7 +19,7 @@ from ....formalisms.topology import add_edge, remove_edge, rewire
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
-class CarrierComponent(ElementComponent):
+class CarrierElement(Element):
     """Node of a network whose state is the probability that it is infected, in quenched mean field.
 
     The node recovers at rate 1 and every infected neighbour infects it at rate `lam`, with the probabilities of the
@@ -36,8 +36,8 @@ class CarrierComponent(ElementComponent):
             The spreading rate, the ratio of the infection rate per edge and the recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import CarrierComponent
-        >>> CarrierComponent('node').lam
+        >>> from skcomplex.models.biology.epidemiology import CarrierElement
+        >>> CarrierElement('node').lam
         0.2
     """
 
@@ -58,7 +58,7 @@ class CarrierComponent(ElementComponent):
         return [RateLaw(s.p, -s.p + s.lam * (1 - s.p) * neighbors(s.other.p))]
 
 
-class HostComponent(ElementComponent):
+class HostElement(Element):
     """Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time.
 
     An infected node recovers at rate `gamma`, and a susceptible node is infected at rate `beta` by every infected
@@ -78,8 +78,8 @@ class HostComponent(ElementComponent):
             The recovery rate.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import HostComponent
-        >>> HostComponent('node').gamma
+        >>> from skcomplex.models.biology.epidemiology import HostElement
+        >>> HostElement('node').gamma
         1.0
     """
 
@@ -104,7 +104,7 @@ class HostComponent(ElementComponent):
         ]
 
 
-class ContactComponent(ElementComponent):
+class ContactElement(Element):
     """Edge of a network between two hosts, which carries no state of its own.
 
     Args:
@@ -112,8 +112,8 @@ class ContactComponent(ElementComponent):
             The label of the edge or of the group of edges.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ContactComponent
-        >>> ContactComponent('edge').label
+        >>> from skcomplex.models.biology.epidemiology import ContactElement
+        >>> ContactElement('edge').label
         'edge'
     """
 
@@ -167,7 +167,7 @@ class RewiringInteraction(BaseInteraction):
         ]
 
 
-class ActiveHostComponent(ElementComponent):
+class ActiveHostElement(Element):
     """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
 
     At every step the node fires with probability `a`, its activity, and joins `m` other nodes by new edges. An
@@ -197,8 +197,8 @@ class ActiveHostComponent(ElementComponent):
                 The probability of recovery at a step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import ActiveHostComponent
-        >>> ActiveHostComponent('node').m
+        >>> from skcomplex.models.biology.epidemiology import ActiveHostElement
+        >>> ActiveHostElement('node').m
         2
     """
 
@@ -334,7 +334,7 @@ def quenched_mean_field_sis(
         10
     """
     space = NetworkSpace(graph) if graph is not None else NetworkSpace.barabasi_albert(n, m, seed=seed)
-    return System(components=[CarrierComponent.lattice('nodes', space, p=p, lam=lam)])
+    return System(components=[CarrierElement.lattice('nodes', space, p=p, lam=lam)])
 
 
 @register_model(
@@ -393,9 +393,9 @@ def adaptive_sis(
     """
     space = _random_network(n, k, seed)
     initial = (_initial_stream(seed).random(n) < infected).astype(float)
-    hosts = GroupComponent(
+    hosts = GroupElement(
         'hosts',
-        element=HostComponent,
+        element=HostElement,
         space=space,
         on='sites',
         variable=True,
@@ -404,9 +404,9 @@ def adaptive_sis(
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
     edges = space.graph.number_of_edges()
-    contacts = GroupComponent(
+    contacts = GroupElement(
         'contacts',
-        element=ContactComponent,
+        element=ContactElement,
         space=space,
         on='edges',
         variable=True,
@@ -480,9 +480,9 @@ def activity_driven_epidemics(
     activities = np.minimum(least * (1 - rng.random(n)) ** (-1 / (exponent - 1)), 1.0)
     initial = (rng.random(n) < infected).astype(float)
     space = NetworkSpace(nx.empty_graph(n))
-    hosts = GroupComponent(
+    hosts = GroupElement(
         'hosts',
-        element=ActiveHostComponent,
+        element=ActiveHostElement,
         space=space,
         on='sites',
         variable=True,
@@ -490,9 +490,9 @@ def activity_driven_epidemics(
         values={'i': initial, 'a': activities, 'm': m, 'lam': lam, 'mu': mu},
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
-    contacts = GroupComponent(
+    contacts = GroupElement(
         'contacts',
-        element=ContactComponent,
+        element=ContactElement,
         space=space,
         on='edges',
         variable=True,

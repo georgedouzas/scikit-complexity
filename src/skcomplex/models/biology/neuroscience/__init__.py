@@ -1,49 +1,49 @@
 """Neuroscience: spiking and conductance-based neurons, populations, networks, excitable networks, and synapses."""
 
-from ._conductances import FitzHughNagumoNeuronComponent, HodgkinHuxleyComponent, fitzhugh_nagumo_ode, hodgkin_huxley
-from ._excitable import ExcitableElementComponent, kinouchi_copelli
+from ._conductances import FitzHughNagumoNeuronElement, HodgkinHuxleyElement, fitzhugh_nagumo_ode, hodgkin_huxley
+from ._excitable import ExcitableElementElement, kinouchi_copelli
 from ._networks import (
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
-    InhibitorComponent,
-    SpikingNeuronComponent,
-    TermanWangComponent,
+    InhibitorElement,
+    SpikingNeuronElement,
+    TermanWangElement,
     delayed_lif_network,
     legion,
 )
-from ._neurons import IzhikevichComponent, LeakyIntegrateAndFireComponent, integrate_and_fire, izhikevich
+from ._neurons import IzhikevichElement, LeakyIntegrateAndFireElement, integrate_and_fire, izhikevich
 from ._populations import (
     MutualInhibitionInteraction,
-    PolyhomeostaticNeuronComponent,
+    PolyhomeostaticNeuronElement,
     PulseCouplingInteraction,
-    RateUnitComponent,
-    ThetaNeuronComponent,
-    WilsonCowanComponent,
+    RateUnitElement,
+    ThetaNeuronElement,
+    WilsonCowanElement,
     polyhomeostatic_neuron,
     theta_neurons,
     wilson_cowan,
     winners_take_all,
 )
-from ._synapses import AdaptrodeComponent, adaptrode
+from ._synapses import AdaptrodeElement, adaptrode
 
 __all__: list[str] = [
-    'AdaptrodeComponent',
+    'AdaptrodeElement',
     'DelayedSynapseInteraction',
-    'ExcitableElementComponent',
-    'FitzHughNagumoNeuronComponent',
+    'ExcitableElementElement',
+    'FitzHughNagumoNeuronElement',
     'GlobalInhibitionInteraction',
-    'HodgkinHuxleyComponent',
-    'InhibitorComponent',
-    'IzhikevichComponent',
-    'LeakyIntegrateAndFireComponent',
+    'HodgkinHuxleyElement',
+    'InhibitorElement',
+    'IzhikevichElement',
+    'LeakyIntegrateAndFireElement',
     'MutualInhibitionInteraction',
-    'PolyhomeostaticNeuronComponent',
+    'PolyhomeostaticNeuronElement',
     'PulseCouplingInteraction',
-    'RateUnitComponent',
-    'SpikingNeuronComponent',
-    'TermanWangComponent',
-    'ThetaNeuronComponent',
-    'WilsonCowanComponent',
+    'RateUnitElement',
+    'SpikingNeuronElement',
+    'TermanWangElement',
+    'ThetaNeuronElement',
+    'WilsonCowanElement',
     'adaptrode',
     'delayed_lif_network',
     'fitzhugh_nagumo_ode',

@@ -5,13 +5,13 @@ import pytest
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, count, maximum, mean, minimum, total, variance, where
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.fields import FieldComponent, MeshSpace, SplitOperator, laplacian, mesh_laplacian
-from skcomplex.models.biology.ecology import FisherKPPComponent
+from skcomplex.formalisms.fields import FieldElement, MeshSpace, SplitOperator, laplacian, mesh_laplacian
+from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky
 from skcomplex.models.physics.heat import heat_diffusion, heat_l_shape
@@ -51,8 +51,8 @@ def _finite_differences(problem, x, p, step=1e-6):
 )
 def test_jacobian_against_finite_differences(laws):
     """Test that the exact Jacobian equals central finite differences and that its pattern covers every entry."""
-    MemberComponent = ElementComponent.define('MemberComponent', states={'x': 0.0, 'y': 0.0}, laws=laws)
-    system = System(components=[MemberComponent.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
+    MemberElement = Element.define('MemberElement', states={'x': 0.0, 'y': 0.0}, laws=laws)
+    system = System(components=[MemberElement.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
     problem = compile_system(system)
     x, p = problem.initial_state, problem.initial_parameters
     exact = problem.jacobian.evaluate(0.0, x, p).toarray()
@@ -71,17 +71,17 @@ def test_jacobian_of_pair_sums_is_not_derived():
 
 def test_pattern_is_omitted_above_the_limit():
     """Test that the pattern of a dense block above the size limit is omitted."""
-    MemberComponent = ElementComponent.define(
-        'WideComponent',
+    MemberElement = Element.define(
+        'WideElement',
         states={'x': 0.0},
         laws=lambda s: [RateLaw(s.x, total(s.x))],
     )
-    problem = compile_system(System(components=[MemberComponent.group('group', 3000)]))
+    problem = compile_system(System(components=[MemberElement.group('group', 3000)]))
     assert problem.jacobian.pattern() is None
 
 
-ReactiveHeatComponent = ElementComponent.define(
-    'ReactiveHeatComponent',
+ReactiveHeatElement = Element.define(
+    'ReactiveHeatElement',
     states={'u': 0.0},
     parameters={'D': 1.0, 'r': 1.0},
     laws=lambda s: [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))],
@@ -90,9 +90,9 @@ ReactiveHeatComponent = ElementComponent.define(
 
 def _reactive_mesh(refine=2):
     """Return heat with a cubic reaction on the L-shaped mesh with fixed boundary temperatures."""
-    plate = FieldComponent(
+    plate = FieldElement(
         'plate',
-        ReactiveHeatComponent,
+        ReactiveHeatElement,
         MeshSpace.l_shape(refine),
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
@@ -103,7 +103,7 @@ def _reactive_mesh(refine=2):
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(components=[FieldComponent('line', FisherKPPComponent, space, boundary={'u': boundary})])
+    return System(components=[FieldElement('line', FisherKPPElement, space, boundary={'u': boundary})])
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -188,12 +188,12 @@ def _callable_rate(t, values):
 
 def test_exact_jacobian_of_callable_law_raises():
     """Test that the exact Jacobian of a callable law raises an error naming the law and the automatic option."""
-    DecayComponent = ElementComponent.define(
-        'DecayComponent',
+    DecayElement = Element.define(
+        'DecayElement',
         states={'u': 0.0},
         laws=lambda s: [RateLaw(s.u, _callable_rate)],
     )
-    problem = compile_system(System(components=[FieldComponent('line', DecayComponent, LatticeSpace(10))]))
+    problem = compile_system(System(components=[FieldElement('line', DecayElement, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.validate()
     assert problem.jacobian.pattern().toarray().all()

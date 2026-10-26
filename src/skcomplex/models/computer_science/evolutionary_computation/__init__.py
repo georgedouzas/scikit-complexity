@@ -1,13 +1,13 @@
 """Evolutionary computation: genetic algorithms and bit strings on fitness landscapes."""
 
-from ._genetic_algorithms import EvolutionInteraction, StrategyComponent, robby_ga
-from ._landscapes import BitStringComponent, ReproductionInteraction, bit_string_evolution
+from ._genetic_algorithms import EvolutionInteraction, StrategyElement, robby_ga
+from ._landscapes import BitStringElement, ReproductionInteraction, bit_string_evolution
 
 __all__: list[str] = [
-    'BitStringComponent',
+    'BitStringElement',
     'EvolutionInteraction',
     'ReproductionInteraction',
-    'StrategyComponent',
+    'StrategyElement',
     'bit_string_evolution',
     'robby_ga',
 ]

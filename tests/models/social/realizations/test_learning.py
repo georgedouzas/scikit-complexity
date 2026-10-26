@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.base import state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.space import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -11,7 +11,7 @@ from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 from skcomplex.models.social.realizations import imitate
 
 
-class ImitatorComponent(ElementComponent):
+class ImitatorElement(Element):
     """Test helper Imitator."""
 
     strategy: float = state(0.0)
@@ -33,7 +33,7 @@ def test_simultaneous_imitation():
     payoffs = np.zeros(width)
     payoffs[0] = 1.0
     system = System(
-        components=[ImitatorComponent.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
+        components=[ImitatorElement.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
         space=LatticeSpace((width, 1), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesSchedule([Phase('imitation', activation='simultaneous')])),
     )

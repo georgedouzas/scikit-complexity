@@ -13,7 +13,7 @@ import scipy.linalg
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -123,16 +123,16 @@ class FractionalEulerMaruyamaSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.formalisms.fractional import FractionalNoiseLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.fractional import FractionalEulerMaruyamaSolver
-        >>> WalkerComponent = ElementComponent.define(
-        ...     'WalkerComponent',
+        >>> WalkerElement = Element.define(
+        ...     'WalkerElement',
         ...     states={'x': 0.0},
         ...     laws=lambda s: [FractionalNoiseLaw(s.x, 1, hurst=0.75)],
         ... )
-        >>> problem = compile_system(System(components=[WalkerComponent.group('walkers', 500)]))
+        >>> problem = compile_system(System(components=[WalkerElement.group('walkers', 500)]))
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(np.var(state)), 1)
@@ -144,7 +144,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )

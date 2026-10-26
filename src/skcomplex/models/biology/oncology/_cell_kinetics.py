@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -14,7 +14,7 @@ from ....engine.runtime import register_model
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class CellCycleComponent(ElementComponent):
+class CellCycleElement(Element):
     """Tumour cells in three phases of the cell cycle under a killing and a blocking agent.
 
     The compartments hold the cells in G0 and G1 `A1`, in S `A2`, and in G2 and M `A3`, and follow
@@ -51,8 +51,8 @@ class CellCycleComponent(ElementComponent):
             The fraction by which the blocking agent slows the transit through S.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CellCycleComponent
-        >>> CellCycleComponent('tumour').l2
+        >>> from skcomplex.models.biology.oncology import CellCycleElement
+        >>> CellCycleElement('tumour').l2
         0.395
     """
 
@@ -84,7 +84,7 @@ class CellCycleComponent(ElementComponent):
         ]
 
 
-class DormantCellCycleComponent(ElementComponent):
+class DormantCellCycleElement(Element):
     """Tumour cells in a dormant phase and two cycling phases under a killing and a recruiting agent.
 
     The compartments hold the dormant cells in G0 `A0`, the cells in G1 and S `A1`, and the cells in G2 and M `A2`.
@@ -127,8 +127,8 @@ class DormantCellCycleComponent(ElementComponent):
             The relative increase of the exit from G0 the recruiting agent causes.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import DormantCellCycleComponent
-        >>> DormantCellCycleComponent('tumour').b0
+        >>> from skcomplex.models.biology.oncology import DormantCellCycleElement
+        >>> DormantCellCycleElement('tumour').b0
         0.9
     """
 
@@ -163,7 +163,7 @@ class DormantCellCycleComponent(ElementComponent):
         ]
 
 
-class ErythropoiesisComponent(ElementComponent):
+class ErythropoiesisElement(Element):
     """Quiescent, proliferating, and mature red cells and their mean volume under a constant 6-mercaptopurine level.
 
     The drug sets the death rate of proliferating cells `a1 = a0 U` and the cell-cycle time
@@ -228,8 +228,8 @@ class ErythropoiesisComponent(ElementComponent):
             The concentration of the drug.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import ErythropoiesisComponent
-        >>> ErythropoiesisComponent('patient').lifespan
+        >>> from skcomplex.models.biology.oncology import ErythropoiesisElement
+        >>> ErythropoiesisElement('patient').lifespan
         120.0
     """
 
@@ -321,11 +321,11 @@ def cell_cycle_chemotherapy(
     Examples:
         >>> from skcomplex.models.biology.oncology import cell_cycle_chemotherapy
         >>> type(cell_cycle_chemotherapy(dormant=True).elements[0]).__name__
-        'DormantCellCycleComponent'
+        'DormantCellCycleElement'
     """
     if dormant:
-        return System(components=[DormantCellCycleComponent('tumour', u=u1, v=v)])
-    return System(components=[CellCycleComponent('tumour', u1=u1, u2=u2)])
+        return System(components=[DormantCellCycleElement('tumour', u=u1, v=v)])
+    return System(components=[CellCycleElement('tumour', u1=u1, u2=u2)])
 
 
 @register_model(
@@ -384,7 +384,7 @@ def erythropoiesis_mercaptopurine(
         85.0
     """
     Q = Q50 * (m0 / r1 - 1) ** (1 / n)
-    patient = ErythropoiesisComponent(
+    patient = ErythropoiesisElement(
         'patient',
         L=r1 * Q / d1,
         Q=Q,

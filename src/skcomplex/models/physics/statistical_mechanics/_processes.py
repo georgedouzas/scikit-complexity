@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -67,7 +67,7 @@ def _hop_open(occupied: Array, *, random: np.random.Generator, p: Any, alpha: An
     return following
 
 
-class Q2RSpinComponent(ElementComponent):
+class Q2RSpinElement(Element):
     """Site of the Q2R automaton, a spin and a phase that says whether the site updates in the current step.
 
     Every step the updating sites flip their spin when their neighbours sum to zero, which leaves the Ising energy
@@ -90,8 +90,8 @@ class Q2RSpinComponent(ElementComponent):
                 The initial phase, 1 for updating and 0 for quiescent.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpinComponent
-        >>> Q2RSpinComponent('site').n_dim
+        >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpinElement
+        >>> Q2RSpinElement('site').n_dim
         2
     """
 
@@ -123,7 +123,7 @@ class Q2RSpinComponent(ElementComponent):
         return [LocalRuleLaw((s.spin, s.phase), nearest, _flip_without_cost, reads=(s.spin, s.phase))]
 
 
-class PercolationSiteComponent(ElementComponent):
+class PercolationSiteElement(Element):
     """Site of a percolation lattice: empty at 0, occupied at 1, burning at 2, or burnt at 3.
 
     Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
@@ -137,8 +137,8 @@ class PercolationSiteComponent(ElementComponent):
             The initial cover, 0, 1, 2, or 3.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import PercolationSiteComponent
-        >>> PercolationSiteComponent('site').cover
+        >>> from skcomplex.models.physics.statistical_mechanics import PercolationSiteElement
+        >>> PercolationSiteElement('site').cover
         0.0
     """
 
@@ -158,7 +158,7 @@ class PercolationSiteComponent(ElementComponent):
         return [LocalRuleLaw(s.cover, Neighborhood.von_neumann(center=True), _burn)]
 
 
-class ContactSiteComponent(ElementComponent):
+class ContactSiteElement(Element):
     """Site of the contact process, which infects a neighbour at the rate `rate / 4` and recovers at rate 1.
 
     One step is a time slice `tau`, in which an infected site recovers with probability `1 - exp(-tau)` and a
@@ -179,8 +179,8 @@ class ContactSiteComponent(ElementComponent):
             The time slice of one step.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ContactSiteComponent
-        >>> ContactSiteComponent('site').rate
+        >>> from skcomplex.models.physics.statistical_mechanics import ContactSiteElement
+        >>> ContactSiteElement('site').rate
         3.0
     """
 
@@ -202,7 +202,7 @@ class ContactSiteComponent(ElementComponent):
         return [LocalRuleLaw(s.infected, Neighborhood.von_neumann(center=True), _spread, stochastic=True)]
 
 
-class ExclusionSiteComponent(ElementComponent):
+class ExclusionSiteElement(Element):
     """Site of the totally asymmetric simple exclusion process, empty at 0 or holding one particle at 1.
 
     Every step all particles whose right neighbour is empty hop to it with probability `p` at once. On an open
@@ -231,8 +231,8 @@ class ExclusionSiteComponent(ElementComponent):
                 The probability of an exit at the right end of an open line.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSiteComponent
-        >>> ExclusionSiteComponent('site').ring
+        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSiteElement
+        >>> ExclusionSiteElement('site').ring
         False
     """
 
@@ -265,7 +265,7 @@ class ExclusionSiteComponent(ElementComponent):
         return [DriveLaw(s.occupied, _hop_ring if self.ring else _hop_open)]
 
 
-class WalkerComponent(ElementComponent):
+class WalkerElement(Element):
     """Random walker of diffusion-limited aggregation, which sticks when it reaches a stuck walker.
 
     Args:
@@ -276,8 +276,8 @@ class WalkerComponent(ElementComponent):
             Whether the walker belongs to the aggregate.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import WalkerComponent
-        >>> WalkerComponent('walker').stuck
+        >>> from skcomplex.models.physics.statistical_mechanics import WalkerElement
+        >>> WalkerElement('walker').stuck
         0.0
     """
 
@@ -359,7 +359,7 @@ def q2r(
     shape = tuple(shape)
     spins = np.where(np.random.default_rng(random_state).random(shape) < up, 1.0, -1.0)
     space = LatticeSpace(shape)
-    group = Q2RSpinComponent.lattice('spins', space, spin=spins, phase=_checkerboard(shape), n_dim=len(shape))
+    group = Q2RSpinElement.lattice('spins', space, spin=spins, phase=_checkerboard(shape), n_dim=len(shape))
     return System(components=[group])
 
 
@@ -403,7 +403,7 @@ def site_percolation(
     cover = (np.random.default_rng(random_state).random(shape) < p).astype(float)
     cover[0] *= BURNING
     space = LatticeSpace(shape, boundary='fixed')
-    return System(components=[PercolationSiteComponent.lattice('lattice', space, cover=cover)])
+    return System(components=[PercolationSiteElement.lattice('lattice', space, cover=cover)])
 
 
 @register_model(
@@ -452,7 +452,7 @@ def contact_process(
     shape = tuple(shape)
     states = (np.random.default_rng(random_state).random(shape) < infected).astype(float)
     space = LatticeSpace(shape)
-    return System(components=[ContactSiteComponent.lattice('lattice', space, infected=states, rate=rate, tau=tau)])
+    return System(components=[ContactSiteElement.lattice('lattice', space, infected=states, rate=rate, tau=tau)])
 
 
 @register_model(
@@ -511,7 +511,7 @@ def tasep(
     occupied = np.zeros(n_sites)
     occupied[rng.choice(n_sites, round(density * n_sites), replace=False)] = 1.0
     space = LatticeSpace(n_sites, boundary='periodic' if ring else 'fixed')
-    lane = ExclusionSiteComponent.lattice('lane', space, occupied=occupied, p=p, alpha=alpha, beta=beta, ring=ring)
+    lane = ExclusionSiteElement.lattice('lane', space, occupied=occupied, p=p, alpha=alpha, beta=beta, ring=ring)
     return System(components=[lane])
 
 
@@ -557,7 +557,7 @@ def diffusion_limited_aggregation(
     cells[0] = middle
     stuck = np.zeros(n_walkers)
     stuck[0] = 1.0
-    walkers = WalkerComponent.group(
+    walkers = WalkerElement.group(
         'walkers',
         n_walkers,
         location=[tuple(map(int, cell)) for cell in cells],

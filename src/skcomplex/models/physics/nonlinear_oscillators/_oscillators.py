@@ -6,13 +6,13 @@
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DuffingComponent = ElementComponent.define(
-    'DuffingComponent',
+DuffingElement = Element.define(
+    'DuffingElement',
     states={'x': state(default=1.0, order=2)},
     parameters={'delta': 0.3, 'alpha': -1.0, 'beta': 1.0, 'gamma': 0.5, 'omega': 1.2},
     laws=lambda s: [
@@ -20,23 +20,23 @@ DuffingComponent = ElementComponent.define(
     ],
 )
 
-VanDerPolComponent = ElementComponent.define(
-    'VanDerPolComponent',
+VanDerPolElement = Element.define(
+    'VanDerPolElement',
     states={'x': state(default=2.0, order=2)},
     parameters={'mu': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x)],
 )
 
-HenonHeilesComponent = ElementComponent.define(
-    'HenonHeilesComponent',
+HenonHeilesElement = Element.define(
+    'HenonHeilesElement',
     states={'x': state(default=0.0, order=2, initial=(0.35,)), 'y': state(default=0.1, order=2)},
     laws=lambda s: [RateLaw(s.x, -s.x - 2 * s.x * s.y), RateLaw(s.y, -s.y - s.x**2 + s.y**2)],
     visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
 )
 
 
-StuartLandauComponent = ElementComponent.define(
-    'StuartLandauComponent',
+StuartLandauElement = Element.define(
+    'StuartLandauElement',
     states={'x': 1.0, 'y': 0.0},
     parameters={'mu': 1.0, 'omega': 1.0, 'beta': 0.0},
     laws=lambda s: [
@@ -45,15 +45,15 @@ StuartLandauComponent = ElementComponent.define(
     ],
 )
 
-ForcedVanDerPolComponent = ElementComponent.define(
-    'ForcedVanDerPolComponent',
+ForcedVanDerPolElement = Element.define(
+    'ForcedVanDerPolElement',
     states={'x': state(default=2.0, order=2)},
     parameters={'mu': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE), 'A': 1.0, 'omega': 1.0},
     laws=lambda s: [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x + s.A * cos(s.omega * s.t))],
 )
 
-AdlerPhaseComponent = ElementComponent.define(
-    'AdlerPhaseComponent',
+AdlerPhaseElement = Element.define(
+    'AdlerPhaseElement',
     states={'phi': 0.0},
     parameters={'detuning': 0.5, 'epsilon': 1.0},
     laws=lambda s: [RateLaw(s.phi, s.detuning + s.epsilon * sin(s.phi))],
@@ -111,7 +111,7 @@ def duffing(
     """
     return System(
         components=[
-            DuffingComponent('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega),
+            DuffingElement('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega),
         ],
     )
 
@@ -144,7 +144,7 @@ def van_der_pol(x: float = 2.0, v: float = 0.0, *, mu: float = 1.0) -> System:
         >>> van_der_pol(mu=3.0).elements[0].mu
         3.0
     """
-    return System(components=[VanDerPolComponent('oscillator', x=x, x_d1=v, mu=mu)])
+    return System(components=[VanDerPolElement('oscillator', x=x, x_d1=v, mu=mu)])
 
 
 @register_model(
@@ -179,7 +179,7 @@ def henon_heiles(x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0
         >>> henon_heiles(px=0.3).elements[0].x_d1
         0.3
     """
-    return System(components=[HenonHeilesComponent('star', x=x, y=y, x_d1=px, y_d1=py)])
+    return System(components=[HenonHeilesElement('star', x=x, y=y, x_d1=px, y_d1=py)])
 
 
 @register_model(
@@ -226,7 +226,7 @@ def stuart_landau(
         >>> stuart_landau(mu=0.5).elements[0].mu
         0.5
     """
-    return System(components=[StuartLandauComponent('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
+    return System(components=[StuartLandauElement('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
 
 
 @register_model(
@@ -273,7 +273,7 @@ def forced_van_der_pol(
         >>> forced_van_der_pol(A=0.5).elements[0].A
         0.5
     """
-    return System(components=[ForcedVanDerPolComponent('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
+    return System(components=[ForcedVanDerPolElement('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
 
 
 @register_model(
@@ -307,4 +307,4 @@ def adler_equation(phi: float = 0.0, *, detuning: float = 0.5, epsilon: float = 
         >>> adler_equation(detuning=2.0).elements[0].detuning
         2.0
     """
-    return System(components=[AdlerPhaseComponent('difference', phi=phi, detuning=detuning, epsilon=epsilon)])
+    return System(components=[AdlerPhaseElement('difference', phi=phi, detuning=detuning, epsilon=epsilon)])

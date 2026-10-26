@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, NetworkSpace
 from ....core.system import System
@@ -25,7 +25,7 @@ def _shares(size: int, share: float, random_state: int | np.random.Generator | N
     return (np.random.default_rng(random_state).random(size) < share).astype(float)
 
 
-class PersuaderComponent(ElementComponent):
+class PersuaderElement(Element):
     """Agent of the Sznajd model, who convinces the neighbours of an agreeing pair.
 
     A step of an agent picks a random neighbour, and when both share an opinion every neighbour of either adopts it.
@@ -39,10 +39,10 @@ class PersuaderComponent(ElementComponent):
             The initial opinion, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import PersuaderComponent
-        >>> group = PersuaderComponent.group('people', 10, opinion=1.0)
+        >>> from skcomplex.models.social.opinion_dynamics import PersuaderElement
+        >>> group = PersuaderElement.group('people', 10, opinion=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('people', 'PersuaderComponent', 10)
+        ('people', 'PersuaderElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -81,7 +81,7 @@ class PersuaderComponent(ElementComponent):
             other.opinion = agent.opinion
 
 
-class CitizenComponent(ElementComponent):
+class CitizenElement(Element):
     """Agent of the Galam majority model, who holds a binary opinion.
 
     Args:
@@ -95,10 +95,10 @@ class CitizenComponent(ElementComponent):
             The number of agents in each discussion group.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CitizenComponent
-        >>> group = CitizenComponent.group('citizens', 10, group_size=3)
+        >>> from skcomplex.models.social.opinion_dynamics import CitizenElement
+        >>> group = CitizenElement.group('citizens', 10, group_size=3)
         >>> group.label, group.element.__name__, group.size
-        ('citizens', 'CitizenComponent', 10)
+        ('citizens', 'CitizenElement', 10)
     """
 
     opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -157,7 +157,7 @@ class DiscussionsInteraction(BaseInteraction):
                 member.opinion = majority
 
 
-class InfluenceeComponent(ElementComponent):
+class InfluenceeElement(Element):
     """Agent of the social impact model, with an opinion of -1 or 1, a persuasiveness, and a supportiveness.
 
     Args:
@@ -180,10 +180,10 @@ class InfluenceeComponent(ElementComponent):
             The half-width of the uniform random field added to the impact on every agent and step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import InfluenceeComponent
-        >>> group = InfluenceeComponent.group('people', 4, opinion=-1.0)
+        >>> from skcomplex.models.social.opinion_dynamics import InfluenceeElement
+        >>> group = InfluenceeElement.group('people', 4, opinion=-1.0)
         >>> group.label, group.element.__name__, group.size
-        ('people', 'InfluenceeComponent', 4)
+        ('people', 'InfluenceeElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
@@ -293,7 +293,7 @@ def sznajd(
     """
     graph = nx.cycle_graph(50) if graph is None else graph
     size = nx.number_of_nodes(graph)
-    people = PersuaderComponent.group('people', size, opinion=_shares(size, share, random_state))
+    people = PersuaderElement.group('people', size, opinion=_shares(size, share, random_state))
     return System(components=[people], space=NetworkSpace(graph))
 
 
@@ -334,7 +334,7 @@ def galam_majority(
         >>> galam_majority(30, random_state=0).elements[0].size
         30
     """
-    citizens = CitizenComponent.group(
+    citizens = CitizenElement.group(
         'citizens',
         n_agents,
         opinion=_shares(n_agents, share, random_state),
@@ -390,7 +390,7 @@ def social_impact(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    people = InfluenceeComponent.group(
+    people = InfluenceeElement.group(
         'people',
         size,
         location=[(column, row) for column in range(width) for row in range(height)],

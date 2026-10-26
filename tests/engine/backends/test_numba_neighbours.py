@@ -8,7 +8,7 @@ from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
 
 CUTOFF = 2.5
 
@@ -43,7 +43,7 @@ def _accelerations(system, numba_backend):
 def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
     system = System(
-        components=[ParticleComponent.group('gas', 2, x=[[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3])],
+        components=[ParticleElement.group('gas', 2, x=[[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3])],
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=3),
     )
@@ -57,7 +57,7 @@ def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend
     """Test that periodic boxes of one, two, and three cells per side count every pair once on both backends."""
     rng = np.random.default_rng(0)
     system = System(
-        components=[ParticleComponent.group('gas', 30, x=rng.uniform(0, period, (30, 2)))],
+        components=[ParticleElement.group('gas', 30, x=rng.uniform(0, period, (30, 2)))],
         interactions=[
             SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period),
         ],

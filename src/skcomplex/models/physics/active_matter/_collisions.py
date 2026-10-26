@@ -11,7 +11,7 @@ import numpy.typing as npt
 from scipy.spatial import KDTree
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import ObservableQuantity, System
@@ -47,7 +47,7 @@ def _collide(headings: Array, pairs: list[tuple[int, int]], sigma: float, rng: n
         headings[first], headings[second] = mean + rng.normal(0.0, sigma, 2)
 
 
-class FlockerComponent(ElementComponent):
+class FlockerElement(Element):
     """Self-propelled point particle with a heading `theta`, in a periodic square.
 
     Args:
@@ -58,8 +58,8 @@ class FlockerComponent(ElementComponent):
             The initial heading.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import FlockerComponent
-        >>> FlockerComponent('bird', theta=1.0).theta
+        >>> from skcomplex.models.physics.active_matter import FlockerElement
+        >>> FlockerElement('bird', theta=1.0).theta
         1.0
     """
 
@@ -220,7 +220,7 @@ def binary_collision_flocking(
         0.3
     """
     rng = np.random.default_rng(random_state)
-    birds = FlockerComponent.group(
+    birds = FlockerElement.group(
         'birds',
         n_particles,
         location=rng.uniform(0.0, size, (n_particles, 2)),

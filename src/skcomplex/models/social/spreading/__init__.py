@@ -1,14 +1,14 @@
 """Spreading: rumours, cascades, and the growth of texts."""
 
-from ._cascades import ThresholdNodeComponent, watts_cascades
-from ._growth import WordComponent, WritingInteraction, simon_yule
-from ._rumours import ListenersComponent, RumourContactsInteraction, maki_thompson
+from ._cascades import ThresholdNodeElement, watts_cascades
+from ._growth import WordElement, WritingInteraction, simon_yule
+from ._rumours import ListenersElement, RumourContactsInteraction, maki_thompson
 
 __all__: list[str] = [
-    'ListenersComponent',
+    'ListenersElement',
     'RumourContactsInteraction',
-    'ThresholdNodeComponent',
-    'WordComponent',
+    'ThresholdNodeElement',
+    'WordElement',
     'WritingInteraction',
     'maki_thompson',
     'simon_yule',

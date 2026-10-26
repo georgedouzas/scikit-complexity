@@ -15,7 +15,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ._particles import ActiveParticleComponent
+from ._particles import ActiveParticleElement
 
 HEADINGS = VisualSpec(
     'points',
@@ -165,7 +165,7 @@ def aligning_active_brownian_particles(
         0.5
     """
     rng = np.random.default_rng(random_state)
-    swimmers = ActiveParticleComponent.group(
+    swimmers = ActiveParticleElement.group(
         'swimmers',
         n_particles,
         x=rng.uniform(0.0, size, (n_particles, 2)),

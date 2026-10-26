@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, log
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, delayed, pulse
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -18,7 +18,7 @@ from ....engine.solvers import ScipyODESolver
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class StemCellDifferentiationComponent(ElementComponent):
+class StemCellDifferentiationElement(Element):
     """Normal and malignant lineages of quiescent stem cells, progenitors, basal cells, and differentiated cells.
 
     In each lineage the quiescent stem cells become progenitors at the rate `k12` and progenitors return at the rate
@@ -165,8 +165,8 @@ class StemCellDifferentiationComponent(ElementComponent):
                 The dose of the continuous therapy.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import StemCellDifferentiationComponent
-        >>> StemCellDifferentiationComponent('tissue', therapy='pulsed').therapy
+        >>> from skcomplex.models.biology.oncology import StemCellDifferentiationElement
+        >>> StemCellDifferentiationElement('tissue', therapy='pulsed').therapy
         'pulsed'
     """
 
@@ -268,7 +268,7 @@ class StemCellDifferentiationComponent(ElementComponent):
         ]
 
 
-class BoneMarrowBloodComponent(ElementComponent):
+class BoneMarrowBloodElement(Element):
     """Normal and malignant cells in the bone marrow and the peripheral blood, and cancer stem cells.
 
     Normal marrow cells renew as `r1 NBM log((b1 + b2) / (theta1 + NBM))`, mutate into blasts at the rate `m1` and
@@ -372,8 +372,8 @@ class BoneMarrowBloodComponent(ElementComponent):
             The reciprocal carrying capacity of cancer stem cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import BoneMarrowBloodComponent
-        >>> BoneMarrowBloodComponent('patient').tau1
+        >>> from skcomplex.models.biology.oncology import BoneMarrowBloodElement
+        >>> BoneMarrowBloodElement('patient').tau1
         96.0
     """
 
@@ -442,7 +442,7 @@ class BoneMarrowBloodComponent(ElementComponent):
         ]
 
 
-class LeukaemiaStemCellsComponent(ElementComponent):
+class LeukaemiaStemCellsElement(Element):
     """Normal and leukaemic stem cells that share a niche, with the progeny that feeds back on them.
 
     Stem cells renew symmetrically at the rate `r e^-psi1` and differentiate symmetrically at the rate
@@ -518,8 +518,8 @@ class LeukaemiaStemCellsComponent(ElementComponent):
             The feedback gain of the progeny on differentiation.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import LeukaemiaStemCellsComponent
-        >>> LeukaemiaStemCellsComponent('niche').beta1
+        >>> from skcomplex.models.biology.oncology import LeukaemiaStemCellsElement
+        >>> LeukaemiaStemCellsElement('niche').beta1
         0.01
     """
 
@@ -629,7 +629,7 @@ def stem_cell_differentiation(
         True
     """
     m1 = m0 * (1 + np.random.default_rng(seed).uniform())
-    tissue = StemCellDifferentiationComponent(
+    tissue = StemCellDifferentiationElement(
         'tissue',
         m1=m1,
         beta0=beta0,
@@ -688,7 +688,7 @@ def bone_marrow_blood_leukaemia(
         >>> bone_marrow_blood_leukaemia(tau1=144.0).elements[0].tau1
         144.0
     """
-    return System(components=[BoneMarrowBloodComponent('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
+    return System(components=[BoneMarrowBloodElement('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
 
 
 @register_model(
@@ -751,5 +751,5 @@ def leukaemia_stem_cells(
         >>> leukaemia_stem_cells(r4=0.5).elements[0].r4
         0.5
     """
-    niche = LeukaemiaStemCellsComponent('niche', NS=NS, AS=AS, r1=r1, m1=m1, d1=d1, r4=r4, m3=m3, d4=d4)
+    niche = LeukaemiaStemCellsElement('niche', NS=NS, AS=AS, r1=r1, m1=m1, d1=d1, r4=r4, m3=m3, d4=d4)
     return System(components=[niche])

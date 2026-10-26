@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -39,7 +39,7 @@ def _items_left(agent: AgentView) -> float:
     return float(len(_items_of(int(agent.wanted))))
 
 
-class StallComponent(ElementComponent):
+class StallElement(Element):
     """Market stall that sells some kinds of produce at the wholesale price plus its markup.
 
     Args:
@@ -56,8 +56,8 @@ class StallComponent(ElementComponent):
             The relative markup on the wholesale prices.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import StallComponent
-        >>> StallComponent.group('stalls', 3, stall=[0, 1, 2]).size
+        >>> from skcomplex.models.economics.markets import StallElement
+        >>> StallElement.group('stalls', 3, stall=[0, 1, 2]).size
         3
     """
 
@@ -79,7 +79,7 @@ class StallComponent(ElementComponent):
         return []
 
 
-class ShopperComponent(ElementComponent):
+class ShopperElement(Element):
     """Shopper who visits one stall a step that it has not visited yet and buys what it wants there.
 
     A shopper gives up the items that it has not found once it has visited every stall.
@@ -101,8 +101,8 @@ class ShopperComponent(ElementComponent):
             The money spent.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ShopperComponent
-        >>> ShopperComponent.group('shoppers', 5, wanted=3).size
+        >>> from skcomplex.models.economics.markets import ShopperElement
+        >>> ShopperElement.group('shoppers', 5, wanted=3).size
         5
     """
 
@@ -198,14 +198,14 @@ def produce_market(
     stocks = _random_masks(np.full(n_stalls, n_items_stocked), rng)
     markups = rng.integers(1, MAX_MARKUP + 1, n_stalls) / 100
     lists = _random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, n_shoppers), rng)
-    stalls = StallComponent.group(
+    stalls = StallElement.group(
         'stalls',
         n_stalls,
         stall=np.arange(n_stalls, dtype=float),
         stock=stocks,
         markup=markups,
     )
-    shoppers = ShopperComponent.group('shoppers', n_shoppers, wanted=lists)
+    shoppers = ShopperElement.group('shoppers', n_shoppers, wanted=lists)
     return System(
         components=[stalls, shoppers],
     )

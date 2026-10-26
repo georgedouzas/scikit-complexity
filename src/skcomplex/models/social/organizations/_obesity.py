@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -63,7 +63,7 @@ def _meal(kind: int, habit: int, rng: np.random.Generator) -> tuple[float, bool]
     return float(calories), bool(calories > (low + high) / 2)
 
 
-class RestaurantComponent(ElementComponent):
+class RestaurantElement(Element):
     """Restaurant of the obesity model: a market at 0, a restaurant at 1, or a fast food outlet at 2.
 
     Args:
@@ -80,10 +80,10 @@ class RestaurantComponent(ElementComponent):
             The number of meals sold from the top half of the restaurant's calorie range.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import RestaurantComponent
-        >>> group = RestaurantComponent.group('restaurants', 3, kind=2.0)
+        >>> from skcomplex.models.social.organizations import RestaurantElement
+        >>> group = RestaurantElement.group('restaurants', 3, kind=2.0)
         >>> group.label, group.element.__name__, group.size
-        ('restaurants', 'RestaurantComponent', 3)
+        ('restaurants', 'RestaurantElement', 3)
     """
 
     kind: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -91,7 +91,7 @@ class RestaurantComponent(ElementComponent):
     sold_high: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class EaterComponent(ElementComponent):
+class EaterElement(Element):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
 
     At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, or at the
@@ -141,10 +141,10 @@ class EaterComponent(ElementComponent):
             The factor of the basal metabolic rate a person spends a day, 1.2 when sedentary and 1.9 when very active.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import EaterComponent
-        >>> group = EaterComponent.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
+        >>> from skcomplex.models.social.organizations import EaterElement
+        >>> group = EaterElement.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
         >>> group.label, group.element.__name__, group.size
-        ('people', 'EaterComponent', 5)
+        ('people', 'EaterElement', 5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})
@@ -267,7 +267,7 @@ def obesity(
     male = (rng.random(n_people) < 0.5).astype(float)  # noqa: PLR2004
     height = np.where(male > 0, rng.normal(176, 7, n_people), rng.normal(163, 7, n_people))
     weight = rng.normal(24, 3, n_people) * (height / 100) ** 2
-    people = EaterComponent.group(
+    people = EaterElement.group(
         'people',
         n_people,
         location=home,
@@ -282,7 +282,7 @@ def obesity(
         reach=reach,
         activity=activity,
     )
-    restaurants = RestaurantComponent.group(
+    restaurants = RestaurantElement.group(
         'restaurants',
         n_places,
         location=rng.uniform(0, size, (n_places, 2)),

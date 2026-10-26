@@ -9,7 +9,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -92,7 +92,7 @@ def delivered_price_choice(
     return trades
 
 
-class ResidentComponent(ElementComponent):
+class ResidentElement(Element):
     """Shopper who wants one unit a step and shops in person, paying for travel, or online, where distance is free.
 
     Args:
@@ -118,8 +118,8 @@ class ResidentComponent(ElementComponent):
             The probability of shopping online in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ResidentComponent
-        >>> ResidentComponent.group('shoppers', 3, online=1.0).size
+        >>> from skcomplex.models.economics.markets import ResidentElement
+        >>> ResidentElement.group('shoppers', 3, online=1.0).size
         3
     """
 
@@ -159,7 +159,7 @@ class ResidentComponent(ElementComponent):
         agent.travel = 0.0 if online else model.parameter('distance_cost')
 
 
-class StoreComponent(ElementComponent):
+class StoreElement(Element):
     """Shop that offers its capacity at its price, searches for the price of the largest profit, and may close.
 
     The shop searches for its price by trial and error: it moves the price by `adjustment` in the same direction as
@@ -204,8 +204,8 @@ class StoreComponent(ElementComponent):
             The relative change of the price in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import StoreComponent
-        >>> StoreComponent.group('shops', 4, price=10.0).size
+        >>> from skcomplex.models.economics.markets import StoreElement
+        >>> StoreElement.group('shops', 4, price=10.0).size
         4
     """
 
@@ -399,7 +399,7 @@ def shops(
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
     places = rng.choice(len(cells), size=min(n_shops, len(cells)), replace=False)
-    shoppers = ResidentComponent.group(
+    shoppers = ResidentElement.group(
         'shoppers',
         len(cells),
         location=cells,
@@ -407,7 +407,7 @@ def shops(
         online=online,
         distance_cost=distance_cost,
     )
-    stores = StoreComponent.group(
+    stores = StoreElement.group(
         'shops',
         len(places),
         variable=True,

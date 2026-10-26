@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, derivative
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -18,8 +18,8 @@ def _piezo_voltage(s: Symbols) -> Expression:
     return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
 
 
-PiezoHarvesterComponent = ElementComponent.define(
-    'PiezoHarvesterComponent',
+PiezoHarvesterElement = Element.define(
+    'PiezoHarvesterElement',
     states={'y1': state(default=0.0, order=2), 'y2': state(default=0.0, order=2)},
     parameters={
         'm1': parameter(default=40.0, domain=NumericDomain.POSITIVE),
@@ -115,5 +115,5 @@ def vibration_energy_harvester(
         >>> vibration_energy_harvester(b=1000.0).elements[0].b
         1000.0
     """
-    harvester = PiezoHarvesterComponent('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
+    harvester = PiezoHarvesterElement('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
     return System(components=[harvester])

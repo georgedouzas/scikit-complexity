@@ -11,14 +11,14 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.fields import (
     ETDRK4Solver,
-    FieldComponent,
+    FieldElement,
     FluxLaw,
     SSPRKSolver,
     divergence,
@@ -29,8 +29,8 @@ from ....formalisms.fields import (
 
 type Array = npt.NDArray[np.float64]
 
-KuramotoSivashinskyComponent = ElementComponent.define(
-    'KuramotoSivashinskyComponent',
+KuramotoSivashinskyElement = Element.define(
+    'KuramotoSivashinskyElement',
     states={'u': 0.0},
     laws=lambda s: [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
 )
@@ -76,7 +76,7 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     space = LatticeSpace(modes, spacing=spacing)
     return System(
         components=[
-            FieldComponent('line', KuramotoSivashinskyComponent, space, values=values, discretization='spectral'),
+            FieldElement('line', KuramotoSivashinskyElement, space, values=values, discretization='spectral'),
         ],
     )
 
@@ -87,7 +87,7 @@ def _velocity(omega: Any) -> tuple[Any, Any]:  # noqa: ANN401
     return slopes[1], -slopes[0]
 
 
-class VorticityComponent(ElementComponent):
+class VorticityElement(Element):
     """Vorticity of an incompressible two-dimensional flow, `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
 
     The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
@@ -107,8 +107,8 @@ class VorticityComponent(ElementComponent):
             The forcing of the vorticity.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import VorticityComponent
-        >>> VorticityComponent('site').nu
+        >>> from skcomplex.models.physics.fluids import VorticityElement
+        >>> VorticityElement('site').nu
         0.001
     """
 
@@ -131,7 +131,7 @@ class VorticityComponent(ElementComponent):
         return [RateLaw(s.omega, -divergence([u * s.omega, w * s.omega]) + s.nu * laplacian(s.omega) + s.f)]
 
 
-class BoussinesqComponent(ElementComponent):
+class BoussinesqElement(Element):
     """Vorticity and temperature of Boussinesq convection, in units of the thermal diffusion time.
 
     The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
@@ -155,8 +155,8 @@ class BoussinesqComponent(ElementComponent):
             The Prandtl number.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import BoussinesqComponent
-        >>> BoussinesqComponent('site').Ra
+        >>> from skcomplex.models.physics.fluids import BoussinesqElement
+        >>> BoussinesqElement('site').Ra
         1000.0
     """
 
@@ -187,14 +187,14 @@ class BoussinesqComponent(ElementComponent):
         ]
 
 
-BurgersComponent = ElementComponent.define(
-    'BurgersComponent',
+BurgersElement = Element.define(
+    'BurgersElement',
     states={'u': 0.0},
     laws=lambda s: [FluxLaw(s.u, s.u**2 / 2)],
 )
 
-ShallowWaterComponent = ElementComponent.define(
-    'ShallowWaterComponent',
+ShallowWaterElement = Element.define(
+    'ShallowWaterElement',
     states={'h': state(default=1.0, domain=NumericDomain.POSITIVE), 'q': 0.0},
     parameters={'g': 9.81},
     laws=lambda s: [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)],
@@ -262,7 +262,7 @@ def incompressible_flow(
     Examples:
         >>> from skcomplex.models.physics.fluids import incompressible_flow
         >>> incompressible_flow((16, 16), buoyancy={'Ra': 800.0, 'Pr': 1.0}).elements[0].element.__name__
-        'BoussinesqComponent'
+        'BoussinesqElement'
     """
     shape = tuple(int(item) for item in shape)
     space = LatticeSpace(shape, spacing=tuple(length / count for length, count in zip(size, shape, strict=True)))
@@ -270,18 +270,18 @@ def incompressible_flow(
     if vorticity is not None:
         values['omega'] = np.asarray(vorticity, dtype=float)
     if buoyancy is None:
-        element: type[ElementComponent] = VorticityComponent
+        element: type[Element] = VorticityElement
         values['nu'] = nu
         if forcing is not None:
             values['f'] = np.asarray(forcing, dtype=float)
     else:
-        element = BoussinesqComponent
+        element = BoussinesqElement
         values.update({key: float(value) for key, value in buoyancy.items()})
         if temperature is not None:
             values['theta'] = np.asarray(temperature, dtype=float)
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
     symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
-    field = FieldComponent('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
+    field = FieldElement('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
     return System(components=[field])
 
 
@@ -421,7 +421,7 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
     values = {'u': mean + amplitude * np.sin(centers)}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldComponent('line', BurgersComponent, space, values=values, discretization='finite-volume')],
+        components=[FieldElement('line', BurgersElement, space, values=values, discretization='finite-volume')],
     )
 
 
@@ -473,9 +473,9 @@ def shallow_water(
     space = LatticeSpace(n, spacing=length / n)
     values = {'h': depth, 'q': np.zeros(n), 'g': g}
     boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
-    field = FieldComponent(
+    field = FieldElement(
         'channel',
-        ShallowWaterComponent,
+        ShallowWaterElement,
         space,
         boundary=boundary,
         values=values,

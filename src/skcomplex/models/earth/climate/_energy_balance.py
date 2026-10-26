@@ -9,12 +9,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
 from ....core.base import BaseLaw, Expression, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, where
 from ....core.space import LatticeSpace
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, gradient, laplacian
+from ....formalisms.fields import FieldElement, gradient, laplacian
 
 
 def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401
@@ -59,8 +59,8 @@ def _budyko_sellers_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.T, (insolation * (1 - albedo) - (s.A + s.B * s.T) + transport) / s.C)]
 
 
-IceAlbedoClimateComponent = ElementComponent.define(
-    'IceAlbedoClimateComponent',
+IceAlbedoClimateElement = Element.define(
+    'IceAlbedoClimateElement',
     states={'T': state(default=290.0, domain=NumericDomain.POSITIVE)},
     parameters={
         's': 1.0,
@@ -79,8 +79,8 @@ IceAlbedoClimateComponent = ElementComponent.define(
     ],
 )
 
-LatitudeBandComponent = ElementComponent.define(
-    'LatitudeBandComponent',
+LatitudeBandElement = Element.define(
+    'LatitudeBandElement',
     states={'T': state(default=15.0, domain=NumericDomain.REAL)},
     parameters={
         'x': 0.5,
@@ -99,8 +99,8 @@ LatitudeBandComponent = ElementComponent.define(
     laws=_budyko_sellers_laws,
 )
 
-DaisyworldComponent = ElementComponent.define(
-    'DaisyworldComponent',
+DaisyworldElement = Element.define(
+    'DaisyworldElement',
     states={
         'white': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
         'black': state(default=0.2, domain=NumericDomain.NONNEGATIVE),
@@ -179,7 +179,7 @@ def energy_balance(
         >>> energy_balance(T=230.0).elements[0].T
         230.0
     """
-    climate = IceAlbedoClimateComponent(
+    climate = IceAlbedoClimateElement(
         'earth',
         T=T,
         s=s,
@@ -249,9 +249,9 @@ def budyko_sellers(
         10
     """
     x = (np.arange(n_bands) + 0.5) / n_bands
-    bands = FieldComponent(
+    bands = FieldElement(
         'bands',
-        LatitudeBandComponent,
+        LatitudeBandElement,
         LatticeSpace(n_bands, spacing=1 / n_bands),
         boundary={'T': 'zero-flux'},
         values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
@@ -302,5 +302,5 @@ def daisyworld(
         1.2
     """
     return System(
-        components=[DaisyworldComponent('planet', white=white, black=black, L=L, gamma=gamma)],
+        components=[DaisyworldElement('planet', white=white, black=black, L=L, gamma=gamma)],
     )

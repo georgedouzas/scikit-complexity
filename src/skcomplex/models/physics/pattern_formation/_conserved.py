@@ -7,15 +7,15 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
-NonreciprocalMixtureComponent = ElementComponent.define(
-    'NonreciprocalMixtureComponent',
+NonreciprocalMixtureElement = Element.define(
+    'NonreciprocalMixtureElement',
     states={'phi': 0.0, 'psi': 0.0},
     parameters={'chi': 0.0, 'alpha': 0.3, 'D': 0.1, 'kappa': 1.0},
     laws=lambda s: [
@@ -91,4 +91,4 @@ def nonreciprocal_cahn_hilliard(
         'kappa': kappa,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[FieldComponent('mixture', NonreciprocalMixtureComponent, space, values=values)])
+    return System(components=[FieldElement('mixture', NonreciprocalMixtureElement, space, values=values)])

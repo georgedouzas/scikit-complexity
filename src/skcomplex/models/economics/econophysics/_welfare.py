@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, total
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -192,7 +192,7 @@ def wealth_observables(classes: int) -> list[ObservableQuantity]:
     ]
 
 
-class WealthClassComponent(ElementComponent):
+class WealthClassElement(Element):
     """Density of the population at one wealth class, a member of a distribution over wealth classes.
 
     Args:
@@ -203,8 +203,8 @@ class WealthClassComponent(ElementComponent):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import WealthClassComponent
-        >>> WealthClassComponent.group('wealth', 9, f=1 / 9).size
+        >>> from skcomplex.models.economics.econophysics import WealthClassElement
+        >>> WealthClassElement.group('wealth', 9, f=1 / 9).size
         9
     """
 
@@ -360,10 +360,10 @@ def kinetic_wealth_welfare(
         ['exchange', 'welfare']
     """
     initial = np.exp(-((wealth_classes(classes) - 0.5) ** 2) / 0.05)
-    components: list[GroupComponent] = [
-        GroupComponent(
+    components: list[GroupElement] = [
+        GroupElement(
             'wealth',
-            element=WealthClassComponent,
+            element=WealthClassElement,
             size=classes,
             on='sites',
             values={'f': initial / initial.sum()},
@@ -380,7 +380,7 @@ def kinetic_wealth_welfare(
         ),
     ]
     if tax > 0:
-        components.append(WealthClassComponent.group('state', 1, f=1.0))
+        components.append(WealthClassElement.group('state', 1, f=1.0))
         interactions.append(
             WelfarePolicyInteraction('welfare', population='wealth', policy='state', classes=classes, tax=tax),
         )

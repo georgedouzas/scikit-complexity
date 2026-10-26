@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -53,8 +53,8 @@ def _commodity_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-CommodityMarketComponent = ElementComponent.define(
-    'CommodityMarketComponent',
+CommodityMarketElement = Element.define(
+    'CommodityMarketElement',
     states={
         'inventory': state(default=25.0, domain=NumericDomain.NONNEGATIVE, quantity='commodity'),
         'capacity': state(default=100.0, domain=NumericDomain.NONNEGATIVE, quantity='capacity'),
@@ -157,7 +157,7 @@ def commodity_cycle(
         >>> commodity_cycle(construction_delay=5.0).elements[0].construction_delay
         5.0
     """
-    market = CommodityMarketComponent(
+    market = CommodityMarketElement(
         'market',
         inventory=inventory,
         capacity=capacity,

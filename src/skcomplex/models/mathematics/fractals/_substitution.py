@@ -13,13 +13,13 @@ from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.rewriting import (
     Affine,
-    PatchComponent,
+    PatchElement,
     ProductionLaw,
     Prototile,
     RewriteLaw,
     RewritingLaw,
     SubstitutionLaw,
-    WordComponent,
+    WordElement,
     WordGeometry,
 )
 
@@ -41,7 +41,7 @@ def _sierpinski_tiles(shape: str) -> tuple[Prototile, list[tuple[str, Affine]]]:
     raise ValidationError(error_msg)
 
 
-class KochComponent(WordComponent):
+class KochElement(WordElement):
     """Word rewritten by the production `F → F+F--F+F` of the Koch curve.
 
     Args:
@@ -52,8 +52,8 @@ class KochComponent(WordComponent):
             The settings and the values of the declared variables of a word, by name.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import KochComponent
-        >>> KochComponent('koch', axiom='F').laws(None)[0].productions()[0].text
+        >>> from skcomplex.models.mathematics.fractals import KochElement
+        >>> KochElement('koch', axiom='F').laws(None)[0].productions()[0].text
         'F → F+F--F+F'
     """
 
@@ -72,7 +72,7 @@ class KochComponent(WordComponent):
         return [RewriteLaw([ProductionLaw('F', 'F+F--F+F')])]
 
 
-class CantorComponent(PatchComponent):
+class CantorElement(PatchElement):
     """Patch of intervals, each replaced by its first and its last part of the length `ratio`.
 
     Args:
@@ -86,8 +86,8 @@ class CantorComponent(PatchComponent):
                 The length of each kept part relative to its interval.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import CantorComponent
-        >>> CantorComponent('cantor', ratio=0.25).ratio
+        >>> from skcomplex.models.mathematics.fractals import CantorElement
+        >>> CantorElement('cantor', ratio=0.25).ratio
         0.25
     """
 
@@ -111,7 +111,7 @@ class CantorComponent(PatchComponent):
         return [RewriteLaw([SubstitutionLaw('interval', pieces)])]
 
 
-class SierpinskiComponent(PatchComponent):
+class SierpinskiElement(PatchElement):
     """Patch of triangles or squares, each replaced by the scaled copies of the Sierpiński triangle or carpet.
 
     Args:
@@ -125,8 +125,8 @@ class SierpinskiComponent(PatchComponent):
             The settings and the values of the declared variables of a patch, by name.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import SierpinskiComponent
-        >>> len(SierpinskiComponent('sierpinski', shape='carpet').laws(None)[0].productions()[0].pieces)
+        >>> from skcomplex.models.mathematics.fractals import SierpinskiElement
+        >>> len(SierpinskiElement('sierpinski', shape='carpet').laws(None)[0].productions()[0].pieces)
         8
     """
 
@@ -180,7 +180,7 @@ def koch_curve(angle: float = 60.0) -> System:
         >>> run('koch_curve', settings={'until': 3}).trajectory_.values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
-    word = KochComponent(
+    word = KochElement(
         'koch',
         axiom='F',
         alphabet='F+-',
@@ -225,7 +225,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
         raise ValidationError(error_msg)
     interval = Prototile('interval', [(0.0, 0.0), (1.0, 0.0)])
     return System(
-        components=[CantorComponent('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
+        components=[CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=ratio)],
     )
 
 
@@ -264,4 +264,4 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
         [1.0, 3.0, 9.0]
     """
     prototile, _ = _sierpinski_tiles(shape)
-    return System(components=[SierpinskiComponent('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])
+    return System(components=[SierpinskiElement('sierpinski', shape=shape, prototiles=[prototile], filled=filled)])

@@ -6,13 +6,13 @@
 import math
 
 from ....core.base import NumericDomain, ValidationError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-ScaleFactorComponent = ElementComponent.define(
-    'ScaleFactorComponent',
+ScaleFactorElement = Element.define(
+    'ScaleFactorElement',
     states={'a': state(default=1.0, domain=NumericDomain.POSITIVE, order=2)},
     parameters={
         'H0': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -81,7 +81,7 @@ def friedmann_expansion(
             'omega_matter, and omega_lambda for which it is positive.'
         )
         raise ValidationError(error_msg)
-    universe = ScaleFactorComponent(
+    universe = ScaleFactorElement(
         'universe',
         a=a,
         a_d1=math.sqrt(square),

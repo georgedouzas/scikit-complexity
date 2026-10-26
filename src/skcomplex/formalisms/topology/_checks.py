@@ -6,7 +6,7 @@
 from typing import Any, cast
 
 from ...core.base import ValidationError
-from ...core.components import GroupComponent
+from ...core.components import GroupElement
 from ...core.space import NetworkSpace
 from ...engine.compile import Census, CensusRecord, Compilation, Issue, Node
 from ._requests import TopologyRequest, request_of
@@ -43,9 +43,9 @@ def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issu
         if not isinstance(space, NetworkSpace):
             spaces = {id(node.space): node.space for node in nodes if isinstance(node.space, NetworkSpace)}
             space = next(iter(spaces.values())) if len(spaces) == 1 else space
-        groups = [node for node in nodes if isinstance(node.component, GroupComponent) and node.space is space]
+        groups = [node for node in nodes if isinstance(node.component, GroupElement) and node.space is space]
         owner = by_path.get(record.owner)
-        owner = owner if owner is not None and isinstance(owner.component, GroupComponent) else None
+        owner = owner if owner is not None and isinstance(owner.component, GroupElement) else None
         fixed, missing = _fixed_groups(request, owner, [node for node in groups if node.component.on])
         if not fixed and not missing:
             continue
@@ -59,7 +59,7 @@ def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issu
             message += f' {where[0].upper()}{where[1:]} has no group on its edges.'
         fix = (
             'Give the groups on the nodes and the edges of the network `variable=True`, with a group on the edges '
-            'of every layer the request changes, `GroupComponent(..., on="edges", variable=True)`.'
+            'of every layer the request changes, `GroupElement(..., on="edges", variable=True)`.'
         )
         issues.append(Issue('group-fixed', record.path, message, fix))
     return issues

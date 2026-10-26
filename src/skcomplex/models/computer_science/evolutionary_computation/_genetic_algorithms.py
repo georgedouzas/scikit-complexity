@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -84,7 +84,7 @@ def _offspring(strategies: Integers, scores: Array, rng: np.random.Generator, mu
     return np.where(mutated, rng.integers(0, N_ACTIONS, children.shape), children)
 
 
-class StrategyComponent(ElementComponent):
+class StrategyElement(Element):
     """Strategy of Robby, the action for each of the 243 situations he can see, with its last measured score.
 
     The actions are 0 to 3 for moving north, south, east, and west, 4 to stay, 5 to pick up a can, and 6 to move in a
@@ -101,8 +101,8 @@ class StrategyComponent(ElementComponent):
             The initial score.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import StrategyComponent
-        >>> StrategyComponent.group('strategies', 3).get_params()['size']
+        >>> from skcomplex.models.computer_science.evolutionary_computation import StrategyElement
+        >>> StrategyElement.group('strategies', 3).get_params()['size']
         3
     """
 
@@ -276,6 +276,6 @@ def robby_ga(
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
     scores = evolution.score(actions, rng)
     return System(
-        components=[StrategyComponent.group('strategies', n_strategies, actions=actions, score=scores)],
+        components=[StrategyElement.group('strategies', n_strategies, actions=actions, score=scores)],
         interactions=[evolution],
     )

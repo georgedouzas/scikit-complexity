@@ -2,26 +2,26 @@
 
 from ._amplitude_death import (
     GlobalCouplingInteraction,
-    StuartLandauComponent,
+    StuartLandauElement,
     heterogeneous_global_coupling,
     oscillator_death,
 )
 from ._chaos import (
     AggregateAveragingInteraction,
     DiffusiveCouplingInteraction,
-    LogisticUnitComponent,
-    RosslerOscillatorComponent,
+    LogisticUnitElement,
+    RosslerOscillatorElement,
     aggregate_averaging_synchronization,
     coupled_rossler,
 )
 from ._kuramoto import (
     DelayedCouplingInteraction,
-    MeanFieldAmplitudeComponent,
+    MeanFieldAmplitudeElement,
     MeanFieldCouplingInteraction,
     PhaseCouplingInteraction,
     PhaseLagInteraction,
-    PhaseOscillatorComponent,
-    SitedOscillatorComponent,
+    PhaseOscillatorElement,
+    SitedOscillatorElement,
     delayed_kuramoto,
     kuramoto,
     kuramoto_sakaguchi_chimera,
@@ -30,19 +30,19 @@ from ._kuramoto import (
 )
 from ._networks import (
     EdgeCouplingInteraction,
-    LinkComponent,
-    LogisticNodeComponent,
+    LinkElement,
+    LogisticNodeElement,
     coupled_map_lattices_on_networks,
     kuramoto_on_networks,
 )
 from ._pulses import (
-    IntegrateAndFireOscillatorComponent,
+    IntegrateAndFireOscillatorElement,
     WinfreeMeanFieldInteraction,
-    WinfreeOscillatorComponent,
+    WinfreeOscillatorElement,
     mirollo_strogatz,
     winfree,
 )
-from ._swarmalators import SwarmalatorComponent, SwarmalatorCouplingInteraction, swarmalators
+from ._swarmalators import SwarmalatorCouplingInteraction, SwarmalatorElement, swarmalators
 
 __all__: list[str] = [
     'AggregateAveragingInteraction',
@@ -50,22 +50,22 @@ __all__: list[str] = [
     'DiffusiveCouplingInteraction',
     'EdgeCouplingInteraction',
     'GlobalCouplingInteraction',
-    'IntegrateAndFireOscillatorComponent',
-    'LinkComponent',
-    'LogisticNodeComponent',
-    'LogisticUnitComponent',
-    'MeanFieldAmplitudeComponent',
+    'IntegrateAndFireOscillatorElement',
+    'LinkElement',
+    'LogisticNodeElement',
+    'LogisticUnitElement',
+    'MeanFieldAmplitudeElement',
     'MeanFieldCouplingInteraction',
     'PhaseCouplingInteraction',
     'PhaseLagInteraction',
-    'PhaseOscillatorComponent',
-    'RosslerOscillatorComponent',
-    'SitedOscillatorComponent',
-    'StuartLandauComponent',
-    'SwarmalatorComponent',
+    'PhaseOscillatorElement',
+    'RosslerOscillatorElement',
+    'SitedOscillatorElement',
+    'StuartLandauElement',
     'SwarmalatorCouplingInteraction',
+    'SwarmalatorElement',
     'WinfreeMeanFieldInteraction',
-    'WinfreeOscillatorComponent',
+    'WinfreeOscillatorElement',
     'aggregate_averaging_synchronization',
     'coupled_map_lattices_on_networks',
     'coupled_rossler',

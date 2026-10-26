@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, total, uniform, where
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -19,7 +19,7 @@ from ....formalisms.topology import add_node, remove_node
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
-class AbundanceComponent(ElementComponent):
+class AbundanceElement(Element):
     """Species of an ecosystem with its relative abundance, which goes extinct below a threshold.
 
     A species whose abundance falls below `threshold` goes extinct, and a new species with `k` random interactions
@@ -45,8 +45,8 @@ class AbundanceComponent(ElementComponent):
                 The abundance below which the species goes extinct.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import AbundanceComponent
-        >>> AbundanceComponent('species').threshold
+        >>> from skcomplex.models.biology.ecology import AbundanceElement
+        >>> AbundanceElement('species').threshold
         0.001
     """
 
@@ -83,7 +83,7 @@ class AbundanceComponent(ElementComponent):
         ]
 
 
-class InfluenceComponent(ElementComponent):
+class InfluenceElement(Element):
     """Edge from a species to a species that changes its growth, with the strength `a` of the influence.
 
     A new edge, marked `fresh`, draws its strength uniformly from `[-1, 1]` at its first step.
@@ -99,8 +99,8 @@ class InfluenceComponent(ElementComponent):
             Whether the edge has not drawn its strength yet.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import InfluenceComponent
-        >>> InfluenceComponent('edge').a
+        >>> from skcomplex.models.biology.ecology import InfluenceElement
+        >>> InfluenceElement('edge').a
         0.0
     """
 
@@ -248,9 +248,9 @@ def sequentially_linear_ecosystem(
         graph.add_edges_from((node, int(other)) for other in others)
     space = NetworkSpace(graph)
     edges = graph.number_of_edges()
-    species = GroupComponent(
+    species = GroupElement(
         'species',
-        element=AbundanceComponent,
+        element=AbundanceElement,
         space=space,
         on='sites',
         variable=True,
@@ -258,9 +258,9 @@ def sequentially_linear_ecosystem(
         values={'x': np.full(n, 1 / n), 'threshold': threshold, 'k': k},
         visual=VisualSpec('sites', {'states': ['x']}),
     )
-    influences = GroupComponent(
+    influences = GroupElement(
         'influences',
-        element=InfluenceComponent,
+        element=InfluenceElement,
         space=space,
         on='edges',
         variable=True,

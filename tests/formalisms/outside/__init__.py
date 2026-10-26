@@ -8,8 +8,8 @@ import numpy as np
 
 from skcomplex.core.base import (
     BaseLaw,
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Expression,
     Form,
     LawClass,
@@ -26,7 +26,7 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Symbols
 from skcomplex.core.problems import CompiledElement, Entry, Layout, Problem
 from skcomplex.core.system import System
@@ -59,7 +59,7 @@ class DecayLaw(BaseLaw):
     rate: object
 
 
-class NucleusComponent(ElementComponent):
+class NucleusElement(Element):
     """Amount of a substance that decays.
 
     Args:
@@ -98,9 +98,7 @@ class DecayCompiler(BaseSystemCompiler):
 
     def _prepare(self, system: System) -> None:
         """Set `claims_`, whether every element of the system is a nucleus."""
-        self.claims_ = bool(system.elements) and all(
-            isinstance(element, NucleusComponent) for element in system.elements
-        )
+        self.claims_ = bool(system.elements) and all(isinstance(element, NucleusElement) for element in system.elements)
 
     def _run(
         self,
@@ -147,7 +145,7 @@ class ExactDecaySolver(Solver):
         time={TimeKind.CONTINUOUS},
         laws={DECAY},
         domains={DomainKind.REAL},
-        components={ComponentKind.ELEMENT},
+        components={ElementKind.ELEMENT},
         orders={OrderKind.INTEGER},
     )
     form: ClassVar[Form] = DECAYING
@@ -161,7 +159,7 @@ class ExactDecaySolver(Solver):
 FORMALISM = Formalism(
     'outside',
     laws=(DecayLaw,),
-    components=(NucleusComponent,),
+    components=(NucleusElement,),
     compilers=(DecayCompiler(),),
     forms=(DECAYING,),
     solvers={'exact-decay': ExactDecaySolver},

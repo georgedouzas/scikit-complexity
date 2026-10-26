@@ -3,20 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-SaddleNodeComponent = ElementComponent.define(
-    'SaddleNodeComponent',
+SaddleNodeElement = Element.define(
+    'SaddleNodeElement',
     states={'x': 0.0},
     parameters={'mu': 1.0},
     laws=lambda s: [RateLaw(s.x, s.mu - s.x**2)],
 )
 
-HopfComponent = ElementComponent.define(
-    'HopfComponent',
+HopfElement = Element.define(
+    'HopfElement',
     states={'x': 0.1, 'y': 0.0},
     parameters={'mu': 0.25, 'omega': 1.0, 'a': -1.0},
     laws=lambda s: [
@@ -25,15 +25,15 @@ HopfComponent = ElementComponent.define(
     ],
 )
 
-TakensBogdanovComponent = ElementComponent.define(
-    'TakensBogdanovComponent',
+TakensBogdanovElement = Element.define(
+    'TakensBogdanovElement',
     states={'x': 0.2, 'y': 0.0},
     parameters={'beta1': 0.1, 'beta2': -1.0, 'sign': -1.0},
     laws=lambda s: [RateLaw(s.x, s.y), RateLaw(s.y, s.beta1 + s.beta2 * s.x + s.x**2 + s.sign * s.x * s.y)],
 )
 
-CuspComponent = ElementComponent.define(
-    'CuspComponent',
+CuspElement = Element.define(
+    'CuspElement',
     states={'x': 0.5},
     parameters={'beta1': 0.0, 'beta2': 1.0},
     laws=lambda s: [RateLaw(s.x, s.beta1 + s.beta2 * s.x - s.x**3)],
@@ -65,7 +65,7 @@ def saddle_node_form(x: float = 0.0, *, mu: float = 1.0) -> System:
         >>> saddle_node_form(mu=0.5).elements[0].mu
         0.5
     """
-    return System(components=[SaddleNodeComponent('form', x=x, mu=mu)])
+    return System(components=[SaddleNodeElement('form', x=x, mu=mu)])
 
 
 @register_model(
@@ -104,7 +104,7 @@ def hopf_form(x: float = 0.1, y: float = 0.0, *, mu: float = 0.25, omega: float 
         >>> hopf_form(mu=-0.1).elements[0].mu
         -0.1
     """
-    return System(components=[HopfComponent('form', x=x, y=y, mu=mu, omega=omega, a=a)])
+    return System(components=[HopfElement('form', x=x, y=y, mu=mu, omega=omega, a=a)])
 
 
 @register_model(
@@ -148,7 +148,7 @@ def takens_bogdanov_form(
         >>> takens_bogdanov_form(beta1=0.0).elements[0].beta1
         0.0
     """
-    return System(components=[TakensBogdanovComponent('form', x=x, y=y, beta1=beta1, beta2=beta2, sign=sign)])
+    return System(components=[TakensBogdanovElement('form', x=x, y=y, beta1=beta1, beta2=beta2, sign=sign)])
 
 
 @register_model(
@@ -179,4 +179,4 @@ def cusp_form(x: float = 0.5, *, beta1: float = 0.0, beta2: float = 1.0) -> Syst
         >>> cusp_form(beta1=0.2).elements[0].beta1
         0.2
     """
-    return System(components=[CuspComponent('form', x=x, beta1=beta1, beta2=beta2)])
+    return System(components=[CuspElement('form', x=x, beta1=beta1, beta2=beta2)])

@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -25,7 +25,7 @@ def _block_of(location: object, side: int, columns: int) -> int:
     return (row // side) * columns + column // side
 
 
-class DwellerComponent(ElementComponent):
+class DwellerElement(Element):
     """Agent of the stochastic Schelling model, whose utility `a * rho + b` depends on the density of its block.
 
     Args:
@@ -48,10 +48,10 @@ class DwellerComponent(ElementComponent):
             The intercept `b` of the utility.
 
     Examples:
-        >>> from skcomplex.models.social.segregation import DwellerComponent
-        >>> group = DwellerComponent.group('dwellers', 10, beta=3.0)
+        >>> from skcomplex.models.social.segregation import DwellerElement
+        >>> group = DwellerElement.group('dwellers', 10, beta=3.0)
         >>> group.label, group.element.__name__, group.size
-        ('dwellers', 'DwellerComponent', 10)
+        ('dwellers', 'DwellerElement', 10)
     """
 
     block: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -222,7 +222,7 @@ def stochastic_schelling(
     cells = rng.permutation(width * height)[:size]
     locations = [(int(cell % width), int(cell // width)) for cell in cells]
     blocks = [_block_of(location, side, width // side) for location in locations]
-    dwellers = DwellerComponent.group(
+    dwellers = DwellerElement.group(
         'dwellers',
         size,
         location=locations,

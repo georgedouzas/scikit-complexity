@@ -6,13 +6,13 @@
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, both, where
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
 def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
@@ -24,8 +24,8 @@ def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(s.x, sliding), RateLaw(s.v, where(stuck, 0, (force - friction) / s.m))]
 
 
-SpringBlockComponent = ElementComponent.define(
-    'SpringBlockComponent',
+SpringBlockElement = Element.define(
+    'SpringBlockElement',
     states={'x': state(default=0.0, domain=NumericDomain.REAL), 'v': state(default=0.0, domain=NumericDomain.REAL)},
     parameters={'m': 1.0, 'k_c': 2.5, 'k_p': 1.0, 'velocity': 0.01, 'F0': 1.0, 'v_c': 0.5},
     laws=_spring_block_laws,
@@ -92,9 +92,9 @@ def burridge_knopoff(
         5
     """
     offsets = np.random.default_rng(random_state).uniform(-0.5, 0.5, n_blocks)
-    fault = FieldComponent(
+    fault = FieldElement(
         'fault',
-        SpringBlockComponent,
+        SpringBlockElement,
         LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={'x': offsets, 'k_c': k_c, 'k_p': k_p, 'velocity': velocity, 'F0': F0, 'v_c': v_c},

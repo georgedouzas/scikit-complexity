@@ -209,16 +209,16 @@ def linearize(
     Examples:
         >>> from skcomplex.engine.analysis import controllability, linearize
         >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
-        >>> CartComponent = ElementComponent.define(
-        ...     'CartComponent',
+        >>> CartElement = Element.define(
+        ...     'CartElement',
         ...     states={'x': 0.0, 'v': 0.0},
         ...     parameters={'force': parameter(0.0, adaptive=True, bounds=(-1, 1))},
         ...     laws=lambda s: [RateLaw(s.x, s.v), RateLaw(s.v, s.force)],
         ... )
-        >>> model = linearize(System(components=[CartComponent('cart')]))
+        >>> model = linearize(System(components=[CartElement('cart')]))
         >>> model.B.tolist(), controllability(model.A, model.B)
         ([[0.0], [1.0]], 2)
     """

@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -34,7 +34,7 @@ def _live(agent: AgentView, model: ModelView, reproduction: float) -> None:
         agent.create(energy=agent.energy)
 
 
-class GrassComponent(ElementComponent):
+class GrassElement(Element):
     """Grass patch that regrows a fixed number of steps after it is eaten.
 
     Args:
@@ -51,8 +51,8 @@ class GrassComponent(ElementComponent):
             The number of steps the grass takes to regrow.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import GrassComponent
-        >>> GrassComponent.group('grass', 4, grown=1.0).size
+        >>> from skcomplex.models.biology.ecology import GrassElement
+        >>> GrassElement.group('grass', 4, grown=1.0).size
         4
     """
 
@@ -93,7 +93,7 @@ class GrassComponent(ElementComponent):
             agent.countdown = agent.regrowth
 
 
-class SheepComponent(ElementComponent):
+class SheepElement(Element):
     """Sheep that wanders, eats grown grass, reproduces, and dies without energy.
 
     Args:
@@ -110,8 +110,8 @@ class SheepComponent(ElementComponent):
             The probability of reproducing at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import SheepComponent
-        >>> SheepComponent.group('sheep', 100).size
+        >>> from skcomplex.models.biology.ecology import SheepElement
+        >>> SheepElement.group('sheep', 100).size
         100
     """
 
@@ -152,7 +152,7 @@ class SheepComponent(ElementComponent):
         _live(agent, model, agent.reproduction)
 
 
-class WolfComponent(ElementComponent):
+class WolfElement(Element):
     """Wolf that wanders, eats a sheep of its cell, reproduces, and dies without energy.
 
     Args:
@@ -169,8 +169,8 @@ class WolfComponent(ElementComponent):
             The probability of reproducing at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import WolfComponent
-        >>> WolfComponent.group('wolves', 25).size
+        >>> from skcomplex.models.biology.ecology import WolfElement
+        >>> WolfElement.group('wolves', 25).size
         25
     """
 
@@ -259,7 +259,7 @@ def wolf_sheep(
     cells = [(column, row) for column in range(width) for row in range(height)]
     grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
     countdown = np.where(grown > 0, regrowth, rng.uniform(0, regrowth, len(cells)))
-    grass = GrassComponent.group(
+    grass = GrassElement.group(
         'grass',
         len(cells),
         variable=True,
@@ -271,8 +271,8 @@ def wolf_sheep(
     return System(
         components=[
             grass,
-            SheepComponent.group('sheep', sheep, variable=True),
-            WolfComponent.group('wolves', wolves, variable=True),
+            SheepElement.group('sheep', sheep, variable=True),
+            WolfElement.group('wolves', wolves, variable=True),
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

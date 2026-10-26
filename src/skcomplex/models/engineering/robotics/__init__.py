@@ -1,10 +1,10 @@
 """Robotics: autonomous robots and robot swarms."""
 
-from ._robots import LightSensitiveRobotComponent, SwarmRobotComponent, light_seeking_robots, swarmtaxis
+from ._robots import LightSensitiveRobotElement, SwarmRobotElement, light_seeking_robots, swarmtaxis
 
 __all__: list[str] = [
-    'LightSensitiveRobotComponent',
-    'SwarmRobotComponent',
+    'LightSensitiveRobotElement',
+    'SwarmRobotElement',
     'light_seeking_robots',
     'swarmtaxis',
 ]

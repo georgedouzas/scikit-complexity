@@ -29,7 +29,7 @@ from ...engine.compile import (
     Node,
     target_references,
 )
-from ._components import FieldComponent, boundary_of
+from ._components import FieldElement, boundary_of
 from ._conserved import conserved_outputs
 from ._laws import FluxLaw
 from ._lowering import FieldLowering, has_operators
@@ -38,12 +38,12 @@ from ._splitting import LinearTerm, linear_terms
 from ._volumes import FiniteVolume, compile_volumes
 
 
-def _places(declarations: Declarations) -> dict[str, FieldComponent]:
+def _places(declarations: Declarations) -> dict[str, FieldElement]:
     """Return the fields by the name of each of their entries."""
     return {
         entry.name: block.node.component
         for block in declarations.blocks.values()
-        if isinstance(block.node.component, FieldComponent)
+        if isinstance(block.node.component, FieldElement)
         for entry in block.entries.values()
     }
 
@@ -59,7 +59,7 @@ def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expres
     }
 
 
-def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldComponent]) -> list[LinearTerm]:
+def _linear_terms_of(spec: KernelSpec, laws: list[BaseLaw], places: dict[str, FieldElement]) -> list[LinearTerm]:
     """Return the linear terms with constant coefficients of the rates of field states."""
     terms = []
     for law in laws:
@@ -132,7 +132,7 @@ def _compile_fluxes(
         for owner in sorted(owners):
             block = declarations.blocks[owner]
             place = block.node.component
-            if not isinstance(place, FieldComponent):
+            if not isinstance(place, FieldElement):
                 error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                 raise ValidationError(error_msg)
             mine = [(law, reference) for law, reference in targets if reference.entry.name.startswith(f'{owner}.')]
@@ -146,7 +146,7 @@ def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.ND
     values: list[npt.NDArray[np.float64]] = []
     for block in blocks:
         place = block.node.component
-        if not isinstance(place, FieldComponent) or not isinstance(place.space, MeshSpace):
+        if not isinstance(place, FieldElement) or not isinstance(place.space, MeshSpace):
             continue
         if place.discretization != 'finite-element':
             error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
@@ -172,7 +172,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
     found = []
     for block in blocks:
         place = block.node.component
-        if not isinstance(place, FieldComponent) or not place.symmetry:
+        if not isinstance(place, FieldElement) or not place.symmetry:
             continue
         space = place.space
         if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
@@ -262,7 +262,7 @@ def _with_discretizations(
 def _is_lattice_field(component: object) -> bool:
     """Check whether a component is a finite-difference field on a square lattice."""
     return (
-        isinstance(component, FieldComponent)
+        isinstance(component, FieldElement)
         and isinstance(component.space, LatticeSpace)
         and component.space.geometry == 'square'
         and component.discretization == 'finite-difference'
@@ -278,7 +278,7 @@ def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> 
         f'The conserved {type(record.law).__name__} of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
         'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per link.'
     )
-    fix = 'Declare the state on a `FieldComponent` of a `LatticeSpace`, or remove `conserved=True`.'
+    fix = 'Declare the state on a `FieldElement` of a `LatticeSpace`, or remove `conserved=True`.'
     return Issue('noise-unsupported', record.path, message, fix)
 
 

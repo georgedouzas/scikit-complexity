@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, UpdateLaw, lag
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -42,13 +42,13 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
         0.3
     """
     return System(
-        components=[EconomyComponent('economy', k=k)],
+        components=[EconomyElement('economy', k=k)],
         interactions=[SolowGrowthInteraction('growth', target='economy', s=s, alpha=alpha, delta=delta)],
     )
 
 
-IncomeComponent = ElementComponent.define(
-    'IncomeComponent',
+IncomeElement = Element.define(
+    'IncomeElement',
     states={'Y': state(default=110.0, lags=1, initial=(100.0,))},
     parameters={'c': 0.8, 'v': 1.5, 'G': 20.0},
     laws=lambda s: [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
@@ -98,10 +98,10 @@ def multiplier_accelerator(
         >>> multiplier_accelerator(v=0.5).elements[0].v
         0.5
     """
-    return System(components=[IncomeComponent('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
+    return System(components=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
 
 
-class EconomyComponent(ElementComponent):
+class EconomyElement(Element):
     """Economy described by its capital per worker.
 
     Args:
@@ -112,8 +112,8 @@ class EconomyComponent(ElementComponent):
             The initial capital per worker.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import EconomyComponent
-        >>> EconomyComponent('country', k=1.0).k
+        >>> from skcomplex.models.economics.macroeconomics import EconomyElement
+        >>> EconomyElement('country', k=1.0).k
         1.0
     """
 

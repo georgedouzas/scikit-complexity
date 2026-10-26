@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -35,7 +35,7 @@ def _follow_workers(*values: Array) -> Array:
     return np.where(employers[0] > 0, following, colours[0])
 
 
-class WorkplaceComponent(ElementComponent):
+class WorkplaceElement(Element):
     """Cell of the employment takeover model: an employer, white at 0 or black at 1, or a worker, red at 0 or blue at 1.
 
     Employers and workers alternate like the squares of a checkerboard. Every step each worker first takes the colour
@@ -53,8 +53,8 @@ class WorkplaceComponent(ElementComponent):
             Whether the cell is an employer, 1, or a worker, 0.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import WorkplaceComponent
-        >>> WorkplaceComponent('cell', employer=1).employer
+        >>> from skcomplex.models.social.organizations import WorkplaceElement
+        >>> WorkplaceElement('cell', employer=1).employer
         1
     """
 
@@ -111,5 +111,5 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
     for kind in (1.0, 0.0):
         cells = np.flatnonzero(employers.ravel() == kind)
         colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
-    cells = WorkplaceComponent.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
+    cells = WorkplaceElement.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
     return System(components=[cells])

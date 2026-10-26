@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
@@ -77,7 +77,7 @@ def forecasts(history: npt.ArrayLike) -> Array:
     return np.clip(predicted, 0.0, MAX_ATTENDANCE)
 
 
-class PatronComponent(ElementComponent):
+class PatronElement(Element):
     """Patron of the El Farol bar, who goes when its most accurate predictor forecasts room in the bar.
 
     Every patron holds a few predictors of the pool, the set bits of `predictors`. The accuracy of a predictor is the
@@ -101,8 +101,8 @@ class PatronComponent(ElementComponent):
             The weight of the past errors in the accuracy of a predictor.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import PatronComponent
-        >>> PatronComponent.group('patrons', 100, predictors=7).size
+        >>> from skcomplex.models.economics.econophysics import PatronElement
+        >>> PatronElement.group('patrons', 100, predictors=7).size
         100
     """
 
@@ -260,7 +260,7 @@ def el_farol(
         float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
         for _ in range(n_agents)
     ]
-    patrons = PatronComponent.group('patrons', n_agents, predictors=masks, discount=discount)
+    patrons = PatronElement.group('patrons', n_agents, predictors=masks, discount=discount)
     return System(
         components=[patrons],
         interactions=[BarInteraction('bar', capacity=capacity)],

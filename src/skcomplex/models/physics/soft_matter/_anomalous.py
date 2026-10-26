@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -28,7 +28,7 @@ def _direction(name: str, size: int) -> list[Expression]:
     return [component / length for component in components]
 
 
-class ContinuousTimeWalkerComponent(ElementComponent):
+class ContinuousTimeWalkerElement(Element):
     """Walker that waits a power-law time `tau0 r^(-1 / alpha)` for `r` uniform, then jumps by a Gaussian step.
 
     Args:
@@ -48,8 +48,8 @@ class ContinuousTimeWalkerComponent(ElementComponent):
             The standard deviation of the jumps along every axis.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import ContinuousTimeWalkerComponent
-        >>> ContinuousTimeWalkerComponent('walker', alpha=0.7).alpha
+        >>> from skcomplex.models.physics.soft_matter import ContinuousTimeWalkerElement
+        >>> ContinuousTimeWalkerElement('walker', alpha=0.7).alpha
         0.7
     """
 
@@ -80,7 +80,7 @@ class ContinuousTimeWalkerComponent(ElementComponent):
         ]
 
 
-class LevyWalkerComponent(ElementComponent):
+class LevyWalkerElement(Element):
     """Walker that flies at constant speed in a random direction for a power-law flight time, then turns.
 
     Args:
@@ -103,8 +103,8 @@ class LevyWalkerComponent(ElementComponent):
             The speed of every flight.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyWalkerComponent
-        >>> LevyWalkerComponent('walker', speed=2.0).speed
+        >>> from skcomplex.models.physics.soft_matter import LevyWalkerElement
+        >>> LevyWalkerElement('walker', speed=2.0).speed
         2.0
     """
 
@@ -137,7 +137,7 @@ class LevyWalkerComponent(ElementComponent):
         ]
 
 
-class TransientWalkerComponent(ElementComponent):
+class TransientWalkerElement(Element):
     """Brownian walker whose diffusion coefficient `D` is redrawn after waiting times of mean `D^(-gamma)`.
 
     The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
@@ -160,8 +160,8 @@ class TransientWalkerComponent(ElementComponent):
             The exponent of the mean waiting time `D^(-gamma)`.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import TransientWalkerComponent
-        >>> TransientWalkerComponent('walker', gamma=2.0).gamma
+        >>> from skcomplex.models.physics.soft_matter import TransientWalkerElement
+        >>> TransientWalkerElement('walker', gamma=2.0).gamma
         2.0
     """
 
@@ -189,7 +189,7 @@ class TransientWalkerComponent(ElementComponent):
         ]
 
 
-class FractionalWalkerComponent(ElementComponent):
+class FractionalWalkerElement(Element):
     """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
 
     Args:
@@ -206,8 +206,8 @@ class FractionalWalkerComponent(ElementComponent):
             The Hurst index, below 1/2 for anticorrelated and above 1/2 for correlated increments.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import FractionalWalkerComponent
-        >>> FractionalWalkerComponent('walker', H=0.3).H
+        >>> from skcomplex.models.physics.soft_matter import FractionalWalkerElement
+        >>> FractionalWalkerElement('walker', H=0.3).H
         0.3
     """
 
@@ -230,7 +230,7 @@ class FractionalWalkerComponent(ElementComponent):
         return [FractionalNoiseLaw(s.x, sqrt(2 * s.D), hurst=s.H)]
 
 
-class LevyFlierComponent(ElementComponent):
+class LevyFlierElement(Element):
     """Walker that jumps at every step by a length of power-law tail `l^(-1 - mu)` in a random direction.
 
     Args:
@@ -247,8 +247,8 @@ class LevyFlierComponent(ElementComponent):
             The shortest jump length.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyFlierComponent
-        >>> LevyFlierComponent('walker', mu=1.2).mu
+        >>> from skcomplex.models.physics.soft_matter import LevyFlierElement
+        >>> LevyFlierElement('walker', mu=1.2).mu
         1.2
     """
 
@@ -317,7 +317,7 @@ def continuous_time_random_walk(
         >>> continuous_time_random_walk(10, alpha=0.7).elements[0].values['alpha']
         0.7
     """
-    walkers = ContinuousTimeWalkerComponent.group(
+    walkers = ContinuousTimeWalkerElement.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -378,7 +378,7 @@ def levy_walk(
     """
     directions = np.random.default_rng(random_state).standard_normal((n_walkers, n_dim))
     velocities = speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
-    walkers = LevyWalkerComponent.group(
+    walkers = LevyWalkerElement.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -437,7 +437,7 @@ def annealed_transient_time_motion(
         2.0
     """
     coefficients = np.random.default_rng(random_state).beta(sigma, 1.0, n_walkers)
-    walkers = TransientWalkerComponent.group(
+    walkers = TransientWalkerElement.group(
         'walkers',
         n_walkers,
         x=np.zeros((n_walkers, n_dim)),
@@ -488,7 +488,7 @@ def fractional_brownian_motion(
         >>> fractional_brownian_motion(10, H=0.7).elements[0].values['H']
         0.7
     """
-    walkers = FractionalWalkerComponent.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
+    walkers = FractionalWalkerElement.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
     return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
@@ -532,5 +532,5 @@ def levy_flight(
         >>> levy_flight(10, mu=1.5).elements[0].values['mu']
         1.5
     """
-    walkers = LevyFlierComponent.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
+    walkers = LevyFlierElement.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
     return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))

@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import ObservableQuantity, System
@@ -24,7 +24,7 @@ def _bank_of(banks: list[AgentView], index: float) -> AgentView:
     return next(bank for bank in banks if int(bank.index) == int(index))
 
 
-class DepositorComponent(ElementComponent):
+class DepositorElement(Element):
     """Customer who pays a share of its deposit to a random customer and repays a share of its loan every step.
 
     A payment moves deposits and as many reserves from the payer's bank to the payee's bank, and a repayment from the
@@ -56,8 +56,8 @@ class DepositorComponent(ElementComponent):
                 The share of the loan repaid every step.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import DepositorComponent
-        >>> DepositorComponent.group('customers', 10, deposit=5.0).size
+        >>> from skcomplex.models.economics.macroeconomics import DepositorElement
+        >>> DepositorElement.group('customers', 10, deposit=5.0).size
         10
     """
 
@@ -132,7 +132,7 @@ class DepositorComponent(ElementComponent):
         bank.loans -= amount
 
 
-class ReserveBankComponent(ElementComponent):
+class ReserveBankElement(Element):
     """Bank that lends its reserves in excess of the required share of its deposits to one of its customers.
 
     The borrower spends the loan at once, and the payee, a random customer, deposits it at its own bank, whose
@@ -164,8 +164,8 @@ class ReserveBankComponent(ElementComponent):
                 The required ratio of reserves to deposits.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import ReserveBankComponent
-        >>> ReserveBankComponent.group('banks', 3, index=[0, 1, 2]).size
+        >>> from skcomplex.models.economics.macroeconomics import ReserveBankElement
+        >>> ReserveBankElement.group('banks', 3, index=[0, 1, 2]).size
         3
     """
 
@@ -360,7 +360,7 @@ def fractional_reserve_banking(
     owners = rng.integers(banks, size=customers)
     deposit = base_money / customers
     holdings = np.bincount(owners, minlength=banks) * deposit
-    depositors = DepositorComponent.group(
+    depositors = DepositorElement.group(
         'customers',
         customers,
         bank=owners,
@@ -368,7 +368,7 @@ def fractional_reserve_banking(
         spending=spending,
         repayment=repayment,
     )
-    lenders = ReserveBankComponent.group(
+    lenders = ReserveBankElement.group(
         'banks',
         banks,
         index=np.arange(banks),

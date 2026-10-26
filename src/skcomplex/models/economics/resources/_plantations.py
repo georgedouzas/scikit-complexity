@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -123,8 +123,8 @@ def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-PlantationComponent = ElementComponent.define(
-    'PlantationComponent',
+PlantationElement = Element.define(
+    'PlantationElement',
     states={
         'forest': state(default=490.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
         'area': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='land'),
@@ -205,7 +205,7 @@ def cocoa(
         >>> cocoa(subsidy=1.0).elements[0].subsidy
         1.0
     """
-    plantation = PlantationComponent(
+    plantation = PlantationElement(
         'cocoa',
         area=area,
         price=price,

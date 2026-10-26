@@ -7,7 +7,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, maximum, mean, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -34,8 +34,8 @@ def _integrate_and_fire_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-WinfreeOscillatorComponent = ElementComponent.define(
-    'WinfreeOscillatorComponent',
+WinfreeOscillatorElement = Element.define(
+    'WinfreeOscillatorElement',
     states={'theta': 0.0},
     parameters={'omega': 1.0},
     laws=lambda s: [RateLaw(s.theta, s.omega)],
@@ -50,8 +50,8 @@ WinfreeMeanFieldInteraction = BaseInteraction.define(
     ],
 )
 
-IntegrateAndFireOscillatorComponent = ElementComponent.define(
-    'IntegrateAndFireOscillatorComponent',
+IntegrateAndFireOscillatorElement = Element.define(
+    'IntegrateAndFireOscillatorElement',
     states={'x': 0.0},
     parameters={
         'S': parameter(default=2.0, domain=NumericDomain.POSITIVE),
@@ -99,7 +99,7 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
         >>> len(winfree(5).interactions)
         1
     """
-    oscillators = WinfreeOscillatorComponent.group(
+    oscillators = WinfreeOscillatorElement.group(
         'oscillators',
         n_oscillators,
         theta=np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),
@@ -158,7 +158,7 @@ def mirollo_strogatz(
         3
     """
     charges = np.random.default_rng(seed).uniform(0.0, 1.0, n_oscillators)
-    oscillators = IntegrateAndFireOscillatorComponent.group(
+    oscillators = IntegrateAndFireOscillatorElement.group(
         'oscillators',
         n_oscillators,
         x=charges,

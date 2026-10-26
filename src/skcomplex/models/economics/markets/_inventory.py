@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -38,8 +38,8 @@ def _dealer_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-CarDealershipComponent = ElementComponent.define(
-    'CarDealershipComponent',
+CarDealershipElement = Element.define(
+    'CarDealershipElement',
     states={'inventory': state(default=200.0, domain=NumericDomain.NONNEGATIVE, quantity='cars')},
     parameters={
         'demand': parameter(default=20.0, domain=NumericDomain.NONNEGATIVE),
@@ -117,7 +117,7 @@ def car_dealer(
         >>> car_dealer(response_delay=6.0).elements[0].response_delay
         6.0
     """
-    dealer = CarDealershipComponent(
+    dealer = CarDealershipElement(
         'dealer',
         inventory=inventory,
         demand=demand,

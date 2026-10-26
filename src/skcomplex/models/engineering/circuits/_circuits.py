@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import cos, pi, sin
 
 from ....core.base import Expression, NumericDomain, ParameterError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -16,8 +16,8 @@ from ....engine.solvers import ScipyODESolver
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
-CircuitComponent = ElementComponent.define(
-    'CircuitComponent',
+CircuitElement = Element.define(
+    'CircuitElement',
     states={'q': state(default=1.0, order=2)},
     parameters={
         'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -81,7 +81,7 @@ def rlc_circuit(
         >>> rlc_circuit(R=0.5).elements[0].R
         0.5
     """
-    return System(components=[CircuitComponent('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
+    return System(components=[CircuitElement('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
 
 
 def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
@@ -91,8 +91,8 @@ def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Express
     return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
 
 
-ChuaCircuitComponent = ElementComponent.define(
-    'ChuaCircuitComponent',
+ChuaCircuitElement = Element.define(
+    'ChuaCircuitElement',
     states={'x': 0.1, 'y': 0.0, 'z': 0.0},
     parameters={
         'alpha': parameter(default=15.6, domain=NumericDomain.POSITIVE),
@@ -107,8 +107,8 @@ ChuaCircuitComponent = ElementComponent.define(
     ],
 )
 
-MultiscrollChuaCircuitComponent = ElementComponent.define(
-    'MultiscrollChuaCircuitComponent',
+MultiscrollChuaCircuitElement = Element.define(
+    'MultiscrollChuaCircuitElement',
     states={'x': 1.0, 'y': 1.0, 'z': 0.0},
     parameters={
         'alpha': parameter(default=10.82, domain=NumericDomain.POSITIVE),
@@ -124,8 +124,8 @@ MultiscrollChuaCircuitComponent = ElementComponent.define(
     ],
 )
 
-MixedModeChuaCircuitComponent = ElementComponent.define(
-    'MixedModeChuaCircuitComponent',
+MixedModeChuaCircuitElement = Element.define(
+    'MixedModeChuaCircuitElement',
     states={'x': 0.01, 'y': 0.0, 'z': 0.0},
     parameters={
         'epsilon': parameter(default=0.01, domain=NumericDomain.POSITIVE),
@@ -143,8 +143,8 @@ MixedModeChuaCircuitComponent = ElementComponent.define(
     ],
 )
 
-MemristorCircuitComponent = ElementComponent.define(
-    'MemristorCircuitComponent',
+MemristorCircuitElement = Element.define(
+    'MemristorCircuitElement',
     states={'v': 0.1, 'i': 0.0, 'w': 0.1},
     parameters={
         'C': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -159,8 +159,8 @@ MemristorCircuitComponent = ElementComponent.define(
     ],
 )
 
-TunnelDiodeCircuitComponent = ElementComponent.define(
-    'TunnelDiodeCircuitComponent',
+TunnelDiodeCircuitElement = Element.define(
+    'TunnelDiodeCircuitElement',
     states={'V': 0.1, 'i': 0.0},
     parameters={
         'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -174,8 +174,8 @@ TunnelDiodeCircuitComponent = ElementComponent.define(
     ],
 )
 
-KickedCircuitComponent = ElementComponent.define(
-    'KickedCircuitComponent',
+KickedCircuitElement = Element.define(
+    'KickedCircuitElement',
     states={'x': state(default=0.0, order=2), 'clock': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'L': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -259,7 +259,7 @@ def chua(
     if nonlinearity not in CHUA_NONLINEARITIES:
         error_msg = f"Unknown nonlinearity {nonlinearity!r}. Use 'piecewise-linear' or 'sine'."
         raise ParameterError(error_msg)
-    element = ChuaCircuitComponent if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitComponent
+    element = ChuaCircuitElement if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuitElement
     initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
     values: dict[str, Any] = {name: value for name, value in initial.items() if value is not None}
     return System(components=[element('circuit', z=z, **values)])
@@ -330,7 +330,7 @@ def mixed_mode_chua(
         >>> mixed_mode_chua(c=0.0).elements[0].c
         0.0
     """
-    circuit = MixedModeChuaCircuitComponent(
+    circuit = MixedModeChuaCircuitElement(
         'circuit',
         x=x,
         y=y,
@@ -399,7 +399,7 @@ def memristor_oscillator(
         >>> memristor_oscillator(L=2.0).elements[0].L
         2.0
     """
-    return System(components=[MemristorCircuitComponent('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
+    return System(components=[MemristorCircuitElement('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
 
 
 @register_model(
@@ -451,7 +451,7 @@ def tunnel_diode_oscillator(
         >>> tunnel_diode_oscillator(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[TunnelDiodeCircuitComponent('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
+    return System(components=[TunnelDiodeCircuitElement('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
 
 
 @register_model(
@@ -507,4 +507,4 @@ def impulsive_circuits(
         >>> impulsive_circuits(T=3.0).elements[0].T
         3.0
     """
-    return System(components=[KickedCircuitComponent('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])
+    return System(components=[KickedCircuitElement('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])

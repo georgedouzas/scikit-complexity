@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, NetworkSpace
 from ....core.system import System
@@ -34,7 +34,7 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
     return health
 
 
-class PersonComponent(ElementComponent):
+class PersonElement(Element):
     """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
 
     A person walks to a neighbouring cell with probability `d`, or `lockdown_d` during the lockdown, which lasts
@@ -81,8 +81,8 @@ class PersonComponent(ElementComponent):
             The probability of moving during the lockdown.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import PersonComponent
-        >>> PersonComponent.group('people', 100).size
+        >>> from skcomplex.models.biology.epidemiology import PersonElement
+        >>> PersonElement.group('people', 100).size
         100
     """
 
@@ -155,7 +155,7 @@ class PersonComponent(ElementComponent):
         self._progress(agent, model)
 
 
-class WalkerComponent(ElementComponent):
+class WalkerElement(Element):
     """Random walker that carries a deadly disease, of Charbonneau's epidemic model.
 
     A living walker moves to a neighbouring cell or node with probability `travel`. A sick walker infects every
@@ -182,8 +182,8 @@ class WalkerComponent(ElementComponent):
             The probability of moving at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import WalkerComponent
-        >>> WalkerComponent.group('walkers', 10).size
+        >>> from skcomplex.models.biology.epidemiology import WalkerElement
+        >>> WalkerElement.group('walkers', 10).size
         10
     """
 
@@ -231,7 +231,7 @@ class WalkerComponent(ElementComponent):
             agent.health = DECEASED
 
 
-class TravellerComponent(ElementComponent):
+class TravellerElement(Element):
     """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
 
     An infected traveller infects every susceptible traveller of its node with probability `tau`, recovers after
@@ -258,8 +258,8 @@ class TravellerComponent(ElementComponent):
             The probability of moving to a neighbouring node at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import TravellerComponent
-        >>> TravellerComponent.group('travellers', 10).size
+        >>> from skcomplex.models.biology.epidemiology import TravellerElement
+        >>> TravellerElement.group('travellers', 10).size
         10
     """
 
@@ -388,7 +388,7 @@ def agent_based_sir(
     """
     rng = np.random.default_rng(random_state)
     cells = rng.integers(0, [width, height], size=(people, 2))
-    group = PersonComponent.group(
+    group = PersonElement.group(
         'people',
         people,
         location=[tuple(int(item) for item in cell) for cell in cells],
@@ -473,7 +473,7 @@ def random_walker_epidemics(
         locations = [nodes[int(pick)] for pick in rng.integers(0, len(nodes), size=walkers)]
         space = NetworkSpace(graph)
     health = _initial_health(walkers, 1, rng, SICK)
-    group = WalkerComponent.group(
+    group = WalkerElement.group(
         'walkers',
         walkers,
         location=locations,
@@ -538,7 +538,7 @@ def network_sir(
     graph = nx.barabasi_albert_graph(20, 2, seed=0) if graph is None else graph
     nodes = list(nx.nodes(graph))
     size = residents * len(nodes)
-    group = TravellerComponent.group(
+    group = TravellerElement.group(
         'travellers',
         size,
         location=[node for node in nodes for _ in range(residents)],

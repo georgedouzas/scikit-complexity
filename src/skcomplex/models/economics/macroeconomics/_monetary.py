@@ -4,18 +4,18 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-HouseholdsComponent = ElementComponent.define(
-    'HouseholdsComponent',
+HouseholdsElement = Element.define(
+    'HouseholdsElement',
     states={'deposits': state(default=60.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
 )
 
-FirmsComponent = ElementComponent.define(
-    'FirmsComponent',
+FirmsElement = Element.define(
+    'FirmsElement',
     states={
         'deposits': state(default=20.0, domain=NumericDomain.NONNEGATIVE, quantity='money'),
         'loans': state(default=50.0, domain=NumericDomain.NONNEGATIVE),
@@ -23,8 +23,8 @@ FirmsComponent = ElementComponent.define(
     },
 )
 
-MonetaryBankComponent = ElementComponent.define(
-    'MonetaryBankComponent',
+MonetaryBankElement = Element.define(
+    'MonetaryBankElement',
     states={'deposits': state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='money')},
 )
 
@@ -163,9 +163,9 @@ def stock_flow_consistent_economy(
     """
     return System(
         components=[
-            HouseholdsComponent('households', deposits=household_deposits),
-            FirmsComponent('firms', deposits=firm_deposits, loans=loans, sales=sales),
-            MonetaryBankComponent('bank', deposits=bank_deposits),
+            HouseholdsElement('households', deposits=household_deposits),
+            FirmsElement('firms', deposits=firm_deposits, loans=loans, sales=sales),
+            MonetaryBankElement('bank', deposits=bank_deposits),
         ],
         interactions=[
             CircuitInteraction(

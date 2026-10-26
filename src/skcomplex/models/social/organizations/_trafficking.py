@@ -8,7 +8,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -25,7 +25,7 @@ def _cell(location: object) -> tuple[int, int]:
     return column, row
 
 
-class PremisesComponent(ElementComponent):
+class PremisesElement(Element):
     """House or brothel of the brothel movement model, whose energy bills grow with the people inside.
 
     Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter
@@ -51,10 +51,10 @@ class PremisesComponent(ElementComponent):
             The number of days run.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import PremisesComponent
-        >>> group = PremisesComponent.group('premises', 3, brothel=1.0)
+        >>> from skcomplex.models.social.organizations import PremisesElement
+        >>> group = PremisesElement.group('premises', 3, brothel=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('premises', 'PremisesComponent', 3)
+        ('premises', 'PremisesElement', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
@@ -65,7 +65,7 @@ class PremisesComponent(ElementComponent):
     day: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
 
-class TravellerComponent(ElementComponent):
+class TravellerElement(Element):
     """Woman of the brothel movement model: a trafficking victim, or a woman who travels freely.
 
     Args:
@@ -79,10 +79,10 @@ class TravellerComponent(ElementComponent):
             The number of train trips between cities.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import TravellerComponent
-        >>> group = TravellerComponent.group('women', 4, victim=1.0)
+        >>> from skcomplex.models.social.organizations import TravellerElement
+        >>> group = TravellerElement.group('women', 4, victim=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('women', 'TravellerComponent', 4)
+        ('women', 'TravellerElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
@@ -258,7 +258,7 @@ def trafficking(
     cells = rng.permutation(width * height)[:n_places]
     places = [(int(cell % width), int(cell // width)) for cell in cells]
     brothel = (np.arange(n_places) >= n_houses).astype(float)
-    premises = PremisesComponent.group(
+    premises = PremisesElement.group(
         'premises',
         n_places,
         location=places,
@@ -268,7 +268,7 @@ def trafficking(
     homes = [places[n_houses + index % n_brothels] for index in range(n_victims)]
     homes += [(int(rng.integers(width)), int(rng.integers(height))) for _ in range(n_free)]
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
-    women = TravellerComponent.group('women', n_victims + n_free, location=homes, victim=victim)
+    women = TravellerElement.group('women', n_victims + n_free, location=homes, victim=victim)
     day = DailyMovementsInteraction('day', women='women', premises='premises', n_cities=n_cities)
     return System(
         components=[premises, women],

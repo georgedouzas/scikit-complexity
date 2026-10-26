@@ -8,13 +8,13 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 GROUND = 'land/ground.G'
 TRAIL = 'land/ground.V'
@@ -25,7 +25,7 @@ def _corners(width: int, height: int) -> list[tuple[int, int]]:
     return [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
 
 
-class GroundComponent(ElementComponent):
+class GroundElement(Element):
     """Ground whose structure `G` is raised by footprints and recovers, with a trail potential `V` that smooths it.
 
     The structure relaxes back to bare ground as `G' = -G / T`, and walkers add footprints. The trail potential
@@ -52,8 +52,8 @@ class GroundComponent(ElementComponent):
             The relaxation time of the trail potential.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import GroundComponent
-        >>> GroundComponent('ground').T
+        >>> from skcomplex.models.biology.collective_behaviour import GroundElement
+        >>> GroundElement('ground').T
         200.0
     """
 
@@ -77,7 +77,7 @@ class GroundComponent(ElementComponent):
         return [RateLaw(s.G, -s.G / s.T), RateLaw(s.V, s.D * laplacian(s.V) + (s.G - s.V) / s.tau)]
 
 
-class WalkerComponent(ElementComponent):
+class WalkerElement(Element):
     """Pedestrian who walks toward a goal, drawn to existing trails, and leaves footprints that build them.
 
     The walker heads along the unit vector toward its goal plus `attraction` times the gradient of the trail potential
@@ -114,8 +114,8 @@ class WalkerComponent(ElementComponent):
             The number of rows of the grid.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import WalkerComponent
-        >>> WalkerComponent.group('walkers', 4, location=(0, 0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import WalkerElement
+        >>> WalkerElement.group('walkers', 4, location=(0, 0)).size
         4
     """
 
@@ -229,7 +229,7 @@ def active_walkers(
     corners = _corners(size, size)
     starts = rng.integers(len(corners), size=n_walkers)
     goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
-    walkers = WalkerComponent.group(
+    walkers = WalkerElement.group(
         'walkers',
         n_walkers,
         location=[corners[start] for start in starts],
@@ -239,9 +239,9 @@ def active_walkers(
         width=float(size),
         height=float(size),
     )
-    ground = FieldComponent(
+    ground = FieldElement(
         'ground',
-        GroundComponent,
+        GroundElement,
         LatticeSpace((size, size), boundary='reflecting'),
         values={'T': T},
     )

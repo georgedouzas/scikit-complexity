@@ -18,9 +18,9 @@ from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
 from ...core.base import (
     BaseLaw,
-    ComponentKind,
     ConservationError,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     OrderKind,
@@ -33,7 +33,7 @@ from ...core.base import (
     Vector,
     declarations_of,
 )
-from ...core.components import GroupComponent
+from ...core.components import GroupElement
 from ...core.problems import CompiledAgents, Problem
 from ...core.space import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...engine.compile import ObservableEvaluator
@@ -67,7 +67,7 @@ def _location_of(agent: mesa.Agent) -> object:
 
 def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
     """Return the element type of a compiled agent element or group."""
-    return spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element)
+    return spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
 
 
 def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
@@ -132,11 +132,11 @@ def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mes
 
 def _check_variable(spec: CompiledAgents, action: str) -> None:
     """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
-    if isinstance(spec.element, GroupComponent) and spec.element.variable:
+    if isinstance(spec.element, GroupElement) and spec.element.variable:
         return
     error_msg = (
         f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
-        '`variable=True`, such as `ElementComponent.group(label, size, variable=True)`, for its members to be '
+        '`variable=True`, such as `Element.group(label, size, variable=True)`, for its members to be '
         'created and removed during a run.'
     )
     raise SimulationError(error_msg)
@@ -794,11 +794,11 @@ class MesaSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.formalisms.agents import RuleLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> class CounterComponent(ElementComponent):
+        >>> class CounterElement(Element):
         ...     count: float = state(0.0)
         ...
         ...     def laws(self, s):
@@ -806,7 +806,7 @@ class MesaSolver(Solver):
         ...
         ...     def tick(self, agent, model):
         ...         agent.count += 1
-        >>> trajectory = Simulation(System(components=[CounterComponent.group('counters', 3)])).run(until=4).trajectory_
+        >>> trajectory = Simulation(System(components=[CounterElement.group('counters', 3)])).run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
@@ -816,7 +816,7 @@ class MesaSolver(Solver):
         space={SpaceKind.NONE, SpaceKind.LATTICE, SpaceKind.NETWORK, SpaceKind.CONTINUOUS},
         laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH, LawKind.INVARIANT},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.VARIABLE_GROUP, ComponentKind.SYSTEM},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.VARIABLE_GROUP, ElementKind.SYSTEM},
         orders={OrderKind.INTEGER},
     )
 
@@ -878,7 +878,7 @@ class MesaSolver(Solver):
         schedule = time.schedule_ if isinstance(time, DiscreteTime) else None
         self._phases = _phase_plan(schedule.phases if isinstance(schedule, PhasesSchedule) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
-            (spec.path, spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element))
+            (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
             for spec in problem.agents
         ]
         for path, component in owners:
@@ -997,7 +997,7 @@ class MesaSolver(Solver):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        given = spec.element.location if isinstance(spec.element, GroupComponent) else None
+        given = spec.element.location if isinstance(spec.element, GroupElement) else None
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
             location = _member_location(given, index, spec.size)
@@ -1113,7 +1113,7 @@ class MesaSolver(Solver):
         """Record the states that the element types of agents remember, at the end of a step."""
         remembering = {}
         for spec in self.problem_.agents:
-            agent_type = spec.element.element if isinstance(spec.element, GroupComponent) else type(spec.element)
+            agent_type = spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
             remembering[spec.path] = getattr(agent_type, 'remembers', None) or {}
         if not any(remembering.values()):
             return

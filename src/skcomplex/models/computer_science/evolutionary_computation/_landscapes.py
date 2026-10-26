@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -29,7 +29,7 @@ def _fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
     return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 
-class BitStringComponent(ElementComponent):
+class BitStringElement(Element):
     """Agent whose genome is a string of bits, stored as the integer it spells, with the fitness of that genome.
 
     Args:
@@ -43,10 +43,10 @@ class BitStringComponent(ElementComponent):
             The initial fitness.
 
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import BitStringComponent
-        >>> group = BitStringComponent.group('genomes', 4, genome=[0, 1, 2, 3])
+        >>> from skcomplex.models.computer_science.evolutionary_computation import BitStringElement
+        >>> group = BitStringElement.group('genomes', 4, genome=[0, 1, 2, 3])
         >>> group.label, group.element.__name__, group.size
-        ('genomes', 'BitStringComponent', 4)
+        ('genomes', 'BitStringElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness'})
@@ -198,6 +198,6 @@ def bit_string_evolution(
         one_values=tuple(one_values.tolist()),
     )
     return System(
-        components=[BitStringComponent.group('genomes', n_agents, genome=genomes, fitness=fitness)],
+        components=[BitStringElement.group('genomes', n_agents, genome=genomes, fitness=fitness)],
         interactions=[reproduction],
     )

@@ -10,7 +10,7 @@ from ....core.laws import RateLaw
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent
+from ....formalisms.particles import ParticleElement
 from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
 HarmonicForceInteraction = BaseInteraction.define(
@@ -108,7 +108,7 @@ def two_mass_spring_damper(
     """
     rest1, rest2 = l1, l1 + l2
     return System(
-        components=[ParticleComponent('first', x=x1, v=0.0, m=m1), ParticleComponent('second', x=x2, v=0.0, m=m2)],
+        components=[ParticleElement('first', x=x1, v=0.0, m=m1), ParticleElement('second', x=x2, v=0.0, m=m2)],
         interactions=[
             HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
             HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),

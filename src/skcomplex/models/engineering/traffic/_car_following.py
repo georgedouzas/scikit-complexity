@@ -7,19 +7,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sqrt, tanh
 
 from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, delayed, mod, shift_member
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CarComponent = ElementComponent.define(
-    'CarComponent',
+CarElement = Element.define(
+    'CarElement',
     states={'x': 0.0, 'v': 0.0},
     laws=lambda s: [RateLaw(s.x, s.v)],
 )
 
-LeadCarComponent = ElementComponent.define(
-    'LeadCarComponent',
+LeadCarElement = Element.define(
+    'LeadCarElement',
     states={'x': 0.0, 'v': 1.0},
     parameters={
         'u': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE),
@@ -161,7 +161,7 @@ def optimal_velocity(
     """
     headway = length / n_cars
     speed = V0 * (np.tanh(headway - hc) + np.tanh(hc))
-    cars = CarComponent.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
+    cars = CarElement.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
     following = OptimalVelocityInteraction('follow', cars='cars', a=a, V0=V0, hc=hc, road_length=length)
     return System(components=[cars], interactions=[following])
 
@@ -231,7 +231,7 @@ def intelligent_driver_model(
         >>> intelligent_driver_model(n_cars=4).interactions[0].road_length
         500.0
     """
-    cars = CarComponent.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=0.0)
+    cars = CarElement.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=0.0)
     following = IntelligentDriverInteraction(
         'follow',
         cars='cars',
@@ -304,8 +304,8 @@ def delayed_car_following(
         >>> delayed_car_following(n_cars=3).elements[2].x
         -20.0
     """
-    lead = LeadCarComponent('car_0', x=0.0, v=u, u=u, amplitude=amplitude, omega=omega)
-    followers = [CarComponent(f'car_{index}', x=-index * spacing, v=u) for index in range(1, n_cars)]
+    lead = LeadCarElement('car_0', x=0.0, v=u, u=u, amplitude=amplitude, omega=omega)
+    followers = [CarElement(f'car_{index}', x=-index * spacing, v=u) for index in range(1, n_cars)]
     interactions = [
         DelayedFollowingInteraction(
             f'follow_{index}',

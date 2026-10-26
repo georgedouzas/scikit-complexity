@@ -9,13 +9,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseLaw, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.fields import FieldComponent, divergence, gradient, laplacian
+from ....formalisms.fields import FieldElement, divergence, gradient, laplacian
 
 
 def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
@@ -27,8 +27,8 @@ def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
     return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
 
 
-ActiveScalarComponent = ElementComponent.define(
-    'ActiveScalarComponent',
+ActiveScalarElement = Element.define(
+    'ActiveScalarElement',
     states={'phi': 0.0},
     parameters={
         'kappa': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -107,4 +107,4 @@ def active_model_b(
         'zeta': zeta,
         'D': D,
     }
-    return System(components=[FieldComponent('fluid', ActiveScalarComponent, LatticeSpace(shape), values=values)])
+    return System(components=[FieldElement('fluid', ActiveScalarElement, LatticeSpace(shape), values=values)])

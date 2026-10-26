@@ -1,7 +1,7 @@
 """Electric circuits."""
 
 from ._circuits import (
-    CircuitComponent,
+    CircuitElement,
     chua,
     impulsive_circuits,
     memristor_oscillator,
@@ -12,7 +12,7 @@ from ._circuits import (
 from ._harvesters import vibration_energy_harvester
 
 __all__: list[str] = [
-    'CircuitComponent',
+    'CircuitElement',
     'chua',
     'impulsive_circuits',
     'memristor_oscillator',

@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class AdaptrodeComponent(ElementComponent):
+class AdaptrodeElement(Element):
     """Adaptrode of Mobus, a synaptic weight with three levels of memory that learn on increasing time scales.
 
     At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the
@@ -65,8 +65,8 @@ class AdaptrodeComponent(ElementComponent):
             The step after which the input stays off.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import AdaptrodeComponent
-        >>> AdaptrodeComponent('synapse').w_max
+        >>> from skcomplex.models.biology.neuroscience import AdaptrodeElement
+        >>> AdaptrodeElement('synapse').w_max
         1.0
     """
 
@@ -161,7 +161,7 @@ def adaptrode(
         >>> adaptrode(stop=50.0).elements[0].stop
         50.0
     """
-    synapse = AdaptrodeComponent(
+    synapse = AdaptrodeElement(
         'synapse',
         alpha0=alpha0,
         alpha1=alpha1,

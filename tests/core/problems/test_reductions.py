@@ -9,7 +9,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, count, maximum, mean, minimum, total, variance
 from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.compile import compile_system
@@ -28,14 +28,14 @@ def _sine(member):
     return sin(member.theta)
 
 
-UnitComponent = ElementComponent.define('UnitComponent', states={'x': 0.0})
-PhaseComponent = ElementComponent.define(
-    'PhaseComponent',
+UnitElement = Element.define('UnitElement', states={'x': 0.0})
+PhaseElement = Element.define(
+    'PhaseElement',
     states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'omega': 1.0},
     laws=lambda s: [RateLaw(s.theta, s.omega)],
 )
-InhibitorComponent = ElementComponent.define('InhibitorComponent', states={'z': 0.0}, parameters={'phi': 3.0})
+InhibitorElement = Element.define('InhibitorElement', states={'z': 0.0}, parameters={'phi': 3.0})
 DriveInteraction = BaseInteraction.define(
     'DriveInteraction',
     roles=['inhibitor', 'oscillators'],
@@ -72,7 +72,7 @@ ReaderInteraction = BaseInteraction.define(
 
 def _group_of(laws, size=10, values=None):
     """Return a system of one group of units whose laws read reductions."""
-    unit = ElementComponent.define('ReducingComponent', states={'x': 0.0}, laws=laws)
+    unit = Element.define('ReducingElement', states={'x': 0.0}, laws=laws)
     values = RNG.normal(size=size) if values is None else np.asarray(values, dtype=float)
     return System(components=[unit.group('units', size, x=values)]), values
 
@@ -86,7 +86,7 @@ def _rates(system, backend='numpy'):
 def _kuramoto(size, *, observables=False):
     """Return a mean-field Kuramoto group, coupled through reductions or through observables."""
     theta, omega = RNG.uniform(0, 2 * math.pi, size), RNG.normal(size=size)
-    oscillators = PhaseComponent.group('oscillators', size, theta=theta, omega=omega)
+    oscillators = PhaseElement.group('oscillators', size, theta=theta, omega=omega)
     if observables:
         return (
             System(
@@ -130,12 +130,12 @@ def test_nonlinear_function_of_total(backend):
 def test_instantaneous_mean_in_interaction():
     """Test that theta neurons read the mean pulse of all neurons at the current state, with no other state."""
     theta = RNG.uniform(0, 2 * math.pi, 40)
-    NeuronComponent = ElementComponent.define(
-        'NeuronComponent',
+    NeuronElement = Element.define(
+        'NeuronElement',
         states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     )
     system = System(
-        components=[NeuronComponent.group('neurons', 40, theta=theta)],
+        components=[NeuronElement.group('neurons', 40, theta=theta)],
         interactions=[MeanPulseInteraction('pulses', neurons='neurons')],
     )
     problem = compile_system(system)
@@ -153,7 +153,7 @@ def test_maximum_drives_single_element(largest, drive):
     """Test that the inhibitor is driven exactly when some oscillator exceeds the threshold."""
     values = np.linspace(-1.0, largest, 8)
     system = System(
-        components=[UnitComponent.group('oscillators', 8, x=values), InhibitorComponent('inhibitor')],
+        components=[UnitElement.group('oscillators', 8, x=values), InhibitorElement('inhibitor')],
         interactions=[DriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')],
     )
     problem = compile_system(system)
@@ -234,7 +234,7 @@ def test_two_groups_in_one_reduction():
         laws=lambda s: [RateLaw(s.target.x, total(s.prey.x * s.predators.x))],
     )
     system = System(
-        components=[UnitComponent.group('prey', 3), UnitComponent.group('predators', 3), UnitComponent('target')],
+        components=[UnitElement.group('prey', 3), UnitElement.group('predators', 3), UnitElement('target')],
         interactions=[PredationInteraction('predation', prey='prey', predators='predators', target='target')],
     )
     with pytest.raises(RoleError, match=r'total\(.*predators and prey.*one reduction per group'):
@@ -250,7 +250,7 @@ def test_interaction_reads_second_group_through_reductions():
     )
     first, second = RNG.normal(size=4), RNG.normal(size=6)
     system = System(
-        components=[UnitComponent.group('first', 4, x=first), UnitComponent.group('second', 6, x=second)],
+        components=[UnitElement.group('first', 4, x=first), UnitElement.group('second', 6, x=second)],
         interactions=[CouplingInteraction('coupling', target='first', source='second')],
     )
     for backend in ('numpy', 'numba'):
@@ -274,7 +274,7 @@ def test_kuramoto_through_observables(backend):
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
     system = System(
-        components=[UnitComponent.group('herd', 3), UnitComponent('soil')],
+        components=[UnitElement.group('herd', 3), UnitElement('soil')],
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
@@ -283,16 +283,16 @@ def test_callable_observable_in_same_partition():
 
 def test_observable_read_in_its_own_partition():
     """Test that the value a law reads equals the recorded observable at every frame."""
-    SaverComponent = ElementComponent.define(
-        'SaverComponent',
+    SaverElement = Element.define(
+        'SaverElement',
         states={'W': 1.0},
         parameters={'r': 0.1},
         laws=lambda s: [RateLaw(s.W, s.r * s.W)],
     )
     system = System(
         components=[
-            SaverComponent.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)),
-            UnitComponent('account'),
+            SaverElement.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)),
+            UnitElement('account'),
         ],
         interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
@@ -376,7 +376,7 @@ def test_element_set_reduction():
         laws=lambda s: [RateLaw(s.units.x, total(s.units.x))],
     )
     system = System(
-        components=[UnitComponent(f'unit_{index}', x=float(index + 1)) for index in range(3)],
+        components=[UnitElement(f'unit_{index}', x=float(index + 1)) for index in range(3)],
         interactions=[TotalInteraction('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
     problem = compile_system(system)
@@ -393,7 +393,7 @@ def _shared(share, values):
         laws=lambda s: [RateLaw(s.cells.x, share(s))],
     )
     return System(
-        components=[UnitComponent.group('units', len(values), x=values)],
+        components=[UnitElement.group('units', len(values), x=values)],
         interactions=[ShareInteraction('share', cells='units')],
     )
 
@@ -414,15 +414,15 @@ def test_compile_system_divides_by_weighted_total_in_interaction(backend):
 
 def test_element_set_of_mixed_types():
     """Test that a role bound to elements of two types names the role and both types."""
-    OtherComponent = ElementComponent.define('OtherComponent', states={'x': 0.0})
+    OtherElement = Element.define('OtherElement', states={'x': 0.0})
     TotalInteraction = BaseInteraction.define(
         'TotalInteraction',
         roles=['units'],
         laws=lambda s: [RateLaw(s.units.x, total(s.units.x))],
     )
     system = System(
-        components=[UnitComponent('a'), OtherComponent('b')],
+        components=[UnitElement('a'), OtherElement('b')],
         interactions=[TotalInteraction('total', units=['a', 'b'])],
     )
-    with pytest.raises(RoleError, match=r"'units'.*UnitComponent and OtherComponent"):
+    with pytest.raises(RoleError, match=r"'units'.*UnitElement and OtherElement"):
         compile_system(system)

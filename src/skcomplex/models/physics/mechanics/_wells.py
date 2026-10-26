@@ -10,7 +10,7 @@ from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent, PotentialInteraction
+from ....formalisms.particles import ParticleElement, PotentialInteraction
 
 
 class ExponentialWellInteraction(PotentialInteraction):
@@ -86,7 +86,7 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
         3.0
     """
     return System(
-        components=[ParticleComponent('particle', x=x, v=v, m=m)],
+        components=[ParticleElement('particle', x=x, v=v, m=m)],
         interactions=[ExponentialWellInteraction('well', target='particle', k=k)],
         space=ContinuousSpace(n_dim=1),
     )

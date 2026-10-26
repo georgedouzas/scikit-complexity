@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols, ramp
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -37,7 +37,7 @@ def _lower_branch(a: float, b: float, phi: float) -> float:
     return float(min(root.real for root in roots if abs(root.imag) < REAL_TOLERANCE))
 
 
-class StochasticEnergyBalanceComponent(ElementComponent):
+class StochasticEnergyBalanceElement(Element):
     """Global mean surface temperature of the Sutera-Fraedrich energy balance, with drifting and ramped controls.
 
     The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, in kelvin and years. The control
@@ -83,8 +83,8 @@ class StochasticEnergyBalanceComponent(ElementComponent):
             The scale of the absorbed radiation, in kelvin to the fourth.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import StochasticEnergyBalanceComponent
-        >>> StochasticEnergyBalanceComponent('earth').nu
+        >>> from skcomplex.models.earth.climate import StochasticEnergyBalanceElement
+        >>> StochasticEnergyBalanceElement('earth').nu
         1.0
     """
 
@@ -121,7 +121,7 @@ class StochasticEnergyBalanceComponent(ElementComponent):
         ]
 
 
-class RampedFoldComponent(ElementComponent):
+class RampedFoldElement(Element):
     """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW` whose control rises linearly from `phi0` to `phi1`.
 
     For `a < 0 < b` the fold has two stable branches for `|phi| < phi_c = sqrt(-4 b^3 / (27 a))`, and the lower
@@ -156,8 +156,8 @@ class RampedFoldComponent(ElementComponent):
                 The amplitude of the noise.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import RampedFoldComponent
-        >>> RampedFoldComponent('system').rate
+        >>> from skcomplex.models.earth.climate import RampedFoldElement
+        >>> RampedFoldElement('system').rate
         0.004
     """
 
@@ -240,7 +240,7 @@ def sutera_fraedrich_tipping(tipping: str = 'noise', *, rho: float = 0.18, nu: f
         error_msg = f'Unknown tipping type {tipping!r}. Use one of {", ".join(TIPPING_TYPES)}.'
         raise ValidationError(error_msg)
     values = TIPPING_TYPES[tipping]
-    earth = StochasticEnergyBalanceComponent(
+    earth = StochasticEnergyBalanceElement(
         'earth',
         T=_warm_state(1.0, values['b_ini'], values['a_ini']),
         lam=values['lam'],
@@ -305,7 +305,7 @@ def ramped_stochastic_fold(
         >>> ramped_stochastic_fold(rate=0.01).elements[0].rate
         0.01
     """
-    fold = RampedFoldComponent(
+    fold = RampedFoldElement(
         'system',
         x=_lower_branch(a, b, phi0),
         a=a,

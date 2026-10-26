@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -48,7 +48,7 @@ def _value_at_risk(agent: AgentView) -> float:
     return float(agent.h * agent.value)
 
 
-class BankComponent(ElementComponent):
+class BankElement(Element):
     """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
 
     Args:
@@ -65,8 +65,8 @@ class BankComponent(ElementComponent):
             The economic value, the bank's share of all interbank lending.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import BankComponent
-        >>> BankComponent.group('banks', 3, h=[1.0, 0.0, 0.0]).size
+        >>> from skcomplex.models.economics.finance import BankElement
+        >>> BankElement.group('banks', 3, h=[1.0, 0.0, 0.0]).size
         3
     """
 
@@ -218,7 +218,7 @@ def debtrank(
     h = np.zeros(size)
     h[list(distressed)] = psi
     status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-    banks = BankComponent.group('banks', size, h=h, status=status, value=_economic_values(matrix))
+    banks = BankElement.group('banks', size, h=h, status=status, value=_economic_values(matrix))
     return System(
         components=[banks],
         interactions=[DebtRankCascadeInteraction('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],

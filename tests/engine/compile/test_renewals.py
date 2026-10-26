@@ -3,23 +3,23 @@
 import pytest
 
 from skcomplex.core.base import Form, ValidationError
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, draw, mean, normal
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 
-CounterComponent = ElementComponent.define(
-    'CounterComponent',
+CounterElement = Element.define(
+    'CounterElement',
     states={'n': 0.0},
     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
 )
-DecayComponent = ElementComponent.define('DecayComponent', states={'y': 1.0}, laws=lambda s: [RateLaw(s.y, -s.y)])
+DecayElement = Element.define('DecayElement', states={'y': 1.0}, laws=lambda s: [RateLaw(s.y, -s.y)])
 
 
 def _renewal(waiting, reset=None):
     """Return an element type with one renewal law of a waiting time and a reset of its state `x`."""
-    return ElementComponent.define(
-        'RenewingComponent',
+    return Element.define(
+        'RenewingElement',
         states={'x': 0.0},
         parameters={'a': 1.0},
         laws=lambda s: [JumpLaw(waiting=waiting(s), reset=reset(s) if reset else None)],
@@ -28,7 +28,7 @@ def _renewal(waiting, reset=None):
 
 def test_compile_system_gives_renewal_laws_alone_the_renewal_form():
     """Test that a system of renewal laws alone compiles to the renewal form with a hidden count per member."""
-    problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
+    problem = compile_system(System(components=[CounterElement.group('counters', 3)]))
     assert problem.form == Form.RENEWAL
     assert problem.states.names == ['counters.n', 'counters.counters~renewals']
     assert problem.renewals[0].label == 'counters'
@@ -39,8 +39,8 @@ def test_compile_system_partitions_renewals_beside_an_ode():
     """Test that a renewal subsystem and an ODE subsystem in sibling subsystems compile to a partitioned problem."""
     system = System(
         components=[
-            System('renewing', components=[CounterComponent('c')]),
-            System('decaying', components=[DecayComponent('d')]),
+            System('renewing', components=[CounterElement('c')]),
+            System('decaying', components=[DecayElement('d')]),
         ],
     )
     problem = compile_system(system)
@@ -50,8 +50,8 @@ def test_compile_system_partitions_renewals_beside_an_ode():
 
 def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
     """Test that renewal laws beside rate laws of the same component keep the ordinary differential form."""
-    walker = ElementComponent.define(
-        'WalkerComponent',
+    walker = Element.define(
+        'WalkerElement',
         states={'x': 0.0, 'v': 1.0},
         laws=lambda s: [RateLaw(s.x, s.v), JumpLaw(waiting=draw('wait', 'expon'), reset={s.v: -s.v})],
     )
@@ -95,8 +95,8 @@ def test_compile_system_rejects_reductions_in_renewal_laws():
 
 def test_compile_system_accepts_draws_in_update_laws_from_scipy():
     """Test that a SciPy draw in an update law takes one value per member after the uniform and normal draws."""
-    jumping = ElementComponent.define(
-        'JumpingComponent',
+    jumping = Element.define(
+        'JumpingElement',
         states={'x': 0.0},
         laws=lambda s: [UpdateLaw(s.x, s.x + draw('jump', 'lomax', c=2.0) + normal('noise'))],
     )

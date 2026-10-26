@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import ObservableQuantity, System
@@ -27,7 +27,7 @@ def _excited_fraction(phases: Array) -> float:
     return float(np.mean(np.asarray(phases) == EXCITED))
 
 
-class ExcitableElementComponent(ElementComponent):
+class ExcitableElementElement(Element):
     """Cyclic excitable element of the Kinouchi-Copelli network: quiescent at 0, excited at 1, refractory up to `m - 1`.
 
     Every step, a quiescent element is excited by the external stimulus with probability `1 - exp(-r)`, where `r` is
@@ -55,8 +55,8 @@ class ExcitableElementComponent(ElementComponent):
                 The rate `r` of the external stimulus per step.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import ExcitableElementComponent
-        >>> ExcitableElementComponent('neuron').n_states
+        >>> from skcomplex.models.biology.neuroscience import ExcitableElementElement
+        >>> ExcitableElementElement('neuron').n_states
         5
     """
 
@@ -162,7 +162,7 @@ def kinouchi_copelli(
         if excited is None
         else (rng.random(size) < excited).astype(float)
     )
-    neurons = ExcitableElementComponent.lattice(
+    neurons = ExcitableElementElement.lattice(
         'neurons',
         NetworkSpace(graph),
         phase=phase,

@@ -9,7 +9,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, categorical, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -25,7 +25,7 @@ SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {
 }
 
 
-class ProbabilisticNodeComponent(ElementComponent):
+class ProbabilisticNodeElement(Element):
     """Node of a probabilistic Boolean network, on or off, with the index of the function that set it last.
 
     Args:
@@ -39,8 +39,8 @@ class ProbabilisticNodeComponent(ElementComponent):
             The index of the candidate function of the last update, 0 at the start.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import ProbabilisticNodeComponent
-        >>> ProbabilisticNodeComponent('x1', x=1).x
+        >>> from skcomplex.models.biology.systems_biology import ProbabilisticNodeElement
+        >>> ProbabilisticNodeElement('x1', x=1).x
         1
     """
 
@@ -68,7 +68,7 @@ class ProbabilisticFunctionInteraction(BaseInteraction):
             The values of the declared variables, by name:
 
             target:
-                The path of the updated node, a `ProbabilisticNodeComponent`.
+                The path of the updated node, a `ProbabilisticNodeElement`.
 
             inputs:
                 The paths of the input nodes, in the order of the bits of the tables.
@@ -177,7 +177,7 @@ def probabilistic_boolean_network(
         (0.6, 0.4)
     """
     chosen = SHMULEVICH_NETWORK if network is None else network
-    nodes = [ProbabilisticNodeComponent(name, x=int(name in active)) for name in chosen]
+    nodes = [ProbabilisticNodeElement(name, x=int(name in active)) for name in chosen]
     functions = [
         ProbabilisticFunctionInteraction(
             f'functions_{name}',

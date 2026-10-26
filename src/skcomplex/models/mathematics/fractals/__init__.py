@@ -1,22 +1,22 @@
 """Fractals: escape-time sets of the complex quadratic map, attractors drawn by the chaos game, and substitutions."""
 
-from ._chaos_game import ChaosPointComponent, chaos_game
-from ._quadratic import QuadraticMapComponent, julia, mandelbrot
+from ._chaos_game import ChaosPointElement, chaos_game
+from ._quadratic import QuadraticMapElement, julia, mandelbrot
 from ._substitution import (
-    CantorComponent,
-    KochComponent,
-    SierpinskiComponent,
+    CantorElement,
+    KochElement,
+    SierpinskiElement,
     cantor_set,
     koch_curve,
     sierpinski_substitution,
 )
 
 __all__: list[str] = [
-    'CantorComponent',
-    'ChaosPointComponent',
-    'KochComponent',
-    'QuadraticMapComponent',
-    'SierpinskiComponent',
+    'CantorElement',
+    'ChaosPointElement',
+    'KochElement',
+    'QuadraticMapElement',
+    'SierpinskiElement',
     'cantor_set',
     'chaos_game',
     'julia',

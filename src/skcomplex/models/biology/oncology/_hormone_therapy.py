@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import log
 
 from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -61,7 +61,7 @@ def _quota_rate(s: Symbols, Q: Expression, q: Expression) -> Expression:
     return uptake - s.rm * (Q - q) - s.d3 * Q
 
 
-class AndrogenSuppressionComponent(ElementComponent):
+class AndrogenSuppressionElement(Element):
     """Androgen-dependent and androgen-independent prostate cancer cells under continuous androgen suppression.
 
     The dependent cells follow `dAD/dt = r1 U (1 - b (AD + c1 AI)) AD - (d1 + m1)(1 - U / U0) AD`, the independent
@@ -112,8 +112,8 @@ class AndrogenSuppressionComponent(ElementComponent):
             The efficacy of the suppression.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AndrogenSuppressionComponent
-        >>> AndrogenSuppressionComponent('tumour', a=0.6).a
+        >>> from skcomplex.models.biology.oncology import AndrogenSuppressionElement
+        >>> AndrogenSuppressionElement('tumour', a=0.6).a
         0.6
     """
 
@@ -150,7 +150,7 @@ class AndrogenSuppressionComponent(ElementComponent):
         ]
 
 
-class IntermittentSuppressionComponent(ElementComponent):
+class IntermittentSuppressionElement(Element):
     """Prostate cancer cells under androgen suppression that PSA thresholds switch on and off.
 
     The dependent cells follow `dAD/dt = r1 (k1 + (1 - k1) U / (U + k2)) AD - d1 (k3 + (1 - k3) U / (U + k4)) AD
@@ -220,8 +220,8 @@ class IntermittentSuppressionComponent(ElementComponent):
             The PSA above which the therapy starts.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import IntermittentSuppressionComponent
-        >>> IntermittentSuppressionComponent('tumour').h1
+        >>> from skcomplex.models.biology.oncology import IntermittentSuppressionElement
+        >>> IntermittentSuppressionElement('tumour').h1
         15.0
     """
 
@@ -269,7 +269,7 @@ class IntermittentSuppressionComponent(ElementComponent):
         ]
 
 
-class CellQuotaProstateComponent(ElementComponent):
+class CellQuotaProstateElement(Element):
     """Prostate cancer cells whose growth and mutation follow their androgen cell quota, with the PSA they release.
 
     The cells grow at the Droop rate `rm (1 - q_i / Q_i)`, die at `d_i`, and switch from dependent to independent at
@@ -383,8 +383,8 @@ class CellQuotaProstateComponent(ElementComponent):
                 The rate at which the serum androgen relaxes.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CellQuotaProstateComponent
-        >>> CellQuotaProstateComponent('tumour').qm
+        >>> from skcomplex.models.biology.oncology import CellQuotaProstateElement
+        >>> CellQuotaProstateElement('tumour').qm
         5.0
     """
 
@@ -456,7 +456,7 @@ class CellQuotaProstateComponent(ElementComponent):
         ]
 
 
-class AndrogenReceptorProstateComponent(ElementComponent):
+class AndrogenReceptorProstateElement(Element):
     """Normal epithelium and prostate cancer cells driven by activated androgen receptors, with tissue and serum PSA.
 
     The normal cells follow `dN/dt = r1 N (1 - (N + c1 (AD + AI)) / b1) - d1 N`, the dependent cells
@@ -588,8 +588,8 @@ class AndrogenReceptorProstateComponent(ElementComponent):
             The PSA production independent of the receptors.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AndrogenReceptorProstateComponent
-        >>> AndrogenReceptorProstateComponent('prostate').KP
+        >>> from skcomplex.models.biology.oncology import AndrogenReceptorProstateElement
+        >>> AndrogenReceptorProstateElement('prostate').KP
         800.0
     """
 
@@ -669,7 +669,7 @@ class AndrogenReceptorProstateComponent(ElementComponent):
         ]
 
 
-class PiecewiseLinearProstateComponent(ElementComponent):
+class PiecewiseLinearProstateElement(Element):
     """Androgen-dependent, reversibly and irreversibly independent prostate cancer cells under intermittent therapy.
 
     During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
@@ -739,8 +739,8 @@ class PiecewiseLinearProstateComponent(ElementComponent):
             The PSA above which the therapy starts.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import PiecewiseLinearProstateComponent
-        >>> PiecewiseLinearProstateComponent('tumour').h0
+        >>> from skcomplex.models.biology.oncology import PiecewiseLinearProstateElement
+        >>> PiecewiseLinearProstateElement('tumour').h0
         4.0
     """
 
@@ -786,7 +786,7 @@ class PiecewiseLinearProstateComponent(ElementComponent):
         ]
 
 
-class TamoxifenTumourComponent(ElementComponent):
+class TamoxifenTumourElement(Element):
     """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen, its metabolite, and the lymphocytes.
 
     The phases follow `dAg/dt = -mg Ag L + 2 mm Am L - a1 Ag (UX + delta1 UH)`, `dAs/dt = -ms As + mg Ag L`, and
@@ -876,8 +876,8 @@ class TamoxifenTumourComponent(ElementComponent):
             The infusion rate of tamoxifen.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TamoxifenTumourComponent
-        >>> TamoxifenTumourComponent('tumour').Asat
+        >>> from skcomplex.models.biology.oncology import TamoxifenTumourElement
+        >>> TamoxifenTumourElement('tumour').Asat
         10000.0
     """
 
@@ -1011,7 +1011,7 @@ def continuous_androgen_suppression(
         >>> continuous_androgen_suppression(a=0.6).elements[0].a
         0.6
     """
-    tumour = AndrogenSuppressionComponent(
+    tumour = AndrogenSuppressionElement(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1118,7 +1118,7 @@ def ideta_intermittent_androgen(
         >>> ideta_intermittent_androgen(h1=20.0).elements[0].h1
         20.0
     """
-    tumour = IntermittentSuppressionComponent(
+    tumour = IntermittentSuppressionElement(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1239,7 +1239,7 @@ def prostate_cell_quota(
         >>> prostate_cell_quota(q1=0.45).elements[0].q1
         0.45
     """
-    tumour = CellQuotaProstateComponent(
+    tumour = CellQuotaProstateElement(
         'tumour',
         AD=AD,
         AI=AI,
@@ -1324,7 +1324,7 @@ def prostate_androgen_receptor(
         >>> prostate_androgen_receptor(UT=5.0).elements[0].UT
         5.0
     """
-    prostate = AndrogenReceptorProstateComponent('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
+    prostate = AndrogenReceptorProstateElement('prostate', N=N, AD=AD, AI=AI, UT=UT, UD=UD, m1=m1, age=age)
     return System(components=[prostate])
 
 
@@ -1376,7 +1376,7 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
     on11, on21, on22, on31, on32, on33 = factors['on']
     off11, off12, off22, off33 = factors['off']
     AD, AIR, AII = factors['cells']
-    tumour = PiecewiseLinearProstateComponent(
+    tumour = PiecewiseLinearProstateElement(
         'tumour',
         AD=AD,
         AIR=AIR,
@@ -1451,5 +1451,5 @@ def tamoxifen_cell_cycle(
         >>> tamoxifen_cell_cycle(u=0.0).elements[0].u
         0.0
     """
-    tumour = TamoxifenTumourComponent('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
+    tumour = TamoxifenTumourElement('tumour', Ag=Ag, As=As, Am=Am, u=u, a1=a1, a2=a2)
     return System(components=[tumour])

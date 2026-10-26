@@ -19,7 +19,7 @@ from ._types import (
 from ._utils import BaseEstimator
 
 
-class BaseComponent(BaseEstimator):
+class BaseElement(BaseEstimator):
     """Base of every part of a system: elements and groups.
 
     A component type declares its variables and roles as class attributes made by `state`, `parameter`, and `role`.
@@ -47,11 +47,11 @@ class BaseComponent(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import ElementComponent
-        >>> class PendulumComponent(ElementComponent):
+        >>> from skcomplex.core.components import Element
+        >>> class PendulumElement(Element):
         ...     theta: float = state(0.0, order=2)
-        >>> bob = PendulumComponent('bob', theta=0.1, theta_d1=0.5).prepare()
-        >>> list(bob.declarations_), bob.theta_d1, hasattr(PendulumComponent, 'theta_d1')
+        >>> bob = PendulumElement('bob', theta=0.1, theta_d1=0.5).prepare()
+        >>> list(bob.declarations_), bob.theta_d1, hasattr(PendulumElement, 'theta_d1')
         (['theta', 'theta_d1'], 0.5, False)
     """
 
@@ -81,7 +81,7 @@ class BaseComponent(BaseEstimator):
             LabelError:
                 The type declares a variable whose name is reserved.
         """
-        _check_declared(self, BaseComponent)
+        _check_declared(self, BaseElement)
 
     def _prepare(self) -> None:
         """Set `declarations_`, the declarations of the type."""
@@ -117,11 +117,11 @@ class BaseComponent(BaseEstimator):
                 The type neither declares the name nor takes it as a setting with a default.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> PopulationComponent.get_default('n')
+            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> PopulationElement.get_default('n')
             1.0
         """
-        return _get_default(cls, BaseComponent, name)
+        return _get_default(cls, BaseElement, name)
 
     @classmethod
     def get_argument_names(cls) -> list[str]:
@@ -132,11 +132,11 @@ class BaseComponent(BaseEstimator):
                 The names, settings first.
 
         Examples:
-            >>> from skcomplex.formalisms.rewriting import HostGraphComponent
-            >>> HostGraphComponent.get_argument_names()
+            >>> from skcomplex.formalisms.rewriting import HostGraphElement
+            >>> HostGraphElement.get_argument_names()
             ['max_size', 'max_matches', 'graph']
         """
-        return _argument_names(cls, BaseComponent)
+        return _argument_names(cls, BaseElement)
 
     def get_params(self, deep: bool = True) -> dict[str, Any]:
         """Return the label, the settings, and the values of every declared name.
@@ -150,11 +150,11 @@ class BaseComponent(BaseEstimator):
                 A mapping from argument name to value, in sorted order.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> PopulationComponent('rabbits', n=40).get_params()['n']
+            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> PopulationElement('rabbits', n=40).get_params()['n']
             40
         """
-        return _get_params(self, BaseComponent, deep=deep)
+        return _get_params(self, BaseElement, deep=deep)
 
     def laws(self, s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the component, none by default.

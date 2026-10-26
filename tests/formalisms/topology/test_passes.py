@@ -6,8 +6,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BaseInteraction, CapacityError, ComponentKind, SpaceKind, parameter, role
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.base import BaseInteraction, CapacityError, ElementKind, SpaceKind, parameter, role
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import JumpLaw, UpdateLaw, neighbors, total
 from skcomplex.core.space import Adjacency, DiscreteTime, Layer, NetworkSpace, Radius
 from skcomplex.core.system import System
@@ -19,17 +19,17 @@ from skcomplex.formalisms.topology import TopologyRequest, add_edge, add_node, r
 
 BACKENDS = ('numpy', 'numba')
 
-NodeComponent = ElementComponent.define(
-    'NodeComponent',
+NodeElement = Element.define(
+    'NodeElement',
     states={'age': 0.0, 'x': 1.0},
     laws=lambda s: [UpdateLaw(s.age, s.age + 1)],
 )
-LinkComponent = ElementComponent.define('LinkComponent', states={'w': 1.0})
-GrowthComponent = ElementComponent.define(
-    'GrowthComponent',
+LinkElement = Element.define('LinkElement', states={'w': 1.0})
+GrowthElement = Element.define(
+    'GrowthElement',
     laws=lambda s: [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)],
 )
-SISComponent = ElementComponent.define('SISComponent', states={'i': 0.0}, parameters={'beta': 0.3, 'gamma': 1.0})
+SISElement = Element.define('SISElement', states={'i': 0.0}, parameters={'beta': 0.3, 'gamma': 1.0})
 
 
 class RewiringInteraction(BaseInteraction):
@@ -54,16 +54,16 @@ def _growing(size, capacity, *, edges=2):
     space = NetworkSpace.complete(size)
     return System(
         components=[
-            GroupComponent('nodes', element=NodeComponent, space=space, on='sites', variable=True, capacity=capacity),
-            GroupComponent(
+            GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=capacity),
+            GroupElement(
                 'links',
-                element=LinkComponent,
+                element=LinkElement,
                 space=space,
                 on='edges',
                 variable=True,
                 capacity=edges * capacity + size**2,
             ),
-            GrowthComponent('growth'),
+            GrowthElement('growth'),
         ],
         time=DiscreteTime(),
     )
@@ -123,22 +123,22 @@ def test_requests_remove_and_add_edges_and_nodes():
         over='neighbors',
         laws=lambda s: [UpdateLaw(remove_edge(), s.source.x * s.target.x)],
     )
-    LeavingComponent = ElementComponent.define(
-        'LeavingComponent',
+    LeavingElement = Element.define(
+        'LeavingElement',
         states={'age': 0.0, 'x': 0.0},
         laws=lambda s: [UpdateLaw(remove_node(), s.x)],
     )
     system = System(
         components=[
-            GroupComponent(
+            GroupElement(
                 'nodes',
-                element=LeavingComponent,
+                element=LeavingElement,
                 space=space,
                 on='sites',
                 variable=True,
                 values={'x': [1, 1, 0, 0, 0, 1]},
             ),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
         ],
         interactions=[PruningInteraction('pruning', nodes='nodes', links='links')],
         time=DiscreteTime(),
@@ -147,23 +147,23 @@ def test_requests_remove_and_add_edges_and_nodes():
     snapshot = trajectory.network(1)
     assert snapshot.nodes.tolist() == [2, 3, 4]
     assert sorted(zip(snapshot.sources.tolist(), snapshot.targets.tolist(), strict=True)) == [(2, 3), (3, 4)]
-    JoiningComponent = ElementComponent.define(
-        'JoiningComponent',
+    JoiningElement = Element.define(
+        'JoiningElement',
         states={'x': 0.0},
         laws=lambda s: [UpdateLaw(add_edge(w=5.0), s.x)],
     )
     space = NetworkSpace(nx.empty_graph(4))
     system = System(
         components=[
-            GroupComponent(
+            GroupElement(
                 'nodes',
-                element=JoiningComponent,
+                element=JoiningElement,
                 space=space,
                 on='sites',
                 variable=True,
                 values={'x': [1, 0, 0, 0]},
             ),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True, capacity=10),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=10),
         ],
         time=DiscreteTime(),
     )
@@ -188,15 +188,15 @@ def _prevalence(w, seed):
     )
     system = System(
         components=[
-            GroupComponent(
+            GroupElement(
                 'nodes',
-                element=SISComponent,
+                element=SISElement,
                 space=space,
                 on='sites',
                 variable=True,
                 values={'i': infected.astype(float)},
             ),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
         ],
         interactions=[
             SpreadInteraction('spread', nodes='nodes'),
@@ -216,7 +216,7 @@ def test_rewiring_raises_the_epidemic_threshold():
 
 def test_reductions_over_capacity_groups_count_present_members():
     """Test that a total over a variable group sums the present members only."""
-    CounterComponent = ElementComponent.define('CounterComponent', states={'size': 0.0})
+    CounterElement = Element.define('CounterElement', states={'size': 0.0})
     CountingInteraction = BaseInteraction.define(
         'CountingInteraction',
         roles=['counter', 'nodes'],
@@ -225,10 +225,10 @@ def test_reductions_over_capacity_groups_count_present_members():
     space = NetworkSpace.complete(3)
     system = System(
         components=[
-            GroupComponent('nodes', element=NodeComponent, space=space, on='sites', variable=True, capacity=10),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True, capacity=30),
-            GrowthComponent('growth'),
-            CounterComponent('counter'),
+            GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=10),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=30),
+            GrowthElement('growth'),
+            CounterElement('counter'),
         ],
         interactions=[CountingInteraction('counting', counter='counter', nodes='nodes')],
         time=DiscreteTime(),
@@ -242,15 +242,15 @@ def test_reductions_over_capacity_groups_count_present_members():
 def test_validation_reports_a_request_on_a_fixed_group():
     """Test that a law that requests a new edge on a network with a fixed edge group gets the issue group-fixed."""
     space = NetworkSpace(nx.path_graph(4))
-    JoiningComponent = ElementComponent.define(
-        'JoiningComponent',
+    JoiningElement = Element.define(
+        'JoiningElement',
         states={'x': 1.0},
         laws=lambda s: [UpdateLaw(add_edge(), 0.5)],
     )
     system = System(
         components=[
-            GroupComponent('nodes', element=JoiningComponent, space=space, on='sites', variable=True),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges'),
+            GroupElement('nodes', element=JoiningElement, space=space, on='sites', variable=True),
+            GroupElement('links', element=LinkElement, space=space, on='edges'),
         ],
         time=DiscreteTime(),
     )
@@ -265,9 +265,9 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
     space = NetworkSpace(nx.path_graph(4))
     system = System(
         components=[
-            NodeComponent.lattice('nodes', space),
-            GroupComponent('links', element=LinkComponent, space=space, on='edges', variable=True),
-            GrowthComponent('growth'),
+            NodeElement.lattice('nodes', space),
+            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True),
+            GrowthElement('growth'),
         ],
         time=DiscreteTime(),
     )
@@ -278,12 +278,12 @@ def test_validation_reports_a_node_request_on_fixed_site_groups():
 
 def test_validation_reports_a_metric_neighbourhood_on_a_network():
     """Test that a reduction over a radius on a network gets law-space with a fix that names a layer."""
-    ReadingComponent = ElementComponent.define(
-        'ReadingComponent',
+    ReadingElement = Element.define(
+        'ReadingElement',
         states={'x': 0.0},
         laws=lambda s: [UpdateLaw(s.x, neighbors(s.other.x, over=Radius(1.0)))],
     )
-    system = System(components=[ReadingComponent.lattice('nodes', NetworkSpace(nx.path_graph(3)))], time=DiscreteTime())
+    system = System(components=[ReadingElement.lattice('nodes', NetworkSpace(nx.path_graph(3)))], time=DiscreteTime())
     issues = validate(system).issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'continuous space' in issues[0].fix
@@ -292,13 +292,13 @@ def test_validation_reports_a_metric_neighbourhood_on_a_network():
 
 def test_validation_reports_a_reduction_over_a_missing_layer():
     """Test that a reduction over a layer the network lacks gets a binding issue that lists its layers."""
-    ReadingComponent = ElementComponent.define(
-        'ReadingComponent',
+    ReadingElement = Element.define(
+        'ReadingElement',
         states={'x': 0.0},
         laws=lambda s: [UpdateLaw(s.x, neighbors(s.other.x, over=Adjacency(layer='trade')))],
     )
     space = NetworkSpace(nx.path_graph(3), layers=[Layer('work', nx.path_graph(3))])
-    issues = validate(System(components=[ReadingComponent.lattice('nodes', space)], time=DiscreteTime())).issues
+    issues = validate(System(components=[ReadingElement.lattice('nodes', space)], time=DiscreteTime())).issues
     assert [issue.code for issue in issues] == ['binding']
     assert "'work'" in issues[0].message
 
@@ -318,6 +318,6 @@ def test_network_primitives_and_solvers_declare_their_requirements_and_support()
     assert TopologyRequest.requires.space == {SpaceKind.NETWORK}
     assert missing_declarations() == []
     for solver in (IterationSolver, GillespieSolver):
-        assert {ComponentKind.VARIABLE_GROUP, ComponentKind.EDGE_GROUP} <= solver.supports.components
-    assert ComponentKind.EDGE_GROUP in RK4Solver.supports.components
-    assert ComponentKind.VARIABLE_GROUP not in RK4Solver.supports.components
+        assert {ElementKind.VARIABLE_GROUP, ElementKind.EDGE_GROUP} <= solver.supports.components
+    assert ElementKind.EDGE_GROUP in RK4Solver.supports.components
+    assert ElementKind.VARIABLE_GROUP not in RK4Solver.supports.components

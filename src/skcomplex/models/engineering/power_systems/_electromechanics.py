@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, derivative, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -20,8 +20,8 @@ def _wheel_load(s: Symbols) -> Expression:
     return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
 
-RegenerativeCarComponent = ElementComponent.define(
-    'RegenerativeCarComponent',
+RegenerativeCarElement = Element.define(
+    'RegenerativeCarElement',
     states={'v': state(default=20.0), 'I': 0.0, 'Vs': 0.0},
     parameters={
         'm': parameter(default=1000.0, domain=NumericDomain.POSITIVE),
@@ -39,8 +39,8 @@ RegenerativeCarComponent = ElementComponent.define(
     ],
 )
 
-FaradayDiskComponent = ElementComponent.define(
-    'FaradayDiskComponent',
+FaradayDiskElement = Element.define(
+    'FaradayDiskElement',
     states={'I': 0.0, 'U': 0.0, 'omega': 0.0},
     parameters={
         'B': parameter(default=1.5, domain=NumericDomain.NONNEGATIVE),
@@ -86,8 +86,8 @@ FaradayDiskComponent = ElementComponent.define(
     ],
 )
 
-RailSegmentComponent = ElementComponent.define(
-    'RailSegmentComponent',
+RailSegmentElement = Element.define(
+    'RailSegmentElement',
     states={'z': state(default=0.0, order=2), 'zs': state(default=0.0, order=2)},
     parameters={
         'Mr': parameter(default=60.0, domain=NumericDomain.POSITIVE),
@@ -183,7 +183,7 @@ def regenerative_braking(
         >>> regenerative_braking(C=100.0).elements[0].C
         100.0
     """
-    car = RegenerativeCarComponent('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
+    car = RegenerativeCarElement('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
     return System(components=[car])
 
 
@@ -265,7 +265,7 @@ def faraday_disk(
         >>> faraday_disk(M=6.0).elements[0].M
         6.0
     """
-    charger = FaradayDiskComponent('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
+    charger = FaradayDiskElement('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
     return System(components=[charger])
 
 
@@ -324,5 +324,5 @@ def wheel_rail_contact(
         >>> wheel_rail_contact(k2=500.0).elements[0].k2
         500.0
     """
-    rail = RailSegmentComponent('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
+    rail = RailSegmentElement('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
     return System(components=[rail])

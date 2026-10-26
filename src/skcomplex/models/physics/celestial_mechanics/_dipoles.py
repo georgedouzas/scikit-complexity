@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.system import System
 from ....engine.runtime import register_model
 
-DipoleChargeComponent = ElementComponent.define(
-    'DipoleChargeComponent',
+DipoleChargeElement = Element.define(
+    'DipoleChargeElement',
     states={
         'x': state(default=1.0, order=2),
         'y': state(default=0.0, order=2),
@@ -104,4 +104,4 @@ def stormer_problem(
         >>> stormer_problem(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(components=[DipoleChargeComponent('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])
+    return System(components=[DipoleChargeElement('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])

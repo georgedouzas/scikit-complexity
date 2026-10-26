@@ -8,15 +8,15 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, ramp
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, gradient, laplacian
+from ....formalisms.fields import FieldElement, gradient, laplacian
 
 
-class ChargedWaveFunctionComponent(ElementComponent):
+class ChargedWaveFunctionElement(Element):
     """Wave function `psi = u + i w` of a charge `q` in a uniform electromagnetic potential.
 
     The wave function follows `(d_t - i q A_t) psi = i D (d_x - i q A_x)^2 psi`. The vector potential
@@ -53,8 +53,8 @@ class ChargedWaveFunctionComponent(ElementComponent):
             The time the electric field is on.
 
     Examples:
-        >>> from skcomplex.models.physics.waves import ChargedWaveFunctionComponent
-        >>> ChargedWaveFunctionComponent('site').q
+        >>> from skcomplex.models.physics.waves import ChargedWaveFunctionElement
+        >>> ChargedWaveFunctionElement('site').q
         1.0
     """
 
@@ -171,6 +171,6 @@ def charged_schrodinger(
     space = LatticeSpace(n_sites, spacing=spacing)
     return System(
         components=[
-            FieldComponent('packet', ChargedWaveFunctionComponent, space, values=values, discretization='spectral'),
+            FieldElement('packet', ChargedWaveFunctionElement, space, values=values, discretization='spectral'),
         ],
     )

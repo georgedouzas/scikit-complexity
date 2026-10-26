@@ -27,7 +27,7 @@ from ..base import (
     components_of,
     declarations_of,
 )
-from ..components import ElementComponent, GroupComponent
+from ..components import Element, GroupElement
 from ..laws import InvariantQuantity
 from ..space import BaseSpace
 from ..system import ObservableQuantity, System
@@ -349,7 +349,7 @@ class CompiledElement:
     """
 
     path: str
-    element: ElementComponent | GroupComponent
+    element: Element | GroupElement
     states: Mapping[str, str]
     parameters: Mapping[str, str]
     visual: VisualSpec
@@ -390,7 +390,7 @@ class CompiledAgents:
     """
 
     path: str
-    element: ElementComponent | GroupComponent
+    element: Element | GroupElement
     size: int
     states: tuple[str, ...]
     values: Mapping[str, object]
@@ -926,7 +926,7 @@ class Problem(BaseProblem):
         found = {}
         for compiled in self.elements:
             component = compiled.element
-            kind = component.element if isinstance(component, GroupComponent) else type(component)
+            kind = component.element if isinstance(component, GroupElement) else type(component)
             for name, declaration in declarations_of(kind, VariableKind.STATE).items():
                 if declaration.adaptive and name in compiled.states:
                     found[compiled.states[name]] = declaration

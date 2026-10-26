@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy.special import expit
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -31,7 +31,7 @@ def _spins_of(configurations: Array) -> Array:
     return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
-class ComplexAgentComponent(ElementComponent):
+class ComplexAgentElement(Element):
     """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
 
     Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
@@ -48,8 +48,8 @@ class ComplexAgentComponent(ElementComponent):
             The spin of the configuration.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ComplexAgentComponent
-        >>> ComplexAgentComponent.group('agents', 10, configuration=5.0, spin=0.0).size
+        >>> from skcomplex.models.social.opinion_dynamics import ComplexAgentElement
+        >>> ComplexAgentElement.group('agents', 10, configuration=5.0, spin=0.0).size
         10
     """
 
@@ -228,7 +228,7 @@ def standardized_agents(
     configurations = configurations.astype(float)
     return System(
         components=[
-            ComplexAgentComponent.group('agents', agents, configuration=configurations, spin=_spins_of(configurations)),
+            ComplexAgentElement.group('agents', agents, configuration=configurations, spin=_spins_of(configurations)),
         ],
         interactions=[StandardizationInteraction('standardization', agents='agents', K=K, J=J, T=T, H=H)],
     )

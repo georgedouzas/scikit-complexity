@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
@@ -33,7 +33,7 @@ def _circles(positions: Array, size: float, reach: float) -> npt.NDArray[np.bool
     return within
 
 
-class BelieverComponent(ElementComponent):
+class BelieverElement(Element):
     """Agent of the belief diffusion model, with the weights it gives to four levels of caring about an issue.
 
     The levels are not caring at all, caring less, caring a bit, and caring passionately. An agent cares at the level
@@ -57,10 +57,10 @@ class BelieverComponent(ElementComponent):
             The increment per neighbour and step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import BelieverComponent
-        >>> group = BelieverComponent.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
+        >>> from skcomplex.models.social.opinion_dynamics import BelieverElement
+        >>> group = BelieverElement.group('people', 4, belief=[1.0, 0.0, 0.0, 0.0])
         >>> group.label, group.element.__name__, group.size
-        ('people', 'BelieverComponent', 4)
+        ('people', 'BelieverElement', 4)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
@@ -100,7 +100,7 @@ class BelieverComponent(ElementComponent):
         agent.belief, agent.caring = belief, float(np.argmax(belief))
 
 
-class AdopterComponent(ElementComponent):
+class AdopterElement(Element):
     """Agent of the threshold adoption model, who adopts an innovation for good.
 
     Args:
@@ -120,10 +120,10 @@ class AdopterComponent(ElementComponent):
             The share of agents that move one unit in a random direction every step.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import AdopterComponent
-        >>> group = AdopterComponent.group('people', 10, threshold=50.0)
+        >>> from skcomplex.models.social.opinion_dynamics import AdopterElement
+        >>> group = AdopterElement.group('people', 10, threshold=50.0)
         >>> group.label, group.element.__name__, group.size
-        ('people', 'AdopterComponent', 10)
+        ('people', 'AdopterElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
@@ -284,7 +284,7 @@ def influentials(
     belief[chosen, PASSIONATE] = belief[chosen].max(axis=1) + 1
     weights = np.ones(size)
     weights[chosen] = influence
-    people = BelieverComponent.group(
+    people = BelieverElement.group(
         'people',
         size,
         location=[(column, row) for column in range(width) for row in range(height)],
@@ -350,7 +350,7 @@ def threshold_adoption(
     innovators = np.argsort(drawn)[: max(1, round(INNOVATORS * n_agents))]
     adopted = np.zeros(n_agents)
     adopted[innovators] = 1.0
-    people = AdopterComponent.group(
+    people = AdopterElement.group(
         'people',
         n_agents,
         location=rng.uniform(0, size, (n_agents, 2)),

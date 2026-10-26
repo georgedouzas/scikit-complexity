@@ -10,7 +10,7 @@ from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.quantum import DissipatorLaw, GeneratorLaw, Operator, expectation
-from ..realizations.quantum import SpinComponent
+from ..realizations.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
@@ -242,7 +242,7 @@ def quantum_heisenberg(
         raise ValidationError(error_msg)
     space = LatticeSpace(n_sites, boundary=BOUNDARIES[boundary])
     labels = _initial_labels(n_sites, initial)
-    chain = SpinComponent.lattice('chain', space, initial=labels)
+    chain = SpinElement.lattice('chain', space, initial=labels)
     interactions: list[BaseInteraction] = [
         XXZExchangeInteraction('exchange', target='chain', J=J, delta=delta),
         ZeemanFieldInteraction('field', target='chain', h=h),

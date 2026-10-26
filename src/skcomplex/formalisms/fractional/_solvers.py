@@ -12,7 +12,7 @@ from scipy.special import gamma
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
+    ElementKind,
     Form,
     LawKind,
     OrderKind,
@@ -145,7 +145,7 @@ class CaputoSolver(Solver):
         space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
         orders=set(OrderKind),
     )
 
@@ -442,14 +442,14 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.fractional import GrunwaldLetnikovSolver
-        >>> RelaxingComponent = ElementComponent.define(
-        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        >>> RelaxingElement = Element.define(
+        ...     'RelaxingElement', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
-        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> problem = compile_system(System(components=[RelaxingElement('a')]))
         >>> stepper = GrunwaldLetnikovSolver(dt=0.001).prepare(problem, np.random.default_rng(0))
         >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
@@ -492,14 +492,14 @@ class L1Solver(ConvolutionSolver):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.fractional import L1Solver
-        >>> RelaxingComponent = ElementComponent.define(
-        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        >>> RelaxingElement = Element.define(
+        ...     'RelaxingElement', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
-        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> problem = compile_system(System(components=[RelaxingElement('a')]))
         >>> stepper = L1Solver(dt=0.001).prepare(problem, np.random.default_rng(0))
         >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43
@@ -537,14 +537,14 @@ class FractionalABMSolver(CaputoSolver):
         >>> import numpy as np
         >>> from skcomplex.core.base import state
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.formalisms.fractional import FractionalABMSolver
-        >>> RelaxingComponent = ElementComponent.define(
-        ...     'RelaxingComponent', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        >>> RelaxingElement = Element.define(
+        ...     'RelaxingElement', states={'x': state(1.0, order=0.5)}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
-        >>> problem = compile_system(System(components=[RelaxingComponent('a')]))
+        >>> problem = compile_system(System(components=[RelaxingElement('a')]))
         >>> stepper = FractionalABMSolver(dt=0.001).prepare(problem, np.random.default_rng(0))
         >>> round(float(stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0]), 2)
         0.43

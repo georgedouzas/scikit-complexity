@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -100,7 +100,7 @@ def mean_activity(s: Symbols, activities: npt.NDArray[np.float64]) -> Expression
     return moment(s.f, 1, activities, normalized=True)
 
 
-class CellsComponent(ElementComponent):
+class CellsElement(Element):
     """Density of a population of cells at one activity class, a member of a distribution over activities.
 
     Args:
@@ -111,8 +111,8 @@ class CellsComponent(ElementComponent):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import CellsComponent
-        >>> CellsComponent.group('tumour', 5, f=0.02).size
+        >>> from skcomplex.models.biology.oncology import CellsElement
+        >>> CellsElement.group('tumour', 5, f=0.02).size
         5
     """
 
@@ -326,9 +326,9 @@ def immune_competition(
     immune_density[int(np.argmin(np.abs(activities - activation)))] = immune
     return System(
         components=[
-            GroupComponent('tumour', element=CellsComponent, size=classes, on='sites', values={'f': tumour_density}),
-            GroupComponent('immune', element=CellsComponent, size=classes, on='sites', values={'f': immune_density}),
-            CellsComponent.group('host', 1, f=1.0),
+            GroupElement('tumour', element=CellsElement, size=classes, on='sites', values={'f': tumour_density}),
+            GroupElement('immune', element=CellsElement, size=classes, on='sites', values={'f': immune_density}),
+            CellsElement.group('host', 1, f=1.0),
         ],
         interactions=[
             TumourGrowthInteraction(

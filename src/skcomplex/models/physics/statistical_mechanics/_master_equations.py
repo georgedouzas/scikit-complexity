@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -41,7 +41,7 @@ def _master_step(  # noqa: PLR0917
     return center + gain - loss
 
 
-class MicrostateComponent(ElementComponent):
+class MicrostateElement(Element):
     """State of a discrete master equation on a ring, with a probability `P` and a potential `U`.
 
     Every step the probability moves to each neighbouring state `B` from a state `A` with the Glauber probability
@@ -65,8 +65,8 @@ class MicrostateComponent(ElementComponent):
             The attempt probability of a move to each neighbour, at most 1/2.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import MicrostateComponent
-        >>> MicrostateComponent('state').w
+        >>> from skcomplex.models.physics.statistical_mechanics import MicrostateElement
+        >>> MicrostateElement('state').w
         0.5
     """
 
@@ -89,7 +89,7 @@ class MicrostateComponent(ElementComponent):
         return [LocalRuleLaw(s.P, Neighborhood.radius(), _master_step, reads=(s.P, s.U))]
 
 
-class ZoneComponent(ElementComponent):
+class ZoneElement(Element):
     """Small zone of a two-phase apparatus that exchanges particles with the rest of it.
 
     Every one of the `Na` particles enters the zone at the rate `k p` and leaves it at the rate `k (1 - p)`, where
@@ -112,8 +112,8 @@ class ZoneComponent(ElementComponent):
             The rate of exchange.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ZoneComponent
-        >>> ZoneComponent('zone').Na
+        >>> from skcomplex.models.physics.statistical_mechanics import ZoneElement
+        >>> ZoneElement('zone').Na
         100.0
     """
 
@@ -139,7 +139,7 @@ class ZoneComponent(ElementComponent):
         ]
 
 
-class OrderParameterComponent(ElementComponent):
+class OrderParameterElement(Element):
     """Order parameter of Landau theory relaxing down its free energy, `dphi/dt = -Gamma dF/dphi`.
 
     The free energy is `F = a (T - Tc) phi^2 / 2 + b phi^4 / 4 - h phi`.
@@ -170,8 +170,8 @@ class OrderParameterComponent(ElementComponent):
             The kinetic coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import OrderParameterComponent
-        >>> OrderParameterComponent('magnet').Tc
+        >>> from skcomplex.models.physics.statistical_mechanics import OrderParameterElement
+        >>> OrderParameterElement('magnet').Tc
         1.0
     """
 
@@ -242,7 +242,7 @@ def discrete_master_equation(
     probability = np.zeros(n_states)
     probability[0] = 1.0
     space = LatticeSpace(n_states)
-    return System(components=[MicrostateComponent.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
+    return System(components=[MicrostateElement.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
 
 
 @register_model(
@@ -285,7 +285,7 @@ def two_phase_zone_exchange(
         >>> two_phase_zone_exchange(5).elements[0].size
         5
     """
-    return System(components=[ZoneComponent.group('zones', n_zones, Na=Na, p=p, k=k)])
+    return System(components=[ZoneElement.group('zones', n_zones, Na=Na, p=p, k=k)])
 
 
 @register_model(
@@ -340,4 +340,4 @@ def landau_relaxation(
         >>> landau_relaxation(T=2.0).elements[0].T
         2.0
     """
-    return System(components=[OrderParameterComponent('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])
+    return System(components=[OrderParameterElement('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])

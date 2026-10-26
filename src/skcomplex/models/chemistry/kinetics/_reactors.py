@@ -8,20 +8,20 @@ from typing import Any
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CatalystPelletComponent = ElementComponent.define(
-    'CatalystPelletComponent',
+CatalystPelletElement = Element.define(
+    'CatalystPelletElement',
     states={'c': state(default=1.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={'h': 0.1, 'k': 10.0, 'K': 20.0},
     laws=lambda s: [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)],
 )
 
 
-class PulsedElectrodeComponent(ElementComponent):
+class PulsedElectrodeElement(Element):
     """Electrode of a stirred electrochemical reactor, charged by a train of current pulses.
 
     In units of the exchange current and of the thermal voltage, the overpotential follows
@@ -63,8 +63,8 @@ class PulsedElectrodeComponent(ElementComponent):
                 The current of a pulse.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import PulsedElectrodeComponent
-        >>> PulsedElectrodeComponent('electrode').period
+        >>> from skcomplex.models.chemistry.kinetics import PulsedElectrodeElement
+        >>> PulsedElectrodeElement('electrode').period
         10.0
     """
 
@@ -142,7 +142,7 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         >>> catalyst_pellet(k=5.0).elements[0].k
         5.0
     """
-    return System(components=[CatalystPelletComponent('pellet', c=c, h=h, k=k, K=K)])
+    return System(components=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)])
 
 
 @register_model(
@@ -205,7 +205,7 @@ def pulsed_electrochemical_reactor(
         >>> pulsed_electrochemical_reactor(width=1.0).elements[0].width
         1.0
     """
-    electrode = PulsedElectrodeComponent(
+    electrode = PulsedElectrodeElement(
         'electrode',
         eta=eta,
         c=c,

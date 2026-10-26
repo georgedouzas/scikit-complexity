@@ -4,21 +4,21 @@
 # License: MIT
 
 from ....core.base import NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, delayed
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 
-ClimateAnomalyComponent = ElementComponent.define(
-    'ClimateAnomalyComponent',
+ClimateAnomalyElement = Element.define(
+    'ClimateAnomalyElement',
     states={'T': state(default=0.0, domain=NumericDomain.REAL)},
     parameters={'lam': 0.5, 'sigma': 0.3},
     laws=lambda s: [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)],
 )
 
-DelayedOscillatorComponent = ElementComponent.define(
-    'DelayedOscillatorComponent',
+DelayedOscillatorElement = Element.define(
+    'DelayedOscillatorElement',
     states={'T': state(default=0.1, domain=NumericDomain.REAL)},
     parameters={'alpha': 0.75, 'delta': 6.0},
     laws=lambda s: [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))],
@@ -56,7 +56,7 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         >>> hasselmann(lam=0.1).elements[0].lam
         0.1
     """
-    return System(components=[ClimateAnomalyComponent('ocean', T=T, lam=lam, sigma=sigma)])
+    return System(components=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)])
 
 
 @register_model(
@@ -92,4 +92,4 @@ def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
         >>> enso(delta=4.0).elements[0].delta
         4.0
     """
-    return System(components=[DelayedOscillatorComponent('pacific', T=T, alpha=alpha, delta=delta)])
+    return System(components=[DelayedOscillatorElement('pacific', T=T, alpha=alpha, delta=delta)])

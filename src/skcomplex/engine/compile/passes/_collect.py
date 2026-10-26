@@ -5,7 +5,7 @@
 
 from typing import cast
 
-from ....core.base import BaseComponent, BaseInteraction
+from ....core.base import BaseElement, BaseInteraction
 from .._census import declared_laws, declared_quantities
 from .._compilation import Compilation
 from .._declarations import Block
@@ -30,6 +30,6 @@ class CollectPass(BasePass):
         compilation.collected = [(spec, declared_laws(spec, component_of(block.node)), block) for spec, block in specs]
         compilation.apart = []
         compilation.quantities = [
-            (spec, declared_quantities(spec, cast('BaseComponent | BaseInteraction', component_of(block.node))))
+            (spec, declared_quantities(spec, cast('BaseElement | BaseInteraction', component_of(block.node))))
             for spec, block in specs
         ]

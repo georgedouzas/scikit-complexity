@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-CapitalStockComponent = ElementComponent.define(
-    'CapitalStockComponent',
+CapitalStockElement = Element.define(
+    'CapitalStockElement',
     states={'K': state(default=100.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'investment_fraction': parameter(default=0.2, domain=NumericDomain.NONNEGATIVE),
@@ -62,7 +62,7 @@ def capital_stock(
         >>> capital_stock(lifetime=20.0).elements[0].lifetime
         20.0
     """
-    economy = CapitalStockComponent(
+    economy = CapitalStockElement(
         'economy',
         K=capital,
         investment_fraction=investment_fraction,

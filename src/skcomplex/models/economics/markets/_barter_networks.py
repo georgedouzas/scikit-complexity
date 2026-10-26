@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import ObservableQuantity, System
@@ -90,7 +90,7 @@ def _trade_network(topology: str, n_agents: int, n_groups: int, shortcuts: int, 
     return graph
 
 
-class BarterTraderComponent(ElementComponent):
+class BarterTraderElement(Element):
     """Trader with a bundle of two goods and the Cobb-Douglas utility `good1 good2`, who records its rate.
 
     Its marginal rate of substitution `good2 / good1` is the price of the first good, in units of the second, at
@@ -113,8 +113,8 @@ class BarterTraderComponent(ElementComponent):
             The number of trading partners the trader can search.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import BarterTraderComponent
-        >>> BarterTraderComponent.group('traders', 4).size
+        >>> from skcomplex.models.economics.markets import BarterTraderElement
+        >>> BarterTraderElement.group('traders', 4).size
         4
     """
 
@@ -275,7 +275,7 @@ def wilhite_trade_networks(
     rng = np.random.default_rng(random_state)
     graph = _trade_network(topology, n_agents, n_groups, shortcuts, rng)
     goods = rng.integers(1, int(endowment) + 1, size=(2, n_agents)).astype(float)
-    traders = BarterTraderComponent.group(
+    traders = BarterTraderElement.group(
         'traders',
         n_agents,
         location=list(range(n_agents)),

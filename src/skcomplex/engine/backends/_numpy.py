@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from typing import ClassVar
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...core.base import DomainKind, ElementKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
 from ...core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.problems import BaseBackend, Draws, Kernel, Lowering, ReductionSchedule, Reference, register_backend
 from ...core.problems._backends import adding_function, assigning_function, concatenating_function, with_reductions
@@ -20,8 +20,8 @@ class NumpyBackend(BaseBackend):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.backends import NumpyBackend
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationComponent
-        >>> compile_system(System(components=[PopulationComponent('a')]), backend=NumpyBackend()).backend
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> compile_system(System(components=[PopulationElement('a')]), backend=NumpyBackend()).backend
         'numpy'
     """
 
@@ -30,7 +30,7 @@ class NumpyBackend(BaseBackend):
         space=set(SpaceKind.registered()),
         laws=set(LawKind.registered()),
         domains=set(DomainKind),
-        components=set(ComponentKind),
+        components=set(ElementKind),
         noise=set(NoiseKind),
         orders=set(OrderKind),
     )

@@ -8,13 +8,13 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
@@ -22,7 +22,7 @@ TUMOUR = 'cells/tumour'
 VESSELS = 'cells/vessels'
 
 
-class TissueComponent(ElementComponent):
+class TissueElement(Element):
     """Tissue in which oxygen and the vascular endothelial growth factor VEGF diffuse and decay.
 
     Both follow `u' = D Δu - lambda u`, and cells add or remove amounts at their sites: vessels supply oxygen, tumour
@@ -51,8 +51,8 @@ class TissueComponent(ElementComponent):
             The decay rate of VEGF.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TissueComponent
-        >>> TissueComponent('tissue').D_vegf
+        >>> from skcomplex.models.biology.oncology import TissueElement
+        >>> TissueElement('tissue').D_vegf
         1.0
     """
 
@@ -80,7 +80,7 @@ class TissueComponent(ElementComponent):
         ]
 
 
-class TumourCellComponent(ElementComponent):
+class TumourCellElement(Element):
     """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
 
     Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
@@ -110,8 +110,8 @@ class TumourCellComponent(ElementComponent):
             The oxygen below which a cell dies.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourCellComponent
-        >>> TumourCellComponent.group('tumour', 3, location=(5, 5)).size
+        >>> from skcomplex.models.biology.oncology import TumourCellElement
+        >>> TumourCellElement.group('tumour', 3, location=(5, 5)).size
         3
     """
 
@@ -166,7 +166,7 @@ class TumourCellComponent(ElementComponent):
             self._divide(agent, model)
 
 
-class VesselComponent(ElementComponent):
+class VesselElement(Element):
     """Segment of a blood vessel, which supplies oxygen to its site every step.
 
     Args:
@@ -177,8 +177,8 @@ class VesselComponent(ElementComponent):
             The oxygen supplied per step.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VesselComponent
-        >>> VesselComponent.group('vessels', 2, location=[(0, 0), (0, 1)]).size
+        >>> from skcomplex.models.biology.oncology import VesselElement
+        >>> VesselElement.group('vessels', 2, location=[(0, 0), (0, 1)]).size
         2
     """
 
@@ -210,7 +210,7 @@ class VesselComponent(ElementComponent):
         model.deposit(OXYGEN, agent.location, agent.supply)
 
 
-class SproutComponent(ElementComponent):
+class SproutElement(Element):
     """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
 
     Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
@@ -231,8 +231,8 @@ class SproutComponent(ElementComponent):
             The VEGF above which the tip moves.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import SproutComponent
-        >>> SproutComponent.group('sprouts', 2, location=(0, 5)).size
+        >>> from skcomplex.models.biology.oncology import SproutElement
+        >>> SproutElement.group('sprouts', 2, location=(0, 5)).size
         2
     """
 
@@ -337,9 +337,9 @@ def tumour_angiogenesis(
     ]
     tips = sorted(int(row) for row in rng.choice(height, size=n_sprouts, replace=False))
     groups = [
-        TumourCellComponent.group('tumour', len(tumour), variable=True, location=tumour),
-        VesselComponent.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
-        SproutComponent.group(
+        TumourCellElement.group('tumour', len(tumour), variable=True, location=tumour),
+        VesselElement.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
+        SproutElement.group(
             'sprouts',
             n_sprouts,
             variable=True,
@@ -347,7 +347,7 @@ def tumour_angiogenesis(
             chemotaxis=chemotaxis,
         ),
     ]
-    tissue = FieldComponent('tissue', TissueComponent, LatticeSpace((width, height), boundary='reflecting'))
+    tissue = FieldElement('tissue', TissueElement, LatticeSpace((width, height), boundary='reflecting'))
     return System(
         components=[
             System('cells', components=groups, space=LatticeSpace((width, height), boundary='fixed')),

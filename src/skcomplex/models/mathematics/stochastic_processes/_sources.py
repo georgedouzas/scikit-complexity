@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EmissionLaw, Symbols, TransitionLaw
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -18,7 +18,7 @@ CHAIN = ((0.9, 0.1), (0.4, 0.6))
 EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 
-class MarkovSourceComponent(ElementComponent):
+class MarkovSourceElement(Element):
     """Source of symbols `0` to `n - 1` that follow a discrete-time Markov chain.
 
     Args:
@@ -35,8 +35,8 @@ class MarkovSourceComponent(ElementComponent):
                 The initial symbol.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import MarkovSourceComponent
-        >>> MarkovSourceComponent('source').transition
+        >>> from skcomplex.models.mathematics.stochastic_processes import MarkovSourceElement
+        >>> MarkovSourceElement('source').transition
         ((0.9, 0.1), (0.4, 0.6))
     """
 
@@ -66,7 +66,7 @@ class MarkovSourceComponent(ElementComponent):
         return [TransitionLaw(s.symbol, self.transition)]
 
 
-class HiddenMarkovSourceComponent(ElementComponent):
+class HiddenMarkovSourceElement(Element):
     """Source of symbols emitted from the states of a hidden Markov chain, one symbol per step.
 
     Args:
@@ -89,8 +89,8 @@ class HiddenMarkovSourceComponent(ElementComponent):
                 The initial symbol.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import HiddenMarkovSourceComponent
-        >>> HiddenMarkovSourceComponent('source').emission
+        >>> from skcomplex.models.mathematics.stochastic_processes import HiddenMarkovSourceElement
+        >>> HiddenMarkovSourceElement('source').emission
         ((0.7, 0.3), (0.2, 0.8))
     """
 
@@ -152,7 +152,7 @@ def markov_source(transition: Matrix = CHAIN, *, symbol: int = 0) -> System:
         >>> markov_source().elements[0].transition
         ((0.9, 0.1), (0.4, 0.6))
     """
-    return System(components=[MarkovSourceComponent('source', symbol=symbol, transition=transition)])
+    return System(components=[MarkovSourceElement('source', symbol=symbol, transition=transition)])
 
 
 @register_model(
@@ -184,4 +184,4 @@ def hidden_markov_source(transition: Matrix = CHAIN, emission: Matrix = EMISSION
         >>> hidden_markov_source().elements[0].transition
         ((0.9, 0.1), (0.4, 0.6))
     """
-    return System(components=[HiddenMarkovSourceComponent('source', transition=transition, emission=emission)])
+    return System(components=[HiddenMarkovSourceElement('source', transition=transition, emission=emission)])

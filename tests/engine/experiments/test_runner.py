@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.experiments import (
@@ -18,8 +18,8 @@ from skcomplex.engine.experiments import (
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.biology.epidemiology import sir
 
-LogisticMapComponent = ElementComponent.define(
-    'LogisticMapComponent',
+LogisticMapElement = Element.define(
+    'LogisticMapElement',
     states={'x': state(default=0.2)},
     parameters={'r': 3.0},
     laws=lambda s: [UpdateLaw(s.x, s.r * s.x * (1 - s.x))],
@@ -78,7 +78,7 @@ def test_replicates_are_independent():
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = System(components=[LogisticMapComponent('map')])
+    system = System(components=[LogisticMapElement('map')])
     rates = np.linspace(2.8, 4.0, 200)
     result = Experiment(system, GridDesign(**{'map.r': rates}), until=400, warmup=301, outputs=['map.x']).run()
     assert len(result.rows) == 200

@@ -6,14 +6,14 @@
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import HeunSolver
 
-IntermittentVariableComponent = ElementComponent.define(
-    'IntermittentVariableComponent',
+IntermittentVariableElement = Element.define(
+    'IntermittentVariableElement',
     states={'x': state(default=1.0, domain=NumericDomain.POSITIVE)},
     parameters={'epsilon': 0.0, 'D': parameter(default=0.5, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [
@@ -65,5 +65,5 @@ def on_off_intermittency(
         >>> on_off_intermittency(5).components[0].size
         5
     """
-    variables = IntermittentVariableComponent.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
+    variables = IntermittentVariableElement.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
     return System(components=[variables])

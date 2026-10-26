@@ -29,7 +29,7 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import GroupComponent
+from ...core.components import GroupElement
 from ...core.laws import Symbols
 from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction, Entry, Getter, Layout, numpy_function
 from ...core.space import LatticeSpace, neighbor_pairs
@@ -90,7 +90,7 @@ def _member_value(value: Any, member: int, size: int) -> Any:  # noqa: ANN401
 def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     """Return the key and the element of every member of a quantum element or group."""
     component = node.component
-    if not isinstance(component, GroupComponent):
+    if not isinstance(component, GroupElement):
         return [(node.path, QuantumView(component))]
     names = component.element.get_argument_names()
     size = node.members or 0
@@ -585,7 +585,7 @@ def _compiled_element(node: Node) -> CompiledElement:
     """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
     component = node.component
     visual = (
-        component.visual if isinstance(component, GroupComponent) and component.visual else node.component_type.visual
+        component.visual if isinstance(component, GroupElement) and component.visual else node.component_type.visual
     )
     parameters = {name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)}
     return CompiledElement(node.path, component, {}, parameters, visual, node.members)
@@ -789,7 +789,7 @@ def contains_quantum(system: System) -> bool:
             Whether any element of the tree is quantum.
     """
     for element in system.elements:
-        kind = element.element if isinstance(element, GroupComponent) else type(element)
+        kind = element.element if isinstance(element, GroupElement) else type(element)
         if is_quantum(kind):
             return True
     return any(contains_quantum(child) for child in system.systems)
@@ -839,7 +839,7 @@ def compile_quantum(
     entries, values, symbols = _parameters(nodes)
     p = np.concatenate(values) if values else np.zeros(0)
     lowering = _Lowering(time, subsystems, dimensions, _arguments_of(entries, symbols), spaces)
-    groups = {node.path: node for node in quantum if isinstance(node.component, GroupComponent)}
+    groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
     laws = _Laws()
     members = _element_laws(quantum, symbols, time, laws)
     for node in nodes:

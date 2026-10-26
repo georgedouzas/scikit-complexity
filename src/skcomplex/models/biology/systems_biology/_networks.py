@@ -11,7 +11,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -39,7 +39,7 @@ def _check_shape(name: str, matrix: Sequence[Sequence[float]], rows: int, column
     raise ValidationError(error_msg)
 
 
-class PhosphorylationLoopComponent(ElementComponent):
+class PhosphorylationLoopElement(Element):
     """Three proteins, each phosphorylated and dephosphorylated by Michaelis-Menten kinetics, that regulate each other.
 
     The states are the unphosphorylated amounts, and each total is conserved. With `u_T = A_T - A`, and so on:
@@ -98,8 +98,8 @@ class PhosphorylationLoopComponent(ElementComponent):
             The total amount of C.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import PhosphorylationLoopComponent
-        >>> PhosphorylationLoopComponent('loop', A=0.5).A
+        >>> from skcomplex.models.biology.systems_biology import PhosphorylationLoopElement
+        >>> PhosphorylationLoopElement('loop', A=0.5).A
         0.5
     """
 
@@ -138,7 +138,7 @@ class PhosphorylationLoopComponent(ElementComponent):
         ]
 
 
-class MetaboliteComponent(ElementComponent):
+class MetaboliteElement(Element):
     """Metabolite or other species of a biochemical system, with a positive concentration.
 
     Args:
@@ -149,8 +149,8 @@ class MetaboliteComponent(ElementComponent):
             The initial concentration.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import MetaboliteComponent
-        >>> MetaboliteComponent('X1', x=2.0).x
+        >>> from skcomplex.models.biology.systems_biology import MetaboliteElement
+        >>> MetaboliteElement('X1', x=2.0).x
         2.0
     """
 
@@ -306,7 +306,7 @@ class SSystemInteraction(BaseInteraction):
         ]
 
 
-class GoodwinStageComponent(ElementComponent):
+class GoodwinStageElement(Element):
     """Stage of the Goodwin loop, an mRNA, an enzyme, or a product, which decays at a constant rate.
 
     Args:
@@ -320,8 +320,8 @@ class GoodwinStageComponent(ElementComponent):
             The degradation rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import GoodwinStageComponent
-        >>> GoodwinStageComponent('mRNA', x=0.1).x
+        >>> from skcomplex.models.biology.systems_biology import GoodwinStageElement
+        >>> GoodwinStageElement('mRNA', x=0.1).x
         0.1
     """
 
@@ -498,7 +498,7 @@ def phosphorylation_oscillator(
         >>> phosphorylation_oscillator(K=0.1).elements[0].K2
         0.1
     """
-    loop = PhosphorylationLoopComponent(
+    loop = PhosphorylationLoopElement(
         'loop',
         A=A,
         B=B,
@@ -584,7 +584,7 @@ def biochemical_systems_theory(
         >>> biochemical_systems_theory(form='gma').interactions[0].gamma
         (2.0, 1.0, 1.0, 1.0)
     """
-    species = [MetaboliteComponent(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
+    species = [MetaboliteElement(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
     paths = [item.label for item in species]
     if form == 's-system':
         rates: BaseInteraction = SSystemInteraction(
@@ -675,7 +675,7 @@ def goodwin_oscillator(
         error_msg = f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {variables} stages.'
         raise ValidationError(error_msg)
     labels = [f'x{index}' for index in range(1, variables + 1)]
-    stages = [GoodwinStageComponent(label, x=float(value), b=b) for label, value in zip(labels, initial, strict=True)]
+    stages = [GoodwinStageElement(label, x=float(value), b=b) for label, value in zip(labels, initial, strict=True)]
     repression = HillRepressionInteraction('repression', repressor=labels[-1], target=labels[0], a=a, K=K, n=n)
     syntheses = [
         SynthesisInteraction(f'synthesis_{target}', source=source, target=target, k=k)

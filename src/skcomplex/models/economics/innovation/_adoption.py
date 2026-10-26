@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -50,7 +50,7 @@ def _seed_network(incomes: Array, classes: Array, shape: tuple[int, int], thresh
     return owners
 
 
-class HouseholdComponent(ElementComponent):
+class HouseholdElement(Element):
     """Household whose income grows every year and that gets a phone when it can afford one and a neighbour has one.
 
     Args:
@@ -73,8 +73,8 @@ class HouseholdComponent(ElementComponent):
             The income from which a household can afford a phone.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import HouseholdComponent
-        >>> HouseholdComponent.group('households', 4, threshold=1.5).size
+        >>> from skcomplex.models.economics.innovation import HouseholdElement
+        >>> HouseholdElement.group('households', 4, threshold=1.5).size
         4
     """
 
@@ -175,7 +175,7 @@ def phone_adoption(
     incomes /= incomes.mean()
     owners = _seed_network(incomes, classes, (width, height), threshold, initial_share)
     locations = [(column, row) for column in range(width) for row in range(height)]
-    households = HouseholdComponent.group(
+    households = HouseholdElement.group(
         'households',
         len(locations),
         location=locations,

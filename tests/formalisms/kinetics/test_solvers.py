@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, parameter, role, state
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
@@ -18,7 +18,7 @@ HORIZON = 2.0
 PARTICLES = (1_000, 10_000, 100_000)
 
 
-class DensityComponent(ElementComponent):
+class DensityElement(Element):
     """Density of particles at one activity value."""
 
     f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
@@ -76,7 +76,7 @@ def _profile():
 def _system(*others):
     """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
     return System(
-        components=[GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()})],
+        components=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
@@ -129,8 +129,8 @@ def test_particles_sample_proliferation_and_destruction():
     """Test that proliferation and destruction change the particle density at the net rate of the equations."""
     system = System(
         components=[
-            GroupComponent('wealth', element=DensityComponent, on='sites', values={'f': _profile()}),
-            GroupComponent('field', element=DensityComponent, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
+            GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()}),
+            GroupElement('field', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
         ],
         interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
         space=LatticeSpace(CLASSES, boundary='fixed'),

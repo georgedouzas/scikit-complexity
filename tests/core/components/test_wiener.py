@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BaseComponent, BaseInteraction, LabelError, RoleError, role
+from skcomplex.core.base import BaseElement, BaseInteraction, LabelError, RoleError, role
 from skcomplex.core.components import WienerProcess
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.system import System
@@ -11,7 +11,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 
-from ...conftest import HoldingComponent, _correlated
+from ...conftest import HoldingElement, _correlated
 
 
 class ShockInteraction(BaseInteraction):
@@ -28,7 +28,7 @@ class ShockInteraction(BaseInteraction):
 def _shocked(first, second):
     """Return two holdings, each shocked by an interaction that binds its own Wiener processes."""
     return System(
-        components=[HoldingComponent('a'), HoldingComponent('b')],
+        components=[HoldingElement('a'), HoldingElement('b')],
         interactions=[
             ShockInteraction('first', target='a', noise=first),
             ShockInteraction('second', target='b', noise=second),
@@ -43,7 +43,7 @@ def test_correlated_noise():
     trajectory = simulation.run(until=5_000).trajectory_
     increments = np.diff(np.stack([trajectory.values('a.n'), trajectory.values('b.n')]), axis=1)
     np.testing.assert_allclose(np.cov(increments), 0.5 * np.asarray(covariance), atol=0.05)
-    assert not issubclass(WienerProcess, BaseComponent)
+    assert not issubclass(WienerProcess, BaseElement)
 
 
 def test_interactions_share_processes_of_one_label():

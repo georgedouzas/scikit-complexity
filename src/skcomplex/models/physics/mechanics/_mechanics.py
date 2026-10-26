@@ -7,12 +7,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import BaseInteraction, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent
+from ....formalisms.particles import ParticleElement
 from ..realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
 
 GRAVITY = 9.81
@@ -67,7 +67,7 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
     if drag:
         interactions.append(LinearDragInteraction('drag', target='ball', gamma=drag))
     return System(
-        components=[ParticleComponent('ball', x=[0.0, 0.0], v=velocity, m=mass)],
+        components=[ParticleElement('ball', x=[0.0, 0.0], v=velocity, m=mass)],
         interactions=interactions,
         space=ContinuousSpace(n_dim=2),
     )
@@ -118,14 +118,14 @@ def harmonic_oscillator(
     if damping:
         interactions.append(LinearDragInteraction('damping', target='mass', gamma=damping))
     return System(
-        components=[ParticleComponent('mass', x=x, v=v, m=mass)],
+        components=[ParticleElement('mass', x=x, v=v, m=mass)],
         interactions=interactions,
         space=ContinuousSpace(n_dim=1),
     )
 
 
-PendulumComponent = ElementComponent.define(
-    'PendulumComponent',
+PendulumElement = Element.define(
+    'PendulumElement',
     states={'theta': state(default=0.5, domain=NumericDomain.ANGLE, order=2)},
     parameters={
         'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -136,8 +136,8 @@ PendulumComponent = ElementComponent.define(
     visual=VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True}),
 )
 
-OscillatorComponent = ElementComponent.define(
-    'OscillatorComponent',
+OscillatorElement = Element.define(
+    'OscillatorElement',
     states={'x': state(default=1.0, order=2)},
     parameters={
         'm': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -191,7 +191,7 @@ def pendulum(
         >>> pendulum(theta=0.1).elements[0].theta_d1
         0.0
     """
-    return System(components=[PendulumComponent('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
+    return System(components=[PendulumElement('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
 
 
 @register_model(
@@ -243,11 +243,11 @@ def driven_damped_oscillator(
         >>> driven_damped_oscillator(F=0.5).elements[0].F
         0.5
     """
-    return System(components=[OscillatorComponent('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
+    return System(components=[OscillatorElement('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
 
 
-BouncingBallComponent = ElementComponent.define(
-    'BouncingBallComponent',
+BouncingBallElement = Element.define(
+    'BouncingBallElement',
     states={'h': state(default=1.0, order=2)},
     parameters={'g': 9.81, 'e': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
@@ -256,8 +256,8 @@ BouncingBallComponent = ElementComponent.define(
     ],
 )
 
-HangingBallComponent = ElementComponent.define(
-    'HangingBallComponent',
+HangingBallElement = Element.define(
+    'HangingBallElement',
     states={'x': state(default=0.0, order=2)},
     parameters={'rest': 0.0, 'g': 9.81, 'length': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [RateLaw(s.x, -s.g / s.length * (s.x - s.rest))],
@@ -279,8 +279,8 @@ ElasticCollisionInteraction = BaseInteraction.define(
     ],
 )
 
-DiscBilliardComponent = ElementComponent.define(
-    'DiscBilliardComponent',
+DiscBilliardElement = Element.define(
+    'DiscBilliardElement',
     states={'x': 0.3, 'y': 0.0, 'vx': 0.4, 'vy': 1.0},
     parameters={'radius': parameter(default=1.0, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [
@@ -336,7 +336,7 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """
-    return System(components=[BouncingBallComponent('ball', h=h, h_d1=v, g=g, e=e)])
+    return System(components=[BouncingBallElement('ball', h=h, h_d1=v, g=g, e=e)])
 
 
 @register_model(
@@ -390,7 +390,7 @@ def newtons_cradle(
     """
     spacing = diameter + gap
     elements = [
-        HangingBallComponent(
+        HangingBallElement(
             f'ball_{index}',
             x=index * spacing,
             x_d1=speed if index == 0 else 0.0,
@@ -455,4 +455,4 @@ def circular_billiard(
         >>> circular_billiard(radius=2.0).elements[0].radius
         2.0
     """
-    return System(components=[DiscBilliardComponent('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)])
+    return System(components=[DiscBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)])

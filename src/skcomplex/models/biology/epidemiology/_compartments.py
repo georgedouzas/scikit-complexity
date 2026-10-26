@@ -6,7 +6,7 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, RateLaw, Symbols
 
 
@@ -17,7 +17,7 @@ def _transfer(source: Expression, destination: Expression, rate: Expression, *, 
     return [RateLaw(source, -rate), RateLaw(destination, rate)]
 
 
-class CompartmentComponent(ElementComponent):
+class CompartmentElement(Element):
     """Group of individuals in one epidemiological state, such as susceptible, infected, or recovered.
 
     Args:
@@ -28,8 +28,8 @@ class CompartmentComponent(ElementComponent):
             The initial number of individuals.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import CompartmentComponent
-        >>> CompartmentComponent('S', n=990).n
+        >>> from skcomplex.models.biology.epidemiology import CompartmentElement
+        >>> CompartmentElement('S', n=990).n
         990
     """
 

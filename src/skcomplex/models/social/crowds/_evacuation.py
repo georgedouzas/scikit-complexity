@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -217,7 +217,7 @@ def mean_speed(s: Symbols, rooms: int, speeds: int) -> Expression:
     return moment(s.f, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-class PedestriansComponent(ElementComponent):
+class PedestriansElement(Element):
     """Density of pedestrians at one site of a crowd, a pair of a room and a speed class.
 
     Args:
@@ -228,8 +228,8 @@ class PedestriansComponent(ElementComponent):
             The initial density.
 
     Examples:
-        >>> from skcomplex.models.social.crowds import PedestriansComponent
-        >>> PedestriansComponent.group('signs', 1, f=1.0).prepare().size_
+        >>> from skcomplex.models.social.crowds import PedestriansElement
+        >>> PedestriansElement.group('signs', 1, f=1.0).prepare().size_
         1
     """
 
@@ -443,14 +443,14 @@ def evacuation(
     crowd_space = LatticeSpace((rooms + 1, speeds), boundary='fixed')
     return System(
         components=[
-            GroupComponent(
+            GroupElement(
                 'crowd',
-                element=PedestriansComponent,
+                element=PedestriansElement,
                 on='sites',
                 space=crowd_space,
                 values={'f': initial.ravel()},
             ),
-            PedestriansComponent.group('signs', 1, f=1.0),
+            PedestriansElement.group('signs', 1, f=1.0),
         ],
         interactions=[
             WalkingInteraction(

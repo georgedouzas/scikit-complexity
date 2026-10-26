@@ -9,7 +9,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, ro
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
-from ._populations import LogisticGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
+from ._populations import LogisticGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
 WEB_GROWTH = {'frogs': (1.0, 100.0), 'mice': (1.2, 100.0)}
@@ -203,7 +203,7 @@ def competition(
         0.2
     """
     return System(
-        components=[PopulationComponent('first', n=first), PopulationComponent('second', n=second)],
+        components=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
         interactions=[
             CompetitionInteraction(
                 'competition',
@@ -281,7 +281,7 @@ def mutualism(
         ['growth_first', 'growth_second', 'mutualism']
     """
     return System(
-        components=[PopulationComponent('first', n=first), PopulationComponent('second', n=second)],
+        components=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
         interactions=[
             LogisticGrowthInteraction('growth_first', target='first', r=r1, K=K1),
             LogisticGrowthInteraction('growth_second', target='second', r=r2, K=K2),
@@ -344,6 +344,6 @@ def food_webs(
         for predator, prey, a, b in links
     ]
     return System(
-        components=[PopulationComponent(name, n=n) for name, n in populations.items()],
+        components=[PopulationElement(name, n=n) for name, n in populations.items()],
         interactions=interactions,
     )

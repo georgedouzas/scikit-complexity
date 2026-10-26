@@ -6,14 +6,14 @@
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
 
-class SaverComponent(ElementComponent):
+class SaverElement(Element):
     """Agent of the kinetic wealth exchange models, whose wealth changes only in pairwise trades.
 
     Args:
@@ -24,10 +24,10 @@ class SaverComponent(ElementComponent):
             The initial wealth, negative down to the debt limit.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import SaverComponent
-        >>> group = SaverComponent.group('savers', 10, wealth=2.0)
+        >>> from skcomplex.models.economics.econophysics import SaverElement
+        >>> group = SaverElement.group('savers', 10, wealth=2.0)
         >>> group.label, group.element.__name__, group.size
-        ('savers', 'SaverComponent', 10)
+        ('savers', 'SaverElement', 10)
     """
 
     wealth: float = state(default=1.0, domain=NumericDomain.REAL)
@@ -218,6 +218,6 @@ def kinetic_wealth_exchange(
         else DebtExchangeInteraction('trades', traders='traders', debt=debt, amount=amount)
     )
     return System(
-        components=[SaverComponent.group('traders', n_agents, wealth=wealth)],
+        components=[SaverElement.group('traders', n_agents, wealth=wealth)],
         interactions=[trades],
     )

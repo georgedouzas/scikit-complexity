@@ -12,12 +12,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, derivative
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.particles import ParticleComponent
+from ....formalisms.particles import ParticleElement
 from ..realizations.particles import GravityInteraction
 
 FIGURE_EIGHT = {
@@ -46,8 +46,8 @@ def _primaries(mu: float, **_: float) -> list[list[float]]:
     return [[-mu, 0.0], [1 - mu, 0.0]]
 
 
-RotatingFrameBodyComponent = ElementComponent.define(
-    'RotatingFrameBodyComponent',
+RotatingFrameBodyElement = Element.define(
+    'RotatingFrameBodyElement',
     states={'x': state(default=0.5, order=2), 'y': state(default=0.0, order=2)},
     parameters={'mu': parameter(default=0.01215, domain=NumericDomain.POSITIVE)},
     laws=lambda s: [
@@ -118,8 +118,8 @@ def two_body_orbit(
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
         components=[
-            ParticleComponent('star', m=mass),
-            ParticleComponent('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6),
+            ParticleElement('star', m=mass),
+            ParticleElement('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6),
         ],
         interactions=[GravityInteraction('gravity', first='star', second='planet', G=G)],
         space=ContinuousSpace(n_dim=2),
@@ -182,7 +182,7 @@ def n_body(
     velocities = configuration['velocities'] if velocities is None else velocities
     G = configuration['G'] if G is None else G
     bodies = [
-        ParticleComponent(f'body_{index}', x=list(position), v=list(velocity), m=mass)
+        ParticleElement(f'body_{index}', x=list(position), v=list(velocity), m=mass)
         for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
     ]
     attractions = [
@@ -243,11 +243,11 @@ def restricted_three_body(
         >>> restricted_three_body(mu=0.1).elements[0].mu
         0.1
     """
-    return System(components=[RotatingFrameBodyComponent('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
+    return System(components=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
 
 
-SitnikovBodyComponent = ElementComponent.define(
-    'SitnikovBodyComponent',
+SitnikovBodyElement = Element.define(
+    'SitnikovBodyElement',
     states={'z': state(default=0.5, order=2)},
     parameters={'e': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))],
@@ -287,4 +287,4 @@ def sitnikov(z: float = 0.5, vz: float = 0.0, *, e: float = 0.0) -> System:
         >>> sitnikov(e=0.1).elements[0].e
         0.1
     """
-    return System(components=[SitnikovBodyComponent('body', z=z, z_d1=vz, e=e)])
+    return System(components=[SitnikovBodyElement('body', z=z, z_d1=vz, e=e)])

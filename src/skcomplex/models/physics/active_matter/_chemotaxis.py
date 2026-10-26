@@ -8,15 +8,15 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, divergence, gradient, laplacian
+from ....formalisms.fields import FieldElement, divergence, gradient, laplacian
 
-ChemotaxisComponent = ElementComponent.define(
-    'ChemotaxisComponent',
+ChemotaxisElement = Element.define(
+    'ChemotaxisElement',
     states={'rho': 1.0, 'c': 1.0},
     parameters={
         'D': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -101,4 +101,4 @@ def keller_segel(
         'k': k,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[FieldComponent('colony', ChemotaxisComponent, space, values=values)])
+    return System(components=[FieldElement('colony', ChemotaxisElement, space, values=values)])

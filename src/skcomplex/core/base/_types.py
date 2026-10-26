@@ -40,7 +40,7 @@ def vocabulary() -> dict[str, tuple['StrEnum | Term', ...]]:
     return {
         'time': tuple(TimeKind),
         'space': SpaceKind.registered(),
-        'components': tuple(ComponentKind),
+        'components': tuple(ElementKind),
         'bindings': tuple(Binding),
         'laws': LawKind.registered(),
         'domains': tuple(DomainKind),
@@ -171,7 +171,7 @@ class TimeKind(StrEnum):
     STATIC = 'static'
 
 
-class ComponentKind(StrEnum):
+class ElementKind(StrEnum):
     """Kind of component that carries state."""
 
     ELEMENT = 'element'
@@ -443,7 +443,7 @@ class Supports:
     space: AbstractSet[SpaceKind] = field(default_factory=frozenset)
     laws: AbstractSet[LawKind] = field(default_factory=frozenset)
     domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
-    components: AbstractSet[ComponentKind] = field(default_factory=frozenset)
+    components: AbstractSet[ElementKind] = field(default_factory=frozenset)
     noise: AbstractSet[NoiseKind] = field(default_factory=frozenset)
     orders: AbstractSet[OrderKind] = field(default_factory=frozenset)
 
@@ -1315,10 +1315,10 @@ def state(
 
     Examples:
         >>> from skcomplex.core.base import NumericDomain, state
-        >>> from skcomplex.core.components import ElementComponent
-        >>> class PopulationComponent(ElementComponent):
+        >>> from skcomplex.core.components import Element
+        >>> class PopulationElement(Element):
         ...     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
-        >>> PopulationComponent('rabbits', n=40).n
+        >>> PopulationElement('rabbits', n=40).n
         40
     """
     order = _normalized_order(order)
@@ -1424,10 +1424,10 @@ def parameter(
         ...     weights: list[float] = parameter(per='inputs')
         >>> RegulationInteraction('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
         [1.0, -1.0]
-        >>> from skcomplex.core.components import ElementComponent
-        >>> class FisheryComponent(ElementComponent):
+        >>> from skcomplex.core.components import Element
+        >>> class FisheryElement(Element):
         ...     effort: float = parameter(0.5, adaptive=True, bounds=(0.0, 1.0))
-        >>> FisheryComponent('fishery').effort
+        >>> FisheryElement('fishery').effort
         0.5
     """
     if bounds is not None:
@@ -1514,9 +1514,9 @@ def declared_fields(component: Any) -> dict[str, Any]:
 
     Examples:
         >>> from skcomplex.core.base import declared_fields, state
-        >>> class PendulumComponent:
+        >>> class PendulumElement:
         ...     theta = state(0.1, order=2)
-        >>> list(declared_fields(PendulumComponent))
+        >>> list(declared_fields(PendulumElement))
         ['theta', 'theta_d1']
     """
     cls = component if isinstance(component, type) else type(component)

@@ -6,13 +6,13 @@ from skcomplex.core.base import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
-from .conftest import PersonComponent, ProgressionInteraction
+from .conftest import PersonElement, ProgressionInteraction
 
 
 def test_checked_mode_catches_values_outside_alphabet():
     """Test that checked mode names the state when a law leaves the alphabet."""
     system = System(
-        components=[PersonComponent('ann', health='recovered')],
+        components=[PersonElement('ann', health='recovered')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health .*categorical'):

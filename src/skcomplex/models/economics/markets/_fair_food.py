@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -17,7 +17,7 @@ from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, R
 from ..realizations._learning import logit_choice
 
 
-class ConsumerComponent(ElementComponent):
+class ConsumerElement(Element):
     """Consumer who buys fair-trade or regular food by a logit choice on the utility of each option.
 
     The utility of fair food is `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`,
@@ -53,8 +53,8 @@ class ConsumerComponent(ElementComponent):
             The intensity of the logit choice.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ConsumerComponent
-        >>> ConsumerComponent.group('consumers', 4, ethics=0.5).size
+        >>> from skcomplex.models.economics.markets import ConsumerElement
+        >>> ConsumerElement.group('consumers', 4, ethics=0.5).size
         4
     """
 
@@ -172,7 +172,7 @@ def fair_food(
     """
     rng = np.random.default_rng(random_state)
     size = width * height
-    consumers = ConsumerComponent.group(
+    consumers = ConsumerElement.group(
         'consumers',
         size,
         location=[(x, y) for x in range(width) for y in range(height)],

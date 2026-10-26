@@ -6,15 +6,15 @@
 import numpy as np
 
 from ....core.base import NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, advection, laplacian
+from ....formalisms.fields import FieldElement, advection, laplacian
 
-ArbitrageDensityComponent = ElementComponent.define(
-    'ArbitrageDensityComponent',
+ArbitrageDensityElement = Element.define(
+    'ArbitrageDensityElement',
     states={'rho': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={
         'D': parameter(default=0.5, domain=NumericDomain.POSITIVE),
@@ -87,5 +87,5 @@ def arbitrage_traders(
     rho = np.exp(-(positions**2)) / np.sqrt(np.pi)
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
-    market = FieldComponent('market', ArbitrageDensityComponent, line, values=values)
+    market = FieldElement('market', ArbitrageDensityElement, line, values=values)
     return System(components=[market])

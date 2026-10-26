@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class NeutralSpeciesComponent(ElementComponent):
+class NeutralSpeciesElement(Element):
     """Species whose individuals are born and die at rates that do not depend on the species, of neutral theory.
 
     Births occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and deaths at the rate `d0 + d1 n`,
@@ -36,8 +36,8 @@ class NeutralSpeciesComponent(ElementComponent):
             The per capita death rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import NeutralSpeciesComponent
-        >>> NeutralSpeciesComponent.group('trees', 50).size
+        >>> from skcomplex.models.biology.ecology import NeutralSpeciesElement
+        >>> NeutralSpeciesElement.group('trees', 50).size
         50
     """
 
@@ -113,4 +113,4 @@ def neutral_macroecology(
         >>> neutral_macroecology(20).elements[0].size
         20
     """
-    return System(components=[NeutralSpeciesComponent.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])
+    return System(components=[NeutralSpeciesElement.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])

@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.base import BaseDomain, BaseLaw, DomainKind, ValidationError, VariableKind, declarations_of
-from ...core.components import ElementComponent, GroupComponent
+from ...core.components import Element, GroupElement
 from ...core.laws import Symbols
 from ._laws import LocalOperator, Operator, sparse_matrix
 
@@ -53,9 +53,7 @@ def is_quantum(element_type: type) -> bool:
             Whether a state of the type lies in a Hilbert space.
     """
     return (
-        isinstance(element_type, type)
-        and issubclass(element_type, ElementComponent)
-        and hilbert_state(element_type) is not None
+        isinstance(element_type, type) and issubclass(element_type, Element) and hilbert_state(element_type) is not None
     )
 
 
@@ -290,12 +288,12 @@ class QuantumView:
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import QubitComponent
-        >>> QuantumView(QubitComponent('q', initial='down')).initial_vector().tolist()
+        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
+        >>> QuantumView(QubitElement('q', initial='down')).initial_vector().tolist()
         [0j, (1+0j)]
     """
 
-    element: ElementComponent
+    element: Element
 
     @property
     def state(self) -> str:
@@ -419,7 +417,7 @@ class QuantumView:
         return self.element.laws(s)
 
 
-def view_of(component: ElementComponent | GroupComponent) -> QuantumView:
+def view_of(component: Element | GroupElement) -> QuantumView:
     """Return the quantum view of an element, or of the first member of a group.
 
     Args:
@@ -430,7 +428,7 @@ def view_of(component: ElementComponent | GroupComponent) -> QuantumView:
         view:
             The view, from whose space the display and the local operators of the component are read.
     """
-    if not isinstance(component, GroupComponent):
+    if not isinstance(component, GroupElement):
         return QuantumView(component)
     values = {
         name: value if isinstance(value, str) or np.ndim(value) == 0 or len(value) != component.size else value[0]

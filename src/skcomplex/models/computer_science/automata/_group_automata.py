@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, Totalistic
 from ....core.space import LatticeSpace, Memory, Neighborhood
 from ....core.system import ObservableQuantity, System
@@ -46,7 +46,7 @@ def _mean_observables(system: System) -> list[ObservableQuantity]:
     return [ObservableQuantity('mean', group='cells', variable='value')]
 
 
-class MajorityCellComponent(ElementComponent):
+class MajorityCellElement(Element):
     """Cell of an automaton on a group that takes the value held by the majority of its memory set.
 
     The memory set starts with the identity, the cell itself. Cells on the boundary of a ball count only their
@@ -66,8 +66,8 @@ class MajorityCellComponent(ElementComponent):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import MajorityCellComponent
-        >>> MajorityCellComponent('cell').memory.elements
+        >>> from skcomplex.models.computer_science.automata import MajorityCellElement
+        >>> MajorityCellElement('cell').memory.elements
         ('1', 'a', 'a^-1')
     """
 
@@ -97,7 +97,7 @@ class MajorityCellComponent(ElementComponent):
         return [LocalRuleLaw(s.alive, self.memory, _majority)]
 
 
-class ParityCellComponent(ElementComponent):
+class ParityCellElement(Element):
     """Cell of an automaton on a group that takes the sum modulo 2 of its memory set, a linear rule over `GF(2)`.
 
     Args:
@@ -114,8 +114,8 @@ class ParityCellComponent(ElementComponent):
                 The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import ParityCellComponent
-        >>> len(ParityCellComponent('cell').memory.elements)
+        >>> from skcomplex.models.computer_science.automata import ParityCellElement
+        >>> len(ParityCellElement('cell').memory.elements)
         3
     """
 
@@ -156,7 +156,7 @@ def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> A
     return (left + right - 2 * center) % modulus
 
 
-class LaplacianCellComponent(ElementComponent):
+class LaplacianCellElement(Element):
     """Cell of the discrete Laplacian on the cyclic group of a ring over the field of a prime number of elements.
 
     Args:
@@ -170,8 +170,8 @@ class LaplacianCellComponent(ElementComponent):
             The prime size of the field.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import LaplacianCellComponent
-        >>> LaplacianCellComponent('cell').modulus
+        >>> from skcomplex.models.computer_science.automata import LaplacianCellElement
+        >>> LaplacianCellElement('cell').modulus
         3
     """
 
@@ -199,7 +199,7 @@ def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> 
     return np.where(blocked, center, flipped)
 
 
-class GoldenMeanCellComponent(ElementComponent):
+class GoldenMeanCellElement(Element):
     """Cell of a Markov chain on the golden mean shift, the configurations of a ring without two adjacent ones.
 
     Every step visits the cells in a random order, and each proposes to flip, which it does unless a one would sit
@@ -213,8 +213,8 @@ class GoldenMeanCellComponent(ElementComponent):
             The initial value, 0 or 1.
 
     Examples:
-        >>> from skcomplex.models.computer_science.automata import GoldenMeanCellComponent
-        >>> GoldenMeanCellComponent('cell').alive
+        >>> from skcomplex.models.computer_science.automata import GoldenMeanCellElement
+        >>> GoldenMeanCellElement('cell').alive
         0
     """
 
@@ -244,7 +244,7 @@ def _majority_system(
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
     cells = _random_cells(space.prepare().size_, density, random_state)
-    return System(components=[MajorityCellComponent.lattice('cells', space, alive=cells, memory=memory)])
+    return System(components=[MajorityCellElement.lattice('cells', space, alive=cells, memory=memory)])
 
 
 @register_model(
@@ -332,7 +332,7 @@ def lamplighter_automaton(
     """
     space = CayleySpace(lamplighter(), ball=radius)
     cells = _random_cells(space.prepare().size_, density, random_state)
-    return System(components=[ParityCellComponent.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
+    return System(components=[ParityCellElement.lattice('cells', space, alive=cells, memory=LAMPLIGHTER_MEMORY)])
 
 
 @register_model(
@@ -461,7 +461,7 @@ def linear_ring_automaton(
     values = np.zeros(size)
     values[size // 2] = 1.0
     return System(
-        components=[LaplacianCellComponent.lattice('cells', LatticeSpace(size), value=values, modulus=modulus)],
+        components=[LaplacianCellElement.lattice('cells', LatticeSpace(size), value=values, modulus=modulus)],
     )
 
 
@@ -492,7 +492,7 @@ def subshifts(size: int = 200) -> System:
         >>> subshifts(10).elements[0].size
         10
     """
-    return System(components=[GoldenMeanCellComponent.lattice('cells', LatticeSpace(size))])
+    return System(components=[GoldenMeanCellElement.lattice('cells', LatticeSpace(size))])
 
 
 @register_model(

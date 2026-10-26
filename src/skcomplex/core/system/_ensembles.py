@@ -10,18 +10,18 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import Trait, ValidationError, has_trait
-from ..components import ElementComponent, GroupComponent, probe_laws
+from ..components import Element, GroupElement, probe_laws
 from ._systems import System
 
 
-def _has_agent_laws(element: ElementComponent) -> bool:
+def _has_agent_laws(element: Element) -> bool:
     """Check whether the laws of an element make it an agent."""
     return any(has_trait(law, Trait.AGENT) for law in probe_laws(element) or [])
 
 
 def _check_plain(system: System) -> None:
     """Raise an error unless a system holds single elements alone."""
-    plain = all(isinstance(item, ElementComponent) and not _has_agent_laws(item) for item in system.elements)
+    plain = all(isinstance(item, Element) and not _has_agent_laws(item) for item in system.elements)
     if system.interactions or system.systems or not plain:
         error_msg = (
             f'Only systems of plain single elements replicate, but {system.label!r} has interactions, child systems, '
@@ -85,12 +85,12 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
         >>> ensemble = replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
         >>> group = ensemble.elements[0]
         >>> group.label, group.element.__name__, group.size
-        ('map', 'LogisticMapComponent', 4)
+        ('map', 'LogisticMapElement', 4)
     """
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)
     groups = [
-        GroupComponent(
+        GroupElement(
             element.label,
             element=type(element),
             size=size,

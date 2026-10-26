@@ -42,7 +42,7 @@ def _interaction_declarations(kind: type['BaseInteraction']) -> dict[str, Variab
     if states:
         error_msg = (
             f'{kind.__name__} declares the states {", ".join(states)}, but interactions hold no state. Put state on '
-            'couplings in a group on the edges of a network space, `GroupComponent(..., on="edges")`.'
+            'couplings in a group on the edges of a network space, `GroupElement(..., on="edges")`.'
         )
         raise ValidationError(error_msg)
     return declarations
@@ -174,8 +174,8 @@ class BaseInteraction(BaseEstimator):
                 The type neither declares the name nor takes it as a setting with a default.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> PopulationComponent.get_default('n')
+            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> PopulationElement.get_default('n')
             1.0
         """
         return _get_default(cls, BaseInteraction, name)
@@ -207,8 +207,8 @@ class BaseInteraction(BaseEstimator):
                 A mapping from argument name to value, in sorted order.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> PopulationComponent('rabbits', n=40).get_params()['n']
+            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> PopulationElement('rabbits', n=40).get_params()['n']
             40
         """
         return _get_params(self, BaseInteraction, deep=deep)

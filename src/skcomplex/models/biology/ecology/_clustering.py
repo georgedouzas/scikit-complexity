@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -27,7 +27,7 @@ def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     return pairs
 
 
-class PatchComponent(ElementComponent):
+class PatchElement(Element):
     """Patch of space whose organisms divide and die at the same rate, so their number makes a symmetric random walk.
 
     Every organism divides at the rate `alpha` and dies at the rate `alpha`, and an empty patch stays empty without
@@ -44,8 +44,8 @@ class PatchComponent(ElementComponent):
             The rate at which an organism divides, equal to the rate at which it dies.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PatchComponent
-        >>> PatchComponent('patch', n=5.0).alpha
+        >>> from skcomplex.models.biology.ecology import PatchElement
+        >>> PatchElement('patch', n=5.0).alpha
         1.0
     """
 
@@ -171,7 +171,7 @@ def neutral_clustering(
         8
     """
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)
-    patches = PatchComponent.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
+    patches = PatchElement.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:

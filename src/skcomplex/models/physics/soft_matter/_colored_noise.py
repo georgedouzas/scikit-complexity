@@ -9,14 +9,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 
-ColoredNoiseParticleComponent = ElementComponent.define(
-    'ColoredNoiseParticleComponent',
+ColoredNoiseParticleElement = Element.define(
+    'ColoredNoiseParticleElement',
     states={'v': 0.0, 'xi': 0.0},
     parameters={
         'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -78,5 +78,5 @@ def colored_noise_langevin(
         0.5
     """
     noise = np.random.default_rng(random_state).normal(0.0, math.sqrt(D / tau), n_particles)
-    particles = ColoredNoiseParticleComponent.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
+    particles = ColoredNoiseParticleElement.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
     return System(components=[particles])

@@ -28,7 +28,7 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import ElementComponent, GroupComponent, WienerProcess
+from ...core.components import Element, GroupElement, WienerProcess
 from ...core.laws import Symbols
 from ...core.problems import Entry, Reference, Source
 from ...core.space import NetworkSpace
@@ -85,7 +85,7 @@ def check_symbol_names(blocks: dict[str, 'Block']) -> None:
 
 def is_interaction(node: Node) -> bool:
     """Check whether a node is an interaction."""
-    return not isinstance(node.component, ElementComponent | GroupComponent)
+    return not isinstance(node.component, Element | GroupElement)
 
 
 def member_count(blocks: list['Block']) -> int:
@@ -252,7 +252,7 @@ class Declarations:
     def _declare_topology(self, block: Block) -> None:
         """Add the activity of every row of a capacity group, and the ends of every edge of a group on edges."""
         node = block.node
-        group = cast('GroupComponent', node.component)
+        group = cast('GroupElement', node.component)
         rows, active = node.members or 0, node.active or 0
         self._declare_hidden(block, ACTIVE, (np.arange(rows) < active).astype(float))
         if group.on != 'edges':

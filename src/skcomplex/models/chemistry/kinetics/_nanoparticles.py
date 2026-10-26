@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ._reactions import BindingInteraction, DissociationInteraction, SpeciesComponent
+from ._reactions import BindingInteraction, DissociationInteraction, SpeciesElement
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9
@@ -78,12 +78,12 @@ def nanoparticle_corona(
         >>> round(nanoparticle_corona().interactions[0].k, 7)
         0.0006144
     """
-    elements = [SpeciesComponent('nanoparticle', n=nanoparticle)]
+    elements = [SpeciesElement('nanoparticle', n=nanoparticle)]
     interactions: list[BindingInteraction | DissociationInteraction] = []
     rows = zip(PROTEINS, proteins, corona, protein_radii, association, dissociation, strict=True)
     for name, free, bound, protein_radius, alpha, delta in rows:
         complex_ = f'{name}_corona'
-        elements += [SpeciesComponent(name, n=free), SpeciesComponent(complex_, n=bound)]
+        elements += [SpeciesElement(name, n=free), SpeciesElement(complex_, n=bound)]
         k = _count_binding_sites(radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
         interactions += [
             BindingInteraction(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),

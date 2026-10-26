@@ -4,15 +4,15 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Sink, Source, TransferLaw, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 INFLOW_START = 5.0
 
-TubComponent = ElementComponent.define(
-    'TubComponent',
+TubElement = Element.define(
+    'TubElement',
     states={'water': state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')},
     parameters={
         'inflow': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
@@ -24,8 +24,8 @@ TubComponent = ElementComponent.define(
     ],
 )
 
-StageComponent = ElementComponent.define(
-    'StageComponent',
+StageElement = Element.define(
+    'StageElement',
     states={'m': state(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     parameters={'feed': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [RateLaw(s.m, s.feed)],
@@ -71,7 +71,7 @@ def bathtub(water: float = 50.0, *, inflow: float = 5.0, outflow: float = 5.0) -
         >>> bathtub(water=20.0).elements[0].water
         20.0
     """
-    return System(components=[TubComponent('tub', water=water, inflow=inflow, outflow=outflow)])
+    return System(components=[TubElement('tub', water=water, inflow=inflow, outflow=outflow)])
 
 
 @register_model(
@@ -119,9 +119,7 @@ def cascade_classifier(
         8
     """
     entry = (n_stages + 1) // 2 if feed_stage is None else feed_stage
-    stages = [
-        StageComponent(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)
-    ]
+    stages = [StageElement(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)]
     labels = ['fine', *(stage.label for stage in stages), 'coarse']
     interactions = [
         PassageInteraction(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
@@ -130,4 +128,4 @@ def cascade_classifier(
         PassageInteraction(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
         for index in range(1, n_stages + 1)
     ]
-    return System(components=[StageComponent('fine'), *stages, StageComponent('coarse')], interactions=interactions)
+    return System(components=[StageElement('fine'), *stages, StageElement('coarse')], interactions=interactions)

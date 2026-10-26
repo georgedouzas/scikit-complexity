@@ -17,7 +17,7 @@ from ...core.base import (
     NUMERIC_DOMAINS,
     BackendError,
     BaseInteraction,
-    ComponentKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -38,7 +38,7 @@ from ...core.space import ContinuousSpace
 from ...core.system import System
 from ...engine.compile import SOLVERS, compile_system
 from ...engine.solvers import ExternalSolver, step_count
-from ._components import ParticleComponent
+from ._components import ParticleElement
 from ._interactions import PairPotentialInteraction
 from ._lepton import lepton_expression
 
@@ -139,7 +139,7 @@ def _check_elements(problem: Problem) -> list[str]:
     unsupported = []
     for element in problem.elements:
         element_type = element.element.element if element.members is not None else type(element.element)
-        if not issubclass(element_type, ParticleComponent):
+        if not issubclass(element_type, ParticleElement):
             unsupported.append(f'element {element.path} of type {element_type.__name__}, which is not a Particle')
             continue
         n_dim = problem.states.entry(element.states['x']).columns
@@ -255,13 +255,13 @@ class LammpsSolver(ExternalSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.formalisms.particles import LammpsSolver, ParticleComponent
+        >>> from skcomplex.formalisms.particles import LammpsSolver, ParticleElement
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations.particles import LennardJonesInteraction
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
-        ...     components=[ParticleComponent.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
+        ...     components=[ParticleElement.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
         ...     interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
@@ -276,7 +276,7 @@ class LammpsSolver(ExternalSolver):
         space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+        components={ElementKind.ELEMENT, ElementKind.GROUP},
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )

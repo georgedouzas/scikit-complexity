@@ -9,12 +9,12 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
 
 type Array = npt.NDArray[np.float64]
 
@@ -24,8 +24,8 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
     return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
 
 
-GinzburgLandauComponent = ElementComponent.define(
-    'GinzburgLandauComponent',
+GinzburgLandauElement = Element.define(
+    'GinzburgLandauElement',
     states={'u': 0.0, 'v': 0.0},
     parameters={'b': 1.0, 'c': -1.5},
     laws=lambda s: [
@@ -34,8 +34,8 @@ GinzburgLandauComponent = ElementComponent.define(
     ],
 )
 
-SwiftHohenbergComponent = ElementComponent.define(
-    'SwiftHohenbergComponent',
+SwiftHohenbergElement = Element.define(
+    'SwiftHohenbergElement',
     states={'u': 0.0},
     parameters={'r': 0.3},
     laws=lambda s: [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)],
@@ -91,7 +91,7 @@ def complex_ginzburg_landau(
     values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        components=[FieldComponent('medium', GinzburgLandauComponent, space, values=values, discretization='spectral')],
+        components=[FieldElement('medium', GinzburgLandauElement, space, values=values, discretization='spectral')],
     )
 
 
@@ -138,5 +138,5 @@ def swift_hohenberg(
     values = {'u': _noise(shape, 0.01, random_state), 'r': r}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        components=[FieldComponent('cells', SwiftHohenbergComponent, space, values=values, discretization='spectral')],
+        components=[FieldElement('cells', SwiftHohenbergElement, space, values=values, discretization='spectral')],
     )

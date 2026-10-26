@@ -6,14 +6,14 @@
 from typing import ClassVar
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class ReducingBallComponent(ElementComponent):
+class ReducingBallElement(Element):
     """Ball that jumps to a random lower state, and restarts from the top state after it reaches state 1.
 
     With probability `lam` the ball jumps uniformly to a state below its own, and otherwise uniformly to any state, so
@@ -33,10 +33,10 @@ class ReducingBallComponent(ElementComponent):
             The probability of a reducing jump.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBallComponent
-        >>> group = ReducingBallComponent.group('balls', 3, n_states=10.0)
+        >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBallElement
+        >>> group = ReducingBallElement.group('balls', 3, n_states=10.0)
         >>> group.label, group.element.__name__, group.size
-        ('balls', 'ReducingBallComponent', 3)
+        ('balls', 'ReducingBallElement', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'level'})
@@ -76,7 +76,7 @@ class ReducingBallComponent(ElementComponent):
             agent.level = float(model.rng.integers(1, top + 1))
 
 
-class FragmentComponent(ElementComponent):
+class FragmentElement(Element):
     """Fragment of integer size that breaks at a uniformly random point into two smaller fragments.
 
     Args:
@@ -90,10 +90,10 @@ class FragmentComponent(ElementComponent):
             The probability that a fragment larger than 1 breaks in a step.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import FragmentComponent
-        >>> group = FragmentComponent.group('fragments', 1, length=100.0)
+        >>> from skcomplex.models.mathematics.stochastic_processes import FragmentElement
+        >>> group = FragmentElement.group('fragments', 1, length=100.0)
         >>> group.label, group.element.__name__, group.size
-        ('fragments', 'FragmentComponent', 1)
+        ('fragments', 'FragmentElement', 1)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'length'})
@@ -161,7 +161,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
     """
     return System(
         components=[
-            ReducingBallComponent.group(
+            ReducingBallElement.group(
                 'balls',
                 n_balls,
                 variable=True,
@@ -200,4 +200,4 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         >>> fragmentation(50).elements[0].size
         1
     """
-    return System(components=[FragmentComponent.group('fragments', 1, variable=True, length=float(size), rate=rate)])
+    return System(components=[FragmentElement.group('fragments', 1, variable=True, length=float(size), rate=rate)])

@@ -9,7 +9,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import exp, log, pi
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse_train
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -34,7 +34,7 @@ def _core_ratio(radius: Expression) -> Expression:
     return _switch(radius, 0.5, 0.333) ** 2.2 - 0.15
 
 
-class AngiogenicTumourComponent(ElementComponent):
+class AngiogenicTumourElement(Element):
     """Tumour volume, the vascular volume that sets its carrying capacity, and an angiogenesis inhibitor.
 
     The tumour follows `dA/dt = -lambda1 A log(A / Vb)`, the vasculature
@@ -89,8 +89,8 @@ class AngiogenicTumourComponent(ElementComponent):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import AngiogenicTumourComponent
-        >>> AngiogenicTumourComponent('tumour').xi_s
+        >>> from skcomplex.models.biology.oncology import AngiogenicTumourElement
+        >>> AngiogenicTumourElement('tumour').xi_s
         5.85
     """
 
@@ -138,7 +138,7 @@ class AngiogenicTumourComponent(ElementComponent):
         ]
 
 
-class VascularizedSpheroidComponent(ElementComponent):
+class VascularizedSpheroidElement(Element):
     """Tumour spheroid with a live core, a live periphery, a necrotic core, and the vasculature of core and periphery.
 
     The radius grows as `dAr/dt = r1 g(Ap / Vp)`, with `g` a sigmoid of the peripheral cell density. The core volume
@@ -257,8 +257,8 @@ class VascularizedSpheroidComponent(ElementComponent):
                 The infusion rate during a dose.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VascularizedSpheroidComponent
-        >>> VascularizedSpheroidComponent('tumour').Ap
+        >>> from skcomplex.models.biology.oncology import VascularizedSpheroidElement
+        >>> VascularizedSpheroidElement('tumour').Ap
         495.0
     """
 
@@ -422,7 +422,7 @@ def hahnfeldt(
         >>> hahnfeldt(dose=0.0).elements[0].dose
         0.0
     """
-    tumour = AngiogenicTumourComponent(
+    tumour = AngiogenicTumourElement(
         'tumour',
         A=A,
         Vb=Vb,
@@ -500,7 +500,7 @@ def vascular_core_periphery(
         >>> vascular_core_periphery(dose=0.0).elements[0].dose
         0.0
     """
-    tumour = VascularizedSpheroidComponent(
+    tumour = VascularizedSpheroidElement(
         'tumour',
         Vx=Vx,
         xi_e=xi_e,

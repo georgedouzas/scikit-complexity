@@ -270,7 +270,7 @@ def scaffold_example(entry: ModelEntry, title: str, budget: Budget | None = None
     Examples:
         >>> from gallery_tools import scaffold_example
         >>> from skcomplex.models import describe
-        >>> print(scaffold_example(describe('lorenz'), 'LorenzComponent').splitlines()[-1])
+        >>> print(scaffold_example(describe('lorenz'), 'LorenzElement').splitlines()[-1])
         simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
     """
     budget = budget or Budget()

@@ -10,14 +10,14 @@ from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import GillespieSolver
-from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
     problem = compile_system(
         System(
-            components=[CompartmentComponent('I', n=50), CompartmentComponent('R')],
+            components=[CompartmentElement('I', n=50), CompartmentElement('R')],
             interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
         ),
     )
@@ -32,7 +32,7 @@ def test_gillespie_conserves_individuals():
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
     return System(
-        components=[CompartmentComponent('S', n=990), CompartmentComponent('I', n=10), CompartmentComponent('R')],
+        components=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),

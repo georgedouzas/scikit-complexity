@@ -6,14 +6,14 @@
 from typing import ClassVar
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-class IndividualComponent(ElementComponent):
+class IndividualElement(Element):
     """Individual of a Galton-Watson process, replaced in the next generation by a Poisson number of offspring.
 
     Args:
@@ -27,10 +27,10 @@ class IndividualComponent(ElementComponent):
             The mean number of offspring.
 
     Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import IndividualComponent
-        >>> group = IndividualComponent.group('population', 10, m=1.5)
+        >>> from skcomplex.models.mathematics.stochastic_processes import IndividualElement
+        >>> group = IndividualElement.group('population', 10, m=1.5)
         >>> group.label, group.element.__name__, group.size
-        ('population', 'IndividualComponent', 10)
+        ('population', 'IndividualElement', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'generation'})
@@ -93,4 +93,4 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
         >>> galton_watson(5, m=1.2).elements[0].size
         5
     """
-    return System(components=[IndividualComponent.group('population', n_individuals, variable=True, m=m)])
+    return System(components=[IndividualElement.group('population', n_individuals, variable=True, m=m)])

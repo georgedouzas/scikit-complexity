@@ -1,24 +1,24 @@
 """Soft matter: Brownian particles, optical traps, anomalous diffusion, and noise-driven transitions."""
 
 from ._anomalous import (
-    ContinuousTimeWalkerComponent,
-    FractionalWalkerComponent,
-    LevyFlierComponent,
-    LevyWalkerComponent,
-    TransientWalkerComponent,
+    ContinuousTimeWalkerElement,
+    FractionalWalkerElement,
+    LevyFlierElement,
+    LevyWalkerElement,
+    TransientWalkerElement,
     annealed_transient_time_motion,
     continuous_time_random_walk,
     fractional_brownian_motion,
     levy_flight,
     levy_walk,
 )
-from ._brownian import DoubleWellComponent, WallParticleComponent, brownian_near_wall, stochastic_resonance
-from ._colored_noise import ColoredNoiseParticleComponent, colored_noise_langevin
+from ._brownian import DoubleWellElement, WallParticleElement, brownian_near_wall, stochastic_resonance
+from ._colored_noise import ColoredNoiseParticleElement, colored_noise_langevin
 from ._diffusion import (
-    BrownianParticleComponent,
-    ModulatedParticleComponent,
+    BrownianParticleElement,
+    ModulatedParticleElement,
     OpticalTrapInteraction,
-    ScaledWalkerComponent,
+    ScaledWalkerElement,
     SpeckleFieldInteraction,
     brownian_motion,
     diffusion_in_a_speckle_field,
@@ -27,33 +27,33 @@ from ._diffusion import (
     optical_trap,
     scaled_brownian_motion,
 )
-from ._friction import FrictionalBlockComponent, shaken_spring_block
+from ._friction import FrictionalBlockElement, shaken_spring_block
 from ._ratchets import (
     FlashingSawtoothInteraction,
     TiltedWashboardInteraction,
     flashing_ratchet,
     tilted_periodic_potential,
 )
-from ._traps import TrapSiteComponent, biased_trap_walk
+from ._traps import TrapSiteElement, biased_trap_walk
 
 __all__: list[str] = [
-    'BrownianParticleComponent',
-    'ColoredNoiseParticleComponent',
-    'ContinuousTimeWalkerComponent',
-    'DoubleWellComponent',
+    'BrownianParticleElement',
+    'ColoredNoiseParticleElement',
+    'ContinuousTimeWalkerElement',
+    'DoubleWellElement',
     'FlashingSawtoothInteraction',
-    'FractionalWalkerComponent',
-    'FrictionalBlockComponent',
-    'LevyFlierComponent',
-    'LevyWalkerComponent',
-    'ModulatedParticleComponent',
+    'FractionalWalkerElement',
+    'FrictionalBlockElement',
+    'LevyFlierElement',
+    'LevyWalkerElement',
+    'ModulatedParticleElement',
     'OpticalTrapInteraction',
-    'ScaledWalkerComponent',
+    'ScaledWalkerElement',
     'SpeckleFieldInteraction',
     'TiltedWashboardInteraction',
-    'TransientWalkerComponent',
-    'TrapSiteComponent',
-    'WallParticleComponent',
+    'TransientWalkerElement',
+    'TrapSiteElement',
+    'WallParticleElement',
     'annealed_transient_time_motion',
     'biased_trap_walk',
     'brownian_motion',

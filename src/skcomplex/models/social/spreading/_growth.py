@@ -8,14 +8,14 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
 
-class WordComponent(ElementComponent):
+class WordElement(Element):
     """Distinct word of the Simon model, with the number of times it occurs in the text.
 
     Args:
@@ -32,10 +32,10 @@ class WordComponent(ElementComponent):
             The probability that the next word of the text is new.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import WordComponent
-        >>> group = WordComponent.group('words', 1, count=1.0)
+        >>> from skcomplex.models.social.spreading import WordElement
+        >>> group = WordElement.group('words', 1, count=1.0)
         >>> group.label, group.element.__name__, group.size
-        ('words', 'WordComponent', 1)
+        ('words', 'WordElement', 1)
     """
 
     count: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
@@ -145,7 +145,7 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         >>> simon_yule().elements[0].size
         1
     """
-    words = WordComponent.group('words', 1, variable=True, count=1.0, innovation=innovation)
+    words = WordElement.group('words', 1, variable=True, count=1.0, innovation=innovation)
     return System(
         components=[words],
         interactions=[WritingInteraction('writing', target='words', words_per_step=words_per_step)],

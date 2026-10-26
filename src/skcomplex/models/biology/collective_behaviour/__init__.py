@@ -1,31 +1,31 @@
 """Collective behaviour: animals and people that coordinate through signals, trails, and contact."""
 
 from ._decisions import (
-    BranchComponent,
+    BranchElement,
     NervousnessInteraction,
-    RatsComponent,
+    RatsElement,
     TrailChoiceInteraction,
     binary_ant_decision,
     rats,
 )
-from ._flocks import BoidComponent, MorsePotentialInteraction, SelfPropulsionInteraction, bird_swarm, boids
-from ._foraging import AntComponent, PheromoneComponent, pheromone_foraging
-from ._leadership import ShoalMemberComponent, couzin_leadership
-from ._trails import GroundComponent, WalkerComponent, active_walkers
+from ._flocks import BoidElement, MorsePotentialInteraction, SelfPropulsionInteraction, bird_swarm, boids
+from ._foraging import AntElement, PheromoneElement, pheromone_foraging
+from ._leadership import ShoalMemberElement, couzin_leadership
+from ._trails import GroundElement, WalkerElement, active_walkers
 
 __all__: list[str] = [
-    'AntComponent',
-    'BoidComponent',
-    'BranchComponent',
-    'GroundComponent',
+    'AntElement',
+    'BoidElement',
+    'BranchElement',
+    'GroundElement',
     'MorsePotentialInteraction',
     'NervousnessInteraction',
-    'PheromoneComponent',
-    'RatsComponent',
+    'PheromoneElement',
+    'RatsElement',
     'SelfPropulsionInteraction',
-    'ShoalMemberComponent',
+    'ShoalMemberElement',
     'TrailChoiceInteraction',
-    'WalkerComponent',
+    'WalkerElement',
     'active_walkers',
     'binary_ant_decision',
     'bird_swarm',

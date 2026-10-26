@@ -12,22 +12,22 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols, pulse_train, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ....formalisms.particles import ParticleComponent
+from ....formalisms.particles import ParticleElement
 from ..realizations.particles import LangevinThermostatInteraction
-from ._brownian import DoubleWellComponent
+from ._brownian import DoubleWellElement
 
 type Array = npt.NDArray[np.float64]
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
 
 
-class BrownianParticleComponent(ElementComponent):
+class BrownianParticleElement(Element):
     """Overdamped Brownian particle, `dx = F / gamma dt + sqrt(2 temperature / gamma) dW`, pushed by interactions.
 
     Args:
@@ -44,8 +44,8 @@ class BrownianParticleComponent(ElementComponent):
             The thermal energy.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import BrownianParticleComponent
-        >>> BrownianParticleComponent('bead', temperature=2.0).temperature
+        >>> from skcomplex.models.physics.soft_matter import BrownianParticleElement
+        >>> BrownianParticleElement('bead', temperature=2.0).temperature
         2.0
     """
 
@@ -214,8 +214,8 @@ class SpeckleFieldInteraction(BaseInteraction):
         return [RateLaw(position, s.strength * vector([intensity.diff(item) for item in position]))]
 
 
-ScaledWalkerComponent = ElementComponent.define(
-    'ScaledWalkerComponent',
+ScaledWalkerElement = Element.define(
+    'ScaledWalkerElement',
     states={'x': 0.0},
     parameters={
         'K': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -226,7 +226,7 @@ ScaledWalkerComponent = ElementComponent.define(
 )
 
 
-class ModulatedParticleComponent(ElementComponent):
+class ModulatedParticleElement(Element):
     """Particle in a box `[0, L]` whose noise grows across it, `dx = sigma(x) dW` with `sigma = s0 + ds (x / L - 1/2)`.
 
     The walls reflect the particle at every frame, so frames must be short against the time to cross the box. The
@@ -256,8 +256,8 @@ class ModulatedParticleComponent(ElementComponent):
                 The length of the box.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import ModulatedParticleComponent
-        >>> ModulatedParticleComponent('bead').ds
+        >>> from skcomplex.models.physics.soft_matter import ModulatedParticleElement
+        >>> ModulatedParticleElement('bead').ds
         1.8
     """
 
@@ -342,11 +342,11 @@ def brownian_motion(
     Examples:
         >>> from skcomplex.models.physics.soft_matter import brownian_motion
         >>> brownian_motion(10, inertial=False).elements[0].element.__name__
-        'BrownianParticleComponent'
+        'BrownianParticleElement'
     """
     space = ContinuousSpace(n_dim=n_dim)
     if not inertial:
-        beads = BrownianParticleComponent.group(
+        beads = BrownianParticleElement.group(
             'beads',
             n_particles,
             x=np.zeros((n_particles, n_dim)),
@@ -355,7 +355,7 @@ def brownian_motion(
         )
         return System(components=[beads], space=space)
     velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
-    beads = ParticleComponent.group(
+    beads = ParticleElement.group(
         'beads',
         n_particles,
         x=np.zeros((n_particles, n_dim)),
@@ -423,7 +423,7 @@ def optical_trap(
         2.0
     """
     n_dim = len(k)
-    beads = BrownianParticleComponent.group(
+    beads = BrownianParticleElement.group(
         'beads',
         n_particles,
         x=np.zeros((n_particles, n_dim)),
@@ -479,7 +479,7 @@ def kramers_escape(
         0.2
     """
     positions = -1.0 + np.random.default_rng(random_state).normal(0.0, 0.1, n_particles)
-    group = DoubleWellComponent.group('particles', n_particles, x=positions, amplitude=0.0, D=D)
+    group = DoubleWellElement.group('particles', n_particles, x=positions, amplitude=0.0, D=D)
     return System(components=[group])
 
 
@@ -527,7 +527,7 @@ def multiplicative_noise(
         >>> multiplicative_noise(10, convention='ito').components[0].values['convention']
         'ito'
     """
-    group = ModulatedParticleComponent.group(
+    group = ModulatedParticleElement.group(
         'particles',
         n_particles,
         x=L / 2,
@@ -579,7 +579,7 @@ def scaled_brownian_motion(
         >>> scaled_brownian_motion(10, alpha=1.5).elements[0].values['alpha']
         1.5
     """
-    return System(components=[ScaledWalkerComponent.group('walkers', n_particles, K=K, alpha=alpha, t0=t0)])
+    return System(components=[ScaledWalkerElement.group('walkers', n_particles, K=K, alpha=alpha, t0=t0)])
 
 
 @register_model(
@@ -652,5 +652,5 @@ def diffusion_in_a_speckle_field(
         lengths=tuple(float(item) for item in lengths),
     )
     positions = rng.uniform(size / 4, 3 * size / 4, (n_particles, 2))
-    beads = BrownianParticleComponent.group('beads', n_particles, x=positions, gamma=1.0, temperature=D)
+    beads = BrownianParticleElement.group('beads', n_particles, x=positions, gamma=1.0, temperature=D)
     return System(components=[beads], interactions=[speckle], space=ContinuousSpace(n_dim=2))

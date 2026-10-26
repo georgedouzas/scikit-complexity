@@ -8,15 +8,15 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
 
-MarangoniLayerComponent = ElementComponent.define(
-    'MarangoniLayerComponent',
+MarangoniLayerElement = Element.define(
+    'MarangoniLayerElement',
     states={'u': 0.0},
     parameters={'r': 0.1, 'g': 1.0},
     laws=lambda s: [
@@ -77,5 +77,5 @@ def benard_marangoni(
     values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': r, 'g': g}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        components=[FieldComponent('layer', MarangoniLayerComponent, space, values=values, discretization='spectral')],
+        components=[FieldElement('layer', MarangoniLayerElement, space, values=values, discretization='spectral')],
     )

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import BaseInteraction, role, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -23,7 +23,7 @@ from skcomplex.models.economics.realizations import (
     Walrasian,
 )
 
-from .conftest import TraderComponent
+from .conftest import TraderElement
 
 
 def _orders(limits, budgets=None):
@@ -53,22 +53,22 @@ def _zero_intelligence(n_traders, rng):
     values = rng.uniform(50, 200, n_traders)
     costs = rng.uniform(0, 150, n_traders)
 
-    class BuyerComponent(TraderComponent):
+    class BuyerElement(TraderElement):
         def laws(self, s):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
             agent.bid = model.rng.uniform(0, agent.value) if agent.demand > 0 else 0.0
 
-    class SellerComponent(TraderComponent):
+    class SellerElement(TraderElement):
         def laws(self, s):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
             agent.ask = model.rng.uniform(agent.value, 200) if agent.supply > 0 else 200.0
 
-    buyers = BuyerComponent.group('buyers', n_traders, value=values, demand=1.0, money=values)
-    sellers = SellerComponent.group('sellers', n_traders, value=costs, supply=1.0)
+    buyers = BuyerElement.group('buyers', n_traders, value=values, demand=1.0, money=values)
+    sellers = SellerElement.group('sellers', n_traders, value=costs, supply=1.0)
     market = MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='clear')
     system = System(
         components=[buyers, sellers],
@@ -78,7 +78,7 @@ def _zero_intelligence(n_traders, rng):
     return values, costs, system
 
 
-class LimitTraderComponent(ElementComponent):
+class LimitTraderElement(Element):
     """Trader with a limit price on both sides of the book."""
 
     bid: float = state(0.0)
@@ -218,8 +218,8 @@ def test_order_book_is_a_pairing_of_the_matching_law():
     EARLIEST.clear()
     system = System(
         components=[
-            LimitTraderComponent.group('buyers', 1, bid=10.0),
-            LimitTraderComponent.group('sellers', 2, ask=10.0),
+            LimitTraderElement.group('buyers', 1, bid=10.0),
+            LimitTraderElement.group('sellers', 2, ask=10.0),
         ],
         interactions=[BookInteraction('book', buyers='buyers', sellers='sellers')],
     )

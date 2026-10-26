@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -78,7 +78,7 @@ def _random_strategies(
     return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
 
 
-class PrisonerComponent(ElementComponent):
+class PrisonerElement(Element):
     """Player of the spatial prisoner's dilemma, a cooperator at 1 and a defector at 0.
 
     Every step each player plays the weak dilemma, with reward 1, temptation `temptation`, and 0 otherwise, against
@@ -105,8 +105,8 @@ class PrisonerComponent(ElementComponent):
                 The noise of the Fermi imitation.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import PrisonerComponent
-        >>> PrisonerComponent('player').temptation
+        >>> from skcomplex.models.social.cooperation import PrisonerElement
+        >>> PrisonerElement('player').temptation
         1.85
     """
 
@@ -161,7 +161,7 @@ class PrisonerComponent(ElementComponent):
         return [LocalRuleLaw(s.strategy, SQUARE, rule, stochastic=True)]
 
 
-class ContributorComponent(ElementComponent):
+class ContributorElement(Element):
     """Player of the spatial public goods game, a cooperator at 1 and a defector at 0.
 
     Every player joins five groups, the one centred on itself and those centred on its four neighbours. In each group
@@ -182,8 +182,8 @@ class ContributorComponent(ElementComponent):
             The noise of the Fermi imitation.
 
     Examples:
-        >>> from skcomplex.models.social.cooperation import ContributorComponent
-        >>> ContributorComponent('player').synergy
+        >>> from skcomplex.models.social.cooperation import ContributorElement
+        >>> ContributorElement('player').synergy
         4.5
     """
 
@@ -266,7 +266,7 @@ def spatial_prisoners_dilemma(
         >>> spatial_prisoners_dilemma((10, 10)).elements[0].size
         100
     """
-    players = PrisonerComponent.lattice(
+    players = PrisonerElement.lattice(
         'players',
         LatticeSpace(tuple(shape)),
         strategy=_random_strategies(shape, share, random_state),
@@ -319,7 +319,7 @@ def public_goods_game(
         100
     """
     strategies = _random_strategies(shape, share, random_state)
-    players = ContributorComponent.lattice(
+    players = ContributorElement.lattice(
         'players',
         LatticeSpace(tuple(shape)),
         strategy=strategies,

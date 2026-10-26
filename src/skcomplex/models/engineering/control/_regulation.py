@@ -7,13 +7,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EquationLaw, RateLaw, Symbols, derivative
 from ....core.system import ObservableQuantity, System
 from ....engine.analysis import linearize, lqr
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ..realizations._controllers import IntegratorComponent, PIDInteraction, StateFeedbackInteraction
+from ..realizations._controllers import IntegratorElement, PIDInteraction, StateFeedbackInteraction
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
@@ -32,7 +32,7 @@ def _oscillator_energy(s: Symbols) -> Expression:
     return energy
 
 
-class CartPendulumComponent(ElementComponent):
+class CartPendulumElement(Element):
     """Inverted pendulum on a cart that a bounded horizontal force pushes, after Åström and Murray.
 
     The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of length `l`, at the angle
@@ -67,8 +67,8 @@ class CartPendulumComponent(ElementComponent):
             The acceleration of gravity.
 
     Examples:
-        >>> from skcomplex.models.engineering.control import CartPendulumComponent
-        >>> CartPendulumComponent('cart', theta=0.1).theta
+        >>> from skcomplex.models.engineering.control import CartPendulumElement
+        >>> CartPendulumElement('cart', theta=0.1).theta
         0.1
     """
 
@@ -104,7 +104,7 @@ class CartPendulumComponent(ElementComponent):
         ]
 
 
-class DrivenOscillatorComponent(ElementComponent):
+class DrivenOscillatorElement(Element):
     """Damped harmonic oscillator that a bounded force drives, `x'' = -omega^2 x - 2 zeta omega x' + force`.
 
     Args:
@@ -124,8 +124,8 @@ class DrivenOscillatorComponent(ElementComponent):
             The damping ratio.
 
     Examples:
-        >>> from skcomplex.models.engineering.control import DrivenOscillatorComponent
-        >>> DrivenOscillatorComponent('oscillator', x=1.0).omega
+        >>> from skcomplex.models.engineering.control import DrivenOscillatorElement
+        >>> DrivenOscillatorElement('oscillator', x=1.0).omega
         1.0
     """
 
@@ -203,7 +203,7 @@ def pid_inverted_pendulum(
         >>> pid_inverted_pendulum(kp=50.0).interactions[0].kp
         50.0
     """
-    cart = CartPendulumComponent('cart', theta=theta, M=M, m=m, l=l)
+    cart = CartPendulumElement('cart', theta=theta, M=M, m=m, l=l)
     controller = PIDInteraction(
         'pid',
         plant='cart',
@@ -215,7 +215,7 @@ def pid_inverted_pendulum(
         kd=kd,
         limits=(-FORCE_LIMIT, FORCE_LIMIT),
     )
-    return System(components=[cart, IntegratorComponent('memory')], interactions=[controller])
+    return System(components=[cart, IntegratorElement('memory')], interactions=[controller])
 
 
 @register_model(
@@ -265,7 +265,7 @@ def lqr_oscillator(
         >>> [round(value, 3) for value in lqr_oscillator().interactions[0].gain]
         [2.317, 3.825]
     """
-    oscillator = DrivenOscillatorComponent('oscillator', x=x, omega=omega, zeta=zeta)
+    oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
     model = linearize(System(components=[oscillator]), controls=['oscillator.force'])
     gain = lqr(model.A, model.B, q * np.eye(len(model.states)), [[r]])
     states = tuple(name.removeprefix('oscillator.') for name in model.states)

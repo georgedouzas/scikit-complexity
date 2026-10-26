@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -35,7 +35,7 @@ def _observables(system: System) -> list[ObservableQuantity]:
     ]
 
 
-class LearningAgentComponent(ElementComponent):
+class LearningAgentElement(Element):
     """Agent of the SK game that plays an action of ±1 from a softmax policy over its incentive to play +1.
 
     The incentive follows the reinforcement rule `Q(t + 1) = (1 - alpha) Q(t) + alpha sum_j J_ij sigma_j(t)`, the
@@ -64,8 +64,8 @@ class LearningAgentComponent(ElementComponent):
                 The exploration temperature `T` of the softmax policy.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import LearningAgentComponent
-        >>> LearningAgentComponent('agent').alpha
+        >>> from skcomplex.models.physics.criticality import LearningAgentElement
+        >>> LearningAgentElement('agent').alpha
         0.5
     """
 
@@ -152,7 +152,7 @@ def sk_game(
     """
     rng = np.random.default_rng(random_state)
     upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
-    agents = LearningAgentComponent.group(
+    agents = LearningAgentElement.group(
         'agents',
         n_agents,
         sigma=rng.choice([-1.0, 1.0], size=n_agents),

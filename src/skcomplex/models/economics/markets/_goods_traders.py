@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import InvariantQuantity, Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -44,7 +44,7 @@ def _goods_observables(system: System) -> list[ObservableQuantity]:
     ]
 
 
-class GoodsTraderComponent(ElementComponent):
+class GoodsTraderElement(Element):
     """Trader who holds goods, values them with Cobb-Douglas weights, and wanders to a random neighbouring cell.
 
     Args:
@@ -73,8 +73,8 @@ class GoodsTraderComponent(ElementComponent):
             The probability that the trader moves in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import GoodsTraderComponent
-        >>> GoodsTraderComponent.group('traders', 4, sugar=5.0).size
+        >>> from skcomplex.models.economics.markets import GoodsTraderElement
+        >>> GoodsTraderElement.group('traders', 4, sugar=5.0).size
         4
     """
 
@@ -296,7 +296,7 @@ def goods_traders(
     holdings = rng.uniform(low, high, (n_traders, goods))
     values: dict[str, Any] = {GOODS[index]: holdings[:, index] for index in range(goods)}
     values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
-    traders = GoodsTraderComponent.group(
+    traders = GoodsTraderElement.group(
         'traders',
         n_traders,
         variable=True,

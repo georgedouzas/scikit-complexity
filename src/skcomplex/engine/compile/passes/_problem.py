@@ -8,7 +8,7 @@ from typing import Any, cast
 import numpy as np
 
 from ....core.base import Form, VariableKind, VisualSpec, declarations_of
-from ....core.components import GroupComponent
+from ....core.components import GroupElement
 from ....core.problems import CompiledElement, CompiledInteraction, Layout, Problem, ReductionSchedule
 from ....core.problems._problem import _MarkovMatrix
 from .._compilation import Compilation, Laws
@@ -126,7 +126,7 @@ def _problem_of(compilation: Compilation) -> Problem:
 
 def visual_of(node: Node) -> VisualSpec:
     """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
-    if isinstance(node.component, GroupComponent):
+    if isinstance(node.component, GroupElement):
         if node.component.visual is not None:
             return node.component.visual
         prepared = 'default_visual_' in vars(node.component)

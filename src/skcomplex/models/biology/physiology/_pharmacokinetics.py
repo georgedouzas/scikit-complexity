@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class TwoCompartmentComponent(ElementComponent):
+class TwoCompartmentElement(Element):
     """Drug in a central compartment, where it is eliminated, exchanged with a peripheral compartment.
 
     The central concentration follows `dUc/dt = k21 Up - (k10 + k12) Uc` and the peripheral one
@@ -36,8 +36,8 @@ class TwoCompartmentComponent(ElementComponent):
             The transfer rate from the peripheral to the central compartment.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import TwoCompartmentComponent
-        >>> TwoCompartmentComponent('patient').k12
+        >>> from skcomplex.models.biology.physiology import TwoCompartmentElement
+        >>> TwoCompartmentElement('patient').k12
         0.0475
     """
 
@@ -106,4 +106,4 @@ def two_compartment_pharmacokinetics(
         >>> two_compartment_pharmacokinetics(c0=5.0).elements[0].Uc
         5.0
     """
-    return System(components=[TwoCompartmentComponent('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])
+    return System(components=[TwoCompartmentElement('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])

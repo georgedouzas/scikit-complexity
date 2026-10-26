@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import ObservableQuantity, System
@@ -18,7 +18,7 @@ from ..realizations._institutions import InstitutionInteraction
 from ..realizations._markets import DeferredAcceptance, MarketInteraction, Trade
 
 
-class EmployerComponent(ElementComponent):
+class EmployerElement(Element):
     """Firm that posts a vacancy with a random wage offer in some steps, filled by at most one worker.
 
     Args:
@@ -44,8 +44,8 @@ class EmployerComponent(ElementComponent):
             The highest wage offer.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import EmployerComponent
-        >>> EmployerComponent.group('firms', 5).size
+        >>> from skcomplex.models.economics.markets import EmployerElement
+        >>> EmployerElement.group('firms', 5).size
         5
     """
 
@@ -86,7 +86,7 @@ class EmployerComponent(ElementComponent):
             agent.posted = model.time
 
 
-class JobseekerComponent(ElementComponent):
+class JobseekerElement(Element):
     """Worker who loses its job at the separation rate and, while unemployed, lowers its reservation wage.
 
     A worker who loses its job searches from the next step. An unemployed worker asks the reservation wage
@@ -127,8 +127,8 @@ class JobseekerComponent(ElementComponent):
             The relative fall of the reservation wage per step of search.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import JobseekerComponent
-        >>> JobseekerComponent.group('workers', 5).size
+        >>> from skcomplex.models.economics.markets import JobseekerElement
+        >>> JobseekerElement.group('workers', 5).size
         5
     """
 
@@ -304,7 +304,7 @@ def labour_market(
     rng = np.random.default_rng(random_state)
     employed = rng.random(n_workers) >= unemployment
     employers = np.where(employed, rng.integers(n_firms, size=n_workers), -1).astype(float)
-    firms = EmployerComponent.group(
+    firms = EmployerElement.group(
         'firms',
         n_firms,
         vacancy_rate=vacancy_rate,
@@ -312,7 +312,7 @@ def labour_market(
         high_wage=high_wage,
         bid=low_wage,
     )
-    workers = JobseekerComponent.group(
+    workers = JobseekerElement.group(
         'workers',
         n_workers,
         employer=employers,

@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-SlowManifoldComponent = ElementComponent.define(
-    'SlowManifoldComponent',
+SlowManifoldElement = Element.define(
+    'SlowManifoldElement',
     states={'x1': 1.0, 'x2': 1.0},
     parameters={'mu': -0.05, 'lam': -1.0},
     laws=lambda s: [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))],
@@ -59,4 +59,4 @@ def koopman_slow_manifold(
         >>> koopman_slow_manifold(lam=-2.0).elements[0].lam
         -2.0
     """
-    return System(components=[SlowManifoldComponent('flow', x1=x1, x2=x2, mu=mu, lam=lam)])
+    return System(components=[SlowManifoldElement('flow', x1=x1, x2=x2, mu=mu, lam=lam)])

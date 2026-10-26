@@ -5,32 +5,32 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import AnalysisError, ValidationError, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import controllability, linearize, lqr, observability
 
-DrivenComponent = ElementComponent.define(
-    'DrivenComponent',
+DrivenElement = Element.define(
+    'DrivenElement',
     states={'x': state(0.0, order=2)},
     parameters={'force': parameter(0.0, adaptive=True, bounds=(-1, 1)), 'w': 1.0},
     laws=lambda s: [RateLaw(s.x, -(s.w**2) * s.x + s.force)],
 )
-FreeComponent = ElementComponent.define(
-    'FreeComponent',
+FreeElement = Element.define(
+    'FreeElement',
     states={'x': state(0.0, order=2)},
     parameters={'w': 2.0},
     laws=lambda s: [RateLaw(s.x, -(s.w**2) * s.x)],
 )
-PendulumComponent = ElementComponent.define(
-    'PendulumComponent',
+PendulumElement = Element.define(
+    'PendulumElement',
     states={'theta': state(0.0, order=2)},
     parameters={'torque': parameter(0.0, adaptive=True, bounds=(-1, 1))},
     laws=lambda s: [RateLaw(s.theta, -sin(s.theta) + s.torque)],
 )
-CounterComponent = ElementComponent.define(
-    'CounterComponent',
+CounterElement = Element.define(
+    'CounterElement',
     states={'k': 0.0},
     laws=lambda s: [UpdateLaw(s.k, s.k + 1)],
 )
@@ -38,7 +38,7 @@ CounterComponent = ElementComponent.define(
 
 def test_linearize_uncontrollable_mode():
     """Test that two oscillators of which only one receives the control have controllability rank 2 of 4."""
-    model = linearize(System(components=[DrivenComponent('a'), FreeComponent('b')]))
+    model = linearize(System(components=[DrivenElement('a'), FreeElement('b')]))
     assert model.states == ('a.x', 'a.x_d1', 'b.x', 'b.x_d1')
     assert model.controls == ('a.force',)
     assert model.A.shape == (4, 4)
@@ -49,7 +49,7 @@ def test_linearize_uncontrollable_mode():
 def test_linearize_at_an_operating_point():
     """Test that the pendulum linearised upright has the unstable entry `cos(pi) = -1` negated in its state matrix."""
     model = linearize(
-        System(components=[PendulumComponent('p')]),
+        System(components=[PendulumElement('p')]),
         outputs=['p.theta', 'p.torque'],
         at={'p.theta': np.pi},
     )
@@ -63,13 +63,13 @@ def test_linearize_at_an_operating_point():
 def test_linearize_rejects_unknown_controls():
     """Test that a control that is not an adaptive parameter is rejected."""
     with pytest.raises(AnalysisError, match='not adaptive parameters'):
-        linearize(System(components=[PendulumComponent('p')]), controls=['p.theta'])
+        linearize(System(components=[PendulumElement('p')]), controls=['p.theta'])
 
 
 def test_linearize_rejects_discrete_time():
     """Test that a system that is not under continuous time is rejected as invalid."""
     with pytest.raises(ValidationError, match='continuous time'):
-        linearize(System(components=[CounterComponent('c')], time=DiscreteTime()))
+        linearize(System(components=[CounterElement('c')], time=DiscreteTime()))
 
 
 def test_lqr_stabilises_a_double_integrator():

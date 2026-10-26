@@ -5,7 +5,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.base import VisualSpec
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import UpdateLaw, uniform
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -149,8 +149,8 @@ def test_charbonneau_traffic_has_a_space_time_view():
 
 def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
     """Test that a group of members without a space logs the histogram of every state and can show it first."""
-    walker = ElementComponent.define(
-        'WalkerComponent',
+    walker = Element.define(
+        'WalkerElement',
         states={'x': 0.0},
         laws=lambda s: [UpdateLaw(s.x, s.x + uniform('step', -1, 1))],
     )

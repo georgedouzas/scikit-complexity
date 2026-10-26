@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -58,7 +58,7 @@ def _mutate(genome: int, length: int, probability: float, rng: np.random.Generat
     return int(genome ^ sum(1 << int(locus) for locus in flips))
 
 
-class IndividualComponent(ElementComponent):
+class IndividualElement(Element):
     """Individual of a finite population, with an integer trait or genome.
 
     Args:
@@ -72,8 +72,8 @@ class IndividualComponent(ElementComponent):
             The fitness of the trait.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import IndividualComponent
-        >>> IndividualComponent.group('population', 10, trait=0.0).size
+        >>> from skcomplex.models.biology.evolution import IndividualElement
+        >>> IndividualElement.group('population', 10, trait=0.0).size
         10
     """
 
@@ -342,7 +342,7 @@ class AdaptiveClimbingInteraction(BaseInteraction):
             individual.fitness = _random_fitness(best, self.seed)
 
 
-class ClimberComponent(ElementComponent):
+class ClimberElement(Element):
     """Agent that walks an NK fitness landscape, flipping one random bit of its genome when that raises its fitness.
 
     The fitness of a genome of `n` bits is the mean of the contributions of its bits, each a random function of the bit
@@ -368,8 +368,8 @@ class ClimberComponent(ElementComponent):
             The seed of the landscape.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import ClimberComponent
-        >>> ClimberComponent.group('climbers', 10).size
+        >>> from skcomplex.models.biology.evolution import ClimberElement
+        >>> ClimberElement.group('climbers', 10).size
         10
     """
 
@@ -457,7 +457,7 @@ def moran_process(
     traits[:mutants] = 1.0
     return System(
         components=[
-            IndividualComponent.group(
+            IndividualElement.group(
                 'population',
                 size,
                 variable=True,
@@ -539,7 +539,7 @@ def tangled_nature(
     )
     visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
     return System(
-        components=[IndividualComponent.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
+        components=[IndividualElement.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
         interactions=[step],
     )
 
@@ -588,7 +588,7 @@ def adaptive_climbing(
     fitness = _random_fitness(0, seed)
     return System(
         components=[
-            IndividualComponent.group(
+            IndividualElement.group(
                 'population',
                 size,
                 variable=True,
@@ -647,7 +647,7 @@ def nk_landscape(
     """
     genomes = np.random.default_rng(random_state).integers(0, 2**n, size=climbers)
     fitness = [_nk_fitness(int(genome), n, k, seed) for genome in genomes]
-    group = ClimberComponent.group(
+    group = ClimberElement.group(
         'climbers',
         climbers,
         variable=True,

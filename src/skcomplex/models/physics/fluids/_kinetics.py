@@ -9,15 +9,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, FluxLaw, SSPRKSolver
+from ....formalisms.fields import FieldElement, FluxLaw, SSPRKSolver
 
 
-class WaveNumberComponent(ElementComponent):
+class WaveNumberElement(Element):
     """Local wave number of deep-water waves, conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
 
     The wave number travels at the group speed `C(k) = sqrt(g / k) / 2`, which falls as the waves shorten, so long
@@ -34,8 +34,8 @@ class WaveNumberComponent(ElementComponent):
             The gravitational acceleration.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import WaveNumberComponent
-        >>> WaveNumberComponent('site').g
+        >>> from skcomplex.models.physics.fluids import WaveNumberElement
+        >>> WaveNumberElement('site').g
         1.0
     """
 
@@ -56,7 +56,7 @@ class WaveNumberComponent(ElementComponent):
         return [FluxLaw(s.k, sqrt(s.g * s.k))]
 
 
-class CarlemanGasComponent(ElementComponent):
+class CarlemanGasElement(Element):
     """Site of the Carleman discrete-velocity gas, densities `f_plus` and `f_minus` moving at the speeds `c` and `-c`.
 
     Collisions turn two particles of one velocity into two of the other at the rate `kappa`, so
@@ -80,8 +80,8 @@ class CarlemanGasComponent(ElementComponent):
             The collision rate.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import CarlemanGasComponent
-        >>> CarlemanGasComponent('site').kappa
+        >>> from skcomplex.models.physics.fluids import CarlemanGasElement
+        >>> CarlemanGasElement('site').kappa
         1.0
     """
 
@@ -150,7 +150,7 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
     values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldComponent('train', WaveNumberComponent, space, values=values, discretization='finite-volume')],
+        components=[FieldElement('train', WaveNumberElement, space, values=values, discretization='finite-volume')],
     )
 
 
@@ -200,5 +200,5 @@ def discrete_velocity_boltzmann(
     values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        components=[FieldComponent('gas', CarlemanGasComponent, space, values=values, discretization='finite-volume')],
+        components=[FieldElement('gas', CarlemanGasElement, space, values=values, discretization='finite-volume')],
     )

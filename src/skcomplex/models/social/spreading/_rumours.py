@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import JumpLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-class ListenersComponent(ElementComponent):
+class ListenersElement(Element):
     """Number of people in one state of a rumour: ignorant, spreading, or stifling.
 
     Args:
@@ -21,8 +21,8 @@ class ListenersComponent(ElementComponent):
             The initial number of people.
 
     Examples:
-        >>> from skcomplex.models.social.spreading import ListenersComponent
-        >>> ListenersComponent('spreaders', n=1).n
+        >>> from skcomplex.models.social.spreading import ListenersElement
+        >>> ListenersElement('spreaders', n=1).n
         1
     """
 
@@ -115,9 +115,9 @@ def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 
     """
     return System(
         components=[
-            ListenersComponent('ignorants', n=n_people - 1),
-            ListenersComponent('spreaders', n=1),
-            ListenersComponent('stiflers', n=0),
+            ListenersElement('ignorants', n=n_people - 1),
+            ListenersElement('spreaders', n=1),
+            ListenersElement('stiflers', n=0),
         ],
         interactions=[
             RumourContactsInteraction(

@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import log
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -16,7 +16,7 @@ from ....engine.runtime import register_model
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
 
 
-class TumourComponent(ElementComponent):
+class TumourElement(Element):
     """Tumour of a size measured in cells or in volume.
 
     Args:
@@ -27,15 +27,15 @@ class TumourComponent(ElementComponent):
             The initial size.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import TumourComponent
-        >>> TumourComponent('tumour', n=50.0).n
+        >>> from skcomplex.models.biology.oncology import TumourElement
+        >>> TumourElement('tumour', n=50.0).n
         50.0
     """
 
     n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class VasculatureComponent(ElementComponent):
+class VasculatureElement(Element):
     """Vasculature of a tumour, which sets its carrying capacity.
 
     Args:
@@ -46,8 +46,8 @@ class VasculatureComponent(ElementComponent):
             The initial carrying capacity.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import VasculatureComponent
-        >>> VasculatureComponent('vessels', K=12.7).K
+        >>> from skcomplex.models.biology.oncology import VasculatureElement
+        >>> VasculatureElement('vessels', K=12.7).K
         12.7
     """
 
@@ -442,7 +442,7 @@ def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67
         0.31
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=r0, r=r)],
     )
 
@@ -479,7 +479,7 @@ def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> Sy
         0.6666666666666666
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p)],
     )
 
@@ -518,7 +518,7 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         0.808
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[
             PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p),
             LossInteraction('loss', target='tumour', d=d),
@@ -561,7 +561,7 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
         0.5
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[GeneralizedLogisticGrowthInteraction('growth', target='tumour', r=r, K=K, p=p)],
     )
 
@@ -598,7 +598,7 @@ def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System
         1000.0
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[GompertzGrowthInteraction('growth', target='tumour', r=r, K=K)],
     )
 
@@ -639,7 +639,7 @@ def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.6
         12.7
     """
     return System(
-        components=[TumourComponent('tumour', n=n), VasculatureComponent('vessels', K=K)],
+        components=[TumourElement('tumour', n=n), VasculatureElement('vessels', K=K)],
         interactions=[VascularSupportInteraction('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
     )
 
@@ -694,7 +694,7 @@ def skipper_log_kill(
         21.0
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='tumour', r=r),
             LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width),
@@ -759,7 +759,7 @@ def norton_simon(
         42.0
     """
     return System(
-        components=[TumourComponent('tumour', n=n)],
+        components=[TumourElement('tumour', n=n)],
         interactions=[
             GompertzGrowthInteraction('growth', target='tumour', r=r, K=K),
             LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),

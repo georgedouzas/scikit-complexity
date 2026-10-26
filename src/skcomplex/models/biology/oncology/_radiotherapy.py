@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw, Symbols, pulse_train, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -16,7 +16,7 @@ from ....engine.runtime import register_model
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
-class RadiationCompetitionComponent(ElementComponent):
+class RadiationCompetitionElement(Element):
     """Normal and tumour cells in Lotka-Volterra competition under periodic irradiation.
 
     The normal cells follow `dN/dt = r1 N (1 - b1 N) - c1 N A - epsilon N` and the tumour cells
@@ -67,8 +67,8 @@ class RadiationCompetitionComponent(ElementComponent):
                 The per capita rate at which the spilled radiation kills normal cells.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import RadiationCompetitionComponent
-        >>> RadiationCompetitionComponent('tissue', N=0.5, A=0.8).A
+        >>> from skcomplex.models.biology.oncology import RadiationCompetitionElement
+        >>> RadiationCompetitionElement('tissue', N=0.5, A=0.8).A
         0.8
     """
 
@@ -113,7 +113,7 @@ class RadiationCompetitionComponent(ElementComponent):
         ]
 
 
-class IrradiatedTumourComponent(ElementComponent):
+class IrradiatedTumourElement(Element):
     """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
 
     The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`. A fraction of dose `d` at time `t_i` moves the
@@ -193,8 +193,8 @@ class IrradiatedTumourComponent(ElementComponent):
                 The dose of a fraction.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import IrradiatedTumourComponent
-        >>> IrradiatedTumourComponent('tumour', fractions=10).fractions
+        >>> from skcomplex.models.biology.oncology import IrradiatedTumourElement
+        >>> IrradiatedTumourElement('tumour', fractions=10).fractions
         10
     """
 
@@ -332,7 +332,7 @@ def radiotherapy_competition(
         >>> radiotherapy_competition(a2=0.1).elements[0].a2
         0.1
     """
-    tissue = RadiationCompetitionComponent(
+    tissue = RadiationCompetitionElement(
         'tissue',
         N=N,
         A=A,
@@ -437,7 +437,7 @@ def lq_radiosensitizer(
         >>> lq_radiosensitizer(Us=0.0).elements[0].Us
         0.0
     """
-    tumour = IrradiatedTumourComponent(
+    tumour = IrradiatedTumourElement(
         'tumour',
         A1=A1,
         Us=Us,

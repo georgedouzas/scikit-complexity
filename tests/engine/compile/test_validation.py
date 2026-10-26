@@ -20,7 +20,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import ElementComponent, WienerProcess
+from skcomplex.core.components import Element, WienerProcess
 from skcomplex.core.laws import InvariantQuantity, NoiseLaw, ObjectiveQuantity, RateLaw, UpdateLaw, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import ObservableQuantity, System
@@ -29,29 +29,29 @@ from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.groups import CayleySpace, finitely_presented_group
 from skcomplex.formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 
-from ...conftest import HoldingComponent, _correlated
+from ...conftest import HoldingElement, _correlated
 from .conftest import _pair
 
 
-class StockComponent(ElementComponent):
+class StockElement(Element):
     """Element with one nonnegative state."""
 
     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
 
 
-class OpinionComponent(ElementComponent):
+class OpinionElement(Element):
     """Element with one categorical state."""
 
     view: float = state(0, domain=NumericDomain.categorical('left', 'right'))
 
 
-class WalkerComponent(ElementComponent):
+class WalkerElement(Element):
     """Element with a vector position."""
 
     x: float = state(0.0, vector=True)
 
 
-class CounterComponent(ElementComponent):
+class CounterElement(Element):
     """Element whose state grows by one every step."""
 
     k: float = state(0.0)
@@ -82,7 +82,7 @@ class DriftInteraction(BaseInteraction):
         return [RateLaw(s.target.view, 1)]
 
 
-class AntComponent(ElementComponent):
+class AntElement(Element):
     """Agent that counts its steps."""
 
     steps: float = state(0.0)
@@ -104,7 +104,7 @@ def _codes(report):
 def test_valid_system_has_no_issues():
     """Test that a system of stocks with growth validates without issues."""
     system = System(
-        components=[StockComponent('rabbits')],
+        components=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
     report = validate(system)
@@ -115,7 +115,7 @@ def test_valid_system_has_no_issues():
 def test_several_errors_are_reported_at_once():
     """Test that an unbound role, a vector state without a space, and a rate on a categorical state are all reported."""
     system = System(
-        components=[StockComponent('rabbits'), WalkerComponent('walker'), OpinionComponent('voter')],
+        components=[StockElement('rabbits'), WalkerElement('walker'), OpinionElement('voter')],
         interactions=[GrowthInteraction('growth', target='foxes'), DriftInteraction('drift', target='voter')],
     )
     report = validate(system)
@@ -127,7 +127,7 @@ def test_several_errors_are_reported_at_once():
 def test_law_with_the_wrong_domain_suggests_laws():
     """Test that a rate law on a categorical state names the state and suggests jump or transition laws."""
     report = validate(
-        System(components=[OpinionComponent('voter')], interactions=[DriftInteraction('drift', target='voter')]),
+        System(components=[OpinionElement('voter')], interactions=[DriftInteraction('drift', target='voter')]),
     )
     (issue,) = report.errors
     assert issue.code == 'law-domain'
@@ -139,7 +139,7 @@ def test_law_with_the_wrong_domain_suggests_laws():
 
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
-    report = validate(System(components=[AntComponent.group('ants', 3, variable=True)]), solver='rk4')
+    report = validate(System(components=[AntElement.group('ants', 3, variable=True)]), solver='rk4')
     issue = next(issue for issue in report.errors if 'components' in issue.message)
     assert issue.code == 'solver-unsupported'
     assert 'variable-group' in issue.message
@@ -149,7 +149,7 @@ def test_unsupported_solver_lists_capable_solvers():
 @pytest.mark.skipif(importlib.util.find_spec('lammps') is not None, reason='LAMMPS is installed')
 def test_unavailable_solver_names_the_extra():
     """Test that choosing LAMMPS without it installed reports one error whose fix names the installation extra."""
-    report = validate(System(components=[StockComponent('rabbits')]), solver='lammps')
+    report = validate(System(components=[StockElement('rabbits')]), solver='lammps')
     (issue,) = report.errors
     assert issue.code == 'solver-unavailable'
     assert '`lammps` extra' in issue.fix
@@ -157,7 +157,7 @@ def test_unavailable_solver_names_the_extra():
 
 def test_unknown_backend_is_reported():
     """Test that an unregistered backend is reported with the registered ones."""
-    report = validate(System(components=[StockComponent('rabbits')]), backend='fortran')
+    report = validate(System(components=[StockElement('rabbits')]), backend='fortran')
     (issue,) = report.errors
     assert issue.code == 'backend-unknown'
     assert 'numpy' in issue.fix
@@ -166,7 +166,7 @@ def test_unknown_backend_is_reported():
 def test_mixed_laws_suggest_partitions():
     """Test that rates and updates in one system without children are reported with both components."""
     system = System(
-        components=[StockComponent('rabbits'), CounterComponent('clock')],
+        components=[StockElement('rabbits'), CounterElement('clock')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
     (issue,) = validate(system).errors
@@ -182,10 +182,10 @@ def test_mixed_laws_in_nested_systems_are_valid():
         components=[
             System(
                 'meadow',
-                components=[StockComponent('rabbits')],
+                components=[StockElement('rabbits')],
                 interactions=[GrowthInteraction('growth', target='rabbits')],
             ),
-            System('clock', components=[CounterComponent('counter')]),
+            System('clock', components=[CounterElement('counter')]),
         ],
     )
     assert validate(system).ok
@@ -207,7 +207,7 @@ def test_report_raises_every_error():
     assert '[law-domain]' in str(error.value)
 
 
-class PlantComponent(ElementComponent):
+class PlantElement(Element):
     """Element steered by a bounded control input, with a quadratic cost."""
 
     x: float = state(1.0)
@@ -222,7 +222,7 @@ class PlantComponent(ElementComponent):
         return [ObjectiveQuantity('objective', s.x**2 + s.u**2)]
 
 
-class NoisyPlantComponent(PlantComponent):
+class NoisyPlantElement(PlantElement):
     """Plant whose state is driven by noise."""
 
     def laws(self, s):
@@ -230,7 +230,7 @@ class NoisyPlantComponent(PlantComponent):
         return [*super().laws(s), NoiseLaw(s.x, 0.1)]
 
 
-class TankComponent(ElementComponent):
+class TankElement(Element):
     """Element whose objective is placed under discrete time."""
 
     level: float = state(1.0)
@@ -246,7 +246,7 @@ class TankComponent(ElementComponent):
 
 def test_validate_control_outside_bounds():
     """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
-    (issue,) = validate(System(components=[PlantComponent('plant', u=2.0)])).errors
+    (issue,) = validate(System(components=[PlantElement('plant', u=2.0)])).errors
     assert issue.path == 'plant.u'
     assert issue.code == 'parameter-bounds'
     assert '(0.0, 1.0)' in issue.fix
@@ -254,7 +254,7 @@ def test_validate_control_outside_bounds():
 
 def test_validate_objective_under_discrete_time():
     """Test that an objective under discrete time is reported at its law, needing static or continuous time."""
-    issues = validate(System(components=[TankComponent('tank')], time=DiscreteTime())).errors
+    issues = validate(System(components=[TankElement('tank')], time=DiscreteTime())).errors
     issue = next(issue for issue in issues if issue.code == 'law-time')
     assert issue.path == 'tank'
     assert "ObjectiveQuantity 'objective' of tank" in issue.message
@@ -263,20 +263,20 @@ def test_validate_objective_under_discrete_time():
 
 def test_validate_objective_with_a_solver_without_objectives():
     """Test that an objective run with a solver that does not optimise lists the solvers that do."""
-    (issue,) = validate(System(components=[PlantComponent('plant')]), solver='rk4').errors
+    (issue,) = validate(System(components=[PlantElement('plant')]), solver='rk4').errors
     assert 'objective' in issue.message
     assert 'collocation, pontryagin' in issue.fix
-    assert validate(System(components=[PlantComponent('plant')]), solver='pontryagin').ok
+    assert validate(System(components=[PlantElement('plant')]), solver='pontryagin').ok
 
 
 def test_validate_noise_with_an_optimal_control_solver():
     """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
-    issues = validate(System(components=[NoisyPlantComponent('plant')]), solver='pontryagin').errors
+    issues = validate(System(components=[NoisyPlantElement('plant')]), solver='pontryagin').errors
     issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
     assert 'PontryaginSolver does not support the laws noise' in issue.message
 
 
-class GroupSpinComponent(ElementComponent):
+class GroupSpinElement(Element):
     """Spin on a group space sampled with the default checkerboard schedule."""
 
     spin: float = state(1, domain=NumericDomain.INTEGER)
@@ -291,7 +291,7 @@ class GroupSpinComponent(ElementComponent):
 def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=2)
-    issues = validate(System(components=[GroupSpinComponent.lattice('spins', space)])).issues
+    issues = validate(System(components=[GroupSpinElement.lattice('spins', space)])).issues
     assert [(issue.code, issue.path) for issue in issues] == [('schedule-unsupported', 'spins')]
     assert "'synchronous'" in issues[0].fix
     assert "'random-sequential'" in issues[0].fix
@@ -300,7 +300,7 @@ def test_group_space_reports_the_checkerboard_schedule():
 def test_group_space_reports_an_image_visual():
     """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=2)
-    group = GroupSpinComponent.lattice('spins', space, visual=VisualSpec('image'))
+    group = GroupSpinElement.lattice('spins', space, visual=VisualSpec('image'))
     issue = next(issue for issue in validate(System(components=[group])).issues if issue.code == 'visual-unsupported')
     assert "'cayley'" in issue.fix
 
@@ -317,7 +317,7 @@ def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
 def test_lattice_with_a_bad_boundary_is_reported():
     """Test that a lattice whose boundary is not supported is a space-invalid error that lists the boundaries."""
     space = LatticeSpace((4, 4), boundary='spherical')
-    (issue,) = validate(System(components=[StockComponent('rabbits')], space=space)).errors
+    (issue,) = validate(System(components=[StockElement('rabbits')], space=space)).errors
     assert issue.code == 'space-invalid'
     assert "'spherical'" in issue.message
     assert 'periodic, fixed, reflecting' in issue.message
@@ -326,7 +326,7 @@ def test_lattice_with_a_bad_boundary_is_reported():
 def test_invalid_space_among_other_errors_is_reported():
     """Test that an invalid lattice and an unbound role are both reported, and compiling raises the validation error."""
     system = System(
-        components=[StockComponent('rabbits')],
+        components=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='hares')],
         space=LatticeSpace((4, 4), boundary='spherical'),
     )
@@ -338,7 +338,7 @@ def test_invalid_space_among_other_errors_is_reported():
 def test_validation_keeps_the_planned_compilation():
     """Test that validation returns the compilation state planned once, which holds the nodes and the plan."""
     system = System(
-        components=[StockComponent('rabbits')],
+        components=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
     compilation = validate(system).compilation
@@ -351,10 +351,10 @@ def test_validate_fractional_state_without_its_formalism_names_the_formalism():
     script = (
         'from skcomplex.core.base import state\n'
         'from skcomplex.engine.compile import validate\n'
-        'from skcomplex.core.components import ElementComponent\n'
+        'from skcomplex.core.components import Element\n'
         'from skcomplex.core.system import System\n'
-        "KindComponent = ElementComponent.define('KindComponent', states={'x': state(1.0, order=0.5)})\n"
-        "issue = validate(System(components=[KindComponent('a')])).errors[0]\n"
+        "KindElement = Element.define('KindElement', states={'x': state(1.0, order=0.5)})\n"
+        "issue = validate(System(components=[KindElement('a')])).errors[0]\n"
         'print(issue.code, issue.fix)\n'
     )
     command = [sys.executable, '-c', script]
@@ -410,7 +410,7 @@ def test_validate_reports_mixed_conventions():
 def test_validate_reports_correction_out_of_scope():
     """Test that a Stratonovich law reading a state another component drives on its process is reported."""
     system = System(
-        components=[HoldingComponent('a'), HoldingComponent('b', n=1.0)],
+        components=[HoldingElement('a'), HoldingElement('b', n=1.0)],
         interactions=[
             CoupledInteraction('coupled', target='a', other='b', noise=WienerProcess('market')),
             SingleInteraction('single', target='b', noise=WienerProcess('market')),
@@ -442,7 +442,7 @@ def test_validate_reports_covariance_shape_and_symmetry(covariance):
 def test_validate_reports_handle_as_value():
     """Test that a Wiener handle used inside a rate law is reported with the law."""
     system = System(
-        components=[HoldingComponent('a')],
+        components=[HoldingElement('a')],
         interactions=[MisuseInteraction('misuse', target='a', noise=WienerProcess('market'))],
     )
     (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-handle']
@@ -452,13 +452,13 @@ def test_validate_reports_handle_as_value():
 
 def test_validate_reports_wiener_under_discrete_time():
     """Test that a `WienerProcess` in a system of discrete time is reported with the fix of continuous time."""
-    CounterComponent = ElementComponent.define(
-        'CounterComponent',
+    CounterElement = Element.define(
+        'CounterElement',
         states={'n': state(0.0, domain=NumericDomain.REAL)},
         laws=lambda s: [UpdateLaw(s.n, 1)],
     )
     system = System(
-        components=[CounterComponent('counter')],
+        components=[CounterElement('counter')],
         interactions=[SingleInteraction('single', target='counter', noise=WienerProcess('market'))],
         time=DiscreteTime(),
     )
@@ -492,27 +492,27 @@ def test_validate_accepts_correlated_noise_with_automatic_solver():
 
 def test_quantity_among_the_laws_is_rejected():
     """Test that an invariant returned from `laws` is a named error that names the component and `quantities`."""
-    MixedComponent = ElementComponent.define(
-        'MixedComponent',
+    MixedElement = Element.define(
+        'MixedElement',
         states={'a': 1.0},
         laws=lambda s: [RateLaw(s.a, -s.a), InvariantQuantity('total', s.a)],
     )
-    (issue,) = validate(System(components=[MixedComponent('tank')])).errors
+    (issue,) = validate(System(components=[MixedElement('tank')])).errors
     assert (issue.code, issue.path, issue.error) == ('declaration', 'tank', DeclarationError)
     assert "InvariantQuantity 'total'" in issue.message
     assert 'Return it from `quantities` instead' in issue.message
     with pytest.raises(DeclarationError, match='tank'):
-        compile_system(System(components=[MixedComponent('tank')]))
+        compile_system(System(components=[MixedElement('tank')]))
 
 
 def test_law_among_the_quantities_is_rejected():
     """Test that a law returned from `quantities` is a named error that names the component and `laws`."""
-    MixedComponent = ElementComponent.define(
-        'MixedComponent',
+    MixedElement = Element.define(
+        'MixedElement',
         states={'a': 1.0},
         quantities=lambda s: [RateLaw(s.a, -s.a)],
     )
-    (issue,) = validate(System(components=[MixedComponent('tank')])).errors
+    (issue,) = validate(System(components=[MixedElement('tank')])).errors
     assert (issue.code, issue.path, issue.error) == ('declaration', 'tank', DeclarationError)
     assert 'returns a RateLaw' in issue.message
     assert 'Return it from `laws` instead' in issue.message
@@ -520,11 +520,11 @@ def test_law_among_the_quantities_is_rejected():
 
 def test_observable_among_the_quantities_is_rejected():
     """Test that an observable returned from `quantities` is a named error that says where observables go."""
-    MixedComponent = ElementComponent.define(
-        'MixedComponent',
+    MixedElement = Element.define(
+        'MixedElement',
         states={'a': 1.0},
         quantities=lambda s: [ObservableQuantity('level', s.a)],
     )
-    (issue,) = validate(System(components=[MixedComponent('tank')])).errors
+    (issue,) = validate(System(components=[MixedElement('tank')])).errors
     assert issue.error is DeclarationError
     assert 'A run takes the observables' in issue.message

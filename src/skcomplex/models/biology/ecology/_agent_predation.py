@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -24,7 +24,7 @@ def _step(agent: AgentView, model: ModelView) -> None:
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
-class PreyComponent(ElementComponent):
+class PreyElement(Element):
     """Prey that walks at random and gives birth in cells it does not share with other prey.
 
     Args:
@@ -35,8 +35,8 @@ class PreyComponent(ElementComponent):
             The probability of giving birth at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PreyComponent
-        >>> PreyComponent.group('rabbits', 200).size
+        >>> from skcomplex.models.biology.ecology import PreyElement
+        >>> PreyElement.group('rabbits', 200).size
         200
     """
 
@@ -71,7 +71,7 @@ class PreyComponent(ElementComponent):
             agent.create()
 
 
-class PredatorComponent(ElementComponent):
+class PredatorElement(Element):
     """Predator that walks at random, eats prey of the group `prey` in its cell, breeds after a meal, and dies.
 
     Args:
@@ -85,8 +85,8 @@ class PredatorComponent(ElementComponent):
             The probability of dying at every step.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PredatorComponent
-        >>> PredatorComponent.group('foxes', 50).size
+        >>> from skcomplex.models.biology.ecology import PredatorElement
+        >>> PredatorElement.group('foxes', 50).size
         50
     """
 
@@ -188,8 +188,8 @@ def agent_based_lotka_volterra(
     locations = [tuple(int(item) for item in cell) for cell in cells]
     return System(
         components=[
-            PreyComponent.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
-            PredatorComponent.group(
+            PreyElement.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
+            PredatorElement.group(
                 'predators',
                 predators,
                 variable=True,

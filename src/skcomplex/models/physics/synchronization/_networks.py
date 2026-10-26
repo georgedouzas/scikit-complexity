@@ -10,18 +10,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import RateLaw, Symbols, UpdateLaw, neighbors
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
-from ._kuramoto import PhaseOscillatorComponent
+from ._kuramoto import PhaseOscillatorElement
 from ._utils import _order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
-LinkComponent = ElementComponent.define(
-    'LinkComponent',
+LinkElement = Element.define(
+    'LinkElement',
     parameters={'w': parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)},
 )
 
@@ -31,8 +31,8 @@ def _logistic(r: Expression, x: Expression) -> Expression:
     return r * x * (1 - x)
 
 
-LogisticNodeComponent = ElementComponent.define(
-    'LogisticNodeComponent',
+LogisticNodeElement = Element.define(
+    'LogisticNodeElement',
     states={'x': state(default=0.5, domain=NumericDomain.REAL)},
     parameters={'r': 4.0, 'epsilon': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)},
     laws=lambda s: [
@@ -167,14 +167,14 @@ def kuramoto_on_networks(
     space = _network(network, n_oscillators, degree, rewiring, seed)
     rng = np.random.default_rng(seed + 1)
     mean_degree = 2 * space.graph.number_of_edges() / n_oscillators
-    oscillators = PhaseOscillatorComponent.lattice(
+    oscillators = PhaseOscillatorElement.lattice(
         'oscillators',
         space,
         theta=rng.uniform(0, 2 * math.pi, n_oscillators),
         omega=rng.normal(0.0, sigma, n_oscillators),
         visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
     )
-    links = GroupComponent('links', element=LinkComponent, space=space, on='edges')
+    links = GroupElement('links', element=LinkElement, space=space, on='edges')
     coupling = EdgeCouplingInteraction('coupling', oscillators='oscillators', links='links', K=K / mean_degree)
     return System(components=[oscillators, links], interactions=[coupling])
 
@@ -240,7 +240,7 @@ def coupled_map_lattices_on_networks(
     """
     space = _network(network, n_nodes, degree, rewiring, seed)
     rng = np.random.default_rng(seed + 1)
-    maps = LogisticNodeComponent.lattice(
+    maps = LogisticNodeElement.lattice(
         'maps',
         space,
         x=rng.uniform(0.0, 1.0, n_nodes),

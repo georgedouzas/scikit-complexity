@@ -9,7 +9,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import atan2, cos, sin, tanh
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, state, symbol, vector
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import (
     NEIGHBOR_REDUCTIONS,
     RateLaw,
@@ -116,8 +116,8 @@ CRITICAL = 2 * GAMMA
 
 def _reducing(over, kind, *, weight=None, **states):
     """Return an element type whose state `out` is the reduction of the neighbour's `y` over a neighbourhood."""
-    return ElementComponent.define(
-        'ReducingComponent',
+    return Element.define(
+        'ReducingElement',
         states={'out': 0.0, 'y': 0.0, **states},
         laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.y, over=over, reduce=kind, weight=weight))],
     )
@@ -186,8 +186,8 @@ def test_reduction_over_a_network_matches_its_definition(kind, backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     """Test that a weight of the member and the neighbour weighs every neighbour in a normalized mean."""
-    weighted = ElementComponent.define(
-        'WeightedComponent',
+    weighted = Element.define(
+        'WeightedElement',
         states={'out': 0.0, 'y': 0.0},
         laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.y, reduce='normalized-mean', weight=s.y + s.other.y))],
     )
@@ -288,8 +288,8 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_neighbour_positions_are_read_by_minimum_image(backend):
     """Test that the position of a neighbour across a periodic edge is its image nearest to the member."""
-    reading = ElementComponent.define(
-        'ReadingComponent',
+    reading = Element.define(
+        'ReadingElement',
         states={'out': 0.0, 'x': state(vector=True, position=True)},
         laws=lambda s: [UpdateLaw(s.out, neighbors(s.other.x[0] - s.x[0], over=Radius(1.0)))],
     )
@@ -306,7 +306,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
         roles=['target'],
         laws=lambda s: [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))],
     )
-    plain = ElementComponent.define('PlainComponent', states={'y': 0.0})
+    plain = Element.define('PlainElement', states={'y': 0.0})
     system = System(
         components=[plain.group('g', 3, y=[0.0, 1.0, 4.0])],
         interactions=[diffusion('d', target='g')],
@@ -318,7 +318,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
 
 def test_neighbour_symbols_outside_a_reduction_are_rejected():
     """Test that a law reading `s.other` outside a neighbourhood reduction raises an error that names `neighbors`."""
-    stray = ElementComponent.define('StrayComponent', states={'y': 0.0}, laws=lambda s: [RateLaw(s.y, s.other.y)])
+    stray = Element.define('StrayElement', states={'y': 0.0}, laws=lambda s: [RateLaw(s.y, s.other.y)])
     system = System(components=[stray.group('g', 3)], space=NetworkSpace(nx.path_graph(3)))
     with pytest.raises(ValidationError, match='neighbors'):
         compile_system(system)
@@ -355,8 +355,8 @@ def test_validate_reports_a_cone_without_a_heading():
 
 def test_validate_accepts_a_cone_along_the_velocity():
     """Test that a cone reads the vector velocity of the position as the heading of every member."""
-    moving = ElementComponent.define(
-        'MovingComponent',
+    moving = Element.define(
+        'MovingElement',
         states={
             'out': 0.0,
             'y': 0.0,
@@ -369,8 +369,8 @@ def test_validate_accepts_a_cone_along_the_velocity():
     assert validate(system).ok
 
 
-OscillatorComponent = ElementComponent.define(
-    'OscillatorComponent',
+OscillatorElement = Element.define(
+    'OscillatorElement',
     states={'theta': 0.0},
     parameters={'omega': 0.0, 'K': 1.0},
     laws=lambda s: [RateLaw(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))],
@@ -382,7 +382,7 @@ def _kuramoto(coupling, size=1000):
     quantiles = (np.arange(size) + 0.5) / size
     omega = GAMMA * np.tan(math.pi * (quantiles - 0.5))
     theta = np.random.default_rng(1).uniform(0, 2 * math.pi, size)
-    oscillators = OscillatorComponent.group('oscillators', size, theta=theta, omega=omega, K=coupling)
+    oscillators = OscillatorElement.group('oscillators', size, theta=theta, omega=omega, K=coupling)
     return System(components=[oscillators], space=NetworkSpace(nx.complete_graph(size)))
 
 
@@ -414,8 +414,8 @@ def test_kuramoto_agrees_across_backends():
 
 
 RADIUS = 1.0
-MoverComponent = ElementComponent.define(
-    'MoverComponent',
+MoverElement = Element.define(
+    'MoverElement',
     states={'x': state(vector=True, position=True), 'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'v0': 0.03, 'eta': 0.1},
     laws=lambda s: [
@@ -435,7 +435,7 @@ MoverComponent = ElementComponent.define(
 def _vicsek(size=400, side=5.0):
     """Return the Vicsek model at high density in a periodic box under discrete time."""
     rng = np.random.default_rng(3)
-    movers = MoverComponent.group(
+    movers = MoverElement.group(
         'movers',
         size,
         x=rng.uniform(0, side, (size, 2)),

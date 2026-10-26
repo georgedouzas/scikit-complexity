@@ -4,13 +4,13 @@
 # License: MIT
 
 from ....core.base import NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import EventLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-LeakyIntegrateAndFireComponent = ElementComponent.define(
-    'LeakyIntegrateAndFireComponent',
+LeakyIntegrateAndFireElement = Element.define(
+    'LeakyIntegrateAndFireElement',
     states={'v': -65.0},
     parameters={
         'rest': -65.0,
@@ -26,8 +26,8 @@ LeakyIntegrateAndFireComponent = ElementComponent.define(
     ],
 )
 
-IzhikevichComponent = ElementComponent.define(
-    'IzhikevichComponent',
+IzhikevichElement = Element.define(
+    'IzhikevichElement',
     states={'v': -65.0, 'u': -13.0},
     parameters={'a': 0.02, 'b': 0.2, 'c': -65.0, 'd': 8.0, 'I': 10.0, 'peak': 30.0},
     laws=lambda s: [
@@ -94,7 +94,7 @@ def integrate_and_fire(
     """
     return System(
         components=[
-            LeakyIntegrateAndFireComponent(
+            LeakyIntegrateAndFireElement(
                 'neuron',
                 v=v,
                 rest=rest,
@@ -160,4 +160,4 @@ def izhikevich(
         >>> izhikevich(d=2.0).elements[0].d
         2.0
     """
-    return System(components=[IzhikevichComponent('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])
+    return System(components=[IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])

@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -31,7 +31,7 @@ def _investment(profit: Expression, goal: Expression) -> Expression:
     return where(capped > 0, capped, 0)
 
 
-class OilEconomyComponent(ElementComponent):
+class OilEconomyElement(Element):
     """Capital that extracts a nonrenewable resource and reinvests its profit up to a growth goal.
 
     Extraction is the capital times the yield per unit of capital, a table of the resource stock. The profit is the
@@ -70,8 +70,8 @@ class OilEconomyComponent(ElementComponent):
                 The average lifetime of the capital.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import OilEconomyComponent
-        >>> OilEconomyComponent('oil', price=4.0).price
+        >>> from skcomplex.models.economics.resources import OilEconomyElement
+        >>> OilEconomyElement('oil', price=4.0).price
         4.0
     """
 
@@ -136,7 +136,7 @@ class OilEconomyComponent(ElementComponent):
         ]
 
 
-class FisheryComponent(ElementComponent):
+class FisheryElement(Element):
     """Capital that harvests a regenerating resource, with a price that rises as the yield falls.
 
     The resource regenerates at a rate per unit of stock that is a hump-shaped table of the stock, zero when it is
@@ -174,8 +174,8 @@ class FisheryComponent(ElementComponent):
                 The average lifetime of the capital.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import FisheryComponent
-        >>> FisheryComponent('fishery', lifetime=15.0).lifetime
+        >>> from skcomplex.models.economics.resources import FisheryElement
+        >>> FisheryElement('fishery', lifetime=15.0).lifetime
         15.0
     """
 
@@ -293,7 +293,7 @@ def oil_economy(
         >>> oil_economy(resource=2000.0).elements[0].resource
         2000.0
     """
-    economy = OilEconomyComponent(
+    economy = OilEconomyElement(
         'oil',
         resource=resource,
         capital=capital,
@@ -355,7 +355,7 @@ def fishery_capital(
         >>> fishery_capital(lifetime=10.0).elements[0].lifetime
         10.0
     """
-    fishery = FisheryComponent(
+    fishery = FisheryElement(
         'fishery',
         resource=resource,
         capital=capital,

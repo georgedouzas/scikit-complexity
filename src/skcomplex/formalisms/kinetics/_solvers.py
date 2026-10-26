@@ -11,8 +11,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     OrderKind,
@@ -70,7 +70,7 @@ class KineticSolver(Solver):
         space={SpaceKind.LATTICE},
         laws={LawKind.ENCOUNTER},
         domains={DomainKind.REAL},
-        components={ComponentKind.SITE_GROUP},
+        components={ElementKind.SITE_GROUP},
         orders={OrderKind.INTEGER},
     )
 

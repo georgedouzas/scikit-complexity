@@ -10,7 +10,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import sin, tanh
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -34,7 +34,7 @@ def _recurrent_weights(
     return scipy.sparse.csr_array(weights * (spectral_radius / radius))
 
 
-class ReservoirUnitComponent(ElementComponent):
+class ReservoirUnitElement(Element):
     """Leaky tanh unit of an echo state network, driven by the other units and by a sine input.
 
     The unit follows `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input `u(t) = A sin(f t)`.
@@ -65,8 +65,8 @@ class ReservoirUnitComponent(ElementComponent):
                 The angular frequency `f` of the input, per step.
 
     Examples:
-        >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnitComponent
-        >>> ReservoirUnitComponent('unit').leak
+        >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnitElement
+        >>> ReservoirUnitElement('unit').leak
         0.3
     """
 
@@ -161,7 +161,7 @@ def echo_state_network(
     """
     rng = np.random.default_rng(random_state)
     weights = _recurrent_weights(n_units, connectivity, spectral_radius, rng)
-    units = ReservoirUnitComponent.group(
+    units = ReservoirUnitElement.group(
         'units',
         n_units,
         r=rng.uniform(-1.0, 1.0, n_units),

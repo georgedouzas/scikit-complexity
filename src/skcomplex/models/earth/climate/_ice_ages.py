@@ -8,7 +8,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import cos, pi
 
 from ....core.base import BaseLaw, Expression, NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -40,8 +40,8 @@ def _carbon_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-SaltzmanMaaschComponent = ElementComponent.define(
-    'SaltzmanMaaschComponent',
+SaltzmanMaaschElement = Element.define(
+    'SaltzmanMaaschElement',
     states={'x': -0.2, 'y': 1.0, 'z': 0.0},
     parameters={'p': 1.0, 'q': 2.5, 'r': 1.3, 's': 0.6, 'u': 0.2, 'nu': 0.0, 't0': 10.0},
     laws=_saltzman_laws,
@@ -57,15 +57,15 @@ def _ice_age_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-VanDerPolIceAgesComponent = ElementComponent.define(
-    'VanDerPolIceAgesComponent',
+VanDerPolIceAgesElement = Element.define(
+    'VanDerPolIceAgesElement',
     states={'x': 0.0, 'y': 1.0},
     parameters={'alpha': 30.0, 'beta': 0.75, 'gamma': 0.0, 'tau': 35.09},
     laws=_ice_age_laws,
 )
 
-CarbonCycleComponent = ElementComponent.define(
-    'CarbonCycleComponent',
+CarbonCycleElement = Element.define(
+    'CarbonCycleElement',
     states={
         'c': state(default=83.58, domain=NumericDomain.POSITIVE),
         'w': state(default=2050.0, domain=NumericDomain.POSITIVE),
@@ -149,7 +149,7 @@ def saltzman_glaciation(
         >>> saltzman_glaciation(nu=0.5).elements[0].nu
         0.5
     """
-    return System(components=[SaltzmanMaaschComponent('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
+    return System(components=[SaltzmanMaaschElement('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
 
 
 @register_model(
@@ -196,7 +196,7 @@ def carbon_cycle(
         >>> carbon_cycle(nu=0.1).elements[0].nu
         0.1
     """
-    return System(components=[CarbonCycleComponent('ocean', c=c, w=w, c_x=c_x, nu=nu)])
+    return System(components=[CarbonCycleElement('ocean', c=c, w=w, c_x=c_x, nu=nu)])
 
 
 @register_model(
@@ -251,5 +251,5 @@ def van_der_pol_ice_ages(
         0.4
     """
     return System(
-        components=[VanDerPolIceAgesComponent('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
+        components=[VanDerPolIceAgesElement('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
     )

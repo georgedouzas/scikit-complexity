@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ...core.base import DomainKind, ElementKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
 from ...core.problems import BaseSolver
 from ...engine.solvers import StructureState
 from ._passes import RewritingProblem
@@ -23,11 +23,11 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, RewritingSolver, WordComponent
-        >>> class AlgaeComponent(WordComponent):
+        >>> from skcomplex.formalisms.rewriting import ProductionLaw, RewriteLaw, RewritingSolver, WordElement
+        >>> class AlgaeElement(WordElement):
         ...     def laws(self, s):
         ...         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
-        >>> system = System(components=[AlgaeComponent('algae', axiom='A')])
+        >>> system = System(components=[AlgaeElement('algae', axiom='A')])
         >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
@@ -38,7 +38,7 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         space=set(SpaceKind.registered()),
         laws={LawKind.REWRITE},
         domains={DomainKind.SEQUENCE, DomainKind.TILING, DomainKind.GRAPH, DomainKind.REAL, DomainKind.INTEGER},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+        components={ElementKind.ELEMENT, ElementKind.GROUP},
         orders={OrderKind.INTEGER},
     )
 

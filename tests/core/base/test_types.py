@@ -23,13 +23,13 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 
-from .conftest import PersonComponent, ProgressionInteraction
+from .conftest import PersonElement, ProgressionInteraction
 
 
 class Colour(Term):
@@ -82,8 +82,8 @@ def test_declared_noise_support():
     assert set(MilsteinSolver.supports.noise) == {NoiseKind.DIAGONAL}
 
 
-RotorComponent = ElementComponent.define(
-    'RotorComponent',
+RotorElement = Element.define(
+    'RotorElement',
     states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'omega': 1.0},
 )
@@ -96,7 +96,7 @@ SpinInteraction = BaseInteraction.define(
 )
 
 
-SwitchComponent = ElementComponent.define('SwitchComponent', states={'on': state(False, domain=NumericDomain.BOOLEAN)})
+SwitchElement = Element.define('SwitchElement', states={'on': state(False, domain=NumericDomain.BOOLEAN)})
 
 
 @pytest.mark.parametrize(
@@ -124,7 +124,7 @@ def test_domain_maps_to_sage_domain():
 def test_categorical_values_round_trip_as_labels():
     """Test that categorical states take labels as values and return them as labels."""
     system = System(
-        components=[PersonComponent('ann', health='infected')],
+        components=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     trajectory = Simulation(system).run(until=1).trajectory_
@@ -134,13 +134,13 @@ def test_categorical_values_round_trip_as_labels():
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match='categorical'):
-        Simulation(System(components=[PersonComponent('ann', health='dead')])).run(until=1)
+        Simulation(System(components=[PersonElement('ann', health='dead')])).run(until=1)
 
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past π lies in (-π, π] after every frame."""
     system = System(
-        components=[RotorComponent('r', theta=6.0, omega=1.0)],
+        components=[RotorElement('r', theta=6.0, omega=1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
     values = Simulation(system, dt=0.5).run(until=3).trajectory_.values('r.theta')
@@ -151,7 +151,7 @@ def test_angle_wraps_into_one_turn():
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
     system = System(
-        components=[RotorComponent('r', theta=0.1, omega=-1.0)],
+        components=[RotorElement('r', theta=0.1, omega=-1.0)],
         interactions=[SpinInteraction('s', target='r')],
     )
     values = Simulation(system, dt=0.1).run(until=1).trajectory_.values('r.theta')
@@ -167,13 +167,13 @@ def test_angle_encode_wraps_into_half_open_turn():
 
 def test_boolean_values_return_as_booleans():
     """Test that boolean states return booleans and reject other numbers."""
-    trajectory = Simulation(System(components=[SwitchComponent('s', on=True)]), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(System(components=[SwitchElement('s', on=True)]), dt=1).run(until=1).trajectory_
     assert trajectory.values('s.on').tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
-        Simulation(System(components=[SwitchComponent('s', on=0.5)])).run(until=1)
+        Simulation(System(components=[SwitchElement('s', on=0.5)])).run(until=1)
 
 
-class ValveComponent(ElementComponent):
+class ValveElement(Element):
     """Element with a bounded control input."""
 
     opening: float = parameter(0.5, adaptive=True, bounds=(0, 1))
@@ -181,7 +181,7 @@ class ValveComponent(ElementComponent):
 
 def test_parameter_bounds_declare_a_bounded_adaptive_parameter():
     """Test that bounds of an adaptive parameter are stored as floats on its state declaration."""
-    declaration = declarations_of(ValveComponent, VariableKind.STATE)['opening']
+    declaration = declarations_of(ValveElement, VariableKind.STATE)['opening']
     assert declaration.adaptive
     assert declaration.bounds == (0.0, 1.0)
     assert isinstance(declaration.bounds[0], float)
@@ -200,7 +200,7 @@ def test_parameter_bounds_reject_invalid_declarations(arguments, message):
         parameter(0.5, **arguments)
 
 
-class BodyComponent(ElementComponent):
+class BodyElement(Element):
     """Element with one scalar state, one vector state, and one parameter."""
 
     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
@@ -217,32 +217,32 @@ class LinkInteraction(BaseInteraction):
 
 def test_declarations_of_returns_fields_by_kind():
     """Test that declarations are grouped by kind in declaration order."""
-    assert list(declarations_of(BodyComponent, VariableKind.STATE)) == ['n', 'x']
-    assert list(declarations_of(BodyComponent, VariableKind.PARAMETER)) == ['m']
+    assert list(declarations_of(BodyElement, VariableKind.STATE)) == ['n', 'x']
+    assert list(declarations_of(BodyElement, VariableKind.PARAMETER)) == ['m']
     assert list(declarations_of(LinkInteraction, VariableKind.ROLE)) == ['first', 'second']
 
 
 def test_state_default_sequence_is_copied():
     """Test that a sequence default is not shared between instances."""
-    first, second = BodyComponent('a'), BodyComponent('b')
+    first, second = BodyElement('a'), BodyElement('b')
     first.x.append(1.0)
     assert second.x == [0.0, 0.0]
 
 
 def test_state_accepts_fractional_order_without_companions():
     """Test that a state of a fractional order keeps its order and gets no companion states."""
-    RelaxingComponent = ElementComponent.define('RelaxingComponent', states={'x': state(1.0, order=0.6)})
-    declaration = declarations_of(RelaxingComponent, VariableKind.STATE)['x']
+    RelaxingElement = Element.define('RelaxingElement', states={'x': state(1.0, order=0.6)})
+    declaration = declarations_of(RelaxingElement, VariableKind.STATE)['x']
     assert declaration.order == 0.6
     assert declaration.is_fractional
     assert declaration.derivatives == 0
-    assert list(declarations_of(RelaxingComponent, VariableKind.STATE)) == ['x']
+    assert list(declarations_of(RelaxingElement, VariableKind.STATE)) == ['x']
 
 
 def test_state_normalizes_integer_valued_orders():
     """Test that an order with an integer value is an integer order with its companions."""
     declarations = declarations_of(
-        ElementComponent.define('MassComponent', states={'x': state(0.0, order=2.0)}),
+        Element.define('MassElement', states={'x': state(0.0, order=2.0)}),
         VariableKind.STATE,
     )
     assert declarations['x'].order == 2

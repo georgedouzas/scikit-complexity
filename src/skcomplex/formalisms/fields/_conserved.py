@@ -13,7 +13,7 @@ from ...core.base import Expression, ValidationError
 from ...core.laws import NoiseLaw
 from ...core.problems import NoiseProcess, Output, Reference, Source
 from ...core.space import LatticeSpace
-from ._components import FieldComponent, boundary_of
+from ._components import FieldElement, boundary_of
 
 type Indices = npt.NDArray[np.intp]
 
@@ -22,7 +22,7 @@ def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpac
     """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
     space = getattr(place, 'space', None)
     is_lattice = (
-        isinstance(place, FieldComponent)
+        isinstance(place, FieldElement)
         and isinstance(space, LatticeSpace)
         and space.geometry == 'square'
         and place.discretization == 'finite-difference'
@@ -31,7 +31,7 @@ def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpac
     if not is_lattice:
         error_msg = (
             f'The conserved noise law of {owner} drives {reference.entry.name}, which is not a state of a '
-            'finite-difference field on a square lattice. Declare the state on a `FieldComponent` of a `LatticeSpace`.'
+            'finite-difference field on a square lattice. Declare the state on a `FieldElement` of a `LatticeSpace`.'
         )
         raise ValidationError(error_msg)
     return space  # type: ignore[return-value]
@@ -89,7 +89,7 @@ def conserved_outputs(
     owner: str,
     law: NoiseLaw,
     targets: list[Reference],
-    places: Mapping[str, FieldComponent],
+    places: Mapping[str, FieldElement],
     references: Mapping[Expression, Reference],
 ) -> list[Output]:
     """Return the outputs of a conserved noise law, the divergence of a random flux on the links of a lattice.

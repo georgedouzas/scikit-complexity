@@ -5,13 +5,13 @@
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
-StommelBoxesComponent = ElementComponent.define(
-    'StommelBoxesComponent',
+StommelBoxesElement = Element.define(
+    'StommelBoxesElement',
     states={'T': 3.0, 'S': 0.0},
     parameters={'eta1': 3.0, 'eta2': 1.2, 'eta3': 0.3},
     laws=lambda s: [
@@ -67,4 +67,4 @@ def stommel(
         >>> stommel(eta2=1.0).elements[0].eta2
         1.0
     """
-    return System(components=[StommelBoxesComponent('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])
+    return System(components=[StommelBoxesElement('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])

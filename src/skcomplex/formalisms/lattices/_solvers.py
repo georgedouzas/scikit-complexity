@@ -6,7 +6,7 @@
 import math
 from typing import ClassVar, cast
 
-from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
+from ...core.base import DomainKind, ElementKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind, Vector
 from ...engine.solvers import Solver
 from ._steps import CompiledExtremal, CompiledRelaxation, LatticeStep
 
@@ -33,7 +33,7 @@ class LatticeSolver(Solver):
         space={SpaceKind.LATTICE, SpaceKind.NETWORK},
         laws={LawKind.LOCAL_RULE, LawKind.UPDATE, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        components={ElementKind.GROUP, ElementKind.SITE_GROUP},
         orders={OrderKind.INTEGER},
     )
 
@@ -94,7 +94,7 @@ class MonteCarloSolver(LatticeSolver):
         space={SpaceKind.LATTICE, SpaceKind.NETWORK},
         laws={LawKind.SAMPLE, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        components={ElementKind.GROUP, ElementKind.SITE_GROUP},
         orders={OrderKind.INTEGER},
     )
 

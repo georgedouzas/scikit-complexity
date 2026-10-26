@@ -7,14 +7,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseInteraction, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....formalisms.fields import FieldComponent, divergence, laplacian
-from ._car_following import CarComponent, _headway
+from ....formalisms.fields import FieldElement, divergence, laplacian
+from ._car_following import CarElement, _headway
 
 
 def _target_speed(density: Expression, s: Symbols) -> Expression:
@@ -43,8 +43,8 @@ LangevinDrivingInteraction = BaseInteraction.define(
     ],
 )
 
-TrafficMomentsComponent = ElementComponent.define(
-    'TrafficMomentsComponent',
+TrafficMomentsElement = Element.define(
+    'TrafficMomentsElement',
     states={'rho': state(default=0.5, domain=NumericDomain.NONNEGATIVE), 'w': 0.25},
     parameters={
         'gamma': parameter(default=1.0, domain=NumericDomain.POSITIVE),
@@ -119,7 +119,7 @@ def langevin_traffic(
     """
     density = n_cars / length
     positions = np.arange(n_cars) * length / n_cars
-    cars = CarComponent.group('cars', n_cars, x=positions, v=np.full(n_cars, u0 * (1 - density / rho_max)))
+    cars = CarElement.group('cars', n_cars, x=positions, v=np.full(n_cars, u0 * (1 - density / rho_max)))
     driving = LangevinDrivingInteraction(
         'drive',
         cars='cars',
@@ -209,5 +209,5 @@ def traffic_density_equation(
         'D1': D1,
     }
     space = LatticeSpace(n, spacing=length / n)
-    road = FieldComponent('road', TrafficMomentsComponent, space, values=values)
+    road = FieldElement('road', TrafficMomentsElement, space, values=values)
     return System(components=[road])

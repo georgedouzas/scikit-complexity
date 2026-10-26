@@ -6,7 +6,7 @@
 from typing import ClassVar
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VariableKind, declarations_of, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -23,7 +23,7 @@ def _front(cars: list[AgentView], stage: int) -> AgentView | None:
     return min(waiting, key=lambda car: car.id) if waiting else None
 
 
-class CarComponent(ElementComponent):
+class CarElement(Element):
     """Car at the wash, waiting for or receiving a wash or a valet.
 
     Args:
@@ -40,8 +40,8 @@ class CarComponent(ElementComponent):
             The number of workers on the car in the current second.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import CarComponent
-        >>> CarComponent.group('cars', 1).size
+        >>> from skcomplex.models.economics.markets import CarElement
+        >>> CarElement.group('cars', 1).size
         1
     """
 
@@ -63,7 +63,7 @@ class CarComponent(ElementComponent):
         return []
 
 
-class WasherComponent(ElementComponent):
+class WasherElement(Element):
     """Worker who joins the front car of the wash or of the valet while it has fewer than two workers.
 
     A worker who finds both areas staffed helps at a random one of them. One second of work removes one
@@ -74,8 +74,8 @@ class WasherComponent(ElementComponent):
             The label of the agent or group.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import WasherComponent
-        >>> WasherComponent.group('workers', 4).size
+        >>> from skcomplex.models.economics.markets import WasherElement
+        >>> WasherElement.group('workers', 4).size
         4
     """
 
@@ -114,7 +114,7 @@ class WasherComponent(ElementComponent):
         car.work -= 1.0
 
 
-class TillComponent(ElementComponent):
+class TillElement(Element):
     """Till of the car wash, which counts the revenue and the cars served and turned away.
 
     Args:
@@ -134,8 +134,8 @@ class TillComponent(ElementComponent):
             The number of drivers who did not turn in because of the queue.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import TillComponent
-        >>> TillComponent.group('till', 1).size
+        >>> from skcomplex.models.economics.markets import TillElement
+        >>> TillElement.group('till', 1).size
         1
     """
 
@@ -342,9 +342,9 @@ def car_wash(
     )
     return System(
         components=[
-            WasherComponent.group('workers', n_workers, variable=True),
-            CarComponent.group('cars', n_cars, variable=True, work=wash_work),
-            TillComponent.group('till', 1, variable=True),
+            WasherElement.group('workers', n_workers, variable=True),
+            CarElement.group('cars', n_cars, variable=True, work=wash_work),
+            TillElement.group('till', 1, variable=True),
         ],
         interactions=[operation],
     )

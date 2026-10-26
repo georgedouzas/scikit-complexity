@@ -12,15 +12,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw, Symbols
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....formalisms.fields import FieldComponent, advection, divergence, gradient, laplacian
-from ....formalisms.particles import ParticleComponent
-from ._particles import ActiveParticleComponent
+from ....formalisms.fields import FieldElement, advection, divergence, gradient, laplacian
+from ....formalisms.particles import ParticleElement
+from ._particles import ActiveParticleElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -236,7 +236,7 @@ class CuckerSmaleAlignmentInteraction(BaseInteraction):
         return [RateLaw(s.first.v, change), RateLaw(s.second.v, -change)]
 
 
-class PolarFluidComponent(ElementComponent):
+class PolarFluidElement(Element):
     """Site of the Toner-Tu polar active fluid, with a density `rho` and a velocity `(vx, vy)`.
 
     The density is conserved, `drho/dt + div(rho v) = 0`, and the velocity follows
@@ -279,8 +279,8 @@ class PolarFluidComponent(ElementComponent):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.models.physics.active_matter import PolarFluidComponent
-        >>> PolarFluidComponent('site').rho_c
+        >>> from skcomplex.models.physics.active_matter import PolarFluidElement
+        >>> PolarFluidElement('site').rho_c
         0.5
     """
 
@@ -343,7 +343,7 @@ def _active_disks(
 ) -> System:
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
-    group = ActiveParticleComponent.group(
+    group = ActiveParticleElement.group(
         'swimmers',
         n_particles,
         x=positions,
@@ -525,7 +525,7 @@ def cucker_smale_flocking(
         5
     """
     rng = np.random.default_rng(random_state)
-    birds = ParticleComponent.group(
+    birds = ParticleElement.group(
         'birds',
         n_agents,
         x=rng.uniform(0.0, size, (n_agents, 2)),
@@ -617,4 +617,4 @@ def toner_tu(
     }
     parameters = {'a': a, 'rho_c': rho_c, 'beta': beta, 'lam': lam, 'sigma': sigma, 'D': D}
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[FieldComponent('flock', PolarFluidComponent, space, values={**values, **parameters})])
+    return System(components=[FieldElement('flock', PolarFluidElement, space, values={**values, **parameters})])

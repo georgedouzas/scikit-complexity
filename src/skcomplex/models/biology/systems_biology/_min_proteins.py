@@ -9,16 +9,16 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 
-class MinSkeletonComponent(ElementComponent):
+class MinSkeletonElement(Element):
     """Site of the Min skeleton model, with membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
 
     The reactions are the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the
@@ -67,8 +67,8 @@ class MinSkeletonComponent(ElementComponent):
             The nucleotide exchange rate.
 
     Examples:
-        >>> from skcomplex.models.biology.systems_biology import MinSkeletonComponent
-        >>> MinSkeletonComponent('site').lam
+        >>> from skcomplex.models.biology.systems_biology import MinSkeletonElement
+        >>> MinSkeletonElement('site').lam
         6.0
     """
 
@@ -109,7 +109,7 @@ class MinSkeletonComponent(ElementComponent):
         ]
 
 
-def _uniform_state(element: MinSkeletonComponent, total_D: float, total_E: float) -> dict[str, float]:
+def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
     """Return the uniform steady state of the skeleton model with the totals of MinD and MinE."""
 
     def others(md: float) -> tuple[float, float, float, float]:
@@ -143,7 +143,7 @@ def min_protein_skeleton(
     """Return the skeleton model of the Min proteins on a periodic line, a mass-conserving reaction-diffusion system.
 
     MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast,
-    with the reactions of `MinSkeletonComponent`. The reactions conserve the totals of MinD and MinE, so only diffusion
+    with the reactions of `MinSkeletonElement`. The reactions conserve the totals of MinD and MinE, so only diffusion
     moves mass, and the local reactive equilibria map the dynamics onto conserved fields with nonreciprocal
     cross-diffusion (Brauns and Marchetti, App. F). With the default totals, the uniform state is unstable to an
     oscillatory band of wavelengths near 17, and narrow bands of membrane MinD travel along the line and meet head-on.
@@ -178,10 +178,10 @@ def min_protein_skeleton(
         120.0
     """
     rng = np.random.default_rng(random_state)
-    uniform = _uniform_state(MinSkeletonComponent('site'), total_D, total_E)
+    uniform = _uniform_state(MinSkeletonElement('site'), total_D, total_E)
     values: dict[str, Any] = {name: np.full(n_sites, value) for name, value in uniform.items()}
     noise = 0.01 * uniform['md'] * rng.uniform(-1.0, 1.0, n_sites)
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise
     space = LatticeSpace(n_sites, spacing=length / n_sites)
-    return System(components=[FieldComponent('cell', MinSkeletonComponent, space, values=values)])
+    return System(components=[FieldElement('cell', MinSkeletonElement, space, values=values)])

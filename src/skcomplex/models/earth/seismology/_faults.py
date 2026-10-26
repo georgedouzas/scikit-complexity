@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -22,7 +22,7 @@ type Array = npt.NDArray[np.float64]
 NEAREST = Neighborhood.von_neumann(center=True)
 
 
-class FaultComponent(ElementComponent):
+class FaultElement(Element):
     """Block of the Olami-Feder-Christensen earthquake model, loaded uniformly and slipping at a threshold force.
 
     A slipping block passes the fraction `alpha` of its force to each of its four neighbours and drops to zero. With
@@ -45,8 +45,8 @@ class FaultComponent(ElementComponent):
                 The fraction of force passed to each neighbour.
 
     Examples:
-        >>> from skcomplex.models.earth.seismology import FaultComponent
-        >>> FaultComponent('block').alpha
+        >>> from skcomplex.models.earth.seismology import FaultElement
+        >>> FaultElement('block').alpha
         0.2
     """
 
@@ -134,4 +134,4 @@ def earthquakes(
     """
     forces = np.random.default_rng(random_state).random(tuple(shape))
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(components=[FaultComponent.lattice('fault', space, force=forces, alpha=alpha)])
+    return System(components=[FaultElement.lattice('fault', space, force=forces, alpha=alpha)])

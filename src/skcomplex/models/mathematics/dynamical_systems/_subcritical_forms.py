@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Expression, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -18,8 +18,8 @@ def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:
     return real * s.x - imaginary * s.y, imaginary * s.x + real * s.y
 
 
-SubcriticalHopfComponent = ElementComponent.define(
-    'SubcriticalHopfComponent',
+SubcriticalHopfElement = Element.define(
+    'SubcriticalHopfElement',
     states={'x': 0.1, 'y': 0.0},
     parameters={
         'alpha': -0.1,
@@ -88,5 +88,5 @@ def subcritical_hopf_form(
         0.1
     """
     return System(
-        components=[SubcriticalHopfComponent('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)],
+        components=[SubcriticalHopfElement('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)],
     )

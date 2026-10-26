@@ -9,8 +9,8 @@ from typing import ClassVar
 import numpy as np
 
 from ...core.base import (
-    ComponentKind,
     DomainKind,
+    ElementKind,
     Form,
     LawKind,
     NoiseKind,
@@ -35,11 +35,11 @@ class GillespieSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.epidemiology import CompartmentComponent, RecoveryInteraction
+        >>> from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
         >>> from skcomplex.engine.solvers import GillespieSolver
         >>> problem = compile_system(
         ...     System(
-        ...         components=[CompartmentComponent('I', n=10), CompartmentComponent('R', n=0)],
+        ...         components=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
@@ -54,12 +54,12 @@ class GillespieSolver(Solver):
         laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.VARIABLE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.VARIABLE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )
@@ -158,16 +158,16 @@ class RenewalSolver(Solver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import ElementComponent
+        >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import JumpLaw, draw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.solvers import RenewalSolver
-        >>> CounterComponent = ElementComponent.define(
-        ...     'CounterComponent',
+        >>> CounterElement = Element.define(
+        ...     'CounterElement',
         ...     states={'n': 0.0},
         ...     laws=lambda s: [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
         ... )
-        >>> problem = compile_system(System(components=[CounterComponent.group('counters', 3)]))
+        >>> problem = compile_system(System(components=[CounterElement.group('counters', 3)]))
         >>> stepper = RenewalSolver().prepare(problem, np.random.default_rng(0))
         >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 100.0)
         >>> bool(np.all(state[:3] > 50))
@@ -179,7 +179,7 @@ class RenewalSolver(Solver):
         space=set(SpaceKind.registered()),
         laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.SITE_GROUP, ElementKind.SYSTEM},
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )

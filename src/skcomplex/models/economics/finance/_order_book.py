@@ -10,7 +10,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import InvariantQuantity, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import ObservableQuantity, System
@@ -35,7 +35,7 @@ def _order_book_observables(system: System) -> list[ObservableQuantity]:
     ]
 
 
-class StockTraderComponent(ElementComponent):
+class StockTraderElement(Element):
     """Trader who forecasts the price as a fundamentalist or a chartist, quotes a limit order, and imitates.
 
     A fundamentalist expects the price `p` to revert to the fundamental value `F`, `p + reversion (F - p)`, and a
@@ -91,8 +91,8 @@ class StockTraderComponent(ElementComponent):
             The probability of copying a more successful neighbour.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import StockTraderComponent
-        >>> StockTraderComponent.group('traders', 4, strategy=1.0).size
+        >>> from skcomplex.models.economics.finance import StockTraderElement
+        >>> StockTraderElement.group('traders', 4, strategy=1.0).size
         4
     """
 
@@ -348,7 +348,7 @@ def order_book(
     """
     rng = np.random.default_rng(random_state)
     cells = [(x, y) for x in range(width) for y in range(height)]
-    traders = StockTraderComponent.group(
+    traders = StockTraderElement.group(
         'traders',
         len(cells),
         location=cells,

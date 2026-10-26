@@ -1,16 +1,16 @@
 """Waves: vibrating strings, chains of springs, and quantum wave packets, free and charged."""
 
-from ._charged import ChargedWaveFunctionComponent, charged_schrodinger
-from ._quantum import LatticeHamiltonianInteraction, PositionDephasingInteraction, WaveFunctionComponent, schrodinger
-from ._strings import DrivenAnchorInteraction, WaveStringComponent, spring_chain, standing_waves
+from ._charged import ChargedWaveFunctionElement, charged_schrodinger
+from ._quantum import LatticeHamiltonianInteraction, PositionDephasingInteraction, WaveFunctionElement, schrodinger
+from ._strings import DrivenAnchorInteraction, WaveStringElement, spring_chain, standing_waves
 
 __all__: list[str] = [
-    'ChargedWaveFunctionComponent',
+    'ChargedWaveFunctionElement',
     'DrivenAnchorInteraction',
     'LatticeHamiltonianInteraction',
     'PositionDephasingInteraction',
-    'WaveFunctionComponent',
-    'WaveStringComponent',
+    'WaveFunctionElement',
+    'WaveStringElement',
     'charged_schrodinger',
     'schrodinger',
     'spring_chain',

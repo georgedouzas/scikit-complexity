@@ -3,13 +3,13 @@
 import numpy as np
 
 from skcomplex.core.base import BaseInteraction, state
-from skcomplex.core.components import ElementComponent, GroupComponent
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.agents import MatchLaw, RuleLaw, matches, random_pairing
 
 
-class TraderComponent(ElementComponent):
+class TraderElement(Element):
     """Agent that counts the pairs it was in."""
 
     paired: float = state(0.0)
@@ -33,8 +33,8 @@ def test_random_matching_pairs_every_member_at_most_once():
     """Test that 50 buyers and 30 sellers form 30 pairs every step, with no member in two pairs."""
     system = System(
         components=[
-            GroupComponent('buyers', element=TraderComponent, size=50, variable=True),
-            GroupComponent('sellers', element=TraderComponent, size=30, variable=True),
+            GroupElement('buyers', element=TraderElement, size=50, variable=True),
+            GroupElement('sellers', element=TraderElement, size=30, variable=True),
         ],
         interactions=[ExchangeInteraction('market')],
     )

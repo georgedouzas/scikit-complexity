@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
@@ -79,8 +79,8 @@ def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Ar
     return matrix
 
 
-class Component(ElementComponent):
-    """Component of a technology, described by its unit cost.
+class PartElement(Element):
+    """PartElement of a technology, described by its unit cost.
 
     Args:
         label:
@@ -93,8 +93,8 @@ class Component(ElementComponent):
             The initial unit cost.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import Component
-        >>> Component.group('components', 5, cost=0.5).size
+        >>> from skcomplex.models.economics.innovation import PartElement
+        >>> PartElement.group('components', 5, cost=0.5).size
         5
     """
 
@@ -180,7 +180,7 @@ class RedesignInteraction(BaseInteraction):
             components[index].cost = float(proposal[index])
 
 
-class TechnologyComponent(ElementComponent):
+class TechnologyElement(Element):
     """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
 
     Bit `r` of the table is the output on the inputs whose bits form `r`, with the first input as the lowest bit.
@@ -199,8 +199,8 @@ class TechnologyComponent(ElementComponent):
             The number of NAND gates in the circuit.
 
     Examples:
-        >>> from skcomplex.models.economics.innovation import TechnologyComponent
-        >>> TechnologyComponent.group('technologies', 3, arity=[2, 0, 0], table=[7, 0, 1]).size
+        >>> from skcomplex.models.economics.innovation import TechnologyElement
+        >>> TechnologyElement.group('technologies', 3, arity=[2, 0, 0], table=[7, 0, 1]).size
         3
     """
 
@@ -337,7 +337,7 @@ def nk_technology(
     """
     rng = np.random.default_rng(random_state)
     dependencies = _design_structure(n_components, d, rng)
-    components = Component.group('components', n_components, cost=rng.random(n_components))
+    components = PartElement.group('components', n_components, cost=rng.random(n_components))
     return System(
         components=[components],
         interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
@@ -375,7 +375,7 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         3
     """
     primitives = (NAND, FALSE, TRUE)
-    technologies = TechnologyComponent.group(
+    technologies = TechnologyElement.group(
         'technologies',
         len(primitives),
         variable=True,

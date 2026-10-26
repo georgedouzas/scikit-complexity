@@ -1,37 +1,37 @@
 """Markets: prices, competition, retail, inventories, queues, and barter on trade networks."""
 
-from ._barter import BartererComponent, barter, contract_curve
-from ._barter_networks import BarterTraderComponent, BilateralBarterInteraction, wilhite_trade_networks
-from ._brock_hommes import HeuristicPricingInteraction, SpeculatorComponent, brock_hommes
-from ._cobweb import CobwebInteraction, MarketComponent, cobweb
-from ._commodities import CommodityMarketComponent, commodity_cycle
+from ._barter import BartererElement, barter, contract_curve
+from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, wilhite_trade_networks
+from ._brock_hommes import HeuristicPricingInteraction, SpeculatorElement, brock_hommes
+from ._cobweb import CobwebInteraction, MarketElement, cobweb
+from ._commodities import CommodityMarketElement, commodity_cycle
 from ._double_auction import (
     AuctionLedgerInteraction,
-    ZeroIntelligenceBuyerComponent,
-    ZeroIntelligenceSellerComponent,
+    ZeroIntelligenceBuyerElement,
+    ZeroIntelligenceSellerElement,
     double_auction,
     maximum_surplus,
 )
-from ._duopoly import CournotAdjustmentInteraction, DuopolistComponent, cournot_duopoly
-from ._fair_food import ConsumerComponent, fair_food
-from ._goods_traders import ExchangeInteraction, GoodsTraderComponent, goods_traders
-from ._inventory import CarDealershipComponent, car_dealer
-from ._labour import EmployerComponent, JobseekerComponent, SearchCountInteraction, hire, labour_market
+from ._duopoly import CournotAdjustmentInteraction, DuopolistElement, cournot_duopoly
+from ._fair_food import ConsumerElement, fair_food
+from ._goods_traders import ExchangeInteraction, GoodsTraderElement, goods_traders
+from ._inventory import CarDealershipElement, car_dealer
+from ._labour import EmployerElement, JobseekerElement, SearchCountInteraction, hire, labour_market
 from ._perishables import (
-    CustomerComponent,
+    CustomerElement,
     PerishableTradeInteraction,
-    ProductComponent,
-    ShopComponent,
+    ProductElement,
+    ShopElement,
     perishable_goods_duopoly,
 )
-from ._prices import QuadraticSupplyMarketComponent, riccati_prices
-from ._produce import ShopperComponent, StallComponent, produce_market
-from ._queues import CarComponent, CarWashOperationInteraction, TillComponent, WasherComponent, car_wash
-from ._shops import ResidentComponent, ShoppingInteraction, StoreComponent, delivered_price_choice, shops
-from ._sugarscape import CensusInteraction, ForagerComponent, PatchComponent, sugarscape
+from ._prices import QuadraticSupplyMarketElement, riccati_prices
+from ._produce import ShopperElement, StallElement, produce_market
+from ._queues import CarElement, CarWashOperationInteraction, TillElement, WasherElement, car_wash
+from ._shops import ResidentElement, ShoppingInteraction, StoreElement, delivered_price_choice, shops
+from ._sugarscape import CensusInteraction, ForagerElement, PatchElement, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
-    EchelonComponent,
+    EchelonElement,
     RetailDemandInteraction,
     SupplyLinkInteraction,
     beer_game,
@@ -39,46 +39,46 @@ from ._supply_chains import (
 
 __all__: list[str] = [
     'AuctionLedgerInteraction',
-    'BarterTraderComponent',
-    'BartererComponent',
+    'BarterTraderElement',
+    'BartererElement',
     'BilateralBarterInteraction',
     'BreweryInteraction',
-    'CarComponent',
-    'CarDealershipComponent',
+    'CarDealershipElement',
+    'CarElement',
     'CarWashOperationInteraction',
     'CensusInteraction',
     'CobwebInteraction',
-    'CommodityMarketComponent',
-    'ConsumerComponent',
+    'CommodityMarketElement',
+    'ConsumerElement',
     'CournotAdjustmentInteraction',
-    'CustomerComponent',
-    'DuopolistComponent',
-    'EchelonComponent',
-    'EmployerComponent',
+    'CustomerElement',
+    'DuopolistElement',
+    'EchelonElement',
+    'EmployerElement',
     'ExchangeInteraction',
-    'ForagerComponent',
-    'GoodsTraderComponent',
+    'ForagerElement',
+    'GoodsTraderElement',
     'HeuristicPricingInteraction',
-    'JobseekerComponent',
-    'MarketComponent',
-    'PatchComponent',
+    'JobseekerElement',
+    'MarketElement',
+    'PatchElement',
     'PerishableTradeInteraction',
-    'ProductComponent',
-    'QuadraticSupplyMarketComponent',
-    'ResidentComponent',
+    'ProductElement',
+    'QuadraticSupplyMarketElement',
+    'ResidentElement',
     'RetailDemandInteraction',
     'SearchCountInteraction',
-    'ShopComponent',
-    'ShopperComponent',
+    'ShopElement',
+    'ShopperElement',
     'ShoppingInteraction',
-    'SpeculatorComponent',
-    'StallComponent',
-    'StoreComponent',
+    'SpeculatorElement',
+    'StallElement',
+    'StoreElement',
     'SupplyLinkInteraction',
-    'TillComponent',
-    'WasherComponent',
-    'ZeroIntelligenceBuyerComponent',
-    'ZeroIntelligenceSellerComponent',
+    'TillElement',
+    'WasherElement',
+    'ZeroIntelligenceBuyerElement',
+    'ZeroIntelligenceSellerElement',
     'barter',
     'beer_game',
     'brock_hommes',

@@ -4,14 +4,14 @@
 # License: MIT
 
 from ....core.base import NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 
-DrivenRosslerComponent = ElementComponent.define(
-    'DrivenRosslerComponent',
+DrivenRosslerElement = Element.define(
+    'DrivenRosslerElement',
     states={'x': 1.0, 'y': 1.0, 'z': 1.0, 'eta': 0.0},
     parameters={
         'a': 0.2,
@@ -93,5 +93,5 @@ def ou_driven_rossler(
         >>> ou_driven_rossler(tau=10.0).elements[0].tau
         10.0
     """
-    rossler = DrivenRosslerComponent('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
+    rossler = DrivenRosslerElement('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
     return System(components=[rossler])

@@ -8,7 +8,7 @@ import math
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -153,8 +153,8 @@ def _irrigation_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-RiceMillComponent = ElementComponent.define(
-    'RiceMillComponent',
+RiceMillElement = Element.define(
+    'RiceMillElement',
     states={
         'paddy': state(default=2000.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
         'rice': state(default=1300.0, domain=NumericDomain.NONNEGATIVE, quantity='grain'),
@@ -179,8 +179,8 @@ RiceMillComponent = ElementComponent.define(
     quantities=_rice_mill_quantities,
 )
 
-WasteSystemComponent = ElementComponent.define(
-    'WasteSystemComponent',
+WasteSystemElement = Element.define(
+    'WasteSystemElement',
     states={
         'population': state(default=1e6, domain=NumericDomain.NONNEGATIVE, quantity='people'),
         'uncollected': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='waste'),
@@ -205,8 +205,8 @@ WasteSystemComponent = ElementComponent.define(
     quantities=_waste_quantities,
 )
 
-ReliefPipelineComponent = ElementComponent.define(
-    'ReliefPipelineComponent',
+ReliefPipelineElement = Element.define(
+    'ReliefPipelineElement',
     states={
         'in_transit': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food'),
         'warehouse': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='food'),
@@ -225,8 +225,8 @@ ReliefPipelineComponent = ElementComponent.define(
     quantities=_relief_quantities,
 )
 
-IrrigationSchemeComponent = ElementComponent.define(
-    'IrrigationSchemeComponent',
+IrrigationSchemeElement = Element.define(
+    'IrrigationSchemeElement',
     states={
         'reservoir': state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water'),
         'soil': state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='water'),
@@ -313,7 +313,7 @@ def rice_milling(
         >>> rice_milling(capacity=1500.0).elements[0].capacity
         1500.0
     """
-    mill = RiceMillComponent(
+    mill = RiceMillElement(
         'mill',
         paddy=harvest,
         rice=outturn * harvest,
@@ -386,7 +386,7 @@ def solid_waste(
         >>> solid_waste(landfill_capacity=1e6).elements[0].landfill_capacity
         1000000.0
     """
-    city = WasteSystemComponent(
+    city = WasteSystemElement(
         'city',
         population=population,
         collection_capacity=INITIAL_COLLECTION_SHARE * per_capita * population,
@@ -454,7 +454,7 @@ def food_relief(
         >>> food_relief(shipping_delay=7.0).elements[0].shipping_delay
         7.0
     """
-    relief = ReliefPipelineComponent(
+    relief = ReliefPipelineElement(
         'relief',
         affected=affected,
         ration=ration,
@@ -524,7 +524,7 @@ def irrigation(
         >>> irrigation(pump_capacity=0.0).elements[0].pump_capacity
         0.0
     """
-    scheme = IrrigationSchemeComponent(
+    scheme = IrrigationSchemeElement(
         'scheme',
         river_inflow=river_inflow,
         seasonality=seasonality,

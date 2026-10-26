@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import BaseLaw, Expression, ValidationError, VisualSpec, state, vector
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, categorical, where
 from ....core.space import ContinuousSpace
 from ....core.system import System
@@ -35,7 +35,7 @@ PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
 }
 
 
-class ChaosPointComponent(ElementComponent):
+class ChaosPointElement(Element):
     """Point of the plane moved at every step by one affine map of an iterated function system, drawn at random.
 
     Map `k` takes `(x, y)` to `(a x + b y + e, c x + d y + f)` for its coefficients `(a, b, c, d, e, f)`, and is drawn
@@ -58,8 +58,8 @@ class ChaosPointComponent(ElementComponent):
                 The initial position.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import ChaosPointComponent
-        >>> len(ChaosPointComponent('point').maps)
+        >>> from skcomplex.models.mathematics.fractals import ChaosPointElement
+        >>> len(ChaosPointElement('point').maps)
         3
     """
 
@@ -110,7 +110,7 @@ def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: in
         )
         raise ValidationError(error_msg)
     starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type,unused-ignore]
-    points = ChaosPointComponent.group(
+    points = ChaosPointElement.group(
         'points',
         n_points,
         p=starts,

@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import System
@@ -52,7 +52,7 @@ def landscape(width: int, height: int) -> Array:
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
 
 
-class PatchComponent(ElementComponent):
+class PatchElement(Element):
     """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
 
     Args:
@@ -72,8 +72,8 @@ class PatchComponent(ElementComponent):
             The sugar that grows back in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import PatchComponent
-        >>> PatchComponent.group('patches', 4, capacity=2.0).size
+        >>> from skcomplex.models.economics.markets import PatchElement
+        >>> PatchElement.group('patches', 4, capacity=2.0).size
         4
     """
 
@@ -108,7 +108,7 @@ class PatchComponent(ElementComponent):
         agent.sugar = min(agent.capacity, agent.sugar + agent.growback)
 
 
-class ForagerComponent(ElementComponent):
+class ForagerElement(Element):
     """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
 
     A forager sees `vision` cells along each of the four lattice directions and moves to the free cell with the most
@@ -132,8 +132,8 @@ class ForagerComponent(ElementComponent):
             The sugar the forager burns in a step.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import ForagerComponent
-        >>> ForagerComponent.group('foragers', 3, vision=2.0).size
+        >>> from skcomplex.models.economics.markets import ForagerElement
+        >>> ForagerElement.group('foragers', 3, vision=2.0).size
         3
     """
 
@@ -322,7 +322,7 @@ def sugarscape(
     rng = np.random.default_rng(random_state)
     capacity = landscape(width, height).ravel()
     cells = [(x, y) for x in range(width) for y in range(height)]
-    patches = PatchComponent.group(
+    patches = PatchElement.group(
         'patches',
         len(cells),
         location=cells,
@@ -331,7 +331,7 @@ def sugarscape(
         growback=growback,
     )
     occupied = rng.choice(len(cells), size=min(n_foragers, len(cells)), replace=False)
-    foragers = ForagerComponent.group(
+    foragers = ForagerElement.group(
         'foragers',
         len(occupied),
         variable=True,

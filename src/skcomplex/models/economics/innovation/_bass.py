@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -16,8 +16,8 @@ def _adoption(s: Symbols) -> list[BaseLaw]:
     return [TransferLaw(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
 
 
-BassMarketComponent = ElementComponent.define(
-    'BassMarketComponent',
+BassMarketElement = Element.define(
+    'BassMarketElement',
     states={
         'P': state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
         'A': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='people'),
@@ -70,4 +70,4 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
         490.0
     """
-    return System(components=[BassMarketComponent('market', P=market - adopters, A=adopters, p=p, q=q)])
+    return System(components=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)])

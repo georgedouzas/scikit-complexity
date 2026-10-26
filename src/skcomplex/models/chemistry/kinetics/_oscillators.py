@@ -4,14 +4,14 @@
 # License: MIT
 
 from ....core.base import NumericDomain, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 
-BrusselatorReactionComponent = ElementComponent.define(
-    'BrusselatorReactionComponent',
+BrusselatorReactionElement = Element.define(
+    'BrusselatorReactionElement',
     states={
         'u': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
         'v': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
@@ -23,8 +23,8 @@ BrusselatorReactionComponent = ElementComponent.define(
     ],
 )
 
-OregonatorComponent = ElementComponent.define(
-    'OregonatorComponent',
+OregonatorElement = Element.define(
+    'OregonatorElement',
     states={
         'x': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
         'y': state(default=0.1, domain=NumericDomain.NONNEGATIVE),
@@ -38,8 +38,8 @@ OregonatorComponent = ElementComponent.define(
     ],
 )
 
-CubicAutocatalysisComponent = ElementComponent.define(
-    'CubicAutocatalysisComponent',
+CubicAutocatalysisElement = Element.define(
+    'CubicAutocatalysisElement',
     states={
         'a': state(default=1.0, domain=NumericDomain.NONNEGATIVE),
         'b': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
@@ -86,7 +86,7 @@ def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float 
         >>> brusselator_ode(b=1.5).elements[0].b
         1.5
     """
-    return System(components=[BrusselatorReactionComponent('reactor', u=u, v=v, a=a, b=b)])
+    return System(components=[BrusselatorReactionElement('reactor', u=u, v=v, a=a, b=b)])
 
 
 @register_model(
@@ -142,7 +142,7 @@ def oregonator(
         >>> oregonator(f=0.8).elements[0].f
         0.8
     """
-    return System(components=[OregonatorComponent('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
+    return System(components=[OregonatorElement('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
 
 
 @register_model(
@@ -179,4 +179,4 @@ def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: f
         >>> cubic_autocatalysis(k=0.06).elements[0].k
         0.06
     """
-    return System(components=[CubicAutocatalysisComponent('reactor', a=a, b=b, F=F, k=k)])
+    return System(components=[CubicAutocatalysisElement('reactor', a=a, b=b, F=F, k=k)])

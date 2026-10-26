@@ -7,7 +7,7 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.space import ContinuousTime
 from skcomplex.core.system import System
@@ -18,8 +18,8 @@ from skcomplex.engine.solvers import ScipyODESolver, resolve_solver
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 
-LinearComponent = ElementComponent.define(
-    'LinearComponent',
+LinearElement = Element.define(
+    'LinearElement',
     states={'x': 1.0, 'y': 0.5, 'z': -1.0},
     laws=lambda s: [
         RateLaw(s.x, float(MATRIX[0, 0]) * s.x + float(MATRIX[0, 1]) * s.y),
@@ -32,9 +32,7 @@ LinearComponent = ElementComponent.define(
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return (
-        Simulation(System(components=[LinearComponent('linear')]), solver=solver, dt=0.05).run(until=10.0).trajectory_
-    )
+    return Simulation(System(components=[LinearElement('linear')]), solver=solver, dt=0.05).run(until=10.0).trajectory_
 
 
 def _linear_series(trajectory, samples):

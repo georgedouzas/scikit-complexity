@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, total
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -18,7 +18,7 @@ COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
 
 
-class MicrobeComponent(ElementComponent):
+class MicrobeElement(Element):
     """Species of a microbial community, with an abundance and an intrinsic growth rate.
 
     Args:
@@ -32,8 +32,8 @@ class MicrobeComponent(ElementComponent):
             The intrinsic growth rate.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import MicrobeComponent
-        >>> MicrobeComponent('species', x=0.1, b=0.8).b
+        >>> from skcomplex.models.biology.ecology import MicrobeElement
+        >>> MicrobeElement('species', x=0.1, b=0.8).b
         0.8
     """
 
@@ -141,7 +141,7 @@ def generalized_lotka_volterra(
     if len(abundances) != size or len(a) != size or any(len(row) != size for row in a):
         error_msg = f'The abundances and the interaction matrix must have one entry per species, {size} growth rates.'
         raise ValidationError(error_msg)
-    species = MicrobeComponent.group('species', size, x=abundances, b=[float(value) for value in b])
+    species = MicrobeElement.group('species', size, x=abundances, b=[float(value) for value in b])
     matrix = tuple(tuple(float(value) for value in row) for row in a)
     return System(
         components=[species],

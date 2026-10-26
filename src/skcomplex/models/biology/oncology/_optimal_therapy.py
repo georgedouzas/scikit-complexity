@@ -4,12 +4,12 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
-from ._chemotherapy import BOOK, TumourImmuneChemotherapyComponent
+from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
 
 MAX_DOSE = 1.0
 
@@ -28,10 +28,10 @@ def _immune_ratio(s: Symbols) -> Expression:
     return ratio
 
 
-class OptimalChemotherapyComponent(TumourImmuneChemotherapyComponent):
+class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     """Immune, tumour, and normal cells under a chemotherapy whose infusion rate is a bounded control input.
 
-    The cells and the drug follow the model of de Pillis and Radunskaya, `TumourImmuneChemotherapyComponent`, with the
+    The cells and the drug follow the model of de Pillis and Radunskaya, `TumourImmuneChemotherapyElement`, with the
     infusion rate `u` between 0 and its largest dose. The oncologist minimises the tumour burden and the toxicity of
     the drug, `∫ (A + w u^2 / 2) dt + A(T)`, where the terminal term weighs the tumour left at the end of the
     treatment.
@@ -59,8 +59,8 @@ class OptimalChemotherapyComponent(TumourImmuneChemotherapyComponent):
             The weight of the squared infusion rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OptimalChemotherapyComponent
-        >>> OptimalChemotherapyComponent('patient', w=0.5).w
+        >>> from skcomplex.models.biology.oncology import OptimalChemotherapyElement
+        >>> OptimalChemotherapyElement('patient', w=0.5).w
         0.5
     """
 
@@ -94,7 +94,7 @@ class OptimalChemotherapyComponent(TumourImmuneChemotherapyComponent):
         return [ObjectiveQuantity('cost', s.A + s.w * s.u**2 / 2, terminal=s.A)]
 
 
-class OptimalImmunotherapyComponent(ElementComponent):
+class OptimalImmunotherapyElement(Element):
     """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.
 
     The Kirschner-Panetta model in scaled units, with the effector and tumour cells in units of `10^5` and IL-2 in
@@ -162,8 +162,8 @@ class OptimalImmunotherapyComponent(ElementComponent):
             The weight of the squared IL-2 injection rate in the cost.
 
     Examples:
-        >>> from skcomplex.models.biology.oncology import OptimalImmunotherapyComponent
-        >>> OptimalImmunotherapyComponent('site').rho1
+        >>> from skcomplex.models.biology.oncology import OptimalImmunotherapyElement
+        >>> OptimalImmunotherapyElement('site').rho1
         0.1245
     """
 
@@ -261,7 +261,7 @@ def optimal_chemotherapy(
         >>> optimal_chemotherapy(w=1.0).components[0].w
         1.0
     """
-    return System(components=[OptimalChemotherapyComponent('patient', E=E, A=A, N=N, w=w)])
+    return System(components=[OptimalChemotherapyElement('patient', E=E, A=A, N=N, w=w)])
 
 
 @register_model(
@@ -310,4 +310,4 @@ def optimal_immunotherapy(
         >>> optimal_immunotherapy(w1=0.5).components[0].w1
         0.5
     """
-    return System(components=[OptimalImmunotherapyComponent('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])
+    return System(components=[OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])

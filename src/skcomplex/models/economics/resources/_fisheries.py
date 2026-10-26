@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -95,8 +95,8 @@ def _filled_stages(
     return {**stages, 'spawners': spawners}
 
 
-HilsaComponent = ElementComponent.define(
-    'HilsaComponent',
+HilsaElement = Element.define(
+    'HilsaElement',
     states={
         'eggs': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
         'larvae': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
@@ -178,7 +178,7 @@ def hilsa_fishery(
         >>> hilsa_fishery(adult_harvest=0.5).elements[0].adult_harvest
         0.5
     """
-    hilsa = HilsaComponent(
+    hilsa = HilsaElement(
         'hilsa',
         eggs_per_nest=eggs_per_nest,
         juvenile_harvest=juvenile_harvest,

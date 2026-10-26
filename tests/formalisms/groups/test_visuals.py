@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.base import NumericDomain, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
 from skcomplex.core.system import System
@@ -13,7 +13,7 @@ from skcomplex.formalisms.groups import CayleySpace, CayleyVisual, finitely_pres
 from skcomplex.formalisms.lattices import LocalRuleLaw
 
 
-class ParityComponent(ElementComponent):
+class ParityElement(Element):
     """Cell that takes the parity of itself and the cells at its generators."""
 
     alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
@@ -39,7 +39,7 @@ def _simulation():
     space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
-    return Simulation(System(components=[ParityComponent.lattice('cells', space, alive=cells)])).run(until=2)
+    return Simulation(System(components=[ParityElement.lattice('cells', space, alive=cells)])).run(until=2)
 
 
 def test_cayley_visual_logs_nodes_on_rings_and_edges_once():

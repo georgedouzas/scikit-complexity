@@ -5,7 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.base import AnalysisError, BaseInteraction
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, total
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import divergence, fixed_points, jacobian, nullclines, stability
@@ -68,7 +68,7 @@ def test_jump_process_has_no_vector_field():
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
     """Return replicator dynamics of hawks and doves as the members of a group."""
     payoff = np.array([[(V - C) / 2, V], [0.0, V / 2]])
-    StrategyComponent = ElementComponent.define('StrategyComponent', states={'x': 0.5})
+    StrategyElement = Element.define('StrategyElement', states={'x': 0.5})
     ReplicationInteraction = BaseInteraction.define(
         'ReplicationInteraction',
         roles=['population'],
@@ -84,7 +84,7 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
         ],
     )
     return System(
-        components=[StrategyComponent.group('population', size, x=[1 / size] * size)],
+        components=[StrategyElement.group('population', size, x=[1 / size] * size)],
         interactions=[ReplicationInteraction('replication', population='population')],
     )
 
@@ -100,11 +100,11 @@ def test_hawks_and_doves_as_group():
 
 def test_group_above_limit():
     """Test that the Jacobian of a group of 1000 members that reads reductions states the limit of 64 members."""
-    MemberComponent = ElementComponent.define(
-        'MemberComponent',
+    MemberElement = Element.define(
+        'MemberElement',
         states={'x': 0.0},
         laws=lambda s: [RateLaw(s.x, total(s.x) - s.x)],
     )
-    system = System(components=[MemberComponent.group('group', 1000)])
+    system = System(components=[MemberElement.group('group', 1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         jacobian(system)

@@ -13,7 +13,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ....formalisms.particles import PairPotentialInteraction, ParticleComponent
+from ....formalisms.particles import PairPotentialInteraction, ParticleElement
 
 
 class MotivationInteraction(BaseInteraction):
@@ -212,7 +212,7 @@ def social_force(
     rng = np.random.default_rng(random_state)
     cutoff = 2.0
     walkers = [
-        ParticleComponent.group(label, n_walkers, x=rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2)))
+        ParticleElement.group(label, n_walkers, x=rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2)))
         for label in ('rightward', 'leftward')
     ]
     interactions: list[BaseInteraction] = []

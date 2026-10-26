@@ -5,16 +5,16 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import NoiseKind, ValidationError, symbol
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.space import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
-from skcomplex.formalisms.fields import FieldComponent
+from skcomplex.formalisms.fields import FieldElement
 
-ConservedComponent = ElementComponent.define(
-    'ConservedComponent',
+ConservedElement = Element.define(
+    'ConservedElement',
     states={'rho': 0.0},
     parameters={'a': 2.0},
     laws=lambda s: [NoiseLaw(s.rho, s.a, conserved=True)],
@@ -24,7 +24,7 @@ ConservedComponent = ElementComponent.define(
 def _field(shape, boundary='periodic', spacing=1.0):
     """Return a system of one field with conserved noise on a lattice."""
     space = LatticeSpace(shape, spacing=spacing)
-    return System(components=[FieldComponent('f', ConservedComponent, space, boundary={'rho': boundary})])
+    return System(components=[FieldElement('f', ConservedElement, space, boundary={'rho': boundary})])
 
 
 def _noise_matrix(problem):
@@ -63,19 +63,19 @@ def test_compile_system_leaves_out_outer_links_of_zero_flux_edges():
 
 def test_compile_system_rejects_conserved_amplitude_of_state():
     """Test that a conserved noise whose amplitude reads the field is rejected as out of scope."""
-    MultiplicativeComponent = ElementComponent.define(
-        'MultiplicativeComponent',
+    MultiplicativeElement = Element.define(
+        'MultiplicativeElement',
         states={'rho': 1.0},
         laws=lambda s: [NoiseLaw(s.rho, s.rho, conserved=True)],
     )
-    system = System(components=[FieldComponent('f', MultiplicativeComponent, LatticeSpace((4,)))])
+    system = System(components=[FieldElement('f', MultiplicativeElement, LatticeSpace((4,)))])
     with pytest.raises(ValidationError, match='reads the states'):
         compile_system(system)
 
 
 def test_validate_reports_conserved_noise_off_lattice():
     """Test that conserved noise on an element that is not a field reports `noise-unsupported` naming lattices."""
-    (issue,) = validate(System(components=[ConservedComponent('c')])).issues
+    (issue,) = validate(System(components=[ConservedElement('c')])).issues
     assert issue.code == 'noise-unsupported'
     assert 'c.rho' in issue.message
     assert 'LatticeSpace' in issue.fix
@@ -84,7 +84,7 @@ def test_validate_reports_conserved_noise_off_lattice():
 def test_validate_reports_conserved_noise_on_network():
     """Test that conserved noise on a field of a network reports `noise-unsupported`."""
     space = NetworkSpace(nx.cycle_graph(5))
-    issues = validate(System(components=[FieldComponent('f', ConservedComponent, space)])).issues
+    issues = validate(System(components=[FieldElement('f', ConservedElement, space)])).issues
     assert [issue.code for issue in issues] == ['noise-unsupported']
 
 

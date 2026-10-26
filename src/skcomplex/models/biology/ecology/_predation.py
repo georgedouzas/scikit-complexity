@@ -12,7 +12,7 @@ from ....core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ._populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationComponent, PredationInteraction
+from ._populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
 
 
 def _change(target: Expression, rate: Expression, step: int, *, stochastic: bool) -> BaseLaw:
@@ -289,7 +289,7 @@ def rosenzweig_macarthur(
     prey = 1 / (1 - eta) if prey is None else prey
     predators = (1 - phi * prey) * (1 + eta * prey) if predators is None else predators
     return System(
-        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
+        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             RosenzweigMacArthurInteraction(
                 'predation',
@@ -349,7 +349,7 @@ def nicholson_bailey(
         3.0
     """
     return System(
-        components=[PopulationComponent('hosts', n=hosts), PopulationComponent('parasitoids', n=parasitoids)],
+        components=[PopulationElement('hosts', n=hosts), PopulationElement('parasitoids', n=parasitoids)],
         interactions=[ParasitismInteraction('parasitism', host='hosts', parasitoid='parasitoids', k=k, a=a, c=c)],
     )
 
@@ -412,7 +412,7 @@ def lotka_volterra_with_harvesting(
         ['prey_harvest', 'predator_harvest']
     """
     return System(
-        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
+        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=r),
             PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
@@ -485,7 +485,7 @@ def stochastic_predator_prey(
         1000.0
     """
     return System(
-        components=[PopulationComponent('prey', n=prey), PopulationComponent('predators', n=predators)],
+        components=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
         interactions=[
             PredatorPreyEventsInteraction(
                 'events',

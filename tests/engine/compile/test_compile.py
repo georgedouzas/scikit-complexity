@@ -22,25 +22,25 @@ from skcomplex.core.base import (
     role,
     symbol,
 )
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, mod
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.particles import PairPotentialInteraction, ParticleElement
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
-    PopulationComponent,
+    PopulationElement,
     PredationInteraction,
 )
-from skcomplex.models.biology.epidemiology import CompartmentComponent, InfectionInteraction, RecoveryInteraction
-from skcomplex.models.economics.finance import AssetComponent, GeometricBrownianMotionInteraction
-from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
+from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction
-from skcomplex.models.physics.statistical_mechanics import ParticleSiteComponent, ZeroRangeHopInteraction
+from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 
-from ...conftest import CallableGrowthInteraction, NodeComponent, _correlated, _summed
+from ...conftest import CallableGrowthInteraction, NodeElement, _correlated, _summed
 from .conftest import _pair
 
 
@@ -66,10 +66,10 @@ class DoubleUpdateInteraction(BaseInteraction):
 
 def _ecology(growth):
     """Return a system of one population under a growth interaction."""
-    return System(components=[PopulationComponent('rabbits', n=10)], interactions=[growth])
+    return System(components=[PopulationElement('rabbits', n=10)], interactions=[growth])
 
 
-HubComponent = ElementComponent.define('HubComponent', states={'y': 0.0})
+HubElement = Element.define('HubElement', states={'y': 0.0})
 
 
 class SiteDriveInteraction(BaseInteraction):
@@ -97,14 +97,14 @@ class SitesDriveInteraction(BaseInteraction):
 def _hub_and_sites(interaction):
     """Return a hub and a group of five sites with states 0 to 4, coupled by an interaction."""
     return System(
-        components=[NodeComponent.group('sites', 5, x=np.arange(5.0)), HubComponent('hub')],
+        components=[NodeElement.group('sites', 5, x=np.arange(5.0)), HubElement('hub')],
         interactions=[interaction],
     )
 
 
 def _compile_time(n_links):
     """Return the shortest of two compile times of a zero-range ring written with one interaction per link."""
-    sites = ParticleSiteComponent.lattice('sites', LatticeSpace(n_links), n=np.ones(n_links))
+    sites = ParticleSiteElement.lattice('sites', LatticeSpace(n_links), n=np.ones(n_links))
     links = [
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
         for index in range(n_links)
@@ -192,7 +192,7 @@ def _lennard_jones_gas(n, seed=0):
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2
     return System(
         components=[
-            ParticleComponent.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 0.5, (n, 2))),
+            ParticleElement.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 0.5, (n, 2))),
         ],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -229,20 +229,20 @@ class SympyGrowthInteraction(BaseInteraction):
         (_ecology(LogisticGrowthInteraction('growth', target='rabbits')), Form.ODE),
         (
             System(
-                components=[AssetComponent('stock', price=100)],
+                components=[AssetElement('stock', price=100)],
                 interactions=[GeometricBrownianMotionInteraction('gbm', target='stock')],
             ),
             Form.SDE,
         ),
         (
             System(
-                components=[CompartmentComponent('I', n=5), CompartmentComponent('R')],
+                components=[CompartmentElement('I', n=5), CompartmentElement('R')],
                 interactions=[RecoveryInteraction('rec', infected='I', recovered='R', stochastic=True)],
             ),
             Form.JUMP,
         ),
-        (System(components=[MarketComponent('m')], interactions=[CobwebInteraction('c', target='m')]), Form.DISCRETE),
-        (System(components=[PopulationComponent('a')]), Form.ODE),
+        (System(components=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')]), Form.DISCRETE),
+        (System(components=[PopulationElement('a')]), Form.ODE),
     ],
 )
 def test_compile_system_infers_form(system, form):
@@ -253,7 +253,7 @@ def test_compile_system_infers_form(system, form):
 def test_compile_system_mixed_kinds_raises_error():
     """Test that updates and rates in one system are rejected."""
     system = System(
-        components=[MarketComponent('m'), PopulationComponent('a')],
+        components=[MarketElement('m'), PopulationElement('a')],
         interactions=[CobwebInteraction('c', target='m'), ExponentialGrowthInteraction('g', target='a')],
     )
     with pytest.raises(IncompatibleLawsError, match='rate: a; update: m'):
@@ -262,7 +262,7 @@ def test_compile_system_mixed_kinds_raises_error():
 
 def test_compile_system_names_nested_states_by_path():
     """Test that nested states are named by their path."""
-    system = System(components=[System('meadow', components=[PopulationComponent('rabbits', n=3)])])
+    system = System(components=[System('meadow', components=[PopulationElement('rabbits', n=3)])])
     problem = compile_system(system)
     assert problem.states.names == ['meadow/rabbits.n']
     assert problem.initial_state.tolist() == [3.0]
@@ -272,8 +272,8 @@ def test_compile_system_couples_subsystems():
     """Test that an interaction couples elements of two subsystems."""
     system = System(
         components=[
-            System('forest', components=[PopulationComponent('foxes', n=2)]),
-            System('meadow', components=[PopulationComponent('rabbits', n=5)]),
+            System('forest', components=[PopulationElement('foxes', n=2)]),
+            System('meadow', components=[PopulationElement('rabbits', n=5)]),
         ],
         interactions=[PredationInteraction('hunt', predator='forest/foxes', prey='meadow/rabbits', a=1.0, b=0.5)],
     )
@@ -301,7 +301,7 @@ def test_compile_system_callable_law_is_evaluated():
 def test_compile_system_rates_add_up():
     """Test that two forces on one particle add up."""
     system = System(
-        components=[ParticleComponent('p', x=1.0, m=2.0)],
+        components=[ParticleElement('p', x=1.0, m=2.0)],
         interactions=[
             ConstantForceInteraction('push', target='p', F=4.0),
             HarmonicPotentialInteraction('trap', target='p', k=6.0),
@@ -315,7 +315,7 @@ def test_compile_system_rates_add_up():
 def test_compile_system_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
     system = System(
-        components=[ParticleComponent('p')],
+        components=[ParticleElement('p')],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
@@ -330,27 +330,27 @@ def test_compile_system_keeps_oscillator_equations():
 
 def test_compile_system_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    problem = compile_system(System(components=[ParticleComponent('p')], space=ContinuousSpace(n_dim=2)))
+    problem = compile_system(System(components=[ParticleElement('p')], space=ContinuousSpace(n_dim=2)))
     assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.v[0]', 'p.v[1]']
 
 
 def test_compile_system_vector_state_without_space_raises_error():
     """Test that a vector state needs a space."""
     with pytest.raises(SpaceError, match='must have a space'):
-        compile_system(System(components=[ParticleComponent('p')]))
+        compile_system(System(components=[ParticleElement('p')]))
 
 
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compile_system_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = System(components=[ParticleComponent('p', m=m)], space=ContinuousSpace(n_dim=1))
+    system = System(components=[ParticleElement('p', m=m)], space=ContinuousSpace(n_dim=1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         compile_system(system)
 
 
 def test_compile_system_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = System(components=[ParticleComponent('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
+    system = System(components=[ParticleElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='shape'):
         compile_system(system)
 
@@ -364,7 +364,7 @@ def test_compile_system_unknown_role_raises_error():
 
 def test_compile_system_duplicate_label_raises_error():
     """Test that siblings must have distinct labels."""
-    system = System(components=[PopulationComponent('a'), PopulationComponent('a')])
+    system = System(components=[PopulationElement('a'), PopulationElement('a')])
     with pytest.raises(LabelError, match="'a'"):
         compile_system(system)
 
@@ -372,7 +372,7 @@ def test_compile_system_duplicate_label_raises_error():
 def test_compile_system_invalid_label_raises_error():
     """Test that labels must be words."""
     with pytest.raises(LabelError, match='not valid'):
-        compile_system(System(components=[PopulationComponent('a.b')]))
+        compile_system(System(components=[PopulationElement('a.b')]))
 
 
 def test_compile_system_undeclared_symbol_raises_error():
@@ -383,7 +383,7 @@ def test_compile_system_undeclared_symbol_raises_error():
 
 def test_compile_system_double_update_raises_error():
     """Test that a state takes one update law."""
-    system = System(components=[MarketComponent('m')], interactions=[DoubleUpdateInteraction('bad', target='m')])
+    system = System(components=[MarketElement('m')], interactions=[DoubleUpdateInteraction('bad', target='m')])
     with pytest.raises(ValidationError, match='second time'):
         compile_system(system)
 
@@ -391,7 +391,7 @@ def test_compile_system_double_update_raises_error():
 def test_compile_system_jump_stoichiometry():
     """Test that jump changes become rows of the stoichiometry matrix."""
     system = System(
-        components=[CompartmentComponent('S', n=9), CompartmentComponent('I', n=1)],
+        components=[CompartmentElement('S', n=9), CompartmentElement('I', n=1)],
         interactions=[InfectionInteraction('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
     )
     problem = compile_system(system)
@@ -471,7 +471,7 @@ def test_compile_group_time_does_not_grow_with_size():
         start = time.perf_counter()
         compile_system(
             System(
-                components=[ParticleComponent.group('gas', n)],
+                components=[ParticleElement.group('gas', n)],
                 space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
             ),
         )
@@ -483,7 +483,7 @@ def test_compile_group_time_does_not_grow_with_size():
 
 def test_compile_group_names_states_by_group_path():
     """Test that a group state is named by its group path with the group shape."""
-    problem = compile_system(System(components=[ParticleComponent.group('gas', 500)], space=ContinuousSpace(n_dim=2)))
+    problem = compile_system(System(components=[ParticleElement.group('gas', 500)], space=ContinuousSpace(n_dim=2)))
     assert problem.states.entry('gas.x').shape == (500, 2)
     assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.v'][0]
 
@@ -507,7 +507,7 @@ def test_compile_pair_forces_match_brute_force_sum():
 def test_compile_pair_forces_between_two_groups():
     """Test that a pair interaction between two groups attracts both beyond the potential minimum."""
     system = System(
-        components=[ParticleComponent.group('a', 1, x=[[0.0, 0.0]]), ParticleComponent.group('b', 1, x=[[1.5, 0.0]])],
+        components=[ParticleElement.group('a', 1, x=[[0.0, 0.0]]), ParticleElement.group('b', 1, x=[[1.5, 0.0]])],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -521,7 +521,7 @@ def test_compile_pair_forces_between_two_groups():
 def test_compile_pair_forces_use_minimum_image():
     """Test that periodic pair interactions use minimum image distances."""
     system = System(
-        components=[ParticleComponent.group('gas', 2, x=[[0.1, 0.5], [9.6, 0.5]])],
+        components=[ParticleElement.group('gas', 2, x=[[0.1, 0.5], [9.6, 0.5]])],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -535,7 +535,7 @@ def test_compile_reflecting_box_keeps_ode_form():
     """Test that a reflecting box adds boundary laws without changing the form."""
     problem = compile_system(
         System(
-            components=[ParticleComponent.group('gas', 4)],
+            components=[ParticleElement.group('gas', 4)],
             space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
         ),
     )
@@ -547,7 +547,7 @@ def test_compile_periodic_box_wraps_positions():
     """Test that a periodic box wraps a position that left the box."""
     problem = compile_system(
         System(
-            components=[ParticleComponent.group('gas', 1, x=[[1.25, 0.5]], v=[[1.0, 0.0]])],
+            components=[ParticleElement.group('gas', 1, x=[[1.25, 0.5]], v=[[1.0, 0.0]])],
             space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
         ),
     )
@@ -560,7 +560,7 @@ def test_compile_group_callable_rate():
     """Test that a callable law over a group returns one value per member."""
     problem = compile_system(
         System(
-            components=[PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            components=[PopulationElement.group('herds', 3, n=[1.0, 2.0, 3.0])],
             interactions=[DoublingInteraction('d', target='herds')],
         ),
     )
@@ -572,7 +572,7 @@ def test_compile_group_jumps_have_one_channel_per_member():
     """Test that a jump law over a group has one channel per member."""
     problem = compile_system(
         System(
-            components=[PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            components=[PopulationElement.group('herds', 3, n=[1.0, 2.0, 3.0])],
             interactions=[BirthInteraction('birth', target='herds')],
         ),
     )
@@ -584,7 +584,7 @@ def test_compile_group_noise_has_one_process_per_member():
     """Test that a noise law over a group drives every member with its own process."""
     problem = compile_system(
         System(
-            components=[PopulationComponent.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            components=[PopulationElement.group('herds', 3, n=[1.0, 2.0, 3.0])],
             interactions=[VolatilityInteraction('vol', target='herds')],
         ),
     )
@@ -596,7 +596,7 @@ def test_compile_group_updates_every_member():
     """Test that a discrete update over a group updates every member."""
     problem = compile_system(
         System(
-            components=[PopulationComponent.group('herds', 2, n=[4.0, 8.0])],
+            components=[PopulationElement.group('herds', 2, n=[4.0, 8.0])],
             interactions=[HalvingInteraction('half', target='herds')],
         ),
     )
@@ -607,7 +607,7 @@ def test_compile_group_updates_every_member():
 def test_compile_update_of_single_element_from_group_raises_error():
     """Test that an update cannot set a single element from a group."""
     system = System(
-        components=[PopulationComponent.group('herds', 2), PopulationComponent('total')],
+        components=[PopulationElement.group('herds', 2), PopulationElement('total')],
         interactions=[SingleUpdateFromGroupInteraction('sum', target='herds', total='total')],
     )
     with pytest.raises(ValidationError, match='single element from a group'):
@@ -622,7 +622,7 @@ def test_compile_boundary_twice_raises_error():
         laws=lambda s: [BoundaryLaw(s.target.x[0], mod(s.target.x[0], 1))],
     )
     system = System(
-        components=[ParticleComponent.group('gas', 2)],
+        components=[ParticleElement.group('gas', 2)],
         interactions=[WrapInteraction('wrap', target='gas')],
         space=ContinuousSpace(1.0, boundary='reflecting'),
     )
@@ -632,12 +632,12 @@ def test_compile_boundary_twice_raises_error():
 
 def test_compile_system_without_processes_keeps_identity_columns():
     """Test that noise laws that name no process get one process per amplitude and no correlated block."""
-    WalkerComponent = ElementComponent.define(
-        'WalkerComponent',
+    WalkerElement = Element.define(
+        'WalkerElement',
         states={'x': 0.0},
         laws=lambda s: [NoiseLaw(s.x, 1.0), NoiseLaw(s.x, 2.0)],
     )
-    problem = compile_system(System(components=[WalkerComponent.group('walkers', 3)]))
+    problem = compile_system(System(components=[WalkerElement.group('walkers', 3)]))
     np.testing.assert_array_equal(problem.noise_columns, np.arange(6))
     assert problem.n_processes == 6
     assert problem.noise_blocks == ()
@@ -679,15 +679,15 @@ def test_stratonovich_correction_covers_cross_terms():
 
 def test_stratonovich_correction_of_several_laws_adds_up():
     """Test that two Stratonovich laws with independent processes on one state compile and add their corrections."""
-    TwiceComponent = ElementComponent.define(
-        'TwiceComponent',
+    TwiceElement = Element.define(
+        'TwiceElement',
         states={'x': 1.0},
         laws=lambda s: [
             NoiseLaw(s.x, s.x, convention='stratonovich'),
             NoiseLaw(s.x, 2 * s.x, convention='stratonovich'),
         ],
     )
-    problem = compile_system(System(components=[TwiceComponent('twice')]))
+    problem = compile_system(System(components=[TwiceElement('twice')]))
     drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
     assert drift[0] == pytest.approx(0.5 * 2.0 + 0.5 * 4 * 2.0)
 
@@ -695,7 +695,7 @@ def test_stratonovich_correction_of_several_laws_adds_up():
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
     system = System(
-        components=[ParticleComponent('p')],
+        components=[ParticleElement('p')],
         interactions=[RecorderInteraction('record', target='p')],
         space=ContinuousSpace(n_dim=3),
     )
@@ -710,7 +710,7 @@ def test_components_receive_sage_symbols_and_vectors():
 def test_sympy_rate_is_rejected():
     """Test that a SymPy rate raises a validation error that names the law, the interaction, and Sage."""
     system = System(
-        components=[PopulationComponent('herd')],
+        components=[PopulationElement('herd')],
         interactions=[SympyGrowthInteraction('growth', target='herd')],
     )
     with pytest.raises(ValidationError, match=r'RateLaw of growth has the SymPy value .*Sage'):
@@ -721,7 +721,7 @@ def test_sympy_rate_is_rejected():
 def test_small_system_drift_is_fast():
     """Test that the NumPy drift of 20 logistic populations takes at most 250 microseconds and is correct."""
     system = System(
-        components=[PopulationComponent(f'p{index}', n=1.0 + index) for index in range(20)],
+        components=[PopulationElement(f'p{index}', n=1.0 + index) for index in range(20)],
         interactions=[LogisticGrowthInteraction(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
     )
     problem = compile_system(system, backend='numpy')

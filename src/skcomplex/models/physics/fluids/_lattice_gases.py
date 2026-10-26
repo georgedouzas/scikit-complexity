@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -67,7 +67,7 @@ def _count(*channels: Array) -> Array:
     return np.sum(channels, axis=0)
 
 
-class FHPSiteComponent(ElementComponent):
+class FHPSiteElement(Element):
     """Site of the FHP-I lattice gas, with one boolean channel per direction of the triangular lattice.
 
     Every step collides the particles at every site, head-on pairs turning by a sixth of a turn to either side with
@@ -101,8 +101,8 @@ class FHPSiteComponent(ElementComponent):
             The initial number of particles at the site.
 
     Examples:
-        >>> from skcomplex.models.physics.fluids import FHPSiteComponent
-        >>> FHPSiteComponent('site').n0
+        >>> from skcomplex.models.physics.fluids import FHPSiteElement
+        >>> FHPSiteElement('site').n0
         0
     """
 
@@ -185,5 +185,5 @@ def fhp_lattice_gas(
     probability = np.where(inside, bump, density)[:, None]
     occupied = (np.random.default_rng(random_state).random((space.size_, DIRECTIONS)) < probability).astype(float)
     channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
-    gas = FHPSiteComponent.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
+    gas = FHPSiteElement.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
     return System(components=[gas])

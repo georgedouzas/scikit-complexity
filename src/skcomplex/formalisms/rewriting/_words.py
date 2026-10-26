@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import Expression, symbols_of
 from ...core.problems import numpy_function
-from ._components import WordComponent
+from ._components import WordElement
 from ._geometry import WordGeometry
 from ._kernels import (
     ACTION_CODES,
@@ -42,7 +42,7 @@ TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 type Arrays = list[npt.NDArray[Any]]
 
 
-def _alphabet_of(word: WordComponent, productions: Sequence[ProductionLaw]) -> dict[str, int]:
+def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dict[str, int]:
     """Return the arity of every symbol, declared or taken from the axiom and the productions."""
     if isinstance(word.alphabet, Mapping):
         return {str(name): int(arity) for name, arity in word.alphabet.items()}
@@ -212,7 +212,7 @@ class CompiledWord:
     def __init__(
         self,
         path: str,
-        word: WordComponent,
+        word: WordElement,
         productions: Sequence[ProductionLaw],
         parameters: Parameters,
         values: npt.NDArray[np.float64],

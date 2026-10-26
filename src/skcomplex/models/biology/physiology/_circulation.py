@@ -9,7 +9,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, mod, where
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -22,7 +22,7 @@ def _pressure(chamber: Symbols, t: Expression) -> Expression:
     return (chamber.E_min + (chamber.E_max - chamber.E_min) * activation) * (chamber.V - chamber.V0)
 
 
-class ChamberComponent(ElementComponent):
+class ChamberElement(Element):
     """Elastic compartment of blood, a heart chamber or a vascular bed, whose pressure is elastance times volume.
 
     The pressure is `E(t) (V - V0)`. The elastance of a heart chamber rises from `E_min` to `E_max` and back as a half
@@ -52,8 +52,8 @@ class ChamberComponent(ElementComponent):
             The duration of the contraction.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import ChamberComponent
-        >>> ChamberComponent('arteries', V=150.0, E_min=0.8, E_max=0.8).E_max
+        >>> from skcomplex.models.biology.physiology import ChamberElement
+        >>> ChamberElement('arteries', V=150.0, E_min=0.8, E_max=0.8).E_max
         0.8
     """
 
@@ -177,7 +177,7 @@ def cardiovascular(
     """
     period = 60.0 / heart_rate
     systole = 0.375 * period
-    ventricle = ChamberComponent(
+    ventricle = ChamberElement(
         'ventricle',
         V=0.1 * volume,
         V0=10.0,
@@ -186,7 +186,7 @@ def cardiovascular(
         period=period,
         systole=systole,
     )
-    arteries = ChamberComponent(
+    arteries = ChamberElement(
         'arteries',
         V=0.3 * volume,
         V0=250.0,
@@ -195,7 +195,7 @@ def cardiovascular(
         period=period,
         systole=systole,
     )
-    veins = ChamberComponent(
+    veins = ChamberElement(
         'veins',
         V=0.6 * volume,
         V0=500.0,

@@ -9,13 +9,13 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
-from ....formalisms.fields import FieldComponent
+from ....formalisms.fields import FieldElement
 
 MARKS = 'ground/marks'
 PLANTS = 'plants'
@@ -24,8 +24,8 @@ PREDATORS = 'predators'
 PREY_TRAITS: dict[str, Any] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
 PREDATOR_TRAITS: dict[str, Any] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
-EmotionMarksComponent = ElementComponent.define(
-    'EmotionMarksComponent',
+EmotionMarksElement = Element.define(
+    'EmotionMarksElement',
     states={
         'prey_happiness': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
         'prey_fear': state(default=0.0, domain=NumericDomain.NONNEGATIVE),
@@ -66,7 +66,7 @@ def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
         agent.age = 0.0
 
 
-class PlantComponent(ElementComponent):
+class PlantElement(Element):
     """Plant that spreads into an empty neighbouring cell whenever it reaches maturity.
 
     Args:
@@ -80,8 +80,8 @@ class PlantComponent(ElementComponent):
             The age at which the plant spreads.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import PlantComponent
-        >>> PlantComponent.group('plants', 100).size
+        >>> from skcomplex.models.biology.ecology import PlantElement
+        >>> PlantElement.group('plants', 100).size
         100
     """
 
@@ -117,7 +117,7 @@ class PlantComponent(ElementComponent):
             _spawn(agent, model)
 
 
-class ForagerComponent(ElementComponent):
+class ForagerElement(Element):
     """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
 
     Every step the animal ages and grows hungry, and starves when its hunger passes `starvation`. It moves to the
@@ -164,8 +164,8 @@ class ForagerComponent(ElementComponent):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPreyComponent
-        >>> StigmergicPreyComponent.group('prey', 10).size
+        >>> from skcomplex.models.biology.ecology import StigmergicPreyElement
+        >>> StigmergicPreyElement.group('prey', 10).size
         10
     """
 
@@ -280,7 +280,7 @@ class ForagerComponent(ElementComponent):
             _spawn(agent, model, hunger=agent.hunger)
 
 
-class StigmergicPreyComponent(ForagerComponent):
+class StigmergicPreyElement(ForagerElement):
     """Prey that eats plants and fears the predators around it.
 
     Args:
@@ -318,8 +318,8 @@ class StigmergicPreyComponent(ForagerComponent):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPreyComponent
-        >>> StigmergicPreyComponent.food
+        >>> from skcomplex.models.biology.ecology import StigmergicPreyElement
+        >>> StigmergicPreyElement.food
         'plants'
     """
 
@@ -341,7 +341,7 @@ class StigmergicPreyComponent(ForagerComponent):
         return float(sum(_kind(other) == PREDATORS for other in occupants.values()))
 
 
-class StigmergicPredatorComponent(ForagerComponent):
+class StigmergicPredatorElement(ForagerElement):
     """Predator that eats prey and grows angry with hunger.
 
     Args:
@@ -379,8 +379,8 @@ class StigmergicPredatorComponent(ForagerComponent):
             Whether emotions guide the animal, 1 or 0.
 
     Examples:
-        >>> from skcomplex.models.biology.ecology import StigmergicPredatorComponent
-        >>> StigmergicPredatorComponent.food
+        >>> from skcomplex.models.biology.ecology import StigmergicPredatorElement
+        >>> StigmergicPredatorElement.food
         'prey'
     """
 
@@ -463,15 +463,15 @@ def stigmergic_predator_prey(
     life = System(
         'life',
         components=[
-            PlantComponent.group(
+            PlantElement.group(
                 PLANTS,
                 plants,
                 variable=True,
                 location=plant_cells,
                 age=rng.integers(0, 4, plants).astype(float),
             ),
-            StigmergicPreyComponent.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
-            StigmergicPredatorComponent.group(
+            StigmergicPreyElement.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
+            StigmergicPredatorElement.group(
                 PREDATORS,
                 predators,
                 variable=True,
@@ -482,5 +482,5 @@ def stigmergic_predator_prey(
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )
-    marks = FieldComponent('marks', EmotionMarksComponent, LatticeSpace((width, height)), values={'decay': decay})
+    marks = FieldElement('marks', EmotionMarksElement, LatticeSpace((width, height)), values={'decay': decay})
     return System(components=[life, System('ground', components=[marks])])

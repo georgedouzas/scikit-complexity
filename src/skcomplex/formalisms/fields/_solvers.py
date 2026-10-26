@@ -15,7 +15,7 @@ from scipy.sparse.linalg import splu
 
 from ...core.base import (
     NUMERIC_DOMAINS,
-    ComponentKind,
+    ElementKind,
     Form,
     LawKind,
     OrderKind,
@@ -196,11 +196,11 @@ class _SplitSolver(Solver):
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )
@@ -586,11 +586,11 @@ class SSPRKSolver(Solver):
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={
-            ComponentKind.ELEMENT,
-            ComponentKind.GROUP,
-            ComponentKind.SITE_GROUP,
-            ComponentKind.EDGE_GROUP,
-            ComponentKind.SYSTEM,
+            ElementKind.ELEMENT,
+            ElementKind.GROUP,
+            ElementKind.SITE_GROUP,
+            ElementKind.EDGE_GROUP,
+            ElementKind.SYSTEM,
         },
         orders={OrderKind.INTEGER},
     )

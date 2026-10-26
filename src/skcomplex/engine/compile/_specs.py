@@ -28,7 +28,7 @@ from ...core.base import (
     symbol,
     vector,
 )
-from ...core.components import GroupComponent, WienerProcess
+from ...core.components import GroupElement, WienerProcess
 from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, reductions_in
 from ...core.problems import EdgeSearch, Reference, Source
 from ...core.problems._kernels import Search
@@ -490,7 +490,7 @@ def target_references(target: object, spec: KernelSpec) -> list[Reference]:
 
 def component_of(node: Node) -> object:
     """Return the object whose `laws` method describes a node, a representative member for a group."""
-    if isinstance(node.component, GroupComponent):
+    if isinstance(node.component, GroupElement):
         return node.component.element(node.component.label, **(node.component.values or {}))
     return node.component
 

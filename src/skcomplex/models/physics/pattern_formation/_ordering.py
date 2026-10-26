@@ -8,31 +8,31 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import NoiseLaw, RateLaw
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import ETDRK4Solver, FieldComponent, laplacian
+from ....formalisms.fields import ETDRK4Solver, FieldElement, laplacian
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
-AllenCahnComponent = ElementComponent.define(
-    'AllenCahnComponent',
+AllenCahnElement = Element.define(
+    'AllenCahnElement',
     states={'phi': 0.0},
     parameters={'kappa': 1.0},
     laws=lambda s: [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))],
 )
 
-CahnHilliardComponent = ElementComponent.define(
-    'CahnHilliardComponent',
+CahnHilliardElement = Element.define(
+    'CahnHilliardElement',
     states={'phi': 0.0},
     parameters={'kappa': 1.0},
     laws=lambda s: [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))],
 )
 
-ThermalCahnHilliardComponent = ElementComponent.define(
-    'ThermalCahnHilliardComponent',
+ThermalCahnHilliardElement = Element.define(
+    'ThermalCahnHilliardElement',
     states={'phi': 0.0},
     parameters={'kappa': 1.0, 'temperature': 0.0},
     laws=lambda s: [
@@ -43,7 +43,7 @@ ThermalCahnHilliardComponent = ElementComponent.define(
 
 
 def _ordering(
-    element: type[ElementComponent],
+    element: type[Element],
     *,
     shape: Sequence[int],
     length: float,
@@ -58,9 +58,9 @@ def _ordering(
     values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
     space = LatticeSpace(shape, spacing=length / shape[0])
     if not temperature:
-        return System(components=[FieldComponent('mixture', element, space, values=values, discretization='spectral')])
+        return System(components=[FieldElement('mixture', element, space, values=values, discretization='spectral')])
     values['temperature'] = temperature
-    return System(components=[FieldComponent('mixture', ThermalCahnHilliardComponent, space, values=values)])
+    return System(components=[FieldElement('mixture', ThermalCahnHilliardElement, space, values=values)])
 
 
 @register_model(
@@ -109,7 +109,7 @@ def allen_cahn(
         >>> allen_cahn((8, 8), kappa=2.0).elements[0].values['kappa']
         2.0
     """
-    return _ordering(AllenCahnComponent, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
+    return _ordering(AllenCahnElement, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
 
 
 @register_model(
@@ -166,10 +166,10 @@ def cahn_hilliard(
         >>> cahn_hilliard((8, 8), mean=0.3).elements[0].values['kappa']
         1.0
         >>> cahn_hilliard((8, 8), temperature=0.1).elements[0].element.__name__
-        'ThermalCahnHilliardComponent'
+        'ThermalCahnHilliardElement'
     """
     return _ordering(
-        CahnHilliardComponent,
+        CahnHilliardElement,
         shape=shape,
         length=length,
         mean=mean,

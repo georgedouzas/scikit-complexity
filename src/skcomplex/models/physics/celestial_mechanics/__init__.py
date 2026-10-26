@@ -1,9 +1,9 @@
 """Celestial mechanics: orbits of bodies under gravity and charges in planetary magnetic fields."""
 
-from ._dipoles import DipoleChargeComponent, stormer_problem
+from ._dipoles import DipoleChargeElement, stormer_problem
 from ._orbits import (
-    RotatingFrameBodyComponent,
-    SitnikovBodyComponent,
+    RotatingFrameBodyElement,
+    SitnikovBodyElement,
     n_body,
     restricted_three_body,
     sitnikov,
@@ -11,9 +11,9 @@ from ._orbits import (
 )
 
 __all__: list[str] = [
-    'DipoleChargeComponent',
-    'RotatingFrameBodyComponent',
-    'SitnikovBodyComponent',
+    'DipoleChargeElement',
+    'RotatingFrameBodyElement',
+    'SitnikovBodyElement',
     'n_body',
     'restricted_three_body',
     'sitnikov',

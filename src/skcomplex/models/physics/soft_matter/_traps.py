@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import ObservableQuantity, System
@@ -35,7 +35,7 @@ def _mean_position(s: Symbols) -> object:
     return s.visits / s.walkers - 1
 
 
-class TrapSiteComponent(ElementComponent):
+class TrapSiteElement(Element):
     """Site of a line of traps, which holds a walker for its trapping time `tau` before the walker hops to the right.
 
     The walker on a site counts the steps it has spent there with `clock` and hops to the next site after `tau`
@@ -59,8 +59,8 @@ class TrapSiteComponent(ElementComponent):
             The trapping time of the site.
 
     Examples:
-        >>> from skcomplex.models.physics.soft_matter import TrapSiteComponent
-        >>> TrapSiteComponent('site', tau=3.0).tau
+        >>> from skcomplex.models.physics.soft_matter import TrapSiteElement
+        >>> TrapSiteElement('site', tau=3.0).tau
         3.0
     """
 
@@ -145,7 +145,7 @@ def biased_trap_walk(
     tau = np.ceil(tau0 * (1 - np.random.default_rng(random_state).random(shape)) ** (-1 / alpha))
     start = np.zeros(shape)
     start[:, 0] = 1.0
-    traps = TrapSiteComponent.lattice(
+    traps = TrapSiteElement.lattice(
         'traps',
         LatticeSpace(shape, boundary='fixed', fill=-1.0),
         visual=VISITED,

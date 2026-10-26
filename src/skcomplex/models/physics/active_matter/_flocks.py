@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 
 from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import ElementComponent, GroupComponent
+from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import ObservableQuantity, System
@@ -109,8 +109,8 @@ FLOCKER_STATES = {
     'theta': state(default=0.0, domain=NumericDomain.ANGLE),
 }
 
-VicsekParticleComponent = ElementComponent.define(
-    'VicsekParticleComponent',
+VicsekParticleElement = Element.define(
+    'VicsekParticleElement',
     states=FLOCKER_STATES,
     parameters={
         'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
@@ -119,8 +119,8 @@ VicsekParticleComponent = ElementComponent.define(
     laws=_vicsek_laws,
 )
 
-CohesiveParticleComponent = ElementComponent.define(
-    'CohesiveParticleComponent',
+CohesiveParticleElement = Element.define(
+    'CohesiveParticleElement',
     states=FLOCKER_STATES,
     parameters={
         'v0': parameter(default=0.05, domain=NumericDomain.NONNEGATIVE),
@@ -134,8 +134,8 @@ CohesiveParticleComponent = ElementComponent.define(
     laws=_cohesive_laws,
 )
 
-NematicParticleComponent = ElementComponent.define(
-    'NematicParticleComponent',
+NematicParticleElement = Element.define(
+    'NematicParticleElement',
     states=FLOCKER_STATES,
     parameters={
         'v0': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
@@ -145,7 +145,7 @@ NematicParticleComponent = ElementComponent.define(
 )
 
 
-def _flock(element: type[ElementComponent], n_particles: int, size: float, seed: int, **values: float) -> System:
+def _flock(element: type[Element], n_particles: int, size: float, seed: int, **values: float) -> System:
     """Return flockers of a type at uniform positions and headings in a periodic box, under discrete time."""
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
@@ -153,7 +153,7 @@ def _flock(element: type[ElementComponent], n_particles: int, size: float, seed:
         'theta': rng.uniform(-math.pi, math.pi, n_particles),
         **values,
     }
-    flock = GroupComponent('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
+    flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(components=[flock], space=ContinuousSpace(size, size, boundary='periodic'), time=DiscreteTime())
 
 
@@ -206,7 +206,7 @@ def vicsek(
         >>> vicsek(10).components[0].size
         10
     """
-    return _flock(VicsekParticleComponent, n_particles, size, seed, v0=v0, eta=eta)
+    return _flock(VicsekParticleElement, n_particles, size, seed, v0=v0, eta=eta)
 
 
 @register_model(
@@ -267,7 +267,7 @@ def gregoire_chate(
         >>> gregoire_chate(10, beta=2.0).components[0].values['beta']
         2.0
     """
-    return _flock(CohesiveParticleComponent, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
+    return _flock(CohesiveParticleElement, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
 
 
 @register_model(
@@ -319,4 +319,4 @@ def ginelli_nematics(
         >>> ginelli_nematics(10).components[0].values['eta']
         0.08
     """
-    return _flock(NematicParticleComponent, n_particles, size, seed, v0=v0, eta=eta)
+    return _flock(NematicParticleElement, n_particles, size, seed, v0=v0, eta=eta)

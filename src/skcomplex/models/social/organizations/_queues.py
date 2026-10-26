@@ -8,14 +8,14 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
 
-class TaskComponent(ElementComponent):
+class TaskElement(Element):
     """Task of the Barabási priority queue, with a priority, an age, and the waiting time when it was last executed.
 
     Args:
@@ -35,10 +35,10 @@ class TaskComponent(ElementComponent):
             The probability that the highest priority task is executed rather than a random one.
 
     Examples:
-        >>> from skcomplex.models.social.organizations import TaskComponent
-        >>> group = TaskComponent.group('tasks', 2, priority=[0.2, 0.7])
+        >>> from skcomplex.models.social.organizations import TaskElement
+        >>> group = TaskElement.group('tasks', 2, priority=[0.2, 0.7])
         >>> group.label, group.element.__name__, group.size
-        ('tasks', 'TaskComponent', 2)
+        ('tasks', 'TaskElement', 2)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)})
@@ -139,5 +139,5 @@ def priority_queues(
         3
     """
     priorities = np.random.default_rng(random_state).random(n_tasks)
-    tasks = TaskComponent.group('tasks', n_tasks, priority=priorities, greed=greed)
+    tasks = TaskElement.group('tasks', n_tasks, priority=priorities, greed=greed)
     return System(components=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])

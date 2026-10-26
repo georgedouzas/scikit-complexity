@@ -1,14 +1,14 @@
 """Share the helpers of the compilation tests."""
 
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import NoiseLaw
 
 
-def _pair(process: str = 'common', conventions: tuple[str, str] = ('ito', 'ito')) -> type[ElementComponent]:
+def _pair(process: str = 'common', conventions: tuple[str, str] = ('ito', 'ito')) -> type[Element]:
     """Return an element whose two states take unit noise on one local process."""
     first, second = conventions
-    return ElementComponent.define(
-        'PairComponent',
+    return Element.define(
+        'PairElement',
         states={'x': 1.0, 'y': 1.0},
         parameters={'sigma': 0.5},
         laws=lambda s: [

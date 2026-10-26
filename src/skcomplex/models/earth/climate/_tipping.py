@@ -10,17 +10,17 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousTime, NetworkSpace
 from ....core.system import System
 from ....engine.runtime import register_model
-from ....formalisms.fields import FieldComponent, laplacian
+from ....formalisms.fields import FieldElement, laplacian
 
 FOLD = math.sqrt(4 / 27)
 
 
-class TippingElementComponent(ElementComponent):
+class TippingElementElement(Element):
     """Tipping element in the normal form of a fold, pushed toward its upper state by tipped neighbours.
 
     The state follows `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)`. Alone, the element has a
@@ -46,8 +46,8 @@ class TippingElementComponent(ElementComponent):
             The number of neighbours of the node.
 
     Examples:
-        >>> from skcomplex.models.earth.climate import TippingElementComponent
-        >>> TippingElementComponent('ice sheet').x
+        >>> from skcomplex.models.earth.climate import TippingElementElement
+        >>> TippingElementElement('ice sheet').x
         -1.0
     """
 
@@ -121,5 +121,5 @@ def tipping_cascade_network(
         'd': d,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    elements = FieldComponent('elements', TippingElementComponent, NetworkSpace(graph), values=values)
+    elements = FieldElement('elements', TippingElementElement, NetworkSpace(graph), values=values)
     return System(components=[elements], time=ContinuousTime())

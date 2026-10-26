@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -45,12 +45,12 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         2.0
     """
     return System(
-        components=[MarketComponent('market', price=price)],
+        components=[MarketElement('market', price=price)],
         interactions=[CobwebInteraction('cobweb', target='market', a=a, b=b, c=c, d=d)],
     )
 
 
-class MarketComponent(ElementComponent):
+class MarketElement(Element):
     """Market of one good described by its price.
 
     Args:
@@ -61,8 +61,8 @@ class MarketComponent(ElementComponent):
             The initial price.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import MarketComponent
-        >>> MarketComponent('wheat', price=2.0).price
+        >>> from skcomplex.models.economics.markets import MarketElement
+        >>> MarketElement('wheat', price=2.0).price
         2.0
     """
 

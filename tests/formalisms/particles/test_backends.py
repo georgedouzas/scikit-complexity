@@ -17,11 +17,11 @@ from skcomplex.engine.compile import SOLVERS, compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import ExternalSolver, VelocityVerletSolver
 from skcomplex.formalisms import registered_formalisms
-from skcomplex.formalisms.particles import LammpsSolver, PairPotentialInteraction, ParticleComponent
+from skcomplex.formalisms.particles import LammpsSolver, PairPotentialInteraction, ParticleElement
 from skcomplex.models.biology.ecology import (
     LogisticGrowthInteraction,
     MortalityInteraction,
-    PopulationComponent,
+    PopulationElement,
     PredationInteraction,
 )
 from skcomplex.models.physics.realizations.particles import (
@@ -76,7 +76,7 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
     """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
     return System(
-        components=[ParticleComponent.group('gas', n, x=_lattice(n), v=velocities)],
+        components=[ParticleElement.group('gas', n, x=_lattice(n), v=velocities)],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
         space=space or ContinuousSpace(n_dim=2),
     )
@@ -106,7 +106,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
 def test_lammps_rejects_population_model():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
     system = System(
-        components=[PopulationComponent('rabbits', n=40), PopulationComponent('foxes', n=9)],
+        components=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
         interactions=[
             LogisticGrowthInteraction('growth', target='rabbits'),
             PredationInteraction('hunt', predator='foxes', prey='rabbits'),
@@ -122,7 +122,7 @@ def test_lammps_rejects_population_model():
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = System(
-        components=[ParticleComponent.group('gas', 4, x=_lattice(4))],
+        components=[ParticleElement.group('gas', 4, x=_lattice(4))],
         interactions=[HyperbolicInteraction('hyperbolic', first='gas', second='gas', cutoff=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -133,7 +133,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different masses is reported as unsupported."""
     system = System(
-        components=[ParticleComponent.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])],
+        components=[ParticleElement.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])],
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='different masses'):
@@ -144,7 +144,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
     system = System(
         components=[
-            ParticleComponent.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2))),
+            ParticleElement.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2))),
         ],
         interactions=[ExponentialInteraction('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
         space=ContinuousSpace(n_dim=2),
@@ -158,7 +158,7 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
     system = System(
         components=[
-            ParticleComponent.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2))),
+            ParticleElement.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2))),
         ],
         interactions=[StepwiseInteraction('contact', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -255,7 +255,7 @@ def test_lammps_runs_10000_atoms_in_real_time():
     """Test that 10000 Lennard-Jones atoms keep a real-time clock within 0.2 seconds on LAMMPS."""
     n = 10_000
     system = System(
-        components=[ParticleComponent.group('gas', n, x=_lattice(n), v=np.random.default_rng(0).normal(0, 1, (n, 2)))],
+        components=[ParticleElement.group('gas', n, x=_lattice(n), v=np.random.default_rng(0).normal(0, 1, (n, 2)))],
         interactions=[
             LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF),
         ],

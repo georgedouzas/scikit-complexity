@@ -1,12 +1,12 @@
 """Econophysics: wealth exchange between agents."""
 
-from ._el_farol import BarInteraction, PatronComponent, el_farol, forecasts
-from ._exchange import TraderComponent, boltzmann_wealth
-from ._kinetic import DebtExchangeInteraction, SaverComponent, SavingExchangeInteraction, kinetic_wealth_exchange
-from ._kolkata import CrowdAvoidingDinerComponent, DinerComponent, RestaurantsInteraction, kolkata_restaurant
-from ._minority import MinorityGameInteraction, SpeculatorComponent, minority_game, strategy_table
+from ._el_farol import BarInteraction, PatronElement, el_farol, forecasts
+from ._exchange import TraderElement, boltzmann_wealth
+from ._kinetic import DebtExchangeInteraction, SaverElement, SavingExchangeInteraction, kinetic_wealth_exchange
+from ._kolkata import CrowdAvoidingDinerElement, DinerElement, RestaurantsInteraction, kolkata_restaurant
+from ._minority import MinorityGameInteraction, SpeculatorElement, minority_game, strategy_table
 from ._welfare import (
-    WealthClassComponent,
+    WealthClassElement,
     WealthExchangeInteraction,
     WelfarePolicyInteraction,
     exchange_table,
@@ -21,17 +21,17 @@ from ._welfare import (
 
 __all__: list[str] = [
     'BarInteraction',
-    'CrowdAvoidingDinerComponent',
+    'CrowdAvoidingDinerElement',
     'DebtExchangeInteraction',
-    'DinerComponent',
+    'DinerElement',
     'MinorityGameInteraction',
-    'PatronComponent',
+    'PatronElement',
     'RestaurantsInteraction',
-    'SaverComponent',
+    'SaverElement',
     'SavingExchangeInteraction',
-    'SpeculatorComponent',
-    'TraderComponent',
-    'WealthClassComponent',
+    'SpeculatorElement',
+    'TraderElement',
+    'WealthClassElement',
     'WealthExchangeInteraction',
     'WelfarePolicyInteraction',
     'boltzmann_wealth',

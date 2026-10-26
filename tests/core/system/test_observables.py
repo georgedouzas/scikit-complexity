@@ -7,23 +7,23 @@ import pytest
 from sage.all__sagemath_symbolics import I, exp
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, parameter, state, symbol
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, mean, total
 from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationComponent
+from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 
-OscillatorComponent = ElementComponent.define(
-    'OscillatorComponent',
+OscillatorElement = Element.define(
+    'OscillatorElement',
     states={'theta': state(0.0, domain=NumericDomain.ANGLE)},
     parameters={'omega': parameter(1.0)},
     laws=lambda s: [RateLaw(s.theta, s.omega)],
 )
 
 
-class SaverComponent(ElementComponent):
+class SaverElement(Element):
     """Agent whose wealth grows by one every step."""
 
     wealth: float = state(1.0)
@@ -96,7 +96,7 @@ ORDER = [ObservableQuantity('z', _phase_vector, group='osc'), ObservableQuantity
 def _oscillators():
     """Return oscillators whose order parameter `ORDER` builds from a complex mean."""
     return System(
-        components=[OscillatorComponent.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
+        components=[OscillatorElement.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
     )
 
 
@@ -113,7 +113,7 @@ def test_order_parameter_every_frame():
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     system = System(
-        components=[PopulationComponent('a', n=2.0), PopulationComponent('b', n=6.0)],
+        components=[PopulationElement('a', n=2.0), PopulationElement('b', n=6.0)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     observables = [ObservableQuantity('total', _total), ObservableQuantity('share', _share)]
@@ -126,7 +126,7 @@ def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = System(
         components=[
-            System('market', components=[PopulationComponent('a', n=3.0)]),
+            System('market', components=[PopulationElement('a', n=3.0)]),
         ],
     )
     simulation = Simulation(system, dt=1, observables=[ObservableQuantity('market/volume', _volume)])
@@ -137,8 +137,8 @@ def test_agent_reduction_read_by_other_partition():
     """Test that the mean wealth of agents is recorded and read by an ODE in another partition."""
     system = System(
         components=[
-            System('village', components=[SaverComponent.group('savers', 4)]),
-            System('land', components=[PopulationComponent('soil', n=0.0)]),
+            System('village', components=[SaverElement.group('savers', 4)]),
+            System('land', components=[PopulationElement('soil', n=0.0)]),
         ],
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
@@ -151,7 +151,7 @@ def test_agent_reduction_read_by_other_partition():
 def test_observable_read_in_one_form_is_lowered():
     """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
     system = System(
-        components=[PopulationComponent.group('herd', 3, n=[1.0, 2.0, 6.0]), PopulationComponent('soil')],
+        components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 6.0]), PopulationElement('soil')],
         interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
     observables = [ObservableQuantity('mean_n', group='herd', variable='n')]
@@ -161,7 +161,7 @@ def test_observable_read_in_one_form_is_lowered():
 
 def test_unknown_symbol_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
-    system = System(components=[PopulationComponent.group('herd', 3)])
+    system = System(components=[PopulationElement.group('herd', 3)])
     with pytest.raises(AttributeError, match='herd'):
         Simulation(system, observables=[ObservableQuantity('bad', _herd)]).run(until=1)
 
@@ -181,7 +181,7 @@ def test_observable_lambda_reduction_is_rejected():
 def test_observable_module_function_pickles():
     """Test that a module-level observable pickles and records the same values once restored."""
     system = System(
-        components=[PopulationComponent('a', n=2.0), PopulationComponent('b', n=6.0)],
+        components=[PopulationElement('a', n=2.0), PopulationElement('b', n=6.0)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     observables = [ObservableQuantity('total', _total)]
@@ -216,7 +216,7 @@ def _member_timed(member):
 def test_observables_read_time():
     """Test that system observables and member expressions of reductions read the time as `s.t`."""
     system = System(
-        components=[PopulationComponent('a', n=2.0), PopulationComponent.group('herd', 2, n=[1.0, 3.0])],
+        components=[PopulationElement('a', n=2.0), PopulationElement.group('herd', 2, n=[1.0, 3.0])],
     )
     observables = [ObservableQuantity('timed', _timed), ObservableQuantity('member_timed', _member_timed, group='herd')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=2).trajectory_
@@ -225,7 +225,7 @@ def test_observables_read_time():
 
 
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
-DecayingComponent = ElementComponent.define('DecayingComponent', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)])
+DecayingElement = Element.define('DecayingElement', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)])
 
 
 def _local_field_energy(member):
@@ -245,7 +245,7 @@ def _deviation_from_other(member):
 
 def _decaying_group(*observables):
     """Return a simulation of a decaying group of 4 members with observables."""
-    system = System(components=[DecayingComponent.group('u', 4, x=np.arange(1.0, 5.0))])
+    system = System(components=[DecayingElement.group('u', 4, x=np.arange(1.0, 5.0))])
     return Simulation(system, dt=0.5, observables=list(observables))
 
 
@@ -277,6 +277,6 @@ def test_observable_rejects_reduction_over_another_group():
 
 def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
-    system = System(components=[PopulationComponent('a')])
+    system = System(components=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
         Simulation(system, observables=[ObservableQuantity('total', lambda s: s.a.n)]).run(until=1)

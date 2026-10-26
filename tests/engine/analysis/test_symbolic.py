@@ -5,18 +5,18 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.core.base import AnalysisError, BaseInteraction, role, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, UpdateLaw, derivative, lag
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import equations_of, solve_symbolically
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.formalisms.particles import ParticleComponent
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationComponent
-from skcomplex.models.biology.epidemiology import CompartmentComponent, RecoveryInteraction
-from skcomplex.models.economics.finance import AssetComponent, GeometricBrownianMotionInteraction
-from skcomplex.models.economics.markets import CobwebInteraction, MarketComponent
+from skcomplex.formalisms.particles import ParticleElement
+from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
+from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
+from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
+from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 
 from ...conftest import CallableGrowthInteraction
@@ -25,7 +25,7 @@ from ...conftest import CallableGrowthInteraction
 def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
     system = System(
-        components=[PopulationComponent('p', n=10)],
+        components=[PopulationElement('p', n=10)],
         interactions=[LogisticGrowthInteraction('g', target='p')],
     )
     problem = compile_system(system)
@@ -39,7 +39,7 @@ def test_equations_of_logistic_growth():
 
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
-    system = System(components=[MarketComponent('m')], interactions=[CobwebInteraction('c', target='m')])
+    system = System(components=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     equation = equations_of(system)['m.price']
     t = compile_system(system).time
     assert bool(equation.lhs() == function('price_m')(t + 1))
@@ -48,7 +48,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
     system = System(
-        components=[CompartmentComponent('I', n=1), CompartmentComponent('R')],
+        components=[CompartmentElement('I', n=1), CompartmentElement('R')],
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):
@@ -57,7 +57,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = System(components=[ParticleComponent('p')], space=ContinuousSpace(n_dim=1))
+    system = System(components=[ParticleElement('p')], space=ContinuousSpace(n_dim=1))
     solution = solve_symbolically(system)['p.x[0]']
     t = compile_system(system).time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -70,7 +70,7 @@ def test_solve_symbolically_free_particle():
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
     system = System(
-        components=[ParticleComponent('p')],
+        components=[ParticleElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
         space=ContinuousSpace(n_dim=1),
     )
@@ -84,7 +84,7 @@ def test_solve_symbolically_constant_acceleration():
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
     system = System(
-        components=[ParticleComponent('p', x=1.0, v=0.0)],
+        components=[ParticleElement('p', x=1.0, v=0.0)],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
@@ -103,7 +103,7 @@ def test_solve_symbolically_harmonic_oscillator():
 def test_solve_symbolically_not_ode_raises_error():
     """Test that only ODE systems are solved."""
     system = System(
-        components=[AssetComponent('s')],
+        components=[AssetElement('s')],
         interactions=[GeometricBrownianMotionInteraction('g', target='s')],
     )
     with pytest.raises(AnalysisError, match='stochastic differential equations'):
@@ -113,7 +113,7 @@ def test_solve_symbolically_not_ode_raises_error():
 def test_solve_symbolically_callable_raises_error():
     """Test that callable laws cannot be solved."""
     system = System(
-        components=[PopulationComponent('rabbits')],
+        components=[PopulationElement('rabbits')],
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
     with pytest.raises(AnalysisError, match='callable'):
@@ -124,7 +124,7 @@ def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
     system = System(
-        components=[ParticleComponent('p')],
+        components=[ParticleElement('p')],
         interactions=[ConstantForceInteraction('push', target='p', F=float(force))],
         space=ContinuousSpace(n_dim=1),
     )
@@ -139,7 +139,7 @@ def test_sage_expression_compiles_like_number():
             return [RateLaw(s.target.v, [force])]
 
     sage_system = System(
-        components=[ParticleComponent('p')],
+        components=[ParticleElement('p')],
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
@@ -148,39 +148,39 @@ def test_sage_expression_compiles_like_number():
     assert np.allclose(expected, result)
 
 
-PendulumComponent = ElementComponent.define(
-    'PendulumComponent',
+PendulumElement = Element.define(
+    'PendulumElement',
     states={'theta': state(default=0.1, order=2)},
     parameters={'g': 9.81, 'l': 1.0},
     laws=lambda s: [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))],
 )
 
 
-SmallAngleComponent = ElementComponent.define(
-    'SmallAngleComponent',
+SmallAngleElement = Element.define(
+    'SmallAngleElement',
     states={'theta': state(default=0.1, order=2)},
     parameters={'g': 9.81, 'l': 1.0},
     laws=lambda s: [RateLaw(s.theta, -(s.g / s.l) * s.theta)],
 )
 
 
-ThirdOrderComponent = ElementComponent.define(
-    'ThirdOrderComponent',
+ThirdOrderElement = Element.define(
+    'ThirdOrderElement',
     states={'x': state(default=0.0, order=3, initial=(1.0, 0.0))},
     laws=lambda s: [RateLaw(s.x, -derivative(s.x, 1))],
 )
 
 
-FirstOrderPendulumComponent = ElementComponent.define(
-    'FirstOrderPendulumComponent',
+FirstOrderPendulumElement = Element.define(
+    'FirstOrderPendulumElement',
     states={'theta': 0.1, 'omega': 0.0},
     parameters={'g': 9.81, 'l': 1.0},
     laws=lambda s: [RateLaw(s.theta, s.omega), RateLaw(s.omega, -(s.g / s.l) * sin(s.theta))],
 )
 
 
-FibonacciComponent = ElementComponent.define(
-    'FibonacciComponent',
+FibonacciElement = Element.define(
+    'FibonacciElement',
     states={'x': state(default=1.0, lags=1, initial=(1.0,))},
     laws=lambda s: [UpdateLaw(s.x, s.x + lag(s.x, 1))],
 )
@@ -188,7 +188,7 @@ FibonacciComponent = ElementComponent.define(
 
 def test_pendulum_equation_keeps_its_order():
     """Test that a pendulum of order 2 gives one second-order equation and no separate velocity equation."""
-    equations = equations_of(System(components=[PendulumComponent('bob')]))
+    equations = equations_of(System(components=[PendulumElement('bob')]))
     assert list(equations) == ['bob.theta']
     theta = function('theta_bob')(SR.var('t'))
     g, l = SR.var('g_bob'), SR.var('l_bob')
@@ -199,7 +199,7 @@ def test_pendulum_equation_keeps_its_order():
 
 def test_lagged_equation_reads_past_values():
     """Test that a difference equation with a lag reads the value one step back."""
-    equation = equations_of(System(components=[FibonacciComponent('f')]))['f.x']
+    equation = equations_of(System(components=[FibonacciElement('f')]))['f.x']
     t = SR.var('t')
     x = function('x_f')
     assert bool(equation.lhs() == x(t + 1))
@@ -208,7 +208,7 @@ def test_lagged_equation_reads_past_values():
 
 def test_small_angle_pendulum_solved_with_plain_numbers():
     """Test that `θ'' = -(g / l) θ` with plain positive numbers solves to `0.1 cos(sqrt(g / l) t)`."""
-    solution = solve_symbolically(System(components=[SmallAngleComponent('bob')]), use_initial_state=True)['bob.theta']
+    solution = solve_symbolically(System(components=[SmallAngleElement('bob')]), use_initial_state=True)['bob.theta']
     values = {SR.var('g_bob'): 9.81, SR.var('l_bob'): 2.0}
     for time in (0.3, 1.0, 2.5):
         expected = 0.1 * float(cos(sqrt(9.81 / 2.0) * time))
@@ -217,7 +217,7 @@ def test_small_angle_pendulum_solved_with_plain_numbers():
 
 def test_third_order_equation_solved():
     """Test that `x''' = -x'` from `x = 0`, `x' = 1`, `x'' = 0` solves to `sin(t)`."""
-    solution = solve_symbolically(System(components=[ThirdOrderComponent('a')]), use_initial_state=True)['a.x']
+    solution = solve_symbolically(System(components=[ThirdOrderElement('a')]), use_initial_state=True)['a.x']
     t = SR.var('t')
     for time in (0.3, 1.0, 2.5):
         assert float(solution.rhs().subs({t: time})) == pytest.approx(float(sin(time)))
@@ -225,7 +225,7 @@ def test_third_order_equation_solved():
 
 @pytest.mark.parametrize(
     'element',
-    [PendulumComponent('bob'), FirstOrderPendulumComponent('bob')],
+    [PendulumElement('bob'), FirstOrderPendulumElement('bob')],
     ids=['second-order', 'first-order'],
 )
 def test_nonlinear_pendulum_has_no_false_solution(element):
@@ -236,11 +236,11 @@ def test_nonlinear_pendulum_has_no_false_solution(element):
 
 def test_remaining_sign_question_names_parameter():
     """Test that a sign Maxima still needs raises an error that names the parameter and the domain to declare."""
-    SpringComponent = ElementComponent.define(
-        'SpringComponent',
+    SpringElement = Element.define(
+        'SpringElement',
         states={'x': state(default=0.1, order=2)},
         parameters={'k': 0.0},
         laws=lambda s: [RateLaw(s.x, -s.k * s.x)],
     )
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=Domain\.POSITIVE'):
-        solve_symbolically(System(components=[SpringComponent('a')]), use_initial_state=True)
+        solve_symbolically(System(components=[SpringElement('a')]), use_initial_state=True)

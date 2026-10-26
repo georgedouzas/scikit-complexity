@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
 from ....core.system import System
@@ -20,7 +20,7 @@ from ..realizations._learning import heuristics, logit_choice
 PREDICTORS = ('fundamentalist', 'trend')
 
 
-class SpeculatorComponent(ElementComponent):
+class SpeculatorElement(Element):
     """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
 
     The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
@@ -40,8 +40,8 @@ class SpeculatorComponent(ElementComponent):
             The label of the pricing institution whose fitness reporters the trader reads.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import SpeculatorComponent
-        >>> SpeculatorComponent.group('traders', 10, intensity=2.0).size
+        >>> from skcomplex.models.economics.markets import SpeculatorElement
+        >>> SpeculatorElement.group('traders', 10, intensity=2.0).size
         10
     """
 
@@ -230,7 +230,7 @@ def brock_hommes(
         >>> brock_hommes(100).elements[0].size
         100
     """
-    traders = SpeculatorComponent.group('traders', n_traders, intensity=intensity)
+    traders = SpeculatorElement.group('traders', n_traders, intensity=intensity)
     pricing = HeuristicPricingInteraction(
         'pricing',
         traders='traders',

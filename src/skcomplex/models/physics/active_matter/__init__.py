@@ -1,33 +1,33 @@
 """Active matter: self-propelled particles, clusters, flocking, polar fluids, chemotaxis, and Active Model B+."""
 
 from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
-from ._chemotaxis import ChemotaxisComponent, keller_segel
+from ._chemotaxis import ChemotaxisElement, keller_segel
 from ._collective import (
     CuckerSmaleAlignmentInteraction,
     PhoreticAttractionInteraction,
-    PolarFluidComponent,
+    PolarFluidElement,
     SoftRepulsionInteraction,
     cucker_smale_flocking,
     living_crystals,
     motility_induced_phase_separation,
     toner_tu,
 )
-from ._collisions import BinaryCollisionsInteraction, FlockerComponent, binary_collision_flocking
+from ._collisions import BinaryCollisionsInteraction, FlockerElement, binary_collision_flocking
 from ._flocks import (
-    CohesiveParticleComponent,
-    NematicParticleComponent,
-    VicsekParticleComponent,
+    CohesiveParticleElement,
+    NematicParticleElement,
+    VicsekParticleElement,
     ginelli_nematics,
     gregoire_chate,
     vicsek,
 )
-from ._model_b import ActiveScalarComponent, active_model_b
-from ._nonreciprocal import NonreciprocalMoverComponent, nonreciprocal_vicsek
+from ._model_b import ActiveScalarElement, active_model_b
+from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
 from ._particles import (
-    ActiveParticleComponent,
-    DepotParticleComponent,
-    OrnsteinUhlenbeckParticleComponent,
-    TumblerComponent,
+    ActiveParticleElement,
+    DepotParticleElement,
+    OrnsteinUhlenbeckParticleElement,
+    TumblerElement,
     active_brownian_particles,
     active_ornstein_uhlenbeck_particles,
     chiral_active_particles,
@@ -36,23 +36,23 @@ from ._particles import (
 )
 
 __all__: list[str] = [
-    'ActiveParticleComponent',
-    'ActiveScalarComponent',
+    'ActiveParticleElement',
+    'ActiveScalarElement',
     'BinaryCollisionsInteraction',
-    'ChemotaxisComponent',
-    'CohesiveParticleComponent',
+    'ChemotaxisElement',
+    'CohesiveParticleElement',
     'CuckerSmaleAlignmentInteraction',
-    'DepotParticleComponent',
-    'FlockerComponent',
-    'NematicParticleComponent',
-    'NonreciprocalMoverComponent',
-    'OrnsteinUhlenbeckParticleComponent',
+    'DepotParticleElement',
+    'FlockerElement',
+    'NematicParticleElement',
+    'NonreciprocalMoverElement',
+    'OrnsteinUhlenbeckParticleElement',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
-    'PolarFluidComponent',
+    'PolarFluidElement',
     'SoftRepulsionInteraction',
-    'TumblerComponent',
-    'VicsekParticleComponent',
+    'TumblerElement',
+    'VicsekParticleElement',
     'active_brownian_particles',
     'active_model_b',
     'active_ornstein_uhlenbeck_particles',

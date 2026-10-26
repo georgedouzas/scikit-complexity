@@ -8,7 +8,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, ScipyODESolver, VelocityVerletSolver
-from skcomplex.formalisms.particles import LammpsSolver, ParticleComponent
+from skcomplex.formalisms.particles import LammpsSolver, ParticleElement
 from skcomplex.models.physics.realizations.particles import (
     ConstantForceInteraction,
     GravityInteraction,
@@ -24,7 +24,7 @@ from skcomplex.models.physics.statistical_mechanics import ideal_gas
 def _pair(interaction, distance):
     """Return a system of two particles at a distance with one pair interaction."""
     return System(
-        components=[ParticleComponent.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
+        components=[ParticleElement.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
         interactions=[interaction],
         space=ContinuousSpace(n_dim=2),
     )
@@ -33,7 +33,7 @@ def _pair(interaction, distance):
 def test_particle_constant_acceleration():
     """Test that a constant force displaces a particle by `F * t**2 / (2 * m)`."""
     system = System(
-        components=[ParticleComponent('p', m=2.0)],
+        components=[ParticleElement('p', m=2.0)],
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),
     )
@@ -44,7 +44,7 @@ def test_particle_constant_acceleration():
 def test_spring_conserves_energy():
     """Test that two particles joined by a spring keep their total energy."""
     system = System(
-        components=[ParticleComponent('a', x=[0.0, 0.0], v=[0.0, 1.0]), ParticleComponent('b', x=[2.0, 0.0], m=2.0)],
+        components=[ParticleElement('a', x=[0.0, 0.0], v=[0.0, 1.0]), ParticleElement('b', x=[2.0, 0.0], m=2.0)],
         interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -61,8 +61,8 @@ def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
     system = System(
         components=[
-            ParticleComponent('sun', m=1000.0),
-            ParticleComponent('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6),
+            ParticleElement('sun', m=1000.0),
+            ParticleElement('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6),
         ],
         interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
         space=ContinuousSpace(n_dim=2),
@@ -75,7 +75,7 @@ def test_gravity_keeps_circular_orbit():
 def test_linear_drag_slows_particle():
     """Test that drag decays the velocity exponentially."""
     system = System(
-        components=[ParticleComponent('p', v=1.0)],
+        components=[ParticleElement('p', v=1.0)],
         interactions=[LinearDragInteraction('air', target='p', gamma=0.5)],
         space=ContinuousSpace(n_dim=1),
     )

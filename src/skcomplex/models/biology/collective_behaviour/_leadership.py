@@ -9,7 +9,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace, DiscreteTime
 from ....core.system import System
@@ -32,7 +32,7 @@ def _turned(heading: np.ndarray, desired: np.ndarray, max_turn: float) -> np.nda
     return np.array([cosine * heading[0] - sine * heading[1], sine * heading[0] + cosine * heading[1]])
 
 
-class ShoalMemberComponent(ElementComponent):
+class ShoalMemberElement(Element):
     """Fish of a Couzin shoal that avoids close neighbours, follows farther ones, and may know a preferred direction.
 
     Every step a fish first sets its desired direction. When neighbours lie within the zone of repulsion `alpha`, it
@@ -76,8 +76,8 @@ class ShoalMemberComponent(ElementComponent):
             The side of the square torus.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import ShoalMemberComponent
-        >>> ShoalMemberComponent.group('shoal', 10, location=(5.0, 5.0)).size
+        >>> from skcomplex.models.biology.collective_behaviour import ShoalMemberElement
+        >>> ShoalMemberElement.group('shoal', 10, location=(5.0, 5.0)).size
         10
     """
 
@@ -218,7 +218,7 @@ def couzin_leadership(
     weights = np.zeros(n_fish)
     weights[: round(informed * n_fish)] = omega
     locations = size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-    shoal = ShoalMemberComponent.group(
+    shoal = ShoalMemberElement.group(
         'shoal',
         n_fish,
         location=[tuple(point) for point in locations],

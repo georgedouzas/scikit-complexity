@@ -9,7 +9,7 @@ import pytest
 from scipy import stats
 
 from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import (
     AuxiliaryQuantity,
     BoundaryLaw,
@@ -33,7 +33,7 @@ from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.formalisms.agents import RuleLaw
 
 
-class TanksComponent(ElementComponent):
+class TanksElement(Element):
     """Two stocks with a transfer between them and the invariant of their total."""
 
     a: float = state(3.0)
@@ -89,16 +89,16 @@ def _fertility_quantities(s):
     return [AuxiliaryQuantity('fertility', lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)]))]
 
 
-TubComponent = ElementComponent.define(
-    'TubComponent',
+TubElement = Element.define(
+    'TubElement',
     states={'water': state(0.0, quantity='water')},
     parameters={'k': 0.5},
     laws=_tub_laws,
 )
 
 
-PopulationComponent = ElementComponent.define(
-    'PopulationComponent',
+PopulationElement = Element.define(
+    'PopulationElement',
     states={'n': state(10.0, quantity='people')},
     parameters={'b': 0.03, 'd': 0.01},
     laws=_population_laws,
@@ -106,22 +106,22 @@ PopulationComponent = ElementComponent.define(
 )
 
 
-ClippedComponent = ElementComponent.define(
-    'ClippedComponent',
+ClippedElement = Element.define(
+    'ClippedElement',
     states={'water': state(0.0, quantity='water')},
     laws=_clipped_laws,
 )
 
 
-LedgerComponent = ElementComponent.define(
-    'LedgerComponent',
+LedgerElement = Element.define(
+    'LedgerElement',
     states={'a': state(10.0, quantity='money'), 'b': state(0.0, quantity='money'), 'c': state(0.0)},
     laws=_ledger_laws,
 )
 
 
-FertilityComponent = ElementComponent.define(
-    'FertilityComponent',
+FertilityElement = Element.define(
+    'FertilityElement',
     states={'food': state(-1.0)},
     laws=lambda s: [RateLaw(s.food, 1.0)],
     quantities=_fertility_quantities,
@@ -132,7 +132,7 @@ def _delayed(kind):
     """Return an element whose output stock integrates a delay of a unit step at time 1 with delay time 6."""
     conserved, order = kind.startswith('material'), int(kind[-1])
     function = functools.partial(distributed_delay, order=order, conserved=conserved)
-    return ElementComponent.define(
+    return Element.define(
         f'Delayed_{kind}',
         states={'out': state(0.0)},
         parameters={'T': 6.0},
@@ -145,7 +145,7 @@ def _balance(agent):
     return agent.assets - agent.liabilities - agent.equity
 
 
-class BankComponent(ElementComponent):
+class BankElement(Element):
     """Bank whose rule lowers its assets alone."""
 
     assets: float = state(10.0)
@@ -165,14 +165,14 @@ class BankComponent(ElementComponent):
         agent.assets -= 1.0
 
 
-class LenderComponent(ElementComponent):
+class LenderElement(Element):
     """Lender holding claims on firms, positive loans."""
 
     loans: float = state(0.0, quantity='loans')
     money: float = state(0.0, quantity='money')
 
 
-class BorrowerComponent(ElementComponent):
+class BorrowerElement(Element):
     """Firm that owes its loans, a negative holding, and goes bankrupt when its money runs out."""
 
     loans: float = state(0.0, quantity='loans')
@@ -197,8 +197,8 @@ def _credit_system(settles):
     """Return a lender and two bankrupt borrowers that each owe 5."""
     return System(
         components=[
-            LenderComponent.group('lenders', 1, loans=10.0, money=4.0),
-            BorrowerComponent.group('firms', 2, variable=True, loans=-5.0, money=0.0, settles=float(settles)),
+            LenderElement.group('lenders', 1, loans=10.0, money=4.0),
+            BorrowerElement.group('firms', 2, variable=True, loans=-5.0, money=0.0, settles=float(settles)),
         ],
     )
 
@@ -232,25 +232,25 @@ class PaymentsInteraction(BaseInteraction):
 @pytest.mark.parametrize('time', [None, DiscreteTime()])
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
-    trajectory = Simulation(System(components=[TanksComponent('t')], time=time), dt=1.0).run(until=5).trajectory_
+    trajectory = Simulation(System(components=[TanksElement('t')], time=time), dt=1.0).run(until=5).trajectory_
     np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
     assert trajectory.values('t.a')[-1] < 3.0
 
 
 def test_transfer_with_the_environment_takes_none():
     """Test that a transfer from `None` draws the quantity from the environment."""
-    FilledComponent = ElementComponent.define(
-        'FilledComponent',
+    FilledElement = Element.define(
+        'FilledElement',
         states={'n': 0.0},
         laws=lambda s: [TransferLaw(None, s.n, 1.0, label='inflow')],
     )
-    trajectory = Simulation(System(components=[FilledComponent('f')]), dt=1.0).run(until=3).trajectory_
+    trajectory = Simulation(System(components=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
     assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
 
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
-    trajectory = Simulation(System(components=[TubComponent('tub')]), dt=1).run(30).trajectory_
+    trajectory = Simulation(System(components=[TubElement('tub')]), dt=1).run(30).trajectory_
     assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
     assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
     assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
@@ -259,8 +259,8 @@ def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
 
 def test_flow_between_quantities_is_rejected():
     """Test that a flow between holders of different quantities raises a conservation error."""
-    mixed = ElementComponent.define(
-        'MixedComponent',
+    mixed = Element.define(
+        'MixedElement',
         states={'x': state(1.0, quantity='mass'), 'y': state(0.0, quantity='energy')},
         laws=lambda s: [TransferLaw(s.x, s.y, s.x)],
     )
@@ -272,15 +272,15 @@ def test_flow_holders_and_labels_are_checked():
     """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
     with pytest.raises(ValidationError, match='both of its holders'):
         TransferLaw(Source(), Sink(), 1.0).check()
-    twice = ElementComponent.define(
-        'TwiceComponent',
+    twice = Element.define(
+        'TwiceElement',
         states={'x': state(1.0)},
         laws=lambda s: [TransferLaw(Source(), s.x, 1.0, label='f'), TransferLaw(s.x, Sink(), 1.0, label='f')],
     )
     with pytest.raises(LabelError, match="'f'"):
         compile_system(System(components=[twice('twice')]))
-    reads = ElementComponent.define(
-        'ReadsComponent',
+    reads = Element.define(
+        'ReadsElement',
         states={'x': state(1.0)},
         parameters={'k': 1.0},
         laws=lambda s: [TransferLaw(s.k, s.x, 1)],
@@ -291,7 +291,7 @@ def test_flow_holders_and_labels_are_checked():
 
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
-    trajectory = Simulation(System(components=[LedgerComponent('ledger')]), dt=1).run(5).trajectory_
+    trajectory = Simulation(System(components=[LedgerElement('ledger')]), dt=1).run(5).trajectory_
     assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
     assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
@@ -300,8 +300,8 @@ def test_discrete_flows_are_per_step_and_join_the_updates():
 
 def test_jump_flows_move_their_size_at_random_times():
     """Test that a flow with a rate becomes a jump that conserves the total of its holders."""
-    jumping = ElementComponent.define(
-        'JumpingComponent',
+    jumping = Element.define(
+        'JumpingElement',
         states={'a': state(50.0, quantity='coins'), 'b': state(0.0, quantity='coins')},
         laws=lambda s: [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
     )
@@ -312,7 +312,7 @@ def test_jump_flows_move_their_size_at_random_times():
 
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility auxiliary interpolates the table linearly and holds its ends."""
-    trajectory = Simulation(System(components=[FertilityComponent('f')]), dt=0.5).run(4).trajectory_
+    trajectory = Simulation(System(components=[FertilityElement('f')]), dt=0.5).run(4).trajectory_
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
     assert trajectory.values('f.fertility') == pytest.approx(expected)
@@ -341,7 +341,7 @@ def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
 
 def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
-    system = System(components=[PopulationComponent('pop')])
+    system = System(components=[PopulationElement('pop')])
     found = {loop.nodes: loop.polarity for loop in loops(system).loops}
     assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.birth_rate', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).run(5).trajectory_
@@ -352,20 +352,20 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
 
 def test_conservation_returns_the_boundary_flows():
     """Test that the net inflow of people is births minus deaths."""
-    boundary = conservation(System(components=[PopulationComponent('pop')]))
+    boundary = conservation(System(components=[PopulationElement('pop')]))
     assert str(boundary['people']) == 'b_pop*n_pop - d_pop*n_pop'
 
 
 def test_monitor_detects_drift_beyond_the_flows():
     """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
     with pytest.raises(ConservationError, match="'water' drifted"):
-        Simulation(System(components=[ClippedComponent('c')]), dt=1, observers=[ConservationObserver()]).run(5)
+        Simulation(System(components=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
 
 
 def test_member_invariant_violation_names_the_agent_the_invariant_and_the_change():
     """Test that lowering assets alone breaks the invariant of every member after the step."""
     with pytest.raises(ConservationError, match=r"'assets == liabilities \+ equity' of agent \d+ of banks.*-1"):
-        Simulation(System(components=[BankComponent.group('banks', 1)])).run(2)
+        Simulation(System(components=[BankElement.group('banks', 1)])).run(2)
 
 
 def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
@@ -383,7 +383,7 @@ def test_removing_an_unsettled_agent_destroys_its_holdings():
 
 def test_transfer_moves_between_states_and_checks_names():
     """Test that a transfer can move between differently named states and rejects missing ones."""
-    lender, borrower = LenderComponent('l'), BorrowerComponent('b')
+    lender, borrower = LenderElement('l'), BorrowerElement('b')
     transfer(lender, borrower, 3.0, 'money')
     assert (lender.money, borrower.money) == (-3.0, 3.0)
     transfer(borrower, lender, 1.0, 'money', 'loans')
@@ -405,7 +405,7 @@ def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
 def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
     """Test that an invariant of an interaction holds under transfers and names the interaction when money appears."""
     system = System(
-        components=[LenderComponent.group('holders', 3, variable=True, money=5.0)],
+        components=[LenderElement.group('holders', 3, variable=True, money=5.0)],
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )
     if violated:

@@ -2,46 +2,46 @@
 
 from ._boolean import (
     BooleanFunctionInteraction,
-    BooleanNodeComponent,
+    BooleanNodeElement,
     ThresholdFunctionInteraction,
     random_boolean_network,
     yeast_cell_cycle,
 )
 from ._boolean_models import boolean_repressilator, mammalian_cell_cycle, three_gene_boolean_network
-from ._cascades import ActivationInteraction, CascadeStageComponent, GProteinComponent, hormone_cascade_amplifier
-from ._clocks import PerClockComponent, circadian_clock
-from ._genes import GeneComponent, RepressionInteraction, negative_autoregulation, repressilator, toggle_switch
-from ._min_proteins import MinSkeletonComponent, min_protein_skeleton
+from ._cascades import ActivationInteraction, CascadeStageElement, GProteinElement, hormone_cascade_amplifier
+from ._clocks import PerClockElement, circadian_clock
+from ._genes import GeneElement, RepressionInteraction, negative_autoregulation, repressilator, toggle_switch
+from ._min_proteins import MinSkeletonElement, min_protein_skeleton
 from ._networks import (
     GeneralizedMassActionInteraction,
-    GoodwinStageComponent,
+    GoodwinStageElement,
     HillRepressionInteraction,
-    MetaboliteComponent,
-    PhosphorylationLoopComponent,
+    MetaboliteElement,
+    PhosphorylationLoopElement,
     SSystemInteraction,
     SynthesisInteraction,
     biochemical_systems_theory,
     goodwin_oscillator,
     phosphorylation_oscillator,
 )
-from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeComponent, probabilistic_boolean_network
+from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeElement, probabilistic_boolean_network
 
 __all__: list[str] = [
     'ActivationInteraction',
     'BooleanFunctionInteraction',
-    'BooleanNodeComponent',
-    'CascadeStageComponent',
-    'GProteinComponent',
-    'GeneComponent',
+    'BooleanNodeElement',
+    'CascadeStageElement',
+    'GProteinElement',
+    'GeneElement',
     'GeneralizedMassActionInteraction',
-    'GoodwinStageComponent',
+    'GoodwinStageElement',
     'HillRepressionInteraction',
-    'MetaboliteComponent',
-    'MinSkeletonComponent',
-    'PerClockComponent',
-    'PhosphorylationLoopComponent',
+    'MetaboliteElement',
+    'MinSkeletonElement',
+    'PerClockElement',
+    'PhosphorylationLoopElement',
     'ProbabilisticFunctionInteraction',
-    'ProbabilisticNodeComponent',
+    'ProbabilisticNodeElement',
     'RepressionInteraction',
     'SSystemInteraction',
     'SynthesisInteraction',

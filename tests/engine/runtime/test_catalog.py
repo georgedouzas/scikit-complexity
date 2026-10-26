@@ -16,7 +16,7 @@ from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
-    PopulationComponent,
+    PopulationElement,
     PredationInteraction,
 )
 
@@ -92,7 +92,7 @@ def test_create_matches_components():
     """Test that a model created by name runs like the same model built from its components."""
     created = create('lotka_volterra', a=0.2)
     built = System(
-        components=[PopulationComponent('prey', n=40.0), PopulationComponent('predators', n=9.0)],
+        components=[PopulationElement('prey', n=40.0), PopulationElement('predators', n=9.0)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='prey', r=1.1),
             PredationInteraction('predation', predator='predators', prey='prey', a=0.2, b=0.1),

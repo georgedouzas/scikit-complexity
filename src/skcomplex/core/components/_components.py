@@ -9,11 +9,11 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ..base import (
-    BaseComponent,
+    BaseElement,
     BaseInteraction,
     BaseLaw,
     BaseQuantity,
-    ComponentKind,
+    ElementKind,
     NumericDomain,
     Requires,
     SpaceError,
@@ -38,14 +38,14 @@ def _lattice_visual(element: type, visual: VisualSpec | None, default: str | Non
 
 
 def _check_element(label: str, element: object) -> None:
-    """Raise an error for a group whose element type is not an `ElementComponent` subclass."""
-    if isinstance(element, type) and issubclass(element, ElementComponent):
+    """Raise an error for a group whose element type is not an `Element` subclass."""
+    if isinstance(element, type) and issubclass(element, Element):
         return
     error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
     raise ValidationError(error_msg)
 
 
-def _check_size(group: 'GroupComponent') -> None:
+def _check_size(group: 'GroupElement') -> None:
     """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
     if group.size is None and group.on is not None:
         return
@@ -56,7 +56,7 @@ def _check_size(group: 'GroupComponent') -> None:
     raise ValidationError(error_msg)
 
 
-def _check_value_names(group: 'GroupComponent') -> None:
+def _check_value_names(group: 'GroupElement') -> None:
     """Raise an error for a value whose name the element type of a group does not declare."""
     unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
     if not unknown:
@@ -70,7 +70,7 @@ def _check_value_names(group: 'GroupComponent') -> None:
     raise ValidationError(error_msg)
 
 
-def _size_of(group: 'GroupComponent', space: BaseSpace | None = None) -> int:
+def _size_of(group: 'GroupElement', space: BaseSpace | None = None) -> int:
     """Return the size of a group, the number of parts of its own space or else of an inherited space without one."""
     if group.size is not None:
         return int(group.size)
@@ -81,7 +81,7 @@ def _size_of(group: 'GroupComponent', space: BaseSpace | None = None) -> int:
     return part_count(place, group.on or 'sites', group.label, group.layer)
 
 
-def _check_value_rows(group: 'GroupComponent') -> None:
+def _check_value_rows(group: 'GroupElement') -> None:
     """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
     if group.size is None and group.space is None:
         return
@@ -106,7 +106,7 @@ def _check_value_rows(group: 'GroupComponent') -> None:
         raise ValidationError(error_msg)
 
 
-def _check_group(group: 'GroupComponent') -> None:
+def _check_group(group: 'GroupElement') -> None:
     """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
     _check_element(group.label, group.element)
     _check_size(group)
@@ -114,7 +114,7 @@ def _check_group(group: 'GroupComponent') -> None:
     _check_value_rows(group)
 
 
-class ElementComponent(BaseComponent):
+class Element(BaseElement):
     """Base class of entities that carry state, such as particles, populations, agents, or firms.
 
     Subclasses declare their states with `state` and their parameters with `parameter`, and can override `laws` to
@@ -133,14 +133,14 @@ class ElementComponent(BaseComponent):
 
     Examples:
         >>> from skcomplex.core.base import NumericDomain, state
-        >>> from skcomplex.core.components import ElementComponent
-        >>> class PopulationComponent(ElementComponent):
+        >>> from skcomplex.core.components import Element
+        >>> class PopulationElement(Element):
         ...     n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
-        >>> PopulationComponent('rabbits', n=40)
-        PopulationComponent(label='rabbits', n=40)
+        >>> PopulationElement('rabbits', n=40)
+        PopulationElement(label='rabbits', n=40)
     """
 
-    component_kind: ClassVar[ComponentKind] = ComponentKind.ELEMENT
+    component_kind: ClassVar[ElementKind] = ElementKind.ELEMENT
     requires: ClassVar[Requires] = Requires()
 
     reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual', 'remembers'})
@@ -157,7 +157,7 @@ class ElementComponent(BaseComponent):
         laws: Callable[..., list[BaseLaw]] | None = None,
         quantities: Callable[..., Sequence[BaseQuantity]] | None = None,
         visual: VisualSpec | None = None,
-    ) -> type['ElementComponent']:
+    ) -> type['Element']:
         """Return a new element type built from declarations, without writing a class.
 
         The type behaves like a subclass in groups, cloning, and parameter introspection. Assign it to a module-level
@@ -189,16 +189,16 @@ class ElementComponent(BaseComponent):
 
         Examples:
             >>> from skcomplex.core.base import NumericDomain, state
-            >>> from skcomplex.core.components import ElementComponent
+            >>> from skcomplex.core.components import Element
             >>> from skcomplex.core.laws import RateLaw
-            >>> DecayingComponent = ElementComponent.define(
-            ...     'DecayingComponent',
+            >>> DecayingElement = Element.define(
+            ...     'DecayingElement',
             ...     states={'n': state(1.0, domain=NumericDomain.NONNEGATIVE)},
             ...     parameters={'k': 0.5},
             ...     laws=lambda s: [RateLaw(s.n, -s.k * s.n)],
             ... )
-            >>> DecayingComponent('atoms', n=10.0)
-            DecayingComponent(k=0.5, label='atoms', n=10.0)
+            >>> DecayingElement('atoms', n=10.0)
+            DecayingElement(k=0.5, label='atoms', n=10.0)
         """
         attributes = {} if visual is None else {'visual': visual}
         return cls._define(
@@ -221,7 +221,7 @@ class ElementComponent(BaseComponent):
         variable: bool = False,
         location: object = None,
         **values: object,
-    ) -> 'GroupComponent':
+    ) -> 'GroupElement':
         """Return a group of identical members of this element type.
 
         The label and the size are given by position, so a state named `size` takes per-member values by keyword.
@@ -251,12 +251,12 @@ class ElementComponent(BaseComponent):
                 The group.
 
         Examples:
-            >>> from skcomplex.models.biology.ecology import PopulationComponent
-            >>> herds = PopulationComponent.group('herds', 3, n=[10, 20, 30])
+            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> herds = PopulationElement.group('herds', 3, n=[10, 20, 30])
             >>> herds.element.__name__, herds.size, herds.values
-            ('PopulationComponent', 3, {'n': [10, 20, 30]})
+            ('PopulationElement', 3, {'n': [10, 20, 30]})
         """
-        return GroupComponent(
+        return GroupElement(
             label,
             element=cls,
             size=size,
@@ -275,7 +275,7 @@ class ElementComponent(BaseComponent):
         *,
         visual: VisualSpec | None = None,
         **values: Any,  # noqa: ANN401
-    ) -> 'GroupComponent':
+    ) -> 'GroupElement':
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
@@ -306,12 +306,12 @@ class ElementComponent(BaseComponent):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.base import NumericDomain, state
-            >>> from skcomplex.core.components import ElementComponent
+            >>> from skcomplex.core.components import Element
             >>> from skcomplex.core.space import LatticeSpace
-            >>> CellComponent = ElementComponent.define(
-            ...     'CellComponent', states={'alive': state(0, domain=NumericDomain.BOOLEAN)}
+            >>> CellElement = Element.define(
+            ...     'CellElement', states={'alive': state(0, domain=NumericDomain.BOOLEAN)}
             ... )
-            >>> cells = CellComponent.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
+            >>> cells = CellElement.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
@@ -324,13 +324,13 @@ class ElementComponent(BaseComponent):
             }
         flat = {name: np.ravel(value) if np.shape(value) == space.shape_ else value for name, value in values.items()}
         visual = _lattice_visual(cls, visual, space.default_visual_)
-        return GroupComponent(label, element=cls, size=space.size_, values=flat, visual=visual, space=space, on='sites')
+        return GroupElement(label, element=cls, size=space.size_, values=flat, visual=visual, space=space, on='sites')
 
 
-class GroupComponent(BaseComponent):
+class GroupElement(BaseElement):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
-    Groups are usually created with `ElementComponent.group`. A value is either an array whose first dimension is the
+    Groups are usually created with `Element.group`. A value is either an array whose first dimension is the
     size of the group, or one value shared by every member. Variables without a value take the default of the element
     type.
 
@@ -384,31 +384,31 @@ class GroupComponent(BaseComponent):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components import GroupComponent
+        >>> from skcomplex.core.components import GroupElement
         >>> from skcomplex.core.space import NetworkSpace
-        >>> from skcomplex.models.biology.ecology import PopulationComponent
-        >>> GroupComponent('herds', element=PopulationComponent, size=3).prepare().size_
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> GroupElement('herds', element=PopulationElement, size=3).prepare().size_
         3
-        >>> GroupComponent(
-        ...     'weights', element=PopulationComponent, space=NetworkSpace(nx.cycle_graph(30)), on='edges'
+        >>> GroupElement(
+        ...     'weights', element=PopulationElement, space=NetworkSpace(nx.cycle_graph(30)), on='edges'
         ... ).prepare().size_
         30
         >>> from skcomplex.core.space import Layer
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
-        >>> GroupComponent('wages', element=PopulationComponent, space=space, on='edges', layer='work').prepare().size_
+        >>> GroupElement('wages', element=PopulationElement, space=space, on='edges', layer='work').prepare().size_
         6
-        >>> herds = GroupComponent('herds', element=PopulationComponent, size=3).prepare()
-        >>> herds.default_visual_ == PopulationComponent.visual
+        >>> herds = GroupElement('herds', element=PopulationElement, size=3).prepare()
+        >>> herds.default_visual_ == PopulationElement.visual
         True
     """
 
-    component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
+    component_kind: ClassVar[ElementKind] = ElementKind.GROUP
 
     def __init__(
         self,
         label: str,
         *,
-        element: type[ElementComponent],
+        element: type[Element],
         size: int | None = None,
         values: Mapping[str, Any] | None = None,
         visual: VisualSpec | None = None,
@@ -439,7 +439,7 @@ class GroupComponent(BaseComponent):
                 The part is unknown.
 
             ValidationError:
-                The element type is not an `ElementComponent` subclass, the size is not a positive integer, a value
+                The element type is not an `Element` subclass, the size is not a positive integer, a value
                 names a variable the element type does not declare, or a per-member value does not have one row per
                 member.
         """
@@ -468,7 +468,7 @@ class GroupComponent(BaseComponent):
         self.size_ = _size_of(self, space)
 
 
-def _probe_namespace(component_type: type[BaseComponent | BaseInteraction]) -> Symbols:
+def _probe_namespace(component_type: type[BaseElement | BaseInteraction]) -> Symbols:
     """Return the namespace of free symbols of the declared names of a type, which probing its laws reads.
 
     An element type gives its states, their companions, and its parameters, with `other`, the neighbour of a member,
@@ -501,26 +501,26 @@ def probe_laws(component: object) -> list[BaseLaw] | None:
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import ElementComponent, probe_laws
+        >>> from skcomplex.core.components import Element, probe_laws
         >>> from skcomplex.core.laws import RateLaw
-        >>> DecayComponent = ElementComponent.define(
-        ...     'DecayComponent', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)]
+        >>> DecayElement = Element.define(
+        ...     'DecayElement', states={'x': 1.0}, laws=lambda s: [RateLaw(s.x, -s.x)]
         ... )
-        >>> [type(law).__name__ for law in probe_laws(DecayComponent('decay'))]
+        >>> [type(law).__name__ for law in probe_laws(DecayElement('decay'))]
         ['RateLaw']
     """
-    if isinstance(component, GroupComponent):
-        component_type: type[BaseComponent | BaseInteraction] = component.element
-    elif isinstance(component, BaseComponent | BaseInteraction):
+    if isinstance(component, GroupElement):
+        component_type: type[BaseElement | BaseInteraction] = component.element
+    elif isinstance(component, BaseElement | BaseInteraction):
         component_type = type(component)
     else:
         return None
-    if component_type.laws in (BaseComponent.laws, BaseInteraction.laws):
+    if component_type.laws in (BaseElement.laws, BaseInteraction.laws):
         return []
     try:
         member = (
             component.element(component.label, **(component.values or {}))
-            if isinstance(component, GroupComponent)
+            if isinstance(component, GroupElement)
             else component
         )
         return list(member.run(_probe_namespace(component_type)))

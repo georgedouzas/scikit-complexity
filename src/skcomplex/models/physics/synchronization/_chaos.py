@@ -6,7 +6,7 @@
 import numpy as np
 
 from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
-from ....core.components import ElementComponent
+from ....core.components import Element
 from ....core.laws import RateLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -19,8 +19,8 @@ def _logistic(r: Expression, x: Expression) -> Expression:
     return r * x * (1 - x)
 
 
-RosslerOscillatorComponent = ElementComponent.define(
-    'RosslerOscillatorComponent',
+RosslerOscillatorElement = Element.define(
+    'RosslerOscillatorElement',
     states={'x1': 1.0, 'x2': 0.0, 'x3': 0.0},
     parameters={'omega': 1.0, 'a': 0.2, 'b': 0.2, 'c': 5.7},
     laws=lambda s: [
@@ -40,7 +40,7 @@ DiffusiveCouplingInteraction = BaseInteraction.define(
     ],
 )
 
-LogisticUnitComponent = ElementComponent.define('LogisticUnitComponent', states={'x': 0.3})
+LogisticUnitElement = Element.define('LogisticUnitElement', states={'x': 0.3})
 
 AggregateAveragingInteraction = BaseInteraction.define(
     'AggregateAveragingInteraction',
@@ -114,7 +114,7 @@ def coupled_rossler(
     omegas = np.linspace(1 - mismatch, 1 + mismatch, n_oscillators)
     starts = np.random.default_rng(seed).uniform(-1.0, 1.0, (n_oscillators, 2))
     oscillators = [
-        RosslerOscillatorComponent(
+        RosslerOscillatorElement(
             f'oscillator_{index}',
             x1=float(starts[index, 0]),
             x2=float(starts[index, 1]),
@@ -183,6 +183,6 @@ def aggregate_averaging_synchronization(
         0.1
     """
     return System(
-        components=[LogisticUnitComponent('first', x=x1), LogisticUnitComponent('second', x=x2)],
+        components=[LogisticUnitElement('first', x=x1), LogisticUnitElement('second', x=x2)],
         interactions=[AggregateAveragingInteraction('averaging', first='first', second='second', r=r, kappa=kappa)],
     )

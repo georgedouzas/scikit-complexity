@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import AnalysisError, parameter, state
-from skcomplex.core.components import ElementComponent
+from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import equations_of, mittag_leffler, solve_symbolically
 
 
-class RelaxingComponent(ElementComponent):
+class RelaxingElement(Element):
     """Element whose state relaxes with a Caputo derivative of order 0.6."""
 
     x: float = state(2.0, order=0.6)
@@ -23,7 +23,7 @@ class RelaxingComponent(ElementComponent):
         return [RateLaw(s.x, -s.lam * s.x)]
 
 
-class SaturatingComponent(ElementComponent):
+class SaturatingElement(Element):
     """Element whose fractional state follows a nonlinear law."""
 
     x: float = state(0.5, order=0.6)
@@ -78,7 +78,7 @@ def test_mittag_leffler_rejects_nonpositive_alpha():
 
 def test_solve_symbolically_fractional_relaxation():
     """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
-    system = System(components=[RelaxingComponent('r')])
+    system = System(components=[RelaxingElement('r')])
     solution = solve_symbolically(system, use_initial_state=True)['r.x']
     assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
     symbols = {str(item): item for item in solution.rhs().variables()}
@@ -90,12 +90,11 @@ def test_solve_symbolically_fractional_relaxation():
 def test_equations_of_fractional_state_write_caputo_derivative():
     """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
     assert (
-        str(equations_of(System(components=[RelaxingComponent('r')]))['r.x'])
-        == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
+        str(equations_of(System(components=[RelaxingElement('r')]))['r.x']) == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
     )
 
 
 def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
-        solve_symbolically(System(components=[SaturatingComponent('s')]))
+        solve_symbolically(System(components=[SaturatingElement('s')]))
