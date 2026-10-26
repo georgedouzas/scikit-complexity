@@ -9,8 +9,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ._errors import SpaceError
-from ._estimator import BaseEstimator
-from ._kinds import SpaceKind, TimeKind
+from ._types import SpaceKind, TimeKind
+from ._utils import BaseEstimator
 
 
 class BaseNeighborhood:

@@ -1,7 +1,6 @@
 """Bases of the framework and the helpers they are declared with."""
 
-from ._components import BaseComponent, BaseInteraction
-from ._domains import BaseDomain, CategoricalDomain, NumericDomain, TensorDomain
+from ._elements import BaseComponent
 from ._errors import (
     AnalysisError,
     ArgumentError,
@@ -26,32 +25,52 @@ from ._errors import (
     UnregisteredLawError,
     ValidationError,
 )
-from ._estimator import BaseEstimator
-from ._kinds import (
+from ._interactions import BaseInteraction
+from ._laws import BaseLaw, BaseQuantity, has_trait, is_registered, law_classes, register_laws
+from ._problems import Entry, Layout
+from ._spaces import BaseNeighborhood, BaseSpace, BaseTime
+from ._types import (
     NUMERIC_DOMAINS,
+    BaseDomain,
     Binding,
+    CategoricalDomain,
     ComponentKind,
     DomainKind,
+    Expression,
     Form,
+    Indices,
     LawClass,
     LawKind,
     NoiseKind,
+    NumericDomain,
     OrderKind,
     Requires,
     SpaceKind,
     Supports,
+    SymbolicVector,
+    TensorDomain,
     Term,
     TimeKind,
     Trait,
+    Variable,
+    VariableKind,
+    Vector,
+    VisualSpec,
+    components_of,
+    declaration_of,
+    declarations_of,
+    declared_fields,
+    domain_of,
+    parameter,
+    role,
+    state,
+    symbol,
+    symbols_of,
+    vector,
     vocabulary,
+    wrap_angle,
 )
-from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
-from ._problems import Entry, Layout
-from ._quantities import BaseQuantity
-from ._spaces import BaseNeighborhood, BaseSpace, BaseTime
-from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
-from ._utils import Indices, Registry, Vector, VisualSpec, wrap_angle
-from ._variables import Variable, VariableKind, declaration_of, declarations_of, declared_fields, parameter, role, state
+from ._utils import BaseEstimator, Registry
 
 __all__: list[str] = [
     'NUMERIC_DOMAINS',

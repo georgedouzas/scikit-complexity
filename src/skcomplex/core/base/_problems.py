@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ._domains import BaseDomain, NumericDomain
+from ._types import BaseDomain, NumericDomain
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
