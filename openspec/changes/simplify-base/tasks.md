@@ -22,9 +22,9 @@
   "Auxiliary as an expression" and "Hilsa fishery".
 - [x] 3.2 Rename `ObservableQuantity` to `Observable`, and replace `InvariantQuantity` with
   `Simulation(invariants=...)`. Verify with the scenario "Violated invariant".
-- [ ] 3.3 Replace `ObjectiveQuantity` with the `objective`, `terminal`, and `sense` arguments of the optimal control
+- [x] 3.3 Replace `ObjectiveQuantity` with the `objective`, `terminal`, and `sense` arguments of the optimal control
   solvers. Verify with the scenario "Objective under discrete time".
-- [ ] 3.4 Replace `AggregateQuantity` and a system's `aggregates` with reductions read across partitions. Verify with
+- [x] 3.4 Replace `AggregateQuantity` and a system's `aggregates` with reductions read across partitions. Verify with
   the scenario "Count of agents".
 
 ## 4. Parts
