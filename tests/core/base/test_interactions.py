@@ -34,6 +34,20 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.biology.ecology import PredationInteraction
 
+BACKENDS = ('numpy', 'numba')
+
+
+NeuronComponent = ElementComponent.define('NeuronComponent', states={'a': 0.0})
+
+
+SynapseComponent = ElementComponent.define('SynapseComponent', states={'w': 0.1})
+
+
+PersonComponent = ElementComponent.define('PersonComponent', states={'infected': 0.0, 'wage': 0.0})
+
+
+OscillatorComponent = ElementComponent.define('OscillatorComponent', states={'theta': 0.0}, parameters={'omega': 0.0})
+
 
 def test_interaction_rejects_a_layer_when_checked():
     """Test that an interaction not over neighbours takes a layer but rejects it when checked."""

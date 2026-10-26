@@ -19,10 +19,10 @@ and helpers. Today it holds thirteen modules with more than thirty classes:
   - `_elements.py` holds `BaseElement`;
   - `_interactions.py` holds `BaseInteraction`;
   - `_laws.py` holds `BaseLaw`;
-  - `_types.py` holds the terms, the domains, the variable declarations (`state`, `parameter`, `role`), and
-    `VisualSpec`;
+  - `_types.py` holds the terms, the domains, the variable declarations (`state`, `parameter`, `role`), the
+    symbols, and `VisualSpec`;
   - `_errors.py` holds the named errors;
-  - `_utils.py` holds `BaseEstimator`, `Registry`, and the symbol helpers.
+  - `_utils.py` holds `BaseEstimator` and `Registry`.
 - **Other bases move to their packages.**
   - `BaseSpace`, `BaseTime`, and `BaseNeighborhood` move to `core/space`.
   - `Entry` and `Layout` move to `core/problems`.

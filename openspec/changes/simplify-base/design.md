@@ -30,9 +30,10 @@
 - **Six modules in `core/base`.**
   - **One base per module:** `_elements.py`, `_interactions.py`, and `_laws.py`.
   - **`_types.py`:** what values and declarations are, so the terms of `_kinds.py`, the domains of `_domains.py`,
-    the variable declarations of `_variables.py`, and `VisualSpec`.
+    the variable declarations of `_variables.py`, the symbol helpers of `_symbolic.py`, which
+    need the domains, and `VisualSpec`.
   - **`_errors.py`.**
-  - **`_utils.py`:** `BaseEstimator`, `Registry`, and the symbol helpers of `_symbolic.py`.
+  - **`_utils.py`:** `BaseEstimator` and `Registry`.
 
   `BaseElement` and `BaseInteraction` share the declaration helpers in `_types.py`, so neither imports the other.
 - **Bases of other concepts live with their concept.**

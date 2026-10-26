@@ -2,9 +2,9 @@
 
 ## 1. Base modules
 
-- [ ] 1.1 Split `core/base` into `_elements`, `_interactions`, `_laws`, `_types`, `_errors`, and `_utils`. Move the
-  terms, domains, variable declarations, and `VisualSpec` to `_types`, and `BaseEstimator`, `Registry`, and the
-  symbol helpers to `_utils`. Verify with the scenario "Three bases".
+- [x] 1.1 Split `core/base` into `_elements`, `_interactions`, `_laws`, `_types`, `_errors`, and `_utils`. Move the
+  terms, domains, variable declarations, symbols, and `VisualSpec` to `_types`, and `BaseEstimator` and `Registry`
+  to `_utils`. Verify with the scenario "Three bases".
 - [ ] 1.2 Move `BaseSpace`, `BaseTime`, and `BaseNeighborhood` to `core/space/_bases.py`, and `Entry` and `Layout` to
   `core/problems`. Update the import contracts. Verify with the scenario "Other bases".
 

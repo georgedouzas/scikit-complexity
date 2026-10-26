@@ -176,18 +176,3 @@ def test_component_supports_estimator_contract():
     cloned = clone(interaction)
     assert cloned is not interaction
     assert cloned.a == 0.4
-
-
-BACKENDS = ('numpy', 'numba')
-
-
-NeuronComponent = ElementComponent.define('NeuronComponent', states={'a': 0.0})
-
-
-SynapseComponent = ElementComponent.define('SynapseComponent', states={'w': 0.1})
-
-
-PersonComponent = ElementComponent.define('PersonComponent', states={'infected': 0.0, 'wage': 0.0})
-
-
-OscillatorComponent = ElementComponent.define('OscillatorComponent', states={'theta': 0.0}, parameters={'omega': 0.0})
