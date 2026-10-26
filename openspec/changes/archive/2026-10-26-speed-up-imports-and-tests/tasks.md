@@ -19,4 +19,4 @@
 
 ## 3. Gate
 
-- [ ] 3.1 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.
+- [x] 3.1 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.

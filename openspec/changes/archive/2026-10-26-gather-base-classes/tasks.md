@@ -48,4 +48,4 @@
 
 ## 5. Gate
 
-- [ ] 5.1 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.
+- [x] 5.1 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.
