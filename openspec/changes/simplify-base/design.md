@@ -27,7 +27,8 @@
 
 ## Decisions
 
-- **Six modules in `core/base`.**
+- **Seven modules in `core/base`.**
+  - **`_parts.py`:** `BasePart`, the parent of the bases of a system's parts.
   - **One base per module:** `_elements.py`, `_interactions.py`, and `_laws.py`.
   - **`_types.py`:** what values and declarations are, so the terms of `_kinds.py`, the domains of `_domains.py`,
     the variable declarations of `_variables.py`, the symbol helpers of `_symbolic.py`, which
@@ -36,6 +37,22 @@
   - **`_utils.py`:** `BaseEstimator` and `Registry`.
 
   `BaseElement` and `BaseInteraction` share the declaration helpers in `_types.py`, so neither imports the other.
+- **A part is a base of bases.** `BasePart` derives from the framework's `BaseEstimator` and defines `label` and the
+  three verbs, each calling its private hook. `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` derive from
+  it; no other base does. This replaces the rule that no base derives from another, for the parts of a system only.
+  - **Elements, interactions, systems:** `check()` validates the arguments, `prepare(namespace=None)` derives
+    `declarations_`, and `run(s)` returns laws. A system's `run(s)` returns the laws of its children, so the compiler
+    collects the laws of any tree by running its root. Each returns `self` from `check` and `prepare`.
+  - **Laws (option chosen by the maintainer: verbs return the part).** A law stays a frozen dataclass, so
+    `check()` returns a checked copy, as today, and `prepare(namespace)` returns a prepared copy whose `targets_`,
+    `reads_`, and `owner_` are resolved against its owner's declarations, moving that knowledge out of the census.
+    `run(values)` evaluates the law's contribution at given values of its reads: the rate of a `RateLaw`, the next
+    value of an `UpdateLaw`, or the change of a jump. It serves modellers who test or debug a law alone; the compiler
+    still lowers laws to kernels for simulation.
+  - **Labels.** A law takes an optional `label`, which defaults to its kind, so errors name its path, such as
+    `meadow/rabbits/growth`.
+  - *Alternative:* laws as mutable estimators. Rejected by the maintainer, so laws keep value equality and stay safe
+    to share.
 - **Bases of other concepts live with their concept.**
   - `BaseSpace`, `BaseTime`, and `BaseNeighborhood` move to `core/space/_bases.py`.
   - `Entry` and `Layout` move to `core/problems`, next to `BaseProblem`.

@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: The core base holds the bases of a system's parts
-`skcomplex.core.base` SHALL hold six modules: `_elements` with `BaseElement`, `_interactions` with
-`BaseInteraction`, `_laws` with `BaseLaw`, and the shared `_types`, `_errors`, and `_utils`. It SHALL define no other
+`skcomplex.core.base` SHALL hold seven modules: `_parts` with `BasePart`, `_elements` with `BaseElement`,
+`_interactions` with `BaseInteraction`, `_laws` with `BaseLaw`, and the shared `_types`, `_errors`, and `_utils`. It SHALL define no other
 base, and SHALL import no other package of `skcomplex`. The base of any other concept SHALL live in that concept's
 package.
 
 #### Scenario: Three bases
-- **WHEN** a user imports `BaseElement`, `BaseInteraction`, and `BaseLaw` from `skcomplex.core.base`
-- **THEN** every import succeeds, and the modules of `skcomplex.core.base` are exactly `_elements`,
+- **WHEN** a user imports `BasePart`, `BaseElement`, `BaseInteraction`, and `BaseLaw` from `skcomplex.core.base`
+- **THEN** every import succeeds, and the modules of `skcomplex.core.base` are exactly `_parts`, `_elements`,
   `_interactions`, `_laws`, `_types`, `_errors`, and `_utils`
 
 #### Scenario: Other bases
@@ -17,13 +17,13 @@ package.
 - **THEN** every import succeeds, and none of them imports from `skcomplex.core.base`
 
 ### Requirement: Bases are unrelated
-No base class SHALL derive from another. `BaseElement`, `BaseInteraction`, `BaseSpace`, `BaseTime`, `BaseSolver`, and
-`BaseBackend` SHALL derive from the framework's `BaseEstimator` alone, and `BaseLaw`, `BaseDomain`, `BaseProblem`, and
-`BaseSystemCompiler` from no base. `System` SHALL derive from `BaseEstimator` alone.
+No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System`
+SHALL derive from `BasePart`. `BasePart`, `BaseSpace`, `BaseTime`, `BaseSolver`, and `BaseBackend` SHALL derive from
+the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
 
 #### Scenario: Unrelated bases
 - **WHEN** a test checks every pair of base classes with `issubclass`
-- **THEN** no base is a subclass of another
+- **THEN** no base is a subclass of another, except the bases of parts, which are subclasses of `BasePart`
 
 #### Scenario: System and interaction
 - **WHEN** a test checks `System` and `BaseInteraction` against `BaseElement`

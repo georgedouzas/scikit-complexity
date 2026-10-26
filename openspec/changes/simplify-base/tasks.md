@@ -27,8 +27,18 @@
 - [ ] 3.4 Replace `AggregateQuantity` and a system's `aggregates` with reductions read across partitions. Verify with
   the scenario "Count of agents".
 
-## 4. Rules and gate
+## 4. Parts
 
-- [ ] 4.1 Amend the constitution's layout rule. Update the `import-system-dynamics` change so that auxiliaries map to
+- [ ] 4.1 Add `BasePart` in `core/base/_parts.py` with `label`, `check`, `prepare`, and `run` and their hooks, and
+  derive `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` from it. Make a system's `run(s)` return the laws of
+  its children, and make the compiler collect laws by running the root. Verify with the scenarios "Parts share three
+  verbs" and "System yields laws".
+- [ ] 4.2 Give laws an optional `label`, a `prepare(namespace)` that returns a copy with `targets_`, `reads_`, and
+  `owner_`, and a `run(values)` that evaluates their contribution, and make the census read the prepared laws. Verify
+  with the scenarios "Law run alone" and "Invalid law".
+
+## 5. Rules and gate
+
+- [ ] 5.1 Amend the constitution's layout rule. Update the `import-system-dynamics` change so that auxiliaries map to
   expressions and observables. Update the user guide and the gallery.
-- [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.
+- [ ] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.

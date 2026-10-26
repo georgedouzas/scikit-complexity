@@ -15,7 +15,8 @@ and helpers. Today it holds thirteen modules with more than thirty classes:
 
 ## What Changes
 
-- **Base holds the three bases and shared modules only.** `core/base` has six modules:
+- **Base holds the bases of a system's parts and shared modules only.** `core/base` has seven modules:
+  - `_parts.py` holds `BasePart`, the parent of every part of a system: elements, interactions, laws, and systems;
   - `_elements.py` holds `BaseElement`;
   - `_interactions.py` holds `BaseInteraction`;
   - `_laws.py` holds `BaseLaw`;
@@ -23,6 +24,15 @@ and helpers. Today it holds thirteen modules with more than thirty classes:
     symbols, and `VisualSpec`;
   - `_errors.py` holds the named errors;
   - `_utils.py` holds `BaseEstimator` and `Registry`.
+- **Every part speaks the same three verbs.** `BasePart` defines `label`, `check()`, `prepare(namespace)`, and
+  `run(input)`, and `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` derive from it:
+  - an element, an interaction, or a system checks its arguments, prepares its declarations, and runs into the laws
+    it contributes, a system into the laws of its children;
+  - a law checks and normalizes its values, prepares by resolving its symbols against its owner's declarations into
+    `targets_`, `reads_`, and `owner_`, and runs by evaluating its contribution at given values, such as the rate of
+    a `RateLaw`;
+  - the verbs return the part: `self` for elements, interactions, and systems, and a checked or prepared copy for
+    laws, which stay frozen values.
 - **Other bases move to their packages.**
   - `BaseSpace`, `BaseTime`, and `BaseNeighborhood` move to `core/space`.
   - `Entry` and `Layout` move to `core/problems`.
@@ -46,6 +56,7 @@ and helpers. Today it holds thirteen modules with more than thirty classes:
 ### New Capabilities
 
 ### Modified Capabilities
+- `base-interfaces`: laws are parts with the three verbs, which return checked and prepared copies.
 - `package-layout`: the base holds three bases and shared modules, and the other bases live in their packages.
 - `system-modeling`: elements are named elements, quantities are removed, and invariants become a run setting.
 - `control`: objectives are an argument of the optimal control solvers.
