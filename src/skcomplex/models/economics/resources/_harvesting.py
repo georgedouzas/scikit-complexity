@@ -164,7 +164,8 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
     land = System('land', components=[StockComponent('stock', n=K, r=r, K=K)])
     village = System(
         'village',
-        components=[FarmerComponent.group('farmers', farmers), AggregateQuantity('size', group='farmers')],
+        components=[FarmerComponent.group('farmers', farmers)],
+        aggregates=[AggregateQuantity('size', group='farmers')],
     )
     harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=effort)
     return System(components=[land, village], interactions=[harvest])

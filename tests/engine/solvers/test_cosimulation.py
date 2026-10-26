@@ -113,10 +113,8 @@ def _counting_system(agents=3, reduce='count', variable=None):
             System('land', components=[PopulationComponent('soil', n=0.0)]),
             System(
                 'village',
-                components=[
-                    BreederComponent.group('farmers', agents, variable=True),
-                    AggregateQuantity('size', group='farmers', reduce=reduce, variable=variable),
-                ],
+                components=[BreederComponent.group('farmers', agents, variable=True)],
+                aggregates=[AggregateQuantity('size', group='farmers', reduce=reduce, variable=variable)],
             ),
         ],
         interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
@@ -211,10 +209,8 @@ def test_aggregate_reductions_of_agent_states(reduce, expected):
             System('land', components=[PopulationComponent('soil')]),
             System(
                 'village',
-                components=[
-                    IdleComponent.group('farmers', 3),
-                    AggregateQuantity('total', group='farmers', reduce=reduce, variable='wealth'),
-                ],
+                components=[IdleComponent.group('farmers', 3)],
+                aggregates=[AggregateQuantity('total', group='farmers', reduce=reduce, variable='wealth')],
             ),
         ],
         interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/total')],
@@ -229,10 +225,8 @@ def test_aggregate_reduces_element_group():
         components=[
             System(
                 'herds',
-                components=[
-                    PopulationComponent.group('herd', 3, n=[1.0, 2.0, 3.0]),
-                    AggregateQuantity('total', group='herd', reduce='sum', variable='n'),
-                ],
+                components=[PopulationComponent.group('herd', 3, n=[1.0, 2.0, 3.0])],
+                aggregates=[AggregateQuantity('total', group='herd', reduce='sum', variable='n')],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
             System(
@@ -280,10 +274,8 @@ def test_gauss_seidel_reads_already_advanced_values():
         components=[
             System(
                 'village',
-                components=[
-                    BreederComponent.group('farmers', 3, variable=True),
-                    AggregateQuantity('size', group='farmers'),
-                ],
+                components=[BreederComponent.group('farmers', 3, variable=True)],
+                aggregates=[AggregateQuantity('size', group='farmers')],
             ),
             System('land', components=[PopulationComponent('soil', n=0.0)]),
         ],

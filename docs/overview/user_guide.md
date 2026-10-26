@@ -138,7 +138,7 @@ not a law, since it changes no state, and the quantities differ in what the fram
 | `AuxiliaryQuantity` | a component's `quantities` | substitutes it into laws |
 | `InvariantQuantity` | a component's `quantities` | checks that it stays constant |
 | `ObjectiveQuantity` | a component's `quantities` | optimizes it |
-| `AggregateQuantity` | a system's components | gives it to other partitions |
+| `AggregateQuantity` | a system's `aggregates` | gives it to other partitions |
 
 A component or an interaction returns its laws from `laws(s)` and its auxiliaries, invariants, and objectives from
 `quantities(s)`, which takes the same namespace. Validation rejects a quantity returned from `laws` and a law returned
@@ -3145,7 +3145,7 @@ print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/f
 - Every partition holds the states of the other partitions as inputs, which keep their values from the last
   synchronisation point while it advances.
 - `AggregateQuantity(label, group=..., reduce='count' | 'sum' | 'mean' | callable, variable=None)`, among the
-  components of a system, turns an agent group or an element group into the single value `value`, which other
+  `aggregates` of a system, turns an agent group or an element group into the single value `value`, which other
   partitions read through a role bound to its path and by its dotted name, such as `village/size.value`.
 - Agent rules read the states of other partitions through `model.inputs[name]`, such as
   `model.inputs['land/stock.n']`.

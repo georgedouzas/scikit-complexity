@@ -129,22 +129,27 @@ def _system_paths(system: System, scope: str = '') -> Iterator[str]:
 
 
 def _attached_component(
-    component: ElementComponent | GroupComponent | AggregateQuantity | System,
+    component: ElementComponent | GroupComponent | System,
     by_scope: dict[str, list[ObservableQuantity]],
     scope: str,
 ) -> ElementComponent | GroupComponent | System:
-    """Return a nested system with its observables attached, the element holding an aggregate, or the component."""
+    """Return a nested system with its observables attached, or the component."""
     if isinstance(component, System):
         return _attached(component, by_scope, _join(scope, component.label))
-    if isinstance(component, AggregateQuantity):
-        return _AggregateElement(component.label, quantity=component.check())
     return component
 
 
 def _attached(system: System, by_scope: dict[str, list[ObservableQuantity]], scope: str) -> System:
-    """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
+    """Return a copy of a system that holds the observables of its scope, with its nested systems attached.
+
+    Every aggregate of the system becomes a component of the copy, an element that holds its value and that roles bind.
+    """
     copied = copy.copy(system)
-    copied.components = [_attached_component(component, by_scope, scope) for component in system.components]
+    copied.components = [
+        *(_attached_component(component, by_scope, scope) for component in system.components),
+        *(_AggregateElement(aggregate.label, quantity=aggregate.check()) for aggregate in system.aggregates),
+    ]
+    copied.aggregates = ()
     copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
     return copied
 
