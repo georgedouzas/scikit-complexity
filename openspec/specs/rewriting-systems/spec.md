@@ -125,3 +125,11 @@ of a word of 10⁶ symbols SHALL take under 0.1 s on an idle reference machine.
 - **WHEN** a Koch L-system with a maximum size of 10⁵ symbols runs for 10 generations
 - **THEN** the run raises a rewriting error at the generation whose word would exceed 10⁵ symbols, and the frames
   before it are recorded
+
+### Requirement: Rewriting rules are laws of the rewritten component
+`RewritingLaw` and `RewriteLaw` SHALL derive from `BaseLaw`, and a word, patch, or host graph SHALL return its rewriting
+rules from `laws`. No rewriting rule SHALL be an interaction.
+
+#### Scenario: Rule of a word
+- **WHEN** a word returns a `RewriteLaw` of the productions `A -> AB` and `B -> A` from `laws`, and runs for five steps
+- **THEN** the word is `ABAABABAABAAB`, and `RewriteLaw` is not a subclass of `BaseInteraction`
