@@ -4,7 +4,7 @@
 
 System dynamics has decades of published models in Vensim (`.mdl`) and XMILE (Stella, iThink, Vensim exports) files,
 and modellers keep their work in those tools. The library already models stocks and flows (`TransferLaw`,
-`Auxiliary`, `lookup`, `distributed_delay`, `pulse`, `step`, `ramp`), checks conserved quantities, and ranks feedback
+`lookup`, `distributed_delay`, `pulse`, `step`, `ramp`), checks conserved quantities, and ranks feedback
 loops, but a modeller must retype every equation to use it. PySD already parses both formats into a language-neutral
 abstract model, so reading that abstract model turns any of those files into a `System` without writing a parser.
 
@@ -18,7 +18,8 @@ abstract model, so reading that abstract model turns any of those files into a `
   - a flow that leaves one stock and enters another becomes a `TransferLaw` from the first to the second, a flow
     that touches one stock becomes a `TransferLaw` with the environment, and what remains of a stock's net rate becomes
     a `RateLaw`;
-  - an auxiliary becomes an `Auxiliary`, so the trajectory records it under its name;
+  - an auxiliary becomes an expression in the laws, and an observable of the run, so the trajectory records it
+    under its name;
   - a constant becomes a parameter, and a lookup becomes a `lookup` table;
   - the built-in functions map to the library's own: `IF THEN ELSE` to `where`, `STEP`, `RAMP`, `PULSE`, and
     `PULSE TRAIN` to `step`, `ramp`, `pulse`, and `pulse_train`, `DELAY1`, `DELAY3`, `DELAY N`, `SMOOTH`, and

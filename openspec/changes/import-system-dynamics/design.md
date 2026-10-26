@@ -3,7 +3,7 @@
 ## Context
 
 - **What the library has:**
-  - `TransferLaw` (with `Source` and `Sink` for the environment), `Auxiliary`, `RateLaw`, and
+  - `TransferLaw` (with `Source` and `Sink` for the environment), `RateLaw`, and
     `ElementComponent.define(name, states, parameters, laws)` in `core`;
   - helpers `lookup`, `distributed_delay`, `delayed`, `where`, `step`, `ramp`, `pulse`, `pulse_train`, `total`, and
     the draws `uniform` and `normal`;
@@ -72,7 +72,7 @@ The integrations after this change. Each is its own change with its own spec, si
   file:
   - stocks become its states;
   - constants become its parameters;
-  - the flows and auxiliaries become its laws.
+  - the flows become its laws, and the auxiliaries expressions in them, with an observable for each.
 
   A system dynamics model shares one namespace, so one element keeps every reference local, and each subscripted
   variable becomes a group of its own element type.

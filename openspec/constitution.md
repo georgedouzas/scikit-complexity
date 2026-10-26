@@ -229,12 +229,13 @@ to fill in as the project takes shape.
   `run(*inputs, final=False)` performs the family's one action and, when `final` is true, releases what `prepare`
   acquired. Each verb calls a private hook, `_check`, `_prepare`, `_run`, or `_release`, with a trivial default, and no
   family MUST add a verb of its own. Laws, domains, problems, terms, and compiled records are values: frozen
-  dataclasses whose only shared method is `check()`, which returns a checked copy. Elements and groups derive from
-  `BaseComponent`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
+  dataclasses whose only shared method is `check()`, which returns a checked copy. A system is defined by elements,
+  interactions, and laws alone: elements and groups derive from `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
-  helpers they share. A system holds its components, interactions, and nested systems, and is none of them. A
-  component or interaction type declares its fields with `state`, `parameter`, and `role`, and a constructor setting
-  that is not a declaration is taken by an explicit keyword-only `__init__` of the type. No component class is turned
+  helpers they share. A system holds its elements, interactions, and nested systems, and is none of them. What a
+  run records or checks, such as observables and invariants, is an argument of the run. An element or interaction
+  type declares its fields with `state`, `parameter`, and `role`, and a constructor setting
+  that is not a declaration is taken by an explicit keyword-only `__init__` of the type. No element class is turned
   into a dataclass or given generated attributes. Every law derives from `BaseLaw` and declares its kind, its time
   class, and its traits as class variables. The only magic methods beyond `__init__` are the arithmetic of the
   quantum operators.
@@ -276,8 +277,8 @@ to fill in as the project takes shape.
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly four
   packages. `skcomplex.core` holds what a system is and what it compiles to, in the order `base`, `space`,
-  `laws`, `components`, `system`, and `problems`. `core.base` holds the bases of the framework and the helpers they
-  are declared with. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
+  `laws`, `components`, `system`, and `problems`. `core.base` holds only the bases of a system's mandatory parts, `BaseElement`, `BaseInteraction`, and `BaseLaw`, one
+  per module, with the shared `_types`, `_errors`, and `_utils`; the base of any other concept lives in its package. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
   `backends`, `runtime`, `viz`, `experiments`, and `analysis`. `skcomplex.formalisms` holds one package per
   domain-agnostic formalism, `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`,
   `fractional`, `topology`, `particles`, and `control`, each with its laws, components, compilation passes, solvers,
@@ -305,4 +306,4 @@ to fill in as the project takes shape.
   kinds, forms, space kinds, and traits are open vocabularies. Classes users subclass are `ElementComponent`,
   `BaseInteraction`, `BaseLaw`, `PotentialInteraction`, `PairPotentialInteraction`, `BaseBackend`, `BaseSolver`,
   `Solver`, `ExternalSolver`, `BaseSystemCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`.
-**Version**: 1.10.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25
+**Version**: 1.11.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25
