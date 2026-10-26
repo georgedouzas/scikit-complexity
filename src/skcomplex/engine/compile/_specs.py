@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseLaw,
-    BaseSpace,
     Expression,
     LabelError,
     NumericDomain,
@@ -34,7 +33,7 @@ from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, red
 from ...core.problems import EdgeSearch, Reference, Source
 from ...core.problems._kernels import Search
 from ...core.problems._problem import real_components_of
-from ...core.space import NetworkSpace, neighbor_pairs
+from ...core.space import BaseSpace, NetworkSpace, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._tree import Node
 

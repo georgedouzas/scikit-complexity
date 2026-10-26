@@ -7,9 +7,9 @@ from typing import Any, cast
 
 import numpy as np
 
-from ....core.base import Form, Layout, VariableKind, VisualSpec, declarations_of
+from ....core.base import Form, VariableKind, VisualSpec, declarations_of
 from ....core.components import GroupComponent
-from ....core.problems import CompiledElement, CompiledInteraction, Problem, ReductionSchedule
+from ....core.problems import CompiledElement, CompiledInteraction, Layout, Problem, ReductionSchedule
 from ....core.problems._problem import _MarkovMatrix
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction

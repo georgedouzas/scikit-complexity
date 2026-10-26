@@ -8,9 +8,9 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BaseLaw, Layout, ValidationError
+from ...core.base import BaseLaw, ValidationError
 from ...core.laws import JumpLaw, UpdateLaw
-from ...core.problems import EdgeSearch, Kernel, Lowered, Output, Problem, ReductionSchedule
+from ...core.problems import EdgeSearch, Kernel, Layout, Lowered, Output, Problem, ReductionSchedule
 from ...core.space import NetworkSpace
 from ...engine.compile import (
     BasePass,

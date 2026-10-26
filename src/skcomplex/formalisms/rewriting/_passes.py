@@ -14,10 +14,8 @@ import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
 from ...core.base import (
-    Entry,
     Form,
     IncompatibleLawsError,
-    Layout,
     NumericDomain,
     ValidationError,
     VariableKind,
@@ -26,7 +24,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import BaseProblem, CompiledElement
+from ...core.problems import BaseProblem, CompiledElement, Entry, Layout
 from ...core.system import System
 from ...engine.compile import BaseSystemCompiler, Node, flatten_system
 from ._components import HostGraphComponent, PatchComponent, structure_of

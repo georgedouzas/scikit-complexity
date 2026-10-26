@@ -7,7 +7,8 @@ import math
 from dataclasses import dataclass, replace
 from typing import Any, ClassVar, Protocol, Self
 
-from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceKind, ValidationError
+from ..base import Requires, SpaceKind, ValidationError
+from ._bases import BaseNeighborhood, BaseSpace
 
 SITE_KINDS = frozenset({SpaceKind.LATTICE, SpaceKind.NETWORK})
 

@@ -12,7 +12,6 @@ from ...core.base import (
     BackendError,
     BaseInteraction,
     BaseLaw,
-    BaseSpace,
     LabelError,
     NumericDomain,
     ValidationError,
@@ -23,6 +22,7 @@ from ...core.base import (
 from ...core.components import GroupComponent, probe_laws
 from ...core.laws import InvariantQuantity
 from ...core.problems import CompiledAgents, Problem
+from ...core.space import BaseSpace
 from ...engine.compile import (
     BasePass,
     Block,

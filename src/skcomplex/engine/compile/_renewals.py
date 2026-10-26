@@ -12,7 +12,6 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
-    Entry,
     Expression,
     Indices,
     SolverError,
@@ -25,7 +24,7 @@ from ...core.base import (
 )
 from ...core.laws import Draw, draws_in, has_reductions, is_draw
 from ...core.laws._laws import RenewalLaw
-from ...core.problems import Reference, RenewalRecord, Source, numpy_function
+from ...core.problems import Entry, Reference, RenewalRecord, Source, numpy_function
 from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 

@@ -27,8 +27,6 @@ from ._errors import (
 )
 from ._interactions import BaseInteraction
 from ._laws import BaseLaw, BaseQuantity, has_trait, is_registered, law_classes, register_laws
-from ._problems import Entry, Layout
-from ._spaces import BaseNeighborhood, BaseSpace, BaseTime
 from ._types import (
     NUMERIC_DOMAINS,
     BaseDomain,
@@ -83,10 +81,7 @@ __all__: list[str] = [
     'BaseEstimator',
     'BaseInteraction',
     'BaseLaw',
-    'BaseNeighborhood',
     'BaseQuantity',
-    'BaseSpace',
-    'BaseTime',
     'Binding',
     'CapacityError',
     'CategoricalDomain',
@@ -94,7 +89,6 @@ __all__: list[str] = [
     'ConservationError',
     'DeclarationError',
     'DomainKind',
-    'Entry',
     'ExperimentError',
     'Expression',
     'Form',
@@ -103,7 +97,6 @@ __all__: list[str] = [
     'LabelError',
     'LawClass',
     'LawKind',
-    'Layout',
     'NoiseKind',
     'NumericDomain',
     'OrderKind',

@@ -7,13 +7,14 @@ import sys
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Entry, Form, Layout, NumericDomain, SolverError, symbol
-from skcomplex.core.problems import BaseProblem, BaseSolver
+from skcomplex.core.base import Form, NumericDomain, SolverError, symbol
+from skcomplex.core.problems import BaseProblem, BaseSolver, Entry, Layout
 
 SCRIPT = '''
 import sys
 import numpy as np
-from skcomplex.core.base import Entry, Form, Layout, NumericDomain, Supports, symbol
+from skcomplex.core.base import Form, NumericDomain, Supports, symbol
+from skcomplex.core.problems import Entry, Layout
 from skcomplex.core.problems import BaseProblem, BaseSolver
 
 

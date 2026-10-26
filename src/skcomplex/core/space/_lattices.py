@@ -11,7 +11,8 @@ from typing import Any, ClassVar, Self
 import numpy as np
 import numpy.typing as npt
 
-from ..base import BaseNeighborhood, BaseSpace, Requires, SpaceKind, ValidationError
+from ..base import Requires, SpaceKind, ValidationError
+from ._bases import BaseNeighborhood, BaseSpace
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')

@@ -14,10 +14,8 @@ from ...core.base import (
     BaseInteraction,
     BaseLaw,
     BaseQuantity,
-    BaseSpace,
     ComponentKind,
     DeclarationError,
-    Entry,
     Expression,
     LawKind,
     Registry,
@@ -49,8 +47,9 @@ from ...core.laws import (
     UpdateLaw,
     values_of,
 )
-from ...core.problems import EdgeSearch
+from ...core.problems import EdgeSearch, Entry
 from ...core.problems._kernels import PairSearch
+from ...core.space import BaseSpace
 from ...core.system import System
 from ._declarations import Block, Declarations, is_interaction
 from ._noise import ProcessKey, process_keys

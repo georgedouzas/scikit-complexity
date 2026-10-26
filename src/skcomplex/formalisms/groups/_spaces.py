@@ -10,8 +10,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseSpace, SpaceKind, SpaceTooLargeError, ValidationError
-from ...core.space import Memory
+from ...core.base import SpaceKind, SpaceTooLargeError, ValidationError
+from ...core.space import BaseSpace, Memory
 from ._groups import FinitelyGeneratedGroup, Word, WordProblem, _column, _format_word, _letters, parse_word
 
 MAX_SITES = 100_000

@@ -10,9 +10,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseSpace
 from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.space import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ..solvers import AgentSnapshot
 from ._colors import _widened, colors_of
 from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _radius_of

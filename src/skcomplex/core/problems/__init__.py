@@ -14,6 +14,7 @@ from ._kernels import (
     Reference,
     Source,
 )
+from ._layouts import Entry, Layout
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -53,10 +54,12 @@ __all__: list[str] = [
     'Dialect',
     'Draws',
     'EdgeSearch',
+    'Entry',
     'EventRecord',
     'FractionalRows',
     'Getter',
     'Kernel',
+    'Layout',
     'LoopTerm',
     'Lowered',
     'Lowering',

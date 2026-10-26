@@ -15,7 +15,6 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ...core.base import (
-    Entry,
     Expression,
     Form,
     NumericDomain,
@@ -32,7 +31,7 @@ from ...core.base import (
 )
 from ...core.components import AggregateQuantity, ElementComponent, GroupComponent
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
-from ...core.problems import BaseProblem, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
+from ...core.problems import BaseProblem, Entry, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
 from ...core.problems._problem import real_components_of
 from ...core.problems._quantities import _Recorded
 from ...core.problems._reads import Read

@@ -15,8 +15,6 @@ from sage.all__sagemath_symbolics import SR, I
 
 from ....core.base import (
     BaseLaw,
-    BaseNeighborhood,
-    Entry,
     Expression,
     NumericDomain,
     RoleError,
@@ -41,7 +39,7 @@ from ....core.laws import (
     neighborhoods_in,
     reductions_in,
 )
-from ....core.problems import ReductionSchedule, Reference, Source
+from ....core.problems import Entry, ReductionSchedule, Reference, Source
 from ....core.problems._neighbourhoods import (
     ACTIVE_THRESHOLD,
     CompiledNeighborhood,
@@ -51,7 +49,7 @@ from ....core.problems._neighbourhoods import (
 )
 from ....core.problems._reads import Read
 from ....core.problems._reductions import CompiledReduction
-from ....core.space import Adjacency
+from ....core.space import Adjacency, BaseNeighborhood
 from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations

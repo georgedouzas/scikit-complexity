@@ -8,7 +8,8 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ..base import BaseEstimator, BaseTime, TimeKind, ValidationError
+from ..base import BaseEstimator, TimeKind, ValidationError
+from ._bases import BaseTime
 
 SCHEDULES = ('synchronous', 'random-sequential')
 

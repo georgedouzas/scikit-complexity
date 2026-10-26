@@ -10,9 +10,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseEstimator, BaseSpace, Registry, VisualSpec
+from ...core.base import BaseEstimator, Registry, VisualSpec
 from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.space import NetworkSpace
+from ...core.space import BaseSpace, NetworkSpace
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._colors import palette_colors

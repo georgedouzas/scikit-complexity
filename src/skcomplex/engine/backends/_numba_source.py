@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ...core.base import Entry, Expression, symbols_of
-from ...core.problems import SCALAR_DIALECT, Kernel, Output, Reference, Source, print_expressions
+from ...core.base import Expression, symbols_of
+from ...core.problems import SCALAR_DIALECT, Entry, Kernel, Output, Reference, Source, print_expressions
 
 INDENT = '    '
 

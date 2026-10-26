@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from skcomplex.core.base import BaseSpace
 from skcomplex.core.problems import Problem
+from skcomplex.core.space import BaseSpace
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame
 from skcomplex.engine.solvers import AgentSnapshot

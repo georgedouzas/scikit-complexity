@@ -9,7 +9,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import BaseSpace, SpaceKind
+from ...core.base import SpaceKind
+from ...core.space import BaseSpace
 
 
 def _skfem() -> Any:  # noqa: ANN401

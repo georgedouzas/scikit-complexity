@@ -17,11 +17,9 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseInteraction,
-    Entry,
     Expression,
     Form,
     IncompatibleLawsError,
-    Layout,
     NumericDomain,
     SkcomplexError,
     ValidationError,
@@ -33,7 +31,7 @@ from ...core.base import (
 )
 from ...core.components import GroupComponent
 from ...core.laws import Symbols
-from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction, Getter, numpy_function
+from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction, Entry, Getter, Layout, numpy_function
 from ...core.space import LatticeSpace, neighbor_pairs
 from ...core.system import ObservableQuantity, System, reduce_values
 from ...engine.compile import BaseSystemCompiler, Node, coerce_value, flatten_system, spectral_multiplier

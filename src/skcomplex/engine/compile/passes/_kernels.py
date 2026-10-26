@@ -6,9 +6,9 @@
 from collections import defaultdict
 from typing import cast
 
-from ....core.base import BaseLaw, Expression, Layout, Trait, ValidationError, components_of, has_trait, symbols_of
+from ....core.base import BaseLaw, Expression, Trait, ValidationError, components_of, has_trait, symbols_of
 from ....core.laws import BoundaryLaw, Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.problems import Kernel, Lowered, Output, Reference, Source
+from ....core.problems import Kernel, Layout, Lowered, Output, Reference, Source
 from .._census import kind_of
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

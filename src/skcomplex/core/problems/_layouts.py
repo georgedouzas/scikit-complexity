@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ._types import BaseDomain, NumericDomain
+from ..base import BaseDomain, NumericDomain
 
 PARTS = 2
 PART_NAMES = ('real', 'imag')
@@ -43,7 +43,7 @@ class Entry:
 
     Examples:
         >>> from skcomplex.core.base import NumericDomain
-        >>> from skcomplex.core.base import Entry
+        >>> from skcomplex.core.problems import Entry
         >>> entry = Entry('a.z', 0, (2,), NumericDomain.COMPLEX, is_complex=True)
         >>> entry.size, entry.component_names
         (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
@@ -140,7 +140,7 @@ class Entry:
 
         Examples:
             >>> from skcomplex.core.base import NumericDomain
-            >>> from skcomplex.core.base import Entry
+            >>> from skcomplex.core.problems import Entry
             >>> Entry('a.z', 0, (), NumericDomain.COMPLEX, is_complex=True).encode(1 + 2j).tolist()
             [1.0, 2.0]
         """
@@ -174,7 +174,7 @@ class Layout:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.base import Entry, Layout
+        >>> from skcomplex.core.problems import Entry, Layout
         >>> from skcomplex.core.base import NumericDomain
         >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.x', 1, (2,), NumericDomain.REAL)])
         >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
@@ -249,7 +249,7 @@ class Layout:
                 The name is neither a variable nor a component of the layout.
 
         Examples:
-            >>> from skcomplex.core.base import Entry, Layout
+            >>> from skcomplex.core.problems import Entry, Layout
             >>> from skcomplex.core.base import NumericDomain
             >>> layout = Layout([Entry('a.n', 0, (), NumericDomain.REAL), Entry('b.w', 1, (3,), NumericDomain.REAL)])
             >>> entry, indices = layout.locate('b.w[1]')

@@ -9,7 +9,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ..base import BaseSpace, SpaceKind, ValidationError
+from ..base import SpaceKind, ValidationError
+from ._bases import BaseSpace
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
 

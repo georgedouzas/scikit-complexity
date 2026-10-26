@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import SR
 
 from ....core.base import (
     BaseLaw,
-    Entry,
     Expression,
     NumericDomain,
     SymbolicVector,
@@ -27,7 +26,7 @@ from ....core.base import (
     vector,
 )
 from ....core.laws import BoundaryLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, values_of
-from ....core.problems import CompiledEvent, ReductionSchedule, Reference, Source, VectorFunction, numpy_function
+from ....core.problems import CompiledEvent, Entry, ReductionSchedule, Reference, Source, VectorFunction, numpy_function
 from ....core.problems._hybrid import _Breakpoints, _Delay
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

@@ -14,7 +14,6 @@ from sage.all__sagemath_symbolics import I
 
 from ...core.base import (
     BaseInteraction,
-    Entry,
     Expression,
     LabelError,
     NumericDomain,
@@ -31,7 +30,7 @@ from ...core.base import (
 )
 from ...core.components import ElementComponent, GroupComponent, WienerProcess
 from ...core.laws import Symbols
-from ...core.problems import Reference, Source
+from ...core.problems import Entry, Reference, Source
 from ...core.space import NetworkSpace
 from ._tree import Node, coerce_value, noise_processes, shape_of
 

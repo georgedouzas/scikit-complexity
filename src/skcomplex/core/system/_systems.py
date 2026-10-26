@@ -8,8 +8,9 @@ from typing import ClassVar
 
 from sklearn.base import BaseEstimator
 
-from ..base import BaseInteraction, BaseSpace, BaseTime, ComponentKind
+from ..base import BaseInteraction, ComponentKind
 from ..components import AggregateQuantity, ElementComponent, GroupComponent
+from ..space import BaseSpace, BaseTime
 
 
 class System(BaseEstimator):

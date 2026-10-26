@@ -8,9 +8,7 @@ from typing import Any, ClassVar, Self
 import numpy as np
 import numpy.typing as npt
 
-from ._errors import SpaceError
-from ._types import SpaceKind, TimeKind
-from ._utils import BaseEstimator
+from ..base import BaseEstimator, SpaceError, SpaceKind, TimeKind
 
 
 class BaseNeighborhood:
@@ -74,7 +72,8 @@ class BaseSpace(BaseEstimator):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.base import BaseSpace, SpaceKind
+        >>> from skcomplex.core.base import SpaceKind
+        >>> from skcomplex.core.space import BaseSpace
         >>> class RingSpace(BaseSpace):
         ...     space_kind = SpaceKind.LATTICE
         ...

@@ -17,7 +17,6 @@ from ...core.base import (
     BaseLaw,
     BaseQuantity,
     ConservationError,
-    Entry,
     Expression,
     LabelError,
     NumericDomain,
@@ -43,7 +42,7 @@ from ...core.laws import (
 )
 from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
-from ...core.problems import LoopTerm, Reference, StockFlow
+from ...core.problems import Entry, LoopTerm, Reference, StockFlow
 from ...core.problems import Source as Read
 from ...core.problems._quantities import _CompiledFlow, _CompiledObjective, _Recorded
 

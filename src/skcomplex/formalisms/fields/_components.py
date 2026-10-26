@@ -6,13 +6,9 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from ...core.base import (
-    BaseSpace,
-    ComponentKind,
-    VisualSpec,
-)
+from ...core.base import ComponentKind, VisualSpec
 from ...core.components import ElementComponent, GroupComponent
-from ...core.space import LatticeSpace, NetworkSpace
+from ...core.space import BaseSpace, LatticeSpace, NetworkSpace
 from ._laws import FIELD_BOUNDARIES
 from ._spaces import MeshSpace
 

@@ -15,10 +15,8 @@ from sage.all__sagemath_symbolics import I
 from ..base import (
     BaseInteraction,
     BaseLaw,
-    BaseSpace,
     Expression,
     Form,
-    Layout,
     SpaceKind,
     SymbolicVector,
     ValidationError,
@@ -31,8 +29,10 @@ from ..base import (
 )
 from ..components import ElementComponent, GroupComponent
 from ..laws import InvariantQuantity
+from ..space import BaseSpace
 from ..system import ObservableQuantity, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
+from ._layouts import Layout
 from ._quantities import StockFlow, _CompiledObjective
 from ._reductions import CompiledReduction
 
@@ -628,7 +628,8 @@ class BaseProblem:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.base import Form, Layout, symbol
+        >>> from skcomplex.core.base import Form, symbol
+        >>> from skcomplex.core.problems import Layout
         >>> from skcomplex.core.problems import BaseProblem
         >>> problem = BaseProblem(Form.ODE, Layout([]), Layout([]), np.zeros(0), np.zeros(0), symbol('t'))
         >>> problem.stochastic, problem.objectives, problem.adaptive_parameters, problem.lattice_shape('a.n')

@@ -1,6 +1,7 @@
-"""Test the `_problems` module of `skcomplex.core.base`."""
+"""Test the `_layouts` module of `skcomplex.core.problems`."""
 
-from skcomplex.core.base import Entry, Layout, NumericDomain
+from skcomplex.core.base import NumericDomain
+from skcomplex.core.problems import Entry, Layout
 
 
 def test_layout_reads_its_entries_and_names_by_method():

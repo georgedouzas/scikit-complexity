@@ -14,10 +14,8 @@ import numpy as np
 from ...core.base import (
     BackendError,
     BaseQuantity,
-    BaseSpace,
     DeclarationError,
     DomainKind,
-    Entry,
     Form,
     LabelError,
     LawClass,
@@ -44,9 +42,9 @@ from ...core.base import (
 from ...core.components import ElementComponent, GroupComponent, WienerProcess
 from ...core.laws import JumpLaw, NoiseLaw, ObjectiveQuantity, neighborhoods_in, values_of
 from ...core.laws._reductions import NeighborReduction
-from ...core.problems import BACKENDS, BaseBackend
+from ...core.problems import BACKENDS, BaseBackend, Entry
 from ...core.problems._neighbourhoods import cone_heading, position_state
-from ...core.space import Adjacency, Cone, NetworkSpace
+from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace
 from ...core.system import ObservableQuantity, System
 from ._census import Census, CensusRecord, quantity_kinds
 from ._compilation import Compilation

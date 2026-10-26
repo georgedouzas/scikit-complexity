@@ -6,8 +6,9 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ..core.base import BaseComponent, BaseInteraction, BaseLaw, BaseSpace, Form, Registry, RegistryError, register_laws
+from ..core.base import BaseComponent, BaseInteraction, BaseLaw, Form, Registry, RegistryError, register_laws
 from ..core.problems import BaseBackend, register_backend
+from ..core.space import BaseSpace
 from ..engine.compile import (
     BasePass,
     BaseSystemCompiler,

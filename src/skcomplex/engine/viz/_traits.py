@@ -11,8 +11,8 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseSpace
 from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
+from ...core.space import BaseSpace
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ._agents import AgentsVisual

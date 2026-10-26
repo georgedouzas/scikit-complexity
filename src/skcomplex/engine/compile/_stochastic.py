@@ -17,7 +17,6 @@ from scipy import stats
 from ...core.base import (
     BaseLaw,
     CategoricalDomain,
-    Entry,
     Expression,
     IncompatibleLawsError,
     NumericDomain,
@@ -47,7 +46,7 @@ from ...core.laws import (
     where,
 )
 from ...core.laws._laws import RenewalLaw
-from ...core.problems import Draws, Reference, Source, numpy_function
+from ...core.problems import Draws, Entry, Reference, Source, numpy_function
 from ...core.problems._problem import SampledDraw, _MarkovMatrix
 
 ALPHABET_DOMAINS = (NumericDomain.INTEGER, NumericDomain.NONNEGATIVE_INTEGER, NumericDomain.BOOLEAN)

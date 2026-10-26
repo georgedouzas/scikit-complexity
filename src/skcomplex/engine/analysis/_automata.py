@@ -12,9 +12,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
-from ...core.base import AnalysisError, BaseSpace
+from ...core.base import AnalysisError
 from ...core.laws import OuterTotalistic, Table, Totalistic
-from ...core.space import LatticeSpace, Memory, Neighborhood
+from ...core.space import BaseSpace, LatticeSpace, Memory, Neighborhood
 from ._information import entropy_rate
 from ._kinds import DataKind, analysis
 from ._lazy import module

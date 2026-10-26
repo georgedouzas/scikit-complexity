@@ -16,10 +16,10 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import BaseSpace, Expression, SolverError, ValidationError, symbol
+from ...core.base import Expression, SolverError, ValidationError, symbol
 from ...core.laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ...core.problems import numpy_function
-from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace
+from ...core.space import Adjacency, BaseSpace, LatticeSpace, Memory, Neighborhood, NetworkSpace
 from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SamplerLaw
 
 type Vector = npt.NDArray[np.float64]

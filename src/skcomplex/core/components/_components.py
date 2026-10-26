@@ -13,7 +13,6 @@ from ..base import (
     BaseInteraction,
     BaseLaw,
     BaseQuantity,
-    BaseSpace,
     ComponentKind,
     NumericDomain,
     Requires,
@@ -25,7 +24,7 @@ from ..base import (
     symbol,
 )
 from ..laws import Symbols
-from ..space import LatticeSpace, NetworkSpace, part_count
+from ..space import BaseSpace, LatticeSpace, NetworkSpace, part_count
 
 PARTS = ('sites', 'edges', 'hyperedges')
 

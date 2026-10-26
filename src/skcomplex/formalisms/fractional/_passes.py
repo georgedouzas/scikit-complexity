@@ -17,7 +17,6 @@ from ...core.base import (
     BaseLaw,
     Expression,
     Form,
-    Layout,
     OrderKind,
     SolverError,
     SymbolicVector,
@@ -30,7 +29,7 @@ from ...core.base import (
     symbols_of,
 )
 from ...core.laws import NoiseLaw
-from ...core.problems import BACKENDS, FractionalRows, Kernel, Lowered, Problem
+from ...core.problems import BACKENDS, FractionalRows, Kernel, Layout, Lowered, Problem
 from ...engine.compile import (
     BasePass,
     BlockLaws,

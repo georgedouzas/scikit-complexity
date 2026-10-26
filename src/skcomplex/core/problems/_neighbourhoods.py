@@ -12,9 +12,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ..base import BaseSpace, Entry, Expression, Indices, ValidationError, Variable, Vector
+from ..base import Expression, Indices, ValidationError, Variable, Vector
 from ..space import (
     Adjacency,
+    BaseSpace,
     Cone,
     ContinuousSpace,
     LatticeSpace,
@@ -24,6 +25,7 @@ from ..space import (
     NetworkSpace,
     Radius,
 )
+from ._layouts import Entry
 from ._printing import numpy_function
 from ._reads import Read
 

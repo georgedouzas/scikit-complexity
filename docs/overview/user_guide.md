@@ -1261,7 +1261,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.engine.compile import BaseSystemCompiler
 from skcomplex.core.problems import CompiledElement, Problem
-from skcomplex.core.base import Entry, Layout
+from skcomplex.core.problems import Entry, Layout
 from skcomplex.core.components import ElementComponent
 from skcomplex.formalisms import Formalism, register
 from skcomplex.core.base import BaseLaw

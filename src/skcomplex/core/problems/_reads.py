@@ -7,7 +7,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..base import Entry, Indices
+from ..base import Indices
+from ._layouts import Entry
 
 
 @dataclass(frozen=True)

@@ -12,8 +12,6 @@ from skcomplex.core.base import (
     BaseDomain,
     BaseInteraction,
     BaseLaw,
-    BaseSpace,
-    BaseTime,
     RoleError,
     ValidationError,
     parameter,
@@ -27,7 +25,7 @@ from skcomplex.core.laws import (
     neighbors,
 )
 from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
-from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
+from skcomplex.core.space import BaseSpace, BaseTime, DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
 from skcomplex.engine.runtime import Simulation

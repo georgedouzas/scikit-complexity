@@ -11,17 +11,8 @@ from collections.abc import Callable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ...core.base import (
-    BaseEstimator,
-    Entry,
-    Form,
-    NumericDomain,
-    ParameterError,
-    SimulationError,
-    ValidationError,
-    Vector,
-)
-from ...core.problems import BaseBackend, BaseProblem, with_initial_state
+from ...core.base import BaseEstimator, Form, NumericDomain, ParameterError, SimulationError, ValidationError, Vector
+from ...core.problems import BaseBackend, BaseProblem, Entry, with_initial_state
 from ...core.system import ObservableQuantity, System
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
