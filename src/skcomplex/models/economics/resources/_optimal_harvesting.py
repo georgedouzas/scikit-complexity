@@ -7,7 +7,7 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
@@ -20,6 +20,14 @@ def _catch(s: Symbols) -> Expression:
     resource = s.resource
     catch: Expression = resource.q * resource.effort * resource.x
     return catch
+
+
+def _profit(s: Symbols) -> Expression:
+    """Return the discounted profit per unit time, `exp(-delta t) (p q x - c) E`."""
+    resource = s.resource
+    margin = resource.p * resource.q * resource.x - resource.c
+    profit: Expression = exp(-resource.delta * s.t) * margin * resource.effort
+    return profit
 
 
 class HarvestedResourceElement(Element):
@@ -74,8 +82,8 @@ class HarvestedResourceElement(Element):
     c: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
     delta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
-        """Return the regrowth less the catch, and the discounted profit of the fishery to maximise.
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the regrowth less the catch.
 
         Args:
             s:
@@ -85,18 +93,18 @@ class HarvestedResourceElement(Element):
             laws:
                 The laws of the component.
         """
-        profit = exp(-s.delta * s.t) * (s.p * s.q * s.x - s.c) * s.effort
-        return [
-            RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x),
-            ObjectiveQuantity('profit', profit, sense='max'),
-        ]
+        return [RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x)]
 
 
 @register_model(
     field='economics/resources',
     tags=('optimal control', 'harvesting', 'bang-bang', 'singular arc', 'ode'),
     references=('Clark 1990',),
-    defaults={'until': 20.0, 'dt': 0.2, 'solver': CollocationSolver(nodes=101, scheme='trapezoidal')},
+    defaults={
+        'until': 20.0,
+        'dt': 0.2,
+        'solver': CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal'),
+    },
     observables=lambda system: [Observable('catch', _catch)],
 )
 def optimal_harvesting(
@@ -139,8 +147,7 @@ def optimal_harvesting(
 
     Returns:
         system:
-            The model, with the stock `resource.x`, the effort `resource.effort`, the discounted profit per unit time
-            `resource.profit`, and the observable `catch`.
+            The model, with the stock `resource.x`, the effort `resource.effort`, and the observable `catch`.
 
     Examples:
         >>> from skcomplex.models.economics.resources import optimal_harvesting

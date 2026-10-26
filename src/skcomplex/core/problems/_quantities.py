@@ -41,17 +41,6 @@ class _CompiledDelay:
 
 
 @dataclass(frozen=True)
-class _CompiledObjective:
-    """Objective of a compiled system, with its running and terminal values and the references of their symbols."""
-
-    path: str
-    expression: Expression
-    terminal: Expression
-    sense: str
-    references: Mapping[Expression, Any]
-
-
-@dataclass(frozen=True)
 class LoopTerm:
     """Node of the feedback graph of a system with the expression its value or its rate is computed from.
 
@@ -107,9 +96,6 @@ class StockFlow:
         discrete:
             Whether flow amounts are per step rather than rates.
 
-        objectives:
-            The objectives that optimal control solvers optimise.
-
         delays:
             The delays and smoothings of the laws, in the order the compiler replaced them by hidden stocks.
     """
@@ -120,5 +106,4 @@ class StockFlow:
     boundary: Mapping[str, str] = field(default_factory=dict)
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
-    objectives: tuple[_CompiledObjective, ...] = ()
     delays: tuple[_CompiledDelay, ...] = ()

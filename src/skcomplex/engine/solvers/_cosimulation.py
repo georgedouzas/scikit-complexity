@@ -26,8 +26,7 @@ from ...core.base import (
     Vector,
 )
 from ...core.problems import Partition, Problem
-from ...core.system import reduce_values
-from ..compile import aggregates_of, partition_system
+from ..compile import held_reductions_of, partition_system
 from ._snapshots import AgentState
 from ._stepper import Solver, register_solver, resolve_solver
 
@@ -40,8 +39,10 @@ class CoSimulationSolver(Solver):
     """Scheduler that advances every partition of a co-simulation to each synchronisation point with its own solver.
 
     Between synchronisation points a partition holds the states of the other partitions at their last values, so a
-    split adds an error of the order of `sync_dt`. Gauss-Seidel advances the partitions in system order, each reading
-    the values the partitions before it already advanced. Jacobi advances every partition from the same values.
+    split adds an error of the order of `sync_dt`. A law of one partition that reads a reduction of the agents of
+    another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and
+    holds until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions
+    before it already advanced. Jacobi advances every partition from the same values.
 
     Args:
         solvers:
@@ -169,9 +170,11 @@ class CoSimulationSolver(Solver):
             stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
             stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
-        self._aggregates = aggregates_of(problem)
+        self._held = [
+            (path, reduction, reduction.reducer(problem.time)) for path, reduction in held_reductions_of(problem)
+        ]
         self.initial_state_ = initial_state
-        self._update_aggregates(initial_state)
+        self._update_held(0.0, initial_state)
         self.events_, self.stopped_at_ = [], None
         self._collect()
 
@@ -192,20 +195,25 @@ class CoSimulationSolver(Solver):
             for index in range(count)
         ]
 
-    def _update_aggregates(self, x: Vector) -> None:
-        """Write the current value of every aggregate into the state vector."""
-        problem = self.problem_
-        for path, aggregate in self._aggregates:
-            scope = path.rpartition('/')[0]
-            group = f'{scope}/{aggregate.group}' if scope else aggregate.group
-            agents = self._agents_of(group)
-            values: Any
+    def _size_of(self, group: str) -> int:
+        """Return the number of members of an element group."""
+        return next(item.members or 1 for item in self.problem_.elements if item.path == group)
+
+    def _update_held(self, t: float, x: Vector) -> None:
+        """Write the current value of every held reduction into the state vector."""
+        states = self.problem_.states
+        for path, reduction, reducer in self._held:
+            agents = self._agents_of(reduction.group)
+            members: Any
             if agents is not None:
-                values = [getattr(agent, aggregate.variable) for agent in agents] if aggregate.variable else agents
+                members = agents
+                columns = [
+                    np.asarray([getattr(agent, name) for agent in agents], dtype=float) for name in reduction.variables
+                ]
             else:
-                values = np.ravel(problem.states.read(x, f'{group}.{aggregate.variable or "value"}'))
-            entry = problem.states.entry(f'{path}.value')
-            x[entry.indices] = float(np.real(reduce_values(values, aggregate.reduce)))
+                columns = [np.ravel(states.read(x, f'{reduction.group}.{name}')) for name in reduction.variables]
+                members = columns[0] if columns else np.zeros(self._size_of(reduction.group))
+            x[states.entry(f'{path}.value').indices] = reducer(t, columns, members)
 
     def _agents_of(self, group: str) -> list[Any] | None:
         """Return the agents of an agent group from the partition that holds it, or `None`."""
@@ -260,7 +268,7 @@ class CoSimulationSolver(Solver):
         if until <= t:
             return x
         state = x.copy()
-        self._update_aggregates(state)
+        self._update_held(t, state)
         for start, end in self._intervals(t, until):
             base = state.copy()
             for partition in self.problem_.partitions:
@@ -269,8 +277,8 @@ class CoSimulationSolver(Solver):
                 state[partition.owned] = advanced[partition.owned]
                 self._add_deposits(partition, state)
                 if self.scheme == 'gauss-seidel':
-                    self._update_aggregates(state)
-            self._update_aggregates(state)
+                    self._update_held(end, state)
+            self._update_held(end, state)
         return state
 
     def _collect(self) -> None:

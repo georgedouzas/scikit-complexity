@@ -29,7 +29,7 @@ from ...core.base import (
     symbols_of,
     vector,
 )
-from ...core.components import AggregateQuantity, Element, GroupElement
+from ...core.components import Element, GroupElement
 from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.problems import BaseProblem, Entry, Getter, Problem, ReductionSchedule, Reference, Source, numpy_function
 from ...core.problems._problem import real_components_of
@@ -92,22 +92,14 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def _has_aggregates(system: System) -> bool:
-    """Check whether a system tree declares an aggregate."""
-    return bool(system.aggregates) or any(_has_aggregates(child) for child in system.systems)
-
-
 def _with_observables(system: System, observables: Sequence[Observable]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name.
-
-    The copy holds the value of every aggregate in an element of its own, which roles bind.
-    """
+    """Return a copy of a system tree that declares observables in the systems their labels name."""
     by_scope: dict[str, list[Observable]] = {}
     for observable in observables:
         checked = observable.check()
         scope, _, label = checked.label.rpartition('/')
         by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
-    if not by_scope and not _has_aggregates(system):
+    if not by_scope:
         return system
     paths = {''} | set(_system_paths(system))
     unknown = sorted(set(by_scope) - paths)
@@ -140,16 +132,9 @@ def _attached_component(
 
 
 def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str) -> System:
-    """Return a copy of a system that holds the observables of its scope, with its nested systems attached.
-
-    Every aggregate of the system becomes a component of the copy, an element that holds its value and that roles bind.
-    """
+    """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
     copied = copy.copy(system)
-    copied.components = [
-        *(_attached_component(component, by_scope, scope) for component in system.components),
-        *(_AggregateElement(aggregate.label, quantity=aggregate.check()) for aggregate in system.aggregates),
-    ]
-    copied.aggregates = ()
+    copied.components = [_attached_component(component, by_scope, scope) for component in system.components]
     copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
     return copied
 
@@ -169,6 +154,14 @@ def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
         return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
 
     return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
+
+
+def _entry_of(problem: BaseProblem, name: str) -> Entry | None:
+    """Return the entry of a state or parameter of a problem by name, or `None`."""
+    for layout in (problem.states, problem.parameters):
+        if layout.has(name):
+            return layout.entry(name)
+    return None
 
 
 def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, Node]) -> bool:
@@ -230,6 +223,15 @@ def _readers_of(problem: Problem, path: str) -> set[str]:
     return readers
 
 
+def _held_label(reduction: '_HeldReduction', labels: set[str]) -> str:
+    """Return a label for the element that holds a reduction of a group, unique among the labels of its system."""
+    base = f'{reduction.group.rpartition("/")[2]}_{reduction.reduce}'
+    label, index = base, 1
+    while label in labels:
+        label, index = f'{base}_{index}', index + 1
+    return label
+
+
 def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
     """Yield the path of every system in a tree that declares observables, with each observable.
 
@@ -250,6 +252,39 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
         yield from observables_of(child, _join(scope, child.label))
 
 
+def namespace_of(problem: BaseProblem, scope: str = '') -> Symbols:
+    """Return the namespace of the states and parameters of the single elements and interactions of a system.
+
+    The namespace nests the symbols by their dotted names, so `s.plant.x` is the state `plant.x`, and
+    `s.forest.foxes.n` the state `forest/foxes.n`. It also holds the time `s.t`.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        scope:
+            The path of the nested system whose symbols the namespace holds, empty for the root.
+
+    Returns:
+        namespace:
+            The namespace.
+
+    Examples:
+        >>> from skcomplex.engine.compile import compile_system, namespace_of
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> namespace_of(compile_system(System(components=[PopulationElement('rabbits')]))).rabbits.n
+        n_rabbits
+    """
+    prefix = f'{scope}/' if scope else ''
+    items: dict[str, Any] = {
+        name[len(prefix) :]: problem.symbols[name]
+        for name in problem.symbols
+        if name.startswith(prefix) and (entry := _entry_of(problem, name)) is not None and entry.members is None
+    }
+    return _tree(items, t=problem.time)
+
+
 def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
     """Return every observable of a system tree that laws can read at the current state, by path.
 
@@ -266,10 +301,112 @@ def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
     return lowerable
 
 
+def held_reduction(
+    reduction: Reduction,
+    agents: Mapping[Expression, tuple[str, str]],
+    time: Expression,
+    owner: str,
+) -> '_HeldReduction | None':
+    """Return the held reduction of a reduction of agents, or `None` for a reduction of elements.
+
+    Args:
+        reduction:
+            The reduction a law reads.
+
+        agents:
+            The path of the agent group and the variable of every symbol of agents.
+
+        time:
+            The time symbol.
+
+        owner:
+            The path of the component whose law reads the reduction.
+
+    Returns:
+        held:
+            The held reduction, or `None`.
+
+    Raises:
+        RoleError:
+            The reduction reads the agents of more than one group.
+
+        ValidationError:
+            The reduction has weights, or reads a symbol that is not a variable of the agents.
+    """
+    expressions = [SR(reduction.argument), *([SR(reduction.condition)] if reduction.condition is not None else [])]
+    symbols = symbols_of(expressions) - {time}
+    read = symbols | ({reduction.over} if reduction.over is not None else set())
+    groups = {agents[item][0] for item in read if item in agents}
+    if not groups:
+        return None
+    if len(groups) > 1:
+        error_msg = (
+            f'The reduction {reduction.call} of {owner} reads the agents of {" and ".join(sorted(groups))}. A '
+            'reduction reduces over one group, so write one reduction per group.'
+        )
+        raise RoleError(error_msg)
+    group = next(iter(groups))
+    others = sorted(str(item) for item in symbols if item not in agents or agents[item][0] != group)
+    if reduction.weights is not None or others:
+        error_msg = (
+            f'The reduction {reduction.call} of {owner} reduces the agents of {group}, which a co-simulation computes '
+            'at its synchronisation points from the scalar states and parameters of the agents alone, without '
+            f'weights{", but it reads " + ", ".join(others) if others else ""}. Reduce an expression of the agents.'
+        )
+        raise ValidationError(error_msg)
+    ordered = tuple(sorted((item for item in symbols if agents[item][1]), key=str))
+    return _HeldReduction(
+        group,
+        reduction.kind,
+        tuple(agents[item][1] for item in ordered),
+        ordered,
+        SR(reduction.argument),
+        None if reduction.condition is None else SR(reduction.condition),
+    )
+
+
+def with_held_reductions(system: System, reductions: Sequence['_HeldReduction'], scope: str = '') -> System:
+    """Return a system tree that holds every reduction of agents in an element of the system of its group.
+
+    Args:
+        system:
+            The system.
+
+        reductions:
+            The held reductions.
+
+        scope:
+            The path of the system, empty for the root.
+
+    Returns:
+        system:
+            The system tree with the elements that hold the reductions.
+    """
+    own = [reduction for reduction in reductions if reduction.group.rpartition('/')[0] == scope]
+    components = [
+        (
+            with_held_reductions(component, reductions, _join(scope, component.label))
+            if isinstance(component, System)
+            else component
+        )
+        for component in system.components
+    ]
+    if not own and all(new is old for new, old in zip(components, system.components, strict=True)):
+        return system
+    labels = {component.label for component in system.components}
+    for reduction in own:
+        label = _held_label(reduction, labels)
+        labels.add(label)
+        components.append(_HeldElement(label, reduction=reduction))
+    copied = copy.copy(system)
+    copied.components = components
+    return copied
+
+
 def with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
-    """Return a system tree in which every observable in `read` is also an aggregate, and their paths."""
+    """Return a system tree in which every observable in `read` is also held in an element, and their paths."""
     held: list[str] = []
-    aggregates = []
+    elements = []
     for observable in getattr(system, 'observables', ()):
         path = f'{scope}/{observable.label}' if scope else observable.label
         if path not in read:
@@ -281,13 +418,9 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
                 'Declare it with `group` and `variable`.'
             )
             raise ValidationError(error_msg)
-        quantity = AggregateQuantity(
-            observable.label,
-            group=observable.group,
-            reduce=observable.reduce,
-            variable=observable.variable,
-        )
-        aggregates.append(_AggregateElement(observable.label, quantity=quantity))
+        variables = (observable.variable,) if observable.variable is not None else ()
+        reduction = _HeldReduction(_join(scope, observable.group), observable.reduce, variables)
+        elements.append(_HeldElement(observable.label, reduction=reduction))
         held.append(path)
     children = []
     for child in system.systems:
@@ -297,7 +430,7 @@ def with_held_observables(system: System, read: set[str], scope: str = '') -> tu
     if not held:
         return system, held
     copied = copy.copy(system)
-    copied.components = [*system.elements, *aggregates, *children]
+    copied.components = [*system.elements, *elements, *children]
     return copied, held
 
 
@@ -320,27 +453,30 @@ def held_observables(system: System, nodes: list[Node]) -> set[str]:
     return (_role_paths(system) & declared) - set(lowerable)
 
 
-def aggregates_of(problem: BaseProblem) -> list[tuple[str, AggregateQuantity]]:
-    """Return the aggregates of a compiled problem, each with the path of the element that holds its value.
+def held_reductions_of(problem: BaseProblem) -> list[tuple[str, '_HeldReduction']]:
+    """Return the reductions that a co-simulation computes at every synchronisation point, with where it holds them.
+
+    A law of one partition reads a reduction of the agents of another, such as `count(s.farmers)`, through an element
+    that holds its value in the state `value` between synchronisation points.
 
     Args:
         problem:
             The problem.
 
     Returns:
-        aggregates:
-            The path of every element that holds an aggregate, with the aggregate.
+        reductions:
+            The path of every element that holds a reduction, with the reduction.
 
     Examples:
-        >>> from skcomplex.engine.compile import aggregates_of, compile_system
+        >>> from skcomplex.engine.compile import compile_system, held_reductions_of
         >>> from skcomplex.models import create
-        >>> [path for path, _ in aggregates_of(compile_system(create('harvesting')))]
-        ['village/size']
+        >>> [path for path, _ in held_reductions_of(compile_system(create('harvesting')))]
+        ['village/farmers_count']
     """
     return [
-        (element.path, element.element.quantity)
+        (element.path, element.element.reduction)
         for element in problem.elements
-        if isinstance(element.element, _AggregateElement)
+        if isinstance(element.element, _HeldElement)
     ]
 
 
@@ -363,14 +499,62 @@ def check_held_reads(problem: Problem, held: list[str]) -> None:
             raise ValidationError(error_msg)
 
 
-class _AggregateElement(Element):
-    """Element that holds the value of an aggregate in its state `value`, so roles bind the aggregate's path."""
+class _HeldElement(Element):
+    """Element that holds the value of a held reduction in its state `value`, which laws of other partitions read."""
 
     value: float = state(default=0.0)
 
-    def __init__(self, label: str, *, quantity: AggregateQuantity, **values: Any) -> None:  # noqa: ANN401
+    def __init__(self, label: str, *, reduction: '_HeldReduction', **values: Any) -> None:  # noqa: ANN401
         super().__init__(label, **values)
-        self.quantity = quantity
+        self.reduction = reduction
+
+
+@dataclass(frozen=True)
+class _HeldReduction:
+    """Reduction of a group that a co-simulation computes at every synchronisation point and holds until the next."""
+
+    group: str
+    reduce: str | Callable[[Any], Any]
+    variables: tuple[str, ...] = ()
+    symbols: tuple[Expression, ...] = ()
+    argument: Expression | None = None
+    condition: Expression | None = None
+
+    @property
+    def key(self) -> tuple[str, ...]:
+        """Group, reduction, argument, and condition, which identify the reduction."""
+        return (self.group, str(self.reduce), str(self.argument), str(self.condition))
+
+    def reducer(self, time: Expression) -> Callable[[float, Sequence[Vector], Sequence[Any]], float]:
+        """Return the function of time, the values of the variables, and the members that computes the reduction.
+
+        Args:
+            time:
+                The time symbol.
+
+        Returns:
+            reducer:
+                The function.
+        """
+        reduce = self.reduce
+        if self.argument is None:
+
+            def reduce_values_of(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
+                del t
+                return float(np.real(reduce_values(columns[0] if columns else members, reduce)))
+
+            return reduce_values_of
+        condition = SR(1) if self.condition is None else self.condition
+        function = numpy_function(time, list(self.symbols), [self.argument, condition])
+
+        def reduce_expression(t: float, columns: Sequence[Vector], members: Sequence[Any]) -> float:
+            size = len(members)
+            argument, selected = (
+                np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in function(t, *columns)
+            )
+            return float(np.real(reduce_values(argument[selected.astype(bool)], reduce)))
+
+        return reduce_expression
 
 
 @dataclass
@@ -610,17 +794,12 @@ class ObservableEvaluator:
     def _expression_getter(self, scope: str, path: str, observable: Observable) -> Getter:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
-        items: dict[str, Any] = {
-            name[len(prefix) :]: self.problem.symbols[name]
-            for name in self.problem.symbols
-            if name.startswith(prefix) and (entry := self._entry(name)) is not None and entry.members is None
-        }
         earlier = {
             other: symbol(f'_observable_{index}')
             for index, other in enumerate(self.getters_)
             if other.startswith(prefix) and '/' not in other[len(prefix) :]
         }
-        namespace = _tree(items, t=self.problem.time)
+        namespace = namespace_of(self.problem, scope)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
@@ -655,10 +834,7 @@ class ObservableEvaluator:
 
     def _entry(self, name: str) -> Any:  # noqa: ANN401
         """Return the entry of a state or parameter by name, or `None`."""
-        for layout in (self.problem.states, self.problem.parameters):
-            if layout.has(name):
-                return layout.entry(name)
-        return None
+        return _entry_of(self.problem, name)
 
     def _reduction_getter(self, scope: str, path: str, observable: Observable) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""

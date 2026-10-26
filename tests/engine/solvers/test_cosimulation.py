@@ -1,4 +1,4 @@
-"""Test co-simulation: partitioning, held inputs, aggregates, agent inputs, scheduling, and convergence."""
+"""Test co-simulation: partitioning, held inputs, held reductions, agent inputs, scheduling, and convergence."""
 
 import time
 
@@ -15,10 +15,10 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import AggregateQuantity, Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system
+from skcomplex.core.components import Element
+from skcomplex.core.laws import RateLaw, UpdateLaw, count, maximum, mean, total
+from skcomplex.core.system import Observable, System
+from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.formalisms.agents import RuleLaw
@@ -60,15 +60,61 @@ class IdleElement(Element):
         agent.seen = model.inputs['land/soil.n']
 
 
-class AccumulationInteraction(BaseInteraction):
-    """Rate equal to an aggregate, `dn/dt = value`."""
+REDUCTIONS = {'sum': total, 'mean': mean, 'max': maximum}
+
+
+class CountingInteraction(BaseInteraction):
+    """Rate equal to the number of members of a group, `dn/dt = count(source)`."""
 
     target: str = role()
     source: str = role()
 
     def laws(self, s):
-        """Return the rate `value`."""
-        return [RateLaw(s.target.n, s.source.value)]
+        """Return the rate `count(source)`."""
+        return [RateLaw(s.target.n, count(s.source))]
+
+
+class WealthInteraction(BaseInteraction):
+    """Rate equal to a reduction of the wealth of a group, such as `dn/dt = total(source.wealth)`."""
+
+    target: str = role()
+    source: str = role()
+
+    def __init__(self, label, *, reduction='sum', **values):
+        super().__init__(label, **values)
+        self.reduction = reduction
+
+    def laws(self, s):
+        """Return the rate, the reduction of the wealth."""
+        return [RateLaw(s.target.n, REDUCTIONS[self.reduction](s.source.wealth))]
+
+
+class TallyInteraction(BaseInteraction):
+    """Update that sets a tally to the total of a group, `n <- total(source.n)`."""
+
+    target: str = role()
+    source: str = role()
+
+    def laws(self, s):
+        """Return the update to the total."""
+        return [UpdateLaw(s.target.k, total(s.source.n))]
+
+
+class CopyInteraction(BaseInteraction):
+    """Update that copies a held observable into a tally, `k <- value`."""
+
+    target: str = role()
+    source: str = role()
+
+    def laws(self, s):
+        """Return the update to the observable."""
+        return [UpdateLaw(s.target.k, s.source.value)]
+
+
+class TallyElement(Element):
+    """Tally of a discrete subsystem."""
+
+    k: float = state(0.0)
 
 
 class TendingInteraction(BaseInteraction):
@@ -106,18 +152,14 @@ def _lotka_volterra():
     )
 
 
-def _counting_system(agents=3, reduce='count', variable=None):
-    """Return land first, then a village of breeders with an aggregate that a land rate reads."""
+def _counting_system(agents=3):
+    """Return land first, then a village of breeders whose count a land rate reads."""
     return System(
         components=[
             System('land', components=[PopulationElement('soil', n=0.0)]),
-            System(
-                'village',
-                components=[BreederElement.group('farmers', agents, variable=True)],
-                aggregates=[AggregateQuantity('size', group='farmers', reduce=reduce, variable=variable)],
-            ),
+            System('village', components=[BreederElement.group('farmers', agents, variable=True)]),
         ],
-        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
+        interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )
 
 
@@ -184,60 +226,94 @@ def test_mix_across_subsystems_gives_partitions():
 
 
 def test_held_input_keeps_start_of_interval_value():
-    """Test that an ODE reading an aggregate uses its value from the start of the synchronisation interval."""
+    """Test that an ODE reading a count of agents uses its value from the start of the synchronisation interval."""
     trajectory = Simulation(_counting_system(3), solver=CoSimulationSolver(sync_dt=2), dt=2).run(until=2).trajectory_
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(3 * 2)
-    assert trajectory.values('village/size.value').tolist() == [3.0, 12.0]
+    assert trajectory.values('village/farmers_count.value').tolist() == [3.0, 12.0]
 
 
-def test_aggregate_counts_agents():
-    """Test that an aggregate counting 12 agents gives the ODE the value 12."""
+def test_held_reduction_counts_agents():
+    """Test that an ODE law reading the count of 12 agents sees the value 12 until the next synchronisation point."""
     trajectory = Simulation(_counting_system(12), solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
-    assert trajectory.values('village/size.value')[0] == 12
+    assert trajectory.values('village/farmers_count.value')[0] == 12
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(12)
 
 
-@pytest.mark.parametrize(
-    ('reduce', 'expected'),
-    [('sum', 3.0), ('mean', 1.0), (lambda values: float(values.max()), 1.0)],
-    ids=['sum', 'mean', 'custom'],
-)
-def test_aggregate_reductions_of_agent_states(reduce, expected):
-    """Test that aggregates sum, average, and reduce an agent state with a custom function."""
+@pytest.mark.parametrize(('reduction', 'expected'), [('sum', 3.0), ('mean', 1.0), ('max', 1.0)])
+def test_held_reductions_of_agent_states(reduction, expected):
+    """Test that laws read the total, the mean, and the largest value of an agent state across partitions."""
     system = System(
         components=[
             System('land', components=[PopulationElement('soil')]),
-            System(
-                'village',
-                components=[IdleElement.group('farmers', 3)],
-                aggregates=[AggregateQuantity('total', group='farmers', reduce=reduce, variable='wealth')],
-            ),
+            System('village', components=[IdleElement.group('farmers', 3)]),
         ],
-        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/total')],
+        interactions=[
+            WealthInteraction('accumulate', target='land/soil', source='village/farmers', reduction=reduction),
+        ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory.values('village/total.value')[0] == expected
+    assert trajectory.values(f'village/farmers_{reduction}.value')[0] == expected
+    assert trajectory.values('land/soil.n')[-1] == pytest.approx(1.0 + expected)
 
 
-def test_aggregate_reduces_element_group():
-    """Test that an aggregate sums the states of an element group."""
+def test_held_reductions_of_one_group_share_an_element():
+    """Test that two laws reading the same reduction of agents read one element, and other reductions get their own."""
     system = System(
         components=[
+            System('land', components=[PopulationElement('soil'), PopulationElement('dust')]),
+            System('village', components=[IdleElement.group('farmers', 3)]),
+        ],
+        interactions=[
+            WealthInteraction('first', target='land/soil', source='village/farmers'),
+            WealthInteraction('second', target='land/dust', source='village/farmers'),
+            CountingInteraction('third', target='land/dust', source='village/farmers'),
+        ],
+    )
+    paths = [path for path, _ in held_reductions_of(compile_system(system))]
+    assert paths == ['village/farmers_sum', 'village/farmers_count']
+
+
+def test_reduction_of_element_group_reads_other_partition():
+    """Test that a discrete law reads the total of an element group of an ODE partition at the synchronisation point."""
+    system = System(
+        components=[
+            System('ledger', components=[TallyElement('tally')]),
             System(
                 'herds',
                 components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 3.0])],
-                aggregates=[AggregateQuantity('total', group='herd', reduce='sum', variable='n')],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
-            System(
-                'market',
-                components=[MarketElement('wheat')],
-                interactions=[CobwebInteraction('cobweb', target='wheat')],
-            ),
         ],
+        interactions=[TallyInteraction('tally', target='ledger/tally', source='herds/herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory.values('herds/total.value')[0] == 6.0
+    assert held_reductions_of(compile_system(system)) == []
+    assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(6.0)
+
+
+def test_held_observable_reduces_element_group():
+    """Test that an observable reducing an element group with a function is held for a role of another partition."""
+    system = System(
+        components=[
+            System('ledger', components=[TallyElement('tally')]),
+            System(
+                'herds',
+                components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 3.0])],
+                interactions=[ExponentialGrowthInteraction('growth', target='herd')],
+            ),
+        ],
+        interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
+    )
+    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='n')
+    trajectory = Simulation(system, dt=1, observables=[largest]).run(until=1).trajectory_
+    assert trajectory.values('herds/largest.value')[0] == 3.0
+    assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)
+
+
+def test_partition_system_rejects_reductions_of_agents():
+    """Test that compiling partitions without validation names the reduction of agents that it cannot hold."""
+    with pytest.raises(ValidationError, match='only a co-simulation computes'):
+        partition_system(harvesting())
 
 
 def test_agent_rules_read_other_partitions():
@@ -272,14 +348,10 @@ def test_gauss_seidel_reads_already_advanced_values():
     """Test that Gauss-Seidel reads the partitions advanced before and Jacobi reads the start of the interval."""
     village_first = System(
         components=[
-            System(
-                'village',
-                components=[BreederElement.group('farmers', 3, variable=True)],
-                aggregates=[AggregateQuantity('size', group='farmers')],
-            ),
+            System('village', components=[BreederElement.group('farmers', 3, variable=True)]),
             System('land', components=[PopulationElement('soil', n=0.0)]),
         ],
-        interactions=[AccumulationInteraction('accumulate', target='land/soil', source='village/size')],
+        interactions=[CountingInteraction('accumulate', target='land/soil', source='village/farmers')],
     )
     gauss_seidel = Simulation(village_first, solver=CoSimulationSolver(), dt=1).run(until=1).trajectory_
     jacobi = Simulation(village_first, solver=CoSimulationSolver(scheme='jacobi'), dt=1).run(until=1).trajectory_

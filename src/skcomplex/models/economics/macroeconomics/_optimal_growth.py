@@ -7,7 +7,7 @@ from sage.all__sagemath_symbolics import exp, log
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
@@ -21,6 +21,20 @@ def _saving_rate(s: Symbols) -> Expression:
     economy = s.economy
     rate: Expression = 1 - economy.c / (economy.A * economy.k**economy.alpha)
     return rate
+
+
+def _utility(s: Symbols) -> Expression:
+    """Return the discounted utility of consumption per unit time, `exp(-rho t) log(c)`."""
+    economy = s.economy
+    utility: Expression = exp(-economy.rho * s.t) * log(economy.c)
+    return utility
+
+
+def _capital_value(s: Symbols) -> Expression:
+    """Return the discounted value of the capital left at the horizon, `exp(-rho T) v k(T)`."""
+    economy = s.economy
+    value: Expression = exp(-economy.rho * s.t) * economy.v * economy.k
+    return value
 
 
 class RamseyEconomyElement(Element):
@@ -71,8 +85,8 @@ class RamseyEconomyElement(Element):
     rho: float = parameter(default=0.03, domain=NumericDomain.POSITIVE)
     v: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
-        """Return the accumulation of capital, and the discounted utility of consumption and capital to maximise.
+    def laws(self, s: Symbols) -> list[BaseLaw]:
+        """Return the accumulation of capital.
 
         Args:
             s:
@@ -82,18 +96,18 @@ class RamseyEconomyElement(Element):
             laws:
                 The laws of the component.
         """
-        discount = exp(-s.rho * s.t)
-        return [
-            RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c),
-            ObjectiveQuantity('utility', discount * log(s.c), terminal=discount * s.v * s.k, sense='max'),
-        ]
+        return [RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c)]
 
 
 @register_model(
     field='economics/macroeconomics',
     tags=('optimal control', 'growth', 'capital', 'collocation', 'ode'),
     references=('Dilão 2023',),
-    defaults={'until': 40.0, 'dt': 0.5, 'solver': CollocationSolver(nodes=81)},
+    defaults={
+        'until': 40.0,
+        'dt': 0.5,
+        'solver': CollocationSolver(objective=_utility, terminal=_capital_value, sense='max', nodes=81),
+    },
     observables=lambda system: [Observable('saving_rate', _saving_rate)],
 )
 def optimal_consumption(
@@ -131,8 +145,7 @@ def optimal_consumption(
 
     Returns:
         system:
-            The model, with the capital `economy.k`, the consumption `economy.c`, the discounted utility per unit time
-            `economy.utility`, and the observable `saving_rate`.
+            The model, with the capital `economy.k`, the consumption `economy.c`, and the observable `saving_rate`.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import optimal_consumption

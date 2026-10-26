@@ -16,7 +16,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import AggregateQuantity, Element, GroupElement
+from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
@@ -346,13 +346,3 @@ def test_pair_interaction_conserves_momentum():
     trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
     momentum = trajectory.values('gas.v').sum(axis=1)
     assert np.allclose(momentum, momentum[0], atol=1e-8)
-
-
-def test_aggregates_are_their_own_argument():
-    """Test that a system holds its aggregates apart from its components, which hold elements, groups, and systems."""
-    farmers = PopulationElement.group('farmers', 3)
-    size = AggregateQuantity('size', group='farmers')
-    village = System('village', components=[farmers], aggregates=[size])
-    assert village.aggregates == [size]
-    assert village.elements == (farmers,)
-    assert village.get_params()['aggregates'] == [size]

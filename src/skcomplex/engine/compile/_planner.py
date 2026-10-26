@@ -11,7 +11,7 @@ from typing import Any, cast
 from ...core.base import Form, IncompatibleLawsError, LawKind, Registry
 from ...core.problems import BACKENDS
 from ...core.system import System
-from ._census import Census, objective_kinds
+from ._census import Census
 from ._forms import fits_form
 from ._issues import Issue
 
@@ -108,8 +108,6 @@ def _plan_partitions(
     declared: dict[str, set[LawKind]] = {}
     for record in census.records:
         declared.setdefault(record.owner, set()).add(record.law.law_kind)
-    for owner, needed in objective_kinds(census.objectives).items():
-        declared.setdefault(owner, set()).update(needed)
     found = list(solver_classes() if solvers is None else solvers)
     partitions, issues = _planned(census.system, _Owners(declared, dict(kinds), found))
     return _Plan(tuple(partitions), tuple(issues))

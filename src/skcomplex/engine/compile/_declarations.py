@@ -36,6 +36,7 @@ from ._tree import Node, coerce_value, noise_processes, shape_of
 
 ACTIVE = '_active'
 ENDS = ('_source', '_target')
+MEMBERS = '~members'
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -187,6 +188,7 @@ class Declarations:
     ends: dict[bool, int] = field(default_factory=lambda: {True: 0, False: 0})
     processes: dict[str, Block] = field(default_factory=dict)
     handles: dict[Expression, tuple[str, int]] = field(default_factory=dict)
+    agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)
 
     def _declare_processes(self, node: Node) -> None:
         """Add a block with the handle `dW` of every Wiener process an interaction binds, one symbol per process."""
@@ -234,6 +236,28 @@ class Declarations:
         block.entries[variable] = entry
         for column, item in enumerate(components):
             block.references[item] = Reference(entry, is_state, column)
+
+    def _declare_agents(self, block: Block) -> None:
+        """Add the symbols that reductions of an agent group read: its members, scalar states, and scalar parameters.
+
+        The states of agents live in the agent stepper, so their symbols have no entries. The symbol of the members
+        comes first in the namespace, so a count names the group by it.
+        """
+        node = block.node
+        base = re.sub(r'[^0-9A-Za-z]', '_', node.path)
+        members = symbol(f'members_{base}')
+        block.symbols = {MEMBERS: members, **block.symbols}
+        self.agents[members] = (node.path, '')
+        for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+            if declaration.vector or declaration.domain is NumericDomain.COMPLEX:
+                continue
+            item = symbol(f'{variable}_{base}', declaration.domain)
+            block.symbols[variable] = item
+            self.agents[item] = (node.path, variable)
+        for variable in block.entries:
+            value = block.symbols[variable]
+            if isinstance(value, Expression) and value.is_symbol():
+                self.agents[value] = (node.path, variable)
 
     def _declare_hidden(self, block: Block, variable: str, values: Vector) -> None:
         """Add a hidden parameter with one value per member of a group, read by laws as `s.<variable>`."""
@@ -363,6 +387,8 @@ class Declarations:
             self._declare(block, variable, declaration, is_state=True)
         for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
             self._declare(block, variable, declaration, is_state=False)
+        if node.is_agent:
+            self._declare_agents(block)
         if isinstance(node.component, BaseInteraction):
             self._declare_processes(node)
         if node.active is not None:

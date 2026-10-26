@@ -31,7 +31,6 @@ from ...core.laws import (
     EventLaw,
     JumpLaw,
     NoiseLaw,
-    ObjectiveQuantity,
     RateLaw,
     Sink,
     TransferLaw,
@@ -41,7 +40,7 @@ from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
 from ...core.problems import Entry, LoopTerm, Reference, StockFlow
 from ...core.problems import Source as Read
-from ...core.problems._quantities import _CompiledDelay, _CompiledFlow, _CompiledObjective, _Recorded
+from ...core.problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'
 
@@ -200,9 +199,9 @@ def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
 
 
 def _claim_label(labels: set[str], owner: str, label: str) -> None:
-    """Add the label of a flow or an objective of a component, raising an error for a label it already declares."""
+    """Add the label of a flow of a component, raising an error for a label it already declares."""
     if label in labels:
-        error_msg = f'{owner} declares two flows or objectives labelled {label!r}. Rename one.'
+        error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
         raise LabelError(error_msg)
     labels.add(label)
 
@@ -260,7 +259,6 @@ class StockFlowPass:
         self._born: dict[int, _Born] = {}
         self._flows: list[_Born] = []
         self._records: list[_Record] = []
-        self._objectives: list[tuple[_Record, Expression, str]] = []
         self._delays: list[_CompiledDelay] = []
         self._terms: list[tuple[_Spec, str, str, Expression, str | None, str | None]] = []
 
@@ -304,13 +302,7 @@ class StockFlowPass:
         self._terms.append((spec, 'flow', path, amount, source, sink))
         return laws
 
-    def _record_objective(self, spec: _Spec, objective: ObjectiveQuantity) -> None:
-        """Record the running value of an objective, with its terminal value and its sense."""
-        record = _Record(f'{spec.owner}.{objective.label}', SR(objective.expression), spec)
-        self._records.append(record)
-        self._objectives.append((record, SR(objective.terminal), objective.sense))
-
-    def expand(self, spec: _Spec, laws: list[BaseLaw], objectives: list[ObjectiveQuantity]) -> list[BaseLaw]:
+    def expand(self, spec: _Spec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with flows expanded into laws of the other kinds.
 
         Args:
@@ -320,24 +312,18 @@ class StockFlowPass:
             laws:
                 The laws of the component.
 
-            objectives:
-                The objectives of the component.
-
         Returns:
             laws:
                 The expanded laws.
 
         Raises:
             LabelError:
-                Two flows or objectives of the component share a label.
+                Two flows of the component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
         """
         labels: set[str] = set()
-        for objective in objectives:
-            _claim_label(labels, spec.owner, objective.label)
-            self._record_objective(spec, objective)
         expanded: list[BaseLaw] = []
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
@@ -533,9 +519,5 @@ class StockFlowPass:
                 for spec, kind, path, expression, source, sink in self._terms
             ),
             discrete=discrete,
-            objectives=tuple(
-                _CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
-                for record, terminal, sense in self._objectives
-            ),
             delays=tuple(self._delays),
         )

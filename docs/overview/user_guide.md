@@ -1042,20 +1042,21 @@ print(heated.values('heater.power'))
 
 ### Objectives and optimal control
 
-An `ObjectiveQuantity(label, expression, terminal=0, sense='min')`, returned among the laws, is the cost or the
-gain of a system. Under continuous time the value of a run is the integral of the running value `expression` over the
-run plus the terminal value at its horizon, the time `until` of the run, and trajectories record the running value
-under `<component path>.<label>`. An objective needs static or continuous time, so `validate` reports one under
-discrete time.
+An objective defines a control problem, not a part of a system, so the optimal control solvers take it as arguments.
+`objective` is the running cost, and `terminal` the terminal cost at the horizon, the time `until` of the run. Each is
+a function of the namespace `s` of the states, parameters, and time of the system by dotted name, such as
+`lambda s: s.plant.x**2`, or a number. The value of a run is the integral of the running cost over the run plus the
+terminal cost, and `sense` is `'min'` to minimise it or `'max'` to maximise it.
 
-Two solvers minimise a cost, or maximise a gain, over the bounded adaptive parameters of the system. `PontryaginSolver()`
+Two solvers optimise the objective over the bounded adaptive parameters of the system. `PontryaginSolver(objective)`
 builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`, derives the costate equations
 `λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, projects the controls onto their bounds, takes
 a bound where `H` is linear in a control, and solves the two-point problem by a forward-backward sweep.
-`CollocationSolver(nodes, scheme)` transcribes the problem with the `'hermite-simpson'` or `'trapezoidal'` scheme and solves
-it with SciPy's `minimize`, with the Jacobians derived symbolically. Collocation handles bang-bang controls, singular
-arcs, and saddle paths on which the sweep diverges. Both solve the problem over the whole run when it starts, and
-`simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `PontryaginSolver`, the costates.
+`CollocationSolver(objective, nodes=..., scheme=...)` transcribes the problem with the `'hermite-simpson'` or
+`'trapezoidal'` scheme and solves it with SciPy's `minimize`, with the Jacobians derived symbolically. Collocation
+handles bang-bang controls, singular arcs, and saddle paths on which the sweep diverges. Both solve the problem over
+the whole run when it starts, and `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for
+`PontryaginSolver`, the costates.
 
 ```python
 from skcomplex.core.base import parameter
@@ -1065,36 +1066,41 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
 from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
-from skcomplex.core.laws import ObjectiveQuantity
 
 PlantElement = Element.define(
     'PlantElement',
     states={'x': 1.0},
     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-    laws=lambda s: [RateLaw(s.x, s.u), ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
+    laws=lambda s: [RateLaw(s.x, s.u)],
 )
 plant = System(components=[PlantElement('plant')])
-optimal = Simulation(plant, solver=PontryaginSolver(), dt=0.1).run(until=1.0)
+
+
+def cost(s):
+    return (s.plant.x**2 + s.plant.u**2) / 2
+
+
+optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).run(until=1.0)
 print(round(optimal.trajectory_.values('plant.u')[0], 3), round(optimal.stepper_.solution_.cost, 4))
-transcribed = Simulation(plant, solver=CollocationSolver(nodes=21), dt=0.1).run(until=1.0)
+transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).run(until=1.0)
 print(round(transcribed.trajectory_.values('plant.u')[0], 3))
 ```
 
 Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate and
-equation laws, the objective kind, real and angle states, and elements. `PontryaginSolver` also applies boundary laws after
-every step of its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead. `validate`
-reports a system with noise, jumps, or updates run with them, and an objective run with a solver that does not
-optimise, whose fix lists the solvers that do.
+equation laws, real and angle states, and elements. `PontryaginSolver` also applies boundary laws after every step of
+its sweep, and `CollocationSolver` keeps the states of nonnegative domains nonnegative instead. `validate` reports a
+system with noise, jumps, or updates run with them. It also reports a solver without an objective, and a system under
+discrete time, since an objective needs static or continuous time, each as a `SolverError`.
 
 | Solver | Laws | Method |
 | --- | --- | --- |
-| `PontryaginSolver` | rate, equation, objective, boundary | symbolic costates and a forward-backward sweep |
-| `CollocationSolver` | rate, equation, objective | direct transcription solved by SLSQP or trust-constr |
+| `PontryaginSolver` | rate, equation, boundary | symbolic costates and a forward-backward sweep |
+| `CollocationSolver` | rate, equation | direct transcription solved by SLSQP or trust-constr |
 
 ```python continuation
 from skcomplex.engine.compile import validate
 
-print([issue.fix for issue in validate(plant, solver='rk4').errors])
+print([issue.code for issue in validate(plant, solver=PontryaginSolver()).errors])
 ```
 
 ### Feedback controllers
@@ -1150,10 +1156,9 @@ listed in their import order, so a package imports only the packages above it.
 - `base`: symbols, domains, the declarations `state`, `parameter`, and `role`, errors, the bases of elements,
   interactions, and laws, and the open registries of law kinds, forms, space kinds, and traits.
 - `space`: `BaseSpace` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
-- `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, stocks and flows,
-  and the objective quantity.
-- `components`: `BaseElement`, `Element`, `GroupElement`, and the two that are no components,
-  `AggregateQuantity` and `WienerProcess`.
+- `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and
+  flows.
+- `components`: `BaseElement`, `Element`, `GroupElement`, and `WienerProcess`, which is no component.
 - `interactions`: `BaseInteraction` and the bindings of its roles.
 - `system`: `System`, `Observable`, `observe_element`, and ensembles.
 - `compile`: validation and the pipeline of passes that turns a system into a problem.
@@ -1358,10 +1363,8 @@ need them.
 
 - **Renewals** stay because `JumpLaw` with a clock of waiting times is a general law. Its lowering and its stepper belong
   with the other jump processes, so a waiting-time jump never compiles as a rate jump when a formalism is missing.
-- **Stocks and flows** stay because their lowering also lowers the general law `TransferLaw` and the
-  `ObjectiveQuantity`, and `analysis` reads their feedback loops.
-- **`ObjectiveQuantity`** stays because both stock-and-flow models and the `control` formalism read it, so neither depends on
-  the other.
+- **Stocks and flows** stay because their lowering also lowers the general law `TransferLaw`, and `analysis` reads their
+  feedback loops.
 - **The `'pairs'` binding** stays because models without particles couple the pairs of members of a group closer than
   a cutoff.
 - **The bodies visual** stays because models without particles draw their members as bodies.
@@ -3132,13 +3135,16 @@ farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
 trajectory = Simulation(farming, random_state=0).run(until=50).trajectory_
 print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
+print(trajectory.values('village/farmers_count.value')[-1])
 ```
 
 - Every partition holds the states of the other partitions as inputs, which keep their values from the last
   synchronisation point while it advances.
-- `AggregateQuantity(label, group=..., reduce='count' | 'sum' | 'mean' | callable, variable=None)`, among the
-  `aggregates` of a system, turns an agent group or an element group into the single value `value`, which other
-  partitions read through a role bound to its path and by its dotted name, such as `village/size.value`.
+- A law of one partition reads a reduction of a group of another through a role bound to the group, such as
+  `count(s.farmers)` or `total(s.farmers.wealth)`. The co-simulation computes every reduction of agents at each
+  synchronisation point and holds it until the next, in the state `value` of an element next to the group, such as
+  `village/farmers_count.value`. A reduction of an element group reads the states of the other partition, which keep
+  their values from the last synchronisation point too.
 - Agent rules read the states of other partitions through `model.inputs[name]`, such as
   `model.inputs['land/stock.n']`.
 - The `CoSimulationSolver` advances every partition with its own solver, chosen per partition through

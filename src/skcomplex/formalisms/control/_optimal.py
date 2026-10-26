@@ -7,20 +7,29 @@ import math
 from abc import abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, Form, NumericDomain, SolverError, Vector, symbols_of
+from ...core.base import Expression, Form, NumericDomain, SolverError, ValidationError, Vector, symbols_of
+from ...core.laws import Symbols
 from ...core.problems import Problem, numpy_function
+from ...engine.compile import namespace_of
 from ...engine.solvers import Solver
 
 TIME_TOLERANCE = 1e-9
+SENSES = ('min', 'max')
 NONNEGATIVE_DOMAINS = frozenset({NumericDomain.POSITIVE, NumericDomain.NONNEGATIVE, NumericDomain.NONNEGATIVE_INTEGER})
 
 type GridFunction = Callable[..., npt.NDArray[np.float64]]
+type Cost = Callable[[Symbols], object] | float
+
+
+def _cost_value(cost: Cost, namespace: Symbols) -> Expression:
+    """Return the expression of a cost, a function of the namespace of the system or a number."""
+    return SR(cost(namespace) if callable(cost) else cost)
 
 
 def _single_symbols(problem: Problem) -> list[Expression]:
@@ -44,12 +53,6 @@ def _check_supported(problem: Problem) -> None:
         error_msg = (
             'Optimal control solvers derive the costates and the stationarity condition symbolically, so they take '
             'symbolic rate laws without callables, sums over members, delays, or events.'
-        )
-        raise SolverError(error_msg)
-    if len(problem.objectives) != 1:
-        error_msg = (
-            f'Optimal control solvers optimise one objective, but the system has {len(problem.objectives)}. Give '
-            'the system one ObjectiveQuantity.'
         )
         raise SolverError(error_msg)
 
@@ -166,8 +169,8 @@ class _ControlProblem:
             raise SolverError(error_msg)
 
     @classmethod
-    def of(cls, problem: Problem) -> '_ControlProblem':
-        """Return the optimal control problem of a compiled problem with one objective and bounded controls."""
+    def of(cls, problem: Problem, objective: Cost, terminal: Cost, sense: str) -> '_ControlProblem':
+        """Return the optimal control problem of a compiled problem with bounded controls and an objective."""
         _check_supported(problem)
         symbols = _single_symbols(problem)
         controls = _controls(problem, symbols)
@@ -175,8 +178,8 @@ class _ControlProblem:
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
         names = [name for entry in problem.states.entries for name in entry.component_names]
-        objective = problem.objectives[0]
-        sign = 1.0 if objective.sense == 'min' else -1.0
+        sign = 1.0 if sense == 'min' else -1.0
+        namespace = namespace_of(problem)
         control_problem = cls(
             problem=problem,
             names=tuple(names[index] for index in indices),
@@ -185,8 +188,8 @@ class _ControlProblem:
             controls=controls,
             parameters=tuple(problem.parameter_symbols),
             rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
-            running=sign * SR(objective.expression),
-            terminal=sign * SR(objective.terminal),
+            running=sign * _cost_value(objective, namespace),
+            terminal=sign * _cost_value(terminal, namespace),
             sign=sign,
             lower=_lower_bounds(problem, indices),
         )
@@ -237,11 +240,15 @@ class ControlSolution:
 
 
 class OptimalControlSolver(Solver):
-    """Base class of solvers that compute the controls minimising or maximising the objective of a system.
+    """Base class of solvers that compute the controls minimising or maximising an objective over a run of a system.
 
-    The solver reads the bounded adaptive parameters of the system as its controls and its objective as its cost.
-    It solves the problem over the whole run from the initial state and the initial parameters at the start of the
-    run, and then follows the solution frame by frame. Subclasses implement `_solve`, and may implement `_prepare`.
+    The solver reads the bounded adaptive parameters of the system as its controls. Its objective is the running cost
+    `objective` integrated over the run plus the terminal cost `terminal` at the horizon, the time `until` of the run.
+    Each cost is a function of the namespace `s` of the states, parameters, and time of the system by dotted name, such
+    as `lambda s: s.plant.x**2 + s.plant.u**2`, or a number. The solver minimises the objective for the sense `'min'`
+    and maximises it for `'max'`. It solves the problem over the whole run from the initial state and the initial
+    parameters at the start of the run, and then follows the solution frame by frame. Subclasses take `objective`,
+    `terminal`, and `sense` as arguments, implement `_solve`, and may implement `_prepare`.
 
     Attributes:
         control_problem_:
@@ -255,6 +262,29 @@ class OptimalControlSolver(Solver):
     """
 
     form: ClassVar[Form] = Form.ODE
+    objective: Cost | None
+    terminal: Cost
+    sense: str
+
+    def _check(self) -> None:
+        """Raise an error for a missing objective or an unknown sense.
+
+        Raises:
+            SolverError:
+                The solver has no objective.
+
+            ValidationError:
+                The sense is neither `'min'` nor `'max'`.
+        """
+        if self.objective is None:
+            error_msg = (
+                f'{type(self).__name__} has no objective. Pass the running cost as `objective`, a function of the '
+                'namespace of the system such as `lambda s: s.plant.x**2`.'
+            )
+            raise SolverError(error_msg)
+        if self.sense not in SENSES:
+            error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(SENSES)}.'
+            raise ValidationError(error_msg)
 
     def _integrate(self, x0: Vector, controls: Vector, times: Vector, p: Vector) -> Vector:
         """Return the steered states on a grid from their initial values, by Runge-Kutta steps under given controls."""
@@ -318,11 +348,11 @@ class OptimalControlSolver(Solver):
 
         Raises:
             SolverError:
-                The problem is not an ODE, or has no objective, no bounded adaptive parameter, or laws the solver
-                cannot differentiate symbolically, or the run has no end.
+                The problem is not an ODE, or has no bounded adaptive parameter or laws the solver cannot
+                differentiate symbolically, or the run has no end.
         """
         super()._prepare(problem, rng, until)
-        control_problem = _ControlProblem.of(problem)
+        control_problem = _ControlProblem.of(problem, cast('Cost', self.objective), self.terminal, self.sense)
         if not math.isfinite(until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
             raise SolverError(error_msg)

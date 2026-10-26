@@ -15,7 +15,6 @@ from ...core.base import (
     BaseLaw,
     ElementKind,
     Expression,
-    LawKind,
     Registry,
     SkcomplexError,
     SymbolicVector,
@@ -38,7 +37,6 @@ from ...core.laws import (
     EventLaw,
     JumpLaw,
     NoiseLaw,
-    ObjectiveQuantity,
     RateLaw,
     UpdateLaw,
     values_of,
@@ -137,57 +135,17 @@ def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
     return declaration is not None and declaration.vector
 
 
-def _without_objectives(declared: object) -> object:
-    """Return what `laws` returns without the objectives among it."""
-    if not isinstance(declared, list | tuple):
-        return declared
-    return [item for item in declared if not isinstance(item, ObjectiveQuantity)]
-
-
-def declared_objectives(spec: KernelSpec, component: object) -> list[ObjectiveQuantity]:
-    """Return the checked objectives a component returns among its laws for its namespace.
-
-    Args:
-        spec:
-            The kernel spec of the component.
-
-        component:
-            The object whose `laws` method describes the component.
-
-    Returns:
-        objectives:
-            The objectives, checked.
-
-    Raises:
-        ValidationError:
-            An objective is invalid.
-    """
-    declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
-    checked = []
-    for objective in declared if isinstance(declared, list | tuple) else []:
-        if not isinstance(objective, ObjectiveQuantity):
-            continue
-        try:
-            checked.append(objective.check())
-        except ValidationError as error:
-            error_msg = f'{type(objective).__name__} of {spec.owner}: {error}'
-            raise ValidationError(error_msg) from error
-    return checked
-
-
 def _records_of(
     block: Block,
     elements: dict[str, Block],
     observe: Observer,
     declarations: Declarations,
     agents: set[str],
-) -> tuple[list[CensusRecord], list[tuple[str, ObjectiveQuantity]]]:
-    """Return the census records of the laws of one component, and its objectives with the path of the component."""
+) -> list[CensusRecord]:
+    """Return the census records of the laws of one component."""
     records = []
-    objectives = []
     for spec in specs_of(block, elements, declarations.time, observe.evaluate):
         component = cast('BaseElement | BaseInteraction', component_of(block.node))
-        objectives += [(spec.owner, objective) for objective in declared_objectives(spec, component)]
         for law in declared_laws(spec, component):
             items = [item for target in law.targets for item in components_of(target)]
             references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
@@ -209,7 +167,7 @@ def _records_of(
                     **_noise_census(spec, law, declarations),
                 ),
             )
-    return records, objectives
+    return records
 
 
 def register_owner(rule: OwnerRule) -> None:
@@ -290,7 +248,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
         ValidationError:
             `laws` returns something other than declarable laws, or laws its binding does not take.
     """
-    declared: Any = _without_objectives(component.run(spec.namespace))  # type: ignore[attr-defined]
+    declared: Any = component.run(spec.namespace)  # type: ignore[attr-defined]
     _check_registered(spec, declared)
     if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
@@ -314,20 +272,6 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
             error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
             raise ValidationError(error_msg) from error
     return checked
-
-
-def objective_kinds(objectives: list[tuple[str, ObjectiveQuantity]]) -> dict[str, set[LawKind]]:
-    """Return the law kinds that the objectives of every component need a solver to support, the objective kind.
-
-    Args:
-        objectives:
-            The objectives, each with the path of its component.
-
-    Returns:
-        kinds:
-            The kinds by the path of the component.
-    """
-    return {owner: {LawKind.OBJECTIVE} for owner, _ in objectives}
 
 
 def census_of(system: System, nodes: list[Node]) -> Census:
@@ -360,15 +304,12 @@ def census_of(system: System, nodes: list[Node]) -> Census:
     observe = Observer(declarations, lowerable_observables(system, nodes))
     agents = {block.node.path for block in blocks if block.node.is_agent}
     records = []
-    objectives = []
     for block in blocks:
         try:
-            found, declared = _records_of(block, elements, observe, declarations, agents)
-            records += found
-            objectives += declared
+            records += _records_of(block, elements, observe, declarations, agents)
         except SkcomplexError as error:
             errors.append((block.node.path, error))
-    return Census(system, records, errors, objectives)
+    return Census(system, records, errors, declarations.agents)
 
 
 @dataclass(frozen=True)
@@ -442,11 +383,12 @@ class Census:
         errors:
             The path of every failing component with its error.
 
-        objectives:
-            The objectives of the components, each with the path of its component.
+        agents:
+            The path of the agent group and the variable of every symbol that reduces agents, an empty variable for
+            the symbol of the members.
     """
 
     system: System
     records: list[CensusRecord]
     errors: list[tuple[str, SkcomplexError]]
-    objectives: list[tuple[str, ObjectiveQuantity]] = field(default_factory=list)
+    agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)

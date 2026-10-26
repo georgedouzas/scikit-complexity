@@ -2,14 +2,15 @@
 
 import pytest
 
-from skcomplex.core.base import BaseInteraction
+from skcomplex.core.base import BaseInteraction, RoleError, role, state
 from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws import RateLaw, total
 from skcomplex.core.system import System
-from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of
-from skcomplex.formalisms.agents import runs_rules
+from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of, validate
+from skcomplex.formalisms.agents import RuleLaw, runs_rules
 from skcomplex.formalisms.quantum import contains_quantum
 from skcomplex.models import catalog, create
+from skcomplex.models.biology.ecology import PopulationElement
 
 ObservedValueElement = Element.define('ObservedValueElement', states={'y': 0.0})
 
@@ -76,3 +77,63 @@ def test_reductions_agree_with_observables(entry):
     for index, path in enumerate(paths):
         value = rates[problem.states.entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'model/{path}']), rel=1e-12, abs=1e-12)
+
+
+class WealthyElement(Element):
+    """Agent that keeps its wealth."""
+
+    wealth: float = state(1.0)
+
+    def laws(self, s):
+        """Return a rule that keeps the wealth."""
+        return [RuleLaw(self.keep)]
+
+    def keep(self, agent, model):
+        """Keep the wealth."""
+        del agent, model
+
+
+class MixedReductionInteraction(BaseInteraction):
+    """Rate that reads a reduction of agents mixed with other symbols."""
+
+    target: str = role()
+    first: str = role()
+    second: str = role()
+
+    def laws(self, s):
+        """Return a rate that reads the reduction the interaction tests."""
+        return [RateLaw(s.target.n, total(s.first.wealth + s.second.wealth))]
+
+
+class ForeignReductionInteraction(BaseInteraction):
+    """Rate that reduces agents with a state of a single element."""
+
+    target: str = role()
+    first: str = role()
+
+    def laws(self, s):
+        """Return a rate that reduces the wealth of the agents times the target."""
+        return [RateLaw(s.target.n, total(s.first.wealth * s.target.n))]
+
+
+def _village(interaction):
+    """Return a land and a village of two agent groups, coupled by an interaction."""
+    village = System('village', components=[WealthyElement.group('a', 2), WealthyElement.group('b', 2)])
+    land = System('land', components=[PopulationElement('soil')])
+    return System(components=[land, village], interactions=[interaction])
+
+
+def test_held_reduction_reads_one_group():
+    """Test that a reduction of the agents of two groups is reported as a role error."""
+    interaction = MixedReductionInteraction('mix', target='land/soil', first='village/a', second='village/b')
+    (issue,) = validate(_village(interaction)).errors
+    assert issue.error is RoleError
+    assert 'village/a and village/b' in issue.message
+
+
+def test_held_reduction_reads_only_agents():
+    """Test that a reduction of agents that reads a state of a single element names the symbol it cannot read."""
+    interaction = ForeignReductionInteraction('foreign', target='land/soil', first='village/a')
+    (issue,) = validate(_village(interaction)).errors
+    assert issue.code == 'reduction'
+    assert 'n_land_soil' in issue.message

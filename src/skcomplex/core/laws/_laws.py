@@ -27,7 +27,6 @@ from ..base import (
 type Target = Expression | SymbolicVector
 type Process = str | tuple[str, ...] | Expression | SymbolicVector | None
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
-SENSES = ('min', 'max')
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
@@ -522,66 +521,6 @@ class BoundaryLaw(BaseLaw):
         changes: dict[str, Any] = {}
         changes['value'] = _checked_value(f'value of the {type(self).__name__} of {self.targets[0]}', self.value)
         return replace(self, **changes) if changes else self
-
-
-@dataclass(frozen=True)
-class ObjectiveQuantity:
-    """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
-
-    A component returns its objective among its laws. Under continuous time the value of a run is the integral of
-    the running value `expression` over the run plus the terminal value `terminal` at its horizon, the time `until` of
-    the run. The controls are the bounded adaptive parameters of the system. The trajectory records the running value
-    under `<component path>.<label>`. An objective needs static or continuous time.
-
-    Args:
-        label:
-            The name of the running value in the trajectory, unique among the flows and quantities of its component.
-
-        expression:
-            The running value, a symbolic expression of states, controls, parameters, and time.
-
-        terminal:
-            The terminal value at the horizon, a symbolic expression of states and parameters.
-
-        sense:
-            `'min'` for a cost to minimise or `'max'` for a gain to maximise.
-
-    Raises:
-        ValidationError:
-            The sense is neither `'min'` nor `'max'`.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import ObjectiveQuantity
-        >>> x, u = symbol('x'), symbol('u')
-        >>> ObjectiveQuantity('cost', x**2 + u**2, terminal=x**2).terminal
-        x^2
-    """
-
-    label: str
-    expression: object
-    terminal: object = 0
-    sense: str = 'min'
-
-    def check(self) -> Self:
-        """Return the objective with its values checked and normalized.
-
-        Returns:
-            objective:
-                The checked objective, with its values as Sage expressions.
-
-        Raises:
-            ValidationError:
-                The sense is unknown, or a value is invalid, such as a NumPy array.
-        """
-        if self.sense not in SENSES:
-            error_msg = f'Unknown sense {self.sense!r} of the objective {self.label}. Use one of {", ".join(SENSES)}.'
-            raise ValidationError(error_msg)
-        return replace(
-            self,
-            expression=_checked_value(f'running value of the objective {self.label}', self.expression),
-            terminal=_checked_value(f'terminal value of the objective {self.label}', self.terminal),
-        )
 
 
 @dataclass(frozen=True)

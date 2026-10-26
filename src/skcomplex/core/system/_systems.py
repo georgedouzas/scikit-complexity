@@ -9,7 +9,7 @@ from typing import ClassVar
 from sklearn.base import BaseEstimator
 
 from ..base import BaseInteraction, ElementKind
-from ..components import AggregateQuantity, Element, GroupElement
+from ..components import Element, GroupElement
 from ..space import BaseSpace, BaseTime
 
 
@@ -30,9 +30,6 @@ class System(BaseEstimator):
 
         interactions:
             The interactions between the components.
-
-        aggregates:
-            The quantities that reduce a group to one value, such as its size, which roles bind like elements.
 
         space:
             The substrate the components live on, which gives vector states their dimension. Nested systems without a
@@ -62,14 +59,12 @@ class System(BaseEstimator):
         *,
         components: Sequence['Element | GroupElement | System'] = (),
         interactions: Sequence[BaseInteraction] = (),
-        aggregates: Sequence[AggregateQuantity] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
     ) -> None:
         self.label = label
         self.components = components
         self.interactions = interactions
-        self.aggregates = aggregates
         self.space = space
         self.time = time
 

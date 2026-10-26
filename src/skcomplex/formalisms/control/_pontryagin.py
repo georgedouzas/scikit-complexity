@@ -21,14 +21,14 @@ from ...core.base import (
     TimeKind,
     Vector,
 )
-from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
+from ._optimal import ControlSolution, Cost, GridFunction, OptimalControlSolver, _ControlProblem
 
 MIN_RELAXATION = 1e-3
 
 CONTROL_SUPPORT = Supports(
     time={TimeKind.CONTINUOUS},
     space={SpaceKind.NONE},
-    laws={LawKind.RATE, LawKind.EQUATION, LawKind.OBJECTIVE, LawKind.BOUNDARY},
+    laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
     domains={DomainKind.REAL, DomainKind.ANGLE},
     components={ElementKind.ELEMENT, ElementKind.SYSTEM},
     orders={OrderKind.INTEGER},
@@ -77,6 +77,16 @@ class PontryaginSolver(OptimalControlSolver):
     sweep. An objective to maximise is minimised with its sign changed. The solution holds the costates.
 
     Args:
+        objective:
+            The running cost, a function of the namespace `s` of the states, parameters, and time of the system by
+            dotted name, such as `lambda s: s.plant.x**2`, or a number.
+
+        terminal:
+            The terminal cost at the horizon, a function of the same namespace or a number.
+
+        sense:
+            `'min'` to minimise the objective or `'max'` to maximise it.
+
         nodes:
             The number of times of the grid, from the start to the horizon.
 
@@ -95,12 +105,16 @@ class PontryaginSolver(OptimalControlSolver):
 
     Raises:
         SolverError:
-            The sweep diverges or does not converge, or the stationarity condition has no unique explicit solution.
+            The solver has no objective, the sweep diverges or does not converge, or the stationarity condition has
+            no unique explicit solution.
+
+        ValidationError:
+            The sense is neither `'min'` nor `'max'`.
 
     Examples:
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import ObjectiveQuantity, RateLaw
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.formalisms.control import PontryaginSolver
         >>> from skcomplex.core.system import System
@@ -108,11 +122,10 @@ class PontryaginSolver(OptimalControlSolver):
         ...     'PlantElement',
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-        ...     laws=lambda s: [RateLaw(s.x, s.u), ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
+        ...     laws=lambda s: [RateLaw(s.x, s.u)],
         ... )
-        >>> simulation = Simulation(System(components=[PlantElement('plant')]), solver=PontryaginSolver()).run(
-        ...     until=1.0
-        ... )
+        >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
+        >>> simulation = Simulation(System(components=[PlantElement('plant')]), solver=solver).run(until=1.0)
         >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
     """
@@ -121,11 +134,18 @@ class PontryaginSolver(OptimalControlSolver):
 
     def __init__(
         self,
+        objective: Cost | None = None,
+        *,
+        terminal: Cost = 0.0,
+        sense: str = 'min',
         nodes: int = 201,
         relaxation: float = 0.5,
         tolerance: float = 1e-6,
         max_iterations: int = 1000,
     ) -> None:
+        self.objective = objective
+        self.terminal = terminal
+        self.sense = sense
         self.nodes = nodes
         self.relaxation = relaxation
         self.tolerance = tolerance
