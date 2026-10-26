@@ -9,10 +9,10 @@ from skcomplex.models.economics.macroeconomics import metaphoria
 from ..conftest import _run_observed
 
 
-def _metaphoria(until, **arguments):
+def _metaphoria(until, invariants=None, **arguments):
     """Return the trajectory of Metaphoria with its standard observables."""
     system = metaphoria(100, random_state=0, **arguments)
-    return _run_observed(system, until, describe('metaphoria').observables_of(system))
+    return _run_observed(system, until, describe('metaphoria').observables_of(system), invariants)
 
 
 def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
@@ -25,7 +25,7 @@ def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
 
 def test_metaphoria_monetary_money_is_stock_flow_consistent():
     """With abundant food the monetary economy lives with starvation, and all money held is matched by loans."""
-    trajectory = _metaphoria(100, mode='monetary', max_food=50.0, max_resistance=0.0)
+    trajectory = _metaphoria(100, {'bank_balance': 1e-6}, mode='monetary', max_food=50.0, max_resistance=0.0)
     assert trajectory.values('population')[-1] > 100
     assert np.nansum(trajectory.values('census.starvations')) > 0
     assert trajectory.values('money_gini')[-1] > 0.3

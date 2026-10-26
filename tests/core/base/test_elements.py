@@ -4,23 +4,10 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import (
-    ArgumentError,
-    BaseElement,
-    BaseInteraction,
-    ConservationError,
-    parameter,
-    state,
-    symbol,
-)
+from skcomplex.core.base import ArgumentError, BaseElement, BaseInteraction, parameter, state, symbol
 from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.laws import (
-    AuxiliaryQuantity,
-    InvariantQuantity,
-    RateLaw,
-    Symbols,
-)
-from skcomplex.core.system import System
+from skcomplex.core.laws import RateLaw, Symbols
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
@@ -36,21 +23,27 @@ class TallyElement(Element):
         self.source = source
 
 
-class TanksElement(Element):
-    """Two tanks that drain into each other at a rate an auxiliary names, under the invariant of their total."""
+def _leverage(s):
+    """Return the leverage of a firm, its debt over its equity."""
+    return s.debt / s.equity
 
-    a: float = state(3.0)
-    b: float = state(1.0)
-    k: float = parameter(0.5)
+
+def _firm_leverage(s):
+    """Return the leverage of the firm of a system."""
+    return _leverage(s.firm)
+
+
+class FirmElement(Element):
+    """Firm whose debt grows at a rate that its leverage, an expression of its states, slows down."""
+
+    debt: float = state(1.0)
+    equity: float = state(2.0)
+    r: float = parameter(0.1)
 
     def laws(self, s):
-        """Return the rate of the first tank and of the second through the auxiliary."""
-        outflow, _ = self.quantities(s)
-        return [RateLaw(s.a, -outflow.symbol), RateLaw(s.b, outflow.symbol)]
-
-    def quantities(self, s):
-        """Return the outflow of the first tank and the invariant of the total."""
-        return [AuxiliaryQuantity('outflow', s.k * s.a), InvariantQuantity('total', s.a + s.b)]
+        """Return the growth of the debt, slowed by the leverage."""
+        leverage = _leverage(s)
+        return [RateLaw(s.debt, s.r * s.debt * (1 - leverage))]
 
 
 class PendulumElement(Element):
@@ -120,33 +113,23 @@ def test_component_runs_its_laws_and_prepares_its_declarations():
     assert law.value == r * n
 
 
-def test_quantities_are_none_by_default():
-    """Test that a component and an interaction return no quantities unless their type declares some."""
-    s = Symbols(n=symbol('n'))
-    assert PopulationElement('rabbits').quantities(s) == []
-    assert BaseInteraction('coupling').quantities(s) == []
+def test_elements_and_interactions_declare_laws_only():
+    """Test that elements and interactions declare no quantities, so a system holds no part besides them."""
+    for kind in (BaseElement, BaseInteraction, Element, GroupElement):
+        assert not hasattr(kind, 'quantities')
+    with pytest.raises(TypeError, match='quantities'):
+        Element.define('LeveragedElement', states={'debt': 1.0}, quantities=lambda s: [])
 
 
-def test_quantities_substitute_into_laws_and_hold_every_frame():
-    """Test that the auxiliary of a component reaches its rates and its invariant is checked at every frame."""
-    system = System(components=[TanksElement('tanks')])
-    problem = compile_system(system)
-    assert str(problem.equations['tanks.a']) == '-a_tanks*k_tanks'
-    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
-    np.testing.assert_allclose(trajectory.values('tanks.total'), 4.0)
-    np.testing.assert_allclose(trajectory.values('tanks.outflow'), 0.5 * trajectory.values('tanks.a'))
-
-
-def test_violated_quantity_is_checked_at_every_frame():
-    """Test that an invariant the laws break raises the conservation error at the first frame that breaks it."""
-    LeakyTanksElement = Element.define(
-        'LeakyTanksElement',
-        states={'a': 1.0},
-        laws=lambda s: [RateLaw(s.a, 1.0)],
-        quantities=lambda s: [InvariantQuantity('total', s.a)],
-    )
-    with pytest.raises(ConservationError, match=r'invariant leaky\.total .* at frame 1'):
-        Simulation(System(components=[LeakyTanksElement('leaky')]), dt=0.5).run(until=2)
+def test_auxiliary_is_an_expression_of_the_laws_that_an_observable_records():
+    """Test that a law computes the leverage as an expression and the run records an observable of the same one."""
+    system = System(components=[FirmElement('firm')])
+    assert str(compile_system(system).equations['firm.debt']) == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
+    leverage = Observable('leverage', _firm_leverage)
+    trajectory = Simulation(system, dt=0.5, observables=[leverage]).run(until=2).trajectory_
+    debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
+    np.testing.assert_allclose(trajectory.values('leverage'), debt / equity)
+    assert [type(component) for component in system.components] == [FirmElement]
 
 
 def test_component_parameters_list_settings_and_declared_names():

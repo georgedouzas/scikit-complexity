@@ -11,7 +11,7 @@ import numpy.typing as npt
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
@@ -122,7 +122,7 @@ class NeutralReplacementInteraction(BaseInteraction):
     references=('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003'),
     defaults={'until': 500},
     observables=lambda system: [
-        ObservableQuantity('richness', group='community', variable='species', reduce=_richness),
+        Observable('richness', group='community', variable='species', reduce=_richness),
     ],
 )
 def neutral_biodiversity(

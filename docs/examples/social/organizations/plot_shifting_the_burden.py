@@ -15,9 +15,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.analysis import loops
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, run
 
 MODEL = 'shifting_the_burden'
 
@@ -31,26 +30,27 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(60)
+simulation = run(MODEL, settings={'until': 60, 'dt': 0.5, 'observers': [observer]})
 
 # %%
 # With and without the quick fix
 # ------------------------------
 # The loop analysis finds the fast balancing loop of the fix, the slow balancing loop of the fundamental solution, and
-# the reinforcing loop of the side effect, in which more intervention means less capability and a larger symptom.
+# the reinforcing loops through the intervention, in which more intervention means less capability and a larger
+# symptom.
 # Without the fix, `fix_rate = 0`, the capability grows to the goal on its own.
 
 polarities = [loop.polarity for loop in loops(create(MODEL)).loops]
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_
-unaided = Simulation(create(MODEL, fix_rate=0.0), dt=0.5).run(60).trajectory_
+unaided = run(MODEL, settings={'until': 60, 'dt': 0.5}, fix_rate=0.0).trajectory_
 times = np.asarray(trajectory.times)
 fig, (fixed, alone) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
-for axis, run, title in ((fixed, trajectory, 'With the quick fix'), (alone, unaided, 'Without the quick fix')):
-    axis.plot(times, run.values('burden.capability'), label='capability')
-    axis.plot(times, run.values('burden.intervention'), '--', label='intervention')
-    axis.plot(times, run.values('burden.symptom'), ':', label='symptom')
+for axis, scenario, title in ((fixed, trajectory, 'With the quick fix'), (alone, unaided, 'Without the quick fix')):
+    axis.plot(times, scenario.values('burden.capability'), label='capability')
+    axis.plot(times, scenario.values('burden.intervention'), '--', label='intervention')
+    axis.plot(times, scenario.values('burden.symptom'), ':', label='symptom')
     axis.set_xlabel('years')
     axis.set_title(title)
     axis.legend()

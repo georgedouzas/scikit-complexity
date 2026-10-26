@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from ...core.system import ObservableQuantity
+from ...core.system import Observable
 from ._components import _members
 
 
@@ -16,7 +16,7 @@ def expectation(
     *,
     group: str | None = None,
     reduce: str | Callable[[Any], Any] | None = None,
-) -> ObservableQuantity:
+) -> Observable:
     """Return the observable of the expectation value of an operator.
 
     For a system, `expression(s)` returns an operator of the system namespace, where `s.<element>` is the namespace of
@@ -46,4 +46,4 @@ def expectation(
         >>> expectation('sz', abs, group='chain').group
         'chain'
     """
-    return ObservableQuantity(label, expression, group=group, reduce=_members if reduce is None else reduce)
+    return Observable(label, expression, group=group, reduce=_members if reduce is None else reduce)

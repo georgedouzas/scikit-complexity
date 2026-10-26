@@ -13,7 +13,6 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
-    DeclarationError,
     DomainKind,
     Expression,
     Form,
@@ -47,7 +46,7 @@ from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend, Entry
 from ...core.problems._neighbourhoods import cone_heading, position_state
 from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace
-from ...core.system import ObservableQuantity, System
+from ...core.system import Observable, System
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
@@ -76,10 +75,6 @@ TIME_CLASSES = {
 OWN_NEIGHBORHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
-    DeclarationError: (
-        'declaration',
-        'Return laws from `laws`, and auxiliaries and invariants from `quantities`.',
-    ),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
@@ -643,7 +638,7 @@ def _counted(
     system: System,
     solver: object,
     backend: object,
-    observables: Sequence[ObservableQuantity],
+    observables: Sequence[Observable],
 ) -> tuple[Compilation | None, list[Issue]]:
     """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
@@ -776,7 +771,7 @@ def validate(
     *,
     solver: object = 'auto',
     backend: object = 'auto',
-    observables: Sequence[ObservableQuantity] = (),
+    observables: Sequence[Observable] = (),
 ) -> 'ValidationReport':
     """Return every problem of a system, of its solver, and of its backend, before compilation.
 

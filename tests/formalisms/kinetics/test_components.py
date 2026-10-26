@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.base import NumericDomain, ValidationError, state
 from skcomplex.core.components import Element, GroupElement
 from skcomplex.core.space import ContinuousTime, LatticeSpace
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.kinetics import distribution_from, members_from, moment
 
@@ -49,8 +49,8 @@ def test_agents_bin_into_a_distribution():
     assert distribution.size == 9
     system = System(components=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
-        ObservableQuantity('density', density, group='wealth'),
-        ObservableQuantity('mean', mean_class, group='wealth'),
+        Observable('density', density, group='wealth'),
+        Observable('mean', mean_class, group='wealth'),
     ]
     trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
     assert trajectory.values('density')[0] == pytest.approx(1.0)

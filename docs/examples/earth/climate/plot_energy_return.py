@@ -15,9 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'energy_return'
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).run(250)
+simulation = run(MODEL, settings={'until': 250, 'dt': 1.0, 'observers': [observer]})
 
 # %%
 # Three peaks

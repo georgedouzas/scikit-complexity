@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import exp, log, sin
 from ....core.base import BaseLaw, Expression, NumericDomain, ParameterError, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, pulse, where
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
 
@@ -1326,7 +1326,7 @@ def her2_targeted_therapy(
     tags=('antiangiogenic therapy', 'immunotherapy', 'combination therapy', 'pharmacokinetics', 'resistance', 'ode'),
     references=(BOOK, 'Teles and Lemos 2019', 'Hahnfeldt et al. 1999'),
     defaults={'until': 150.0, 'dt': 0.25},
-    observables=lambda system: [ObservableQuantity('toxicity', _total_toxicity)],
+    observables=lambda system: [Observable('toxicity', _total_toxicity)],
 )
 def angiogenesis_immunotherapy(
     A: float = 5000.0,

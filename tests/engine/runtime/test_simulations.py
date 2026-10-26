@@ -24,7 +24,7 @@ from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTim
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.particles import ParticleElement
-from skcomplex.models import create
+from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -389,7 +389,9 @@ def test_simulation_default_frames(until, frames, dt):
 
 def test_trajectory_lists_its_names():
     """Test that a trajectory lists the names of its states, parameters, reporters, and observables."""
-    trajectory = Simulation(create('hilsa_fishery'), dt=1).run(until=2).trajectory_
+    system = create('hilsa_fishery')
+    observables = describe('hilsa_fishery').observables_of(system)
+    trajectory = Simulation(system, dt=1, observables=observables).run(until=2).trajectory_
     names = trajectory.names
     assert 'hilsa.adult_weight' in names
     assert all(name in names for name in trajectory.problem.states.names)

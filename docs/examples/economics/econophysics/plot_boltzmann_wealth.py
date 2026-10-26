@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.system import ObservableQuantity
+from skcomplex.core.system import Observable
 from skcomplex.engine.analysis import gini
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -25,7 +25,7 @@ MODEL = 'boltzmann_wealth'
 STEPS = 200
 
 system = create(MODEL, n_agents=300)
-observables = [ObservableQuantity('gini', group='traders', variable='wealth', reduce=gini)]
+observables = [Observable('gini', group='traders', variable='wealth', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/gini', name='Gini coefficient', axis_x=rrb.TimeAxis(view_range=whole_run)),

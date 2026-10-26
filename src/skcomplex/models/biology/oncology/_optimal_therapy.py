@@ -6,7 +6,7 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
 from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
@@ -223,7 +223,7 @@ class OptimalImmunotherapyElement(Element):
     tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
     references=(BOOK, 'de Pillis and Radunskaya 2001'),
     defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)},
-    observables=lambda system: [ObservableQuantity('tumour_share', _tumour_share)],
+    observables=lambda system: [Observable('tumour_share', _tumour_share)],
 )
 def optimal_chemotherapy(
     E: float = 0.15,
@@ -272,7 +272,7 @@ def optimal_chemotherapy(
         'dt': 0.5,
         'solver': PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001),
     },
-    observables=lambda system: [ObservableQuantity('immune_ratio', _immune_ratio)],
+    observables=lambda system: [Observable('immune_ratio', _immune_ratio)],
 )
 def optimal_immunotherapy(
     x: float = 0.1,

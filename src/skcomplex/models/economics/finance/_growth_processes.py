@@ -9,16 +9,16 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
 
-def _size_observables() -> list[ObservableQuantity]:
+def _size_observables() -> list[Observable]:
     """Return the mean and the largest size of the firms."""
     return [
-        ObservableQuantity('mean_size', group='firms', variable='x'),
-        ObservableQuantity('max_size', group='firms', reduce='max', variable='x'),
+        Observable('mean_size', group='firms', variable='x'),
+        Observable('max_size', group='firms', reduce='max', variable='x'),
     ]
 
 

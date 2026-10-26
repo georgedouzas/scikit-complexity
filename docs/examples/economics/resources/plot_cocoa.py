@@ -14,9 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'cocoa'
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).run(50)
+simulation = run(MODEL, settings={'until': 50, 'dt': 0.25, 'observers': [observer]})
 
 # %%
 # Subsidy coverage decides the bust
@@ -46,12 +45,12 @@ simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).run(50)
 fig, (area, crop) = plt.subplots(1, 2, figsize=(10, 4))
 runs = {0.0: simulation.trajectory_}
 runs.update(
-    {subsidy: Simulation(create(MODEL, subsidy=subsidy), dt=0.25).run(50).trajectory_ for subsidy in (0.6, 1.0)},
+    {subsidy: run(MODEL, settings={'until': 50, 'dt': 0.25}, subsidy=subsidy).trajectory_ for subsidy in (0.6, 1.0)},
 )
-for subsidy, run in runs.items():
-    times = np.asarray(run.times)
-    area.plot(times, run.values('cocoa.area'), label=f'subsidy {subsidy:.0%}')
-    crop.plot(times, run.values('cocoa.cocoa_yield'), label=f'subsidy {subsidy:.0%}')
+for subsidy, scenario in runs.items():
+    times = np.asarray(scenario.times)
+    area.plot(times, scenario.values('cocoa.area'), label=f'subsidy {subsidy:.0%}')
+    crop.plot(times, scenario.values('cocoa.cocoa_yield'), label=f'subsidy {subsidy:.0%}')
 area.set_xlabel('years')
 area.set_ylabel('planted area (thousand ha)')
 area.set_title('Planted area')

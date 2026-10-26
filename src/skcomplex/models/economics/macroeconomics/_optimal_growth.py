@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import exp, log
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
 
@@ -108,7 +108,7 @@ class RamseyEconomyElement(Element):
         'dt': 0.5,
         'solver': CollocationSolver(objective=_utility, terminal=_capital_value, sense='max', nodes=81),
     },
-    observables=lambda system: [ObservableQuantity('saving_rate', _saving_rate)],
+    observables=lambda system: [Observable('saving_rate', _saving_rate)],
 )
 def optimal_consumption(
     k: float = 1.0,

@@ -11,7 +11,7 @@ from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 from ..realizations._institutions import InstitutionInteraction
@@ -292,9 +292,9 @@ class RegulatorInteraction(InstitutionInteraction):
     references=('Hamill and Gilbert 2016 ch. 9',),
     defaults={'until': 300},
     observables=lambda system: [
-        ObservableQuantity('broad_money', group='banks', variable='deposits', reduce='sum'),
-        ObservableQuantity('reserves', group='banks', variable='reserves', reduce='sum'),
-        ObservableQuantity('loans', group='banks', variable='loans', reduce='sum'),
+        Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
+        Observable('reserves', group='banks', variable='reserves', reduce='sum'),
+        Observable('loans', group='banks', variable='loans', reduce='sum'),
     ],
 )
 def fractional_reserve_banking(

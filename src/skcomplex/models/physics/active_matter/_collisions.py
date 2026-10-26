@@ -14,7 +14,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, V
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import ContinuousSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -150,12 +150,12 @@ class BinaryCollisionsInteraction(BaseInteraction):
             agent.theta = float(heading)
 
 
-def _flocking_observables(system: System) -> list[ObservableQuantity]:
+def _flocking_observables(system: System) -> list[Observable]:
     """Return the mean heading components and the polarization of the birds."""
     return [
-        ObservableQuantity('mean_cos', _cosine, group='birds'),
-        ObservableQuantity('mean_sin', _sine, group='birds'),
-        ObservableQuantity('polarization', _polarization),
+        Observable('mean_cos', _cosine, group='birds'),
+        Observable('mean_sin', _sine, group='birds'),
+        Observable('polarization', _polarization),
     ]
 
 

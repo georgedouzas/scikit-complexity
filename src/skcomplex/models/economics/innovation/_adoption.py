@@ -14,7 +14,7 @@ from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -120,7 +120,7 @@ class HouseholdElement(Element):
     tags=('diffusion', 'adoption', 'network effect', 'agents'),
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 50},
-    observables=lambda system: [ObservableQuantity('share', group='households', variable='phone')],
+    observables=lambda system: [Observable('share', group='households', variable='phone')],
 )
 def phone_adoption(
     shape: Sequence[int] = (30, 30),

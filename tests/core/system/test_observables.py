@@ -1,5 +1,6 @@
 """Test observables: expressions and reductions computed at every frame, recorded, logged, and read by laws."""
 
+import dataclasses
 import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import numpy as np
@@ -8,8 +9,8 @@ from sage.all__sagemath_symbolics import I, exp
 
 from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, parameter, state, symbol
 from skcomplex.core.components import Element
-from skcomplex.core.laws import RateLaw, mean, total
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.laws import RateLaw, distributed_delay, mean, total
+from skcomplex.core.system import Observable, System, observe_element
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.formalisms.agents import RuleLaw
@@ -90,7 +91,7 @@ def _herd(s):
     return s.herd.n
 
 
-ORDER = [ObservableQuantity('z', _phase_vector, group='osc'), ObservableQuantity('order', _modulus)]
+ORDER = [Observable('z', _phase_vector, group='osc'), Observable('order', _modulus)]
 
 
 def _oscillators():
@@ -116,7 +117,7 @@ def test_expression_observable_of_elements():
         components=[PopulationElement('a', n=2.0), PopulationElement('b', n=6.0)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    observables = [ObservableQuantity('total', _total), ObservableQuantity('share', _share)]
+    observables = [Observable('total', _total), Observable('share', _share)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_
     assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
     assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
@@ -129,7 +130,7 @@ def test_observable_by_subsystem_path():
             System('market', components=[PopulationElement('a', n=3.0)]),
         ],
     )
-    simulation = Simulation(system, dt=1, observables=[ObservableQuantity('market/volume', _volume)])
+    simulation = Simulation(system, dt=1, observables=[Observable('market/volume', _volume)])
     assert simulation.run(until=2).trajectory_.values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
@@ -142,7 +143,7 @@ def test_agent_reduction_read_by_other_partition():
         ],
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
-    observables = [ObservableQuantity('village/mean_wealth', group='savers', variable='wealth')]
+    observables = [Observable('village/mean_wealth', group='savers', variable='wealth')]
     trajectory = Simulation(system, dt=1, observables=observables).run(until=2).trajectory_
     assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
@@ -154,7 +155,7 @@ def test_observable_read_in_one_form_is_lowered():
         components=[PopulationElement.group('herd', 3, n=[1.0, 2.0, 6.0]), PopulationElement('soil')],
         interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
-    observables = [ObservableQuantity('mean_n', group='herd', variable='n')]
+    observables = [Observable('mean_n', group='herd', variable='n')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=1).trajectory_
     assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
 
@@ -163,19 +164,19 @@ def test_unknown_symbol_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
     system = System(components=[PopulationElement.group('herd', 3)])
     with pytest.raises(AttributeError, match='herd'):
-        Simulation(system, observables=[ObservableQuantity('bad', _herd)]).run(until=1)
+        Simulation(system, observables=[Observable('bad', _herd)]).run(until=1)
 
 
 def test_observable_lambda_is_rejected():
     """Test that checking an observable whose expression is a lambda raises a named error that names it."""
     with pytest.raises(ValidationError, match="'total'"):
-        ObservableQuantity('total', lambda s: s.a.n + s.b.n).check()
+        Observable('total', lambda s: s.a.n + s.b.n).check()
 
 
 def test_observable_lambda_reduction_is_rejected():
     """Test that an observable whose reduction is a lambda raises a named error."""
     with pytest.raises(ValidationError, match='reduction'):
-        ObservableQuantity('spread', group='herd', variable='n', reduce=lambda values: values.ptp()).check()
+        Observable('spread', group='herd', variable='n', reduce=lambda values: values.ptp()).check()
 
 
 def test_observable_module_function_pickles():
@@ -184,7 +185,7 @@ def test_observable_module_function_pickles():
         components=[PopulationElement('a', n=2.0), PopulationElement('b', n=6.0)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    observables = [ObservableQuantity('total', _total)]
+    observables = [Observable('total', _total)]
     restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
     expected = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_.values('total')
     assert np.allclose(
@@ -218,7 +219,7 @@ def test_observables_read_time():
     system = System(
         components=[PopulationElement('a', n=2.0), PopulationElement.group('herd', 2, n=[1.0, 3.0])],
     )
-    observables = [ObservableQuantity('timed', _timed), ObservableQuantity('member_timed', _member_timed, group='herd')]
+    observables = [Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')]
     trajectory = Simulation(system, dt=1.0, observables=observables).run(until=2).trajectory_
     assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
     assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
@@ -251,7 +252,7 @@ def _decaying_group(*observables):
 
 def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
-    simulation = _decaying_group(ObservableQuantity('energy', _local_field_energy, group='u', reduce='sum'))
+    simulation = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'))
     trajectory = simulation.run(until=2).trajectory_
     x = np.asarray(trajectory.values('u.x'))
     np.testing.assert_allclose(trajectory.values('energy'), np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
@@ -259,7 +260,7 @@ def test_observable_reads_weighted_reduction_of_its_members():
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
-    simulation = _decaying_group(ObservableQuantity('spread', _deviation, group='u', reduce='var'))
+    simulation = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
     trajectory = simulation.run(until=2).trajectory_
     np.testing.assert_allclose(
         trajectory.values('spread'),
@@ -270,7 +271,7 @@ def test_observable_reads_plain_reduction_of_its_members():
 
 def test_observable_rejects_reduction_over_another_group():
     """Test that a reduction over a group other than the observable's raises the role error of laws."""
-    simulation = _decaying_group(ObservableQuantity('other', _deviation_from_other, group='u', reduce='sum'))
+    simulation = _decaying_group(Observable('other', _deviation_from_other, group='u', reduce='sum'))
     with pytest.raises(RoleError, match=r'observable other reads a group other than u'):
         simulation.run(until=1)
 
@@ -279,4 +280,51 @@ def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
     system = System(components=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
-        Simulation(system, observables=[ObservableQuantity('total', lambda s: s.a.n)]).run(until=1)
+        Simulation(system, observables=[Observable('total', lambda s: s.a.n)]).run(until=1)
+
+
+def test_observable_is_a_frozen_record_of_no_base():
+    """Test that an observable is a frozen dataclass of a label and an expression that derives from no base."""
+    assert Observable.__bases__ == (object,)
+    assert Observable.__dataclass_params__.frozen
+    assert [item.name for item in dataclasses.fields(Observable)][:2] == ['label', 'expression']
+    level = Observable('level', group='herd', variable='n', reduce='sum')
+    assert level.check() == level
+
+
+def _perceived(s):
+    """Return the stock of an element smoothed over its perception time."""
+    return distributed_delay(s.n, conserved=False, time=s.perception_time)
+
+
+def _smoothed_population(s):
+    """Return the population smoothed over one unit of time."""
+    return distributed_delay(s.n, conserved=False, time=1.0)
+
+
+SmoothedElement = Element.define(
+    'SmoothedElement',
+    states={'n': state(1.0)},
+    parameters={'perception_time': parameter(2.0)},
+    laws=lambda s: [RateLaw(s.n, 2.0 - _perceived(s))],
+)
+
+
+def test_observe_element_records_an_expression_of_its_element_with_delays():
+    """Test that an observable of an element's expression records it under the element and reads its delays."""
+    system = System(components=[SmoothedElement('tank')])
+    observed = observe_element('tank', 'perceived', _perceived)
+    assert observed.label == 'tank.perceived'
+    trajectory = Simulation(system, dt=0.5, observables=[observed]).run(until=4).trajectory_
+    perceived = trajectory.values('tank.perceived')
+    np.testing.assert_allclose(perceived, trajectory.values('tank.smoothing_delay1_0')[:, 0])
+    assert perceived[0] == pytest.approx(1.0)
+    assert perceived[-1] > perceived[0]
+
+
+def test_observe_element_rejects_a_delay_no_law_uses():
+    """Test that observing a delay that no law of the system reads raises an error that names the observable."""
+    system = System(components=[PopulationElement('rabbits', n=2.0)])
+    observed = observe_element('rabbits', 'smoothed', _smoothed_population)
+    with pytest.raises(ValidationError, match=r'rabbits\.smoothed'):
+        Simulation(system, observables=[observed]).run(until=1)

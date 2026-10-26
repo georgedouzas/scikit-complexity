@@ -5,8 +5,8 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, where
-from ....core.system import System
+from ....core.laws import Sink, Source, Symbols, TransferLaw, where
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 TONNES_PER_MILLION_KG = 1e3
@@ -44,22 +44,31 @@ def _stage(
     ]
 
 
-def _hilsa_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the nests of the spawners, and the weights of the adults and of the juveniles."""
-    spawning = (1 - s.adult_harvest) * s.spawners / s.spawning_time
-    return [
-        AuxiliaryQuantity('nests', _smaller(s.female_fraction * spawning, s.max_nests)),
-        AuxiliaryQuantity('adult_weight', s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG),
-        AuxiliaryQuantity('juvenile_weight', s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG),
-    ]
+def _spawning(s: Symbols) -> Expression:
+    """Return the spawning, the adults about to spawn that the catch spares over the spawning time."""
+    return (1 - s.adult_harvest) * s.spawners / s.spawning_time
+
+
+def _nests(s: Symbols) -> Expression:
+    """Return the nests of the spawners, limited by the spawning grounds."""
+    return _smaller(s.female_fraction * _spawning(s), s.max_nests)
+
+
+def _adult_weight(s: Symbols) -> Expression:
+    """Return the weight of the adults about to spawn, in tonnes."""
+    return s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG
+
+
+def _juvenile_weight(s: Symbols) -> Expression:
+    """Return the weight of the juveniles, in tonnes."""
+    return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
 
 
 def _hilsa_laws(s: Symbols) -> list[BaseLaw]:
     """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
-    spawning = (1 - s.adult_harvest) * s.spawners / s.spawning_time
-    nests, *_ = _hilsa_quantities(s)
+    spawning = _spawning(s)
     return [
-        TransferLaw(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
+        TransferLaw(Source('spawning'), s.eggs, s.eggs_per_nest * _nests(s), label='egg_deposition'),
         *_stage(s.eggs, s.larvae, s.hatching_time, [(s.egg_loss, 'mortality')], 'hatching'),
         *_stage(s.larvae, s.juveniles, s.larval_time, [(s.larval_loss, 'mortality')], 'juvenile_entering'),
         *_stage(
@@ -119,7 +128,6 @@ HilsaElement = Element.define(
         'weight_per_juvenile': parameter(default=0.09, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_hilsa_laws,
-    quantities=_hilsa_quantities,
 )
 
 
@@ -128,6 +136,11 @@ HilsaElement = Element.define(
     tags=('fishery', 'life cycle', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Bala et al. 2017',),
     defaults={'until': 120.0, 'dt': 0.5},
+    observables=lambda system: [
+        observe_element('hilsa', 'nests', _nests),
+        observe_element('hilsa', 'adult_weight', _adult_weight),
+        observe_element('hilsa', 'juvenile_weight', _juvenile_weight),
+    ],
 )
 def hilsa_fishery(
     spawners: float = 375.0,
@@ -168,10 +181,10 @@ def hilsa_fishery(
     Returns:
         system:
             The model, with the stages `hilsa.eggs`, `hilsa.larvae`, `hilsa.juveniles`, `hilsa.yearlings`,
-            `hilsa.adults`, `hilsa.migrants`, and `hilsa.spawners`, the auxiliaries `hilsa.nests`,
-            `hilsa.adult_weight`, and `hilsa.juvenile_weight` in tonnes, and the flows between the stages, among them
+            `hilsa.adults`, `hilsa.migrants`, and `hilsa.spawners`, and the flows between the stages, among them
             `hilsa.egg_deposition`, `hilsa.young_entering_ocean_catch`, and `hilsa.adult_catch`, per month, over
-            months.
+            months. The observables of the model are the nests `hilsa.nests`, and the weights `hilsa.adult_weight` and
+            `hilsa.juvenile_weight` in tonnes.
 
     Examples:
         >>> from skcomplex.models.economics.resources import hilsa_fishery

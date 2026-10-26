@@ -8,8 +8,8 @@
     - An **element** is an entity that carries state, such as a particle, a population, a compartment, or a market.
     - A **group** holds many identical elements of one type as arrays.
     - An **interaction** couples components through **roles** and describes its effect with **laws**.
-    - A **system** holds components, interactions, child systems, an optional space, and **observables**, named
-      quantities computed from its states at every frame.
+    - A **system** holds components, interactions, child systems, and an optional space. A run records
+      **observables**, named values computed from its states at every frame.
 - A **law** says how a state changes. Every law has a kind, and the four most common kinds are these.
     - `RateLaw` adds a term to the time derivative of a state. Rates on one state add up.
     - `NoiseLaw` drives a state with a Wiener process, independent unless laws name a shared or correlated one.
@@ -129,18 +129,11 @@ A system holds only laws of registered classes. The shared core registers its ge
 `TransferLaw`. Each formalism registers its own law classes when it is imported. `law_classes(trait)` lists the
 registered classes, optionally only those with a trait.
 
-A quantity is a named expression of the states and parameters of a system, and it derives from `BaseQuantity`. It is
-not a law, since it changes no state, and the quantities differ in what the framework does with them:
-
-| Quantity | Declared by | What the framework does with it |
-| --- | --- | --- |
-| `ObservableQuantity` | the run, `Simulation(observables=...)` | records it |
-| `AuxiliaryQuantity` | a component's `quantities` | substitutes it into laws |
-| `InvariantQuantity` | a component's `quantities` | checks that it stays constant |
-
-A component or an interaction returns its laws from `laws(s)` and its auxiliaries and invariants from
-`quantities(s)`, which takes the same namespace. Validation rejects a quantity returned from `laws` and a law returned
-from `quantities` with a `DeclarationError` that names the component.
+A system is defined by its elements, its interactions, and the laws they return from `laws(s)`, and by nothing else.
+A value that only names an expression is a Python expression in the laws, such as `leverage = s.debt / s.equity`, and
+a function of the namespace shares it between laws. What a run records or checks is an argument of the run:
+`Simulation(observables=[...])` records named values, and `Simulation(invariants={name: tolerance})` checks that the
+observables it names stay constant.
 
 ```python
 from skcomplex.core.laws import RateLaw
@@ -812,8 +805,8 @@ models ready in fractional dynamics, each with the order as an argument: `fracti
 
 ## Observables
 
-Observables are named quantities of a system, computed at every frame, recorded in trajectories under the system's
-path, and logged to Rerun. An observable is either an expression of the system namespace, where earlier observables
+An `Observable` is a frozen record of a label and an expression or a group reduction, which a run computes at every
+frame, records in trajectories under the system's path, and logs to Rerun. An observable is either an expression of the system namespace, where earlier observables
 appear by label, or a reduction over a group's members of a variable or an expression of one member: `count`, `sum`,
 `mean`, `min`, `max`, `var`, or a function. Expressions and reductions given as functions must be module-level
 functions, so that systems pickle, and a lambda raises an error.
@@ -828,7 +821,7 @@ from skcomplex.core.system import System
 import numpy as np
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.system import ObservableQuantity
+from skcomplex.core.system import Observable
 
 OscillatorElement = Element.define(
     'OscillatorElement',
@@ -849,7 +842,7 @@ def order_parameter(s):
 oscillators = System(
     components=[OscillatorElement.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
 )
-observables = [ObservableQuantity('z', phase_vector, group='phases'), ObservableQuantity('order', order_parameter)]
+observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
 order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
@@ -866,7 +859,7 @@ import numpy as np
 from skcomplex.core.base import BaseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 
 from sage.all__sagemath_symbolics import cos, sin
 
@@ -890,7 +883,7 @@ coupled = System(
     components=[OscillatorElement.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
-observables = [ObservableQuantity('X', cosine, group='phases'), ObservableQuantity('Y', sine, group='phases')]
+observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
 print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_.values('X')[-1].round(2))
 ```
 
@@ -900,9 +893,10 @@ A state tagged with a quantity, `state(..., quantity='water')`, is a stock that 
 `TransferLaw(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges it with
 the environment through `Source()` and `Sink()`. In a system of rate laws the amount is a rate, in a system of update
 laws it is moved once per step, and with `rate=...` it is the size of a jump with that propensity. Trajectories record
-every flow under `<component path>.<label>`. An `AuxiliaryQuantity(label, expression)`, returned from `quantities`,
-names an intermediate expression that laws use through `auxiliary.symbol`, and trajectories record it too.
-`lookup(x, points)` is a table function, piecewise linear between its points and flat outside them.
+every flow under `<component path>.<label>`. An intermediate expression, such as a birth rate, is a function of the
+namespace that the laws call, and `observe_element(element, label, function)` records the same function as the
+observable `<element>.<label>`, which Rerun logs under the element. `lookup(x, points)` is a table function, piecewise
+linear between its points and flat outside them.
 
 ```python
 from skcomplex.core.base import state
@@ -910,16 +904,16 @@ from skcomplex.core.components import Element
 from skcomplex.engine.runtime import Simulation
 from skcomplex.core.system import System
 
-from skcomplex.core.laws import AuxiliaryQuantity, Sink, Source, TransferLaw, lookup
+from skcomplex.core.laws import Sink, Source, TransferLaw, lookup
+from skcomplex.core.system import observe_element
 
 
-def population_quantities(s):
-    return [AuxiliaryQuantity('birth_rate', s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)]))]
+def birth_rate(s):
+    return s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)])
 
 
 def population_laws(s):
-    (births,) = population_quantities(s)
-    return [TransferLaw(Source(), s.n, births.symbol, label='births'), TransferLaw(s.n, Sink(), s.d * s.n, label='deaths')]
+    return [TransferLaw(Source(), s.n, birth_rate(s), label='births'), TransferLaw(s.n, Sink(), s.d * s.n, label='deaths')]
 
 
 PeopleElement = Element.define(
@@ -927,11 +921,12 @@ PeopleElement = Element.define(
     states={'n': state(10.0, quantity='people')},
     parameters={'b': 0.03, 'd': 0.01},
     laws=population_laws,
-    quantities=population_quantities,
 )
 crowd = System(components=[PeopleElement('crowd')])
-trajectory = Simulation(crowd, dt=1.0).run(until=10).trajectory_
+observed = [observe_element('crowd', 'birth_rate', birth_rate)]
+trajectory = Simulation(crowd, dt=1.0, observables=observed).run(until=10).trajectory_
 print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
+print(round(float(trajectory.values('crowd.birth_rate')[-1]), 3))
 ```
 
 A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
@@ -957,7 +952,7 @@ outflow it returns, and with `conserved=False` an information smoothing. It adds
 equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
 realizations in `skcomplex.models.engineering.processes`.
 
-`loops(system)` derives the signed dependency graph of states, auxiliaries, and flows from the laws, and lists its
+`loops(system)` derives the signed dependency graph of states and flows from the laws, and lists its
 feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
 
 ```python continuation
@@ -970,19 +965,20 @@ print(dominance.loops[int(dominance.dominant[-1])].polarity)
 ```
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
-amount between two agents at once, so a negative holding is an amount owed and total holdings stay constant. An agent
-returns an `InvariantQuantity(label, function)` from `quantities` for every expression of its states that must keep its
-first value, and the stepper checks it for every agent after every step. Removing an agent that still holds a tagged state
-raises `ConservationError` until its holdings are settled with transfers.
+amount between two agents at once, so a negative holding is an amount owed and total holdings stay constant. A run
+checks that an expression keeps its first value with `Simulation(invariants={name: tolerance})`, which names an
+observable of the run. At every frame the run compares the observable with its value at the first frame and raises
+`ConservationError` naming the observable and the first frame that breaks it. Removing an agent that still holds a
+tagged state raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
 from skcomplex.core.base import state
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import System
+from skcomplex.core.system import Observable, System
 
 from skcomplex.core.components import Element
 from skcomplex.formalisms.agents import RuleLaw
-from skcomplex.core.laws import InvariantQuantity, transfer
+from skcomplex.core.laws import transfer
 
 
 def net_worth(agent):
@@ -997,9 +993,6 @@ class TraderElement(Element):
     def laws(self, s):
         return [RuleLaw(self.lend)]
 
-    def quantities(self, s):
-        return [InvariantQuantity('cash + claims == equity', net_worth)]
-
     def lend(self, agent, model):
         borrower = model.agents('traders')[0]
         if borrower != agent:
@@ -1007,7 +1000,9 @@ class TraderElement(Element):
             transfer(borrower, agent, 1.0, 'claims')
 
 
-traders = Simulation(System(components=[TraderElement.group('traders', 3)])).run(until=3).trajectory_
+balance = Observable('net_worth', net_worth, group='traders', reduce='sum')
+market = System(components=[TraderElement.group('traders', 3)])
+traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).run(until=3).trajectory_
 print(traders.agents('traders', 3).values['cash'].sum())
 ```
 
@@ -1158,14 +1153,14 @@ of ready-made models built from it.
 The shared core holds the general concepts, one package for each part of a system or step of a run. The packages are
 listed in their import order, so a package imports only the packages above it.
 
-- `base`: symbols, domains, the declarations `state`, `parameter`, and `role`, errors, the bases of laws and
-  quantities, and the open registries of law kinds, forms, space kinds, and traits.
+- `base`: symbols, domains, the declarations `state`, `parameter`, and `role`, errors, the bases of elements,
+  interactions, and laws, and the open registries of law kinds, forms, space kinds, and traits.
 - `space`: `BaseSpace` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
-- `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, stocks and flows,
-  and the auxiliary and invariant quantities.
+- `laws`: the `BaseLaw` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and
+  flows.
 - `components`: `BaseElement`, `Element`, `GroupElement`, and `WienerProcess`, which is no component.
 - `interactions`: `BaseInteraction` and the bindings of its roles.
-- `system`: `System`, `ObservableQuantity`, and ensembles.
+- `system`: `System`, `Observable`, `observe_element`, and ensembles.
 - `compile`: validation and the pipeline of passes that turns a system into a problem.
 - `solvers`: the stepper contract, `step_count`, and the general steppers by form.
 - `backends`: the NumPy and Numba backends.
@@ -1368,8 +1363,8 @@ need them.
 
 - **Renewals** stay because `JumpLaw` with a clock of waiting times is a general law. Its lowering and its stepper belong
   with the other jump processes, so a waiting-time jump never compiles as a rate jump when a formalism is missing.
-- **Stocks and flows** stay because their lowering also lowers the general law `TransferLaw` and the quantities
-  `AuxiliaryQuantity` and `InvariantQuantity`, and `analysis` reads their feedback loops.
+- **Stocks and flows** stay because their lowering also lowers the general law `TransferLaw`, and `analysis` reads their
+  feedback loops.
 - **The `'pairs'` binding** stays because models without particles couple the pairs of members of a group closer than
   a cutoff.
 - **The bodies visual** stays because models without particles draw their members as bodies.
@@ -2256,7 +2251,7 @@ receives the namespace of one member, and its function must be defined at module
 
 ```python continuation
 from skcomplex.engine.runtime import Simulation
-from skcomplex.core.system import ObservableQuantity
+from skcomplex.core.system import Observable
 
 from skcomplex.formalisms.kinetics import moment
 
@@ -2270,8 +2265,8 @@ def wealth_variance(s):
 
 
 observables = [
-    ObservableQuantity('mean_wealth', mean_wealth, group='wealth'),
-    ObservableQuantity('wealth_variance', wealth_variance, group='wealth'),
+    Observable('mean_wealth', mean_wealth, group='wealth'),
+    Observable('wealth_variance', wealth_variance, group='wealth'),
 ]
 trajectory = Simulation(economy, dt=10.0, observables=observables).run(until=100).trajectory_
 print(trajectory.values('mean_wealth')[-1].round(3), trajectory.values('wealth_variance')[[0, -1]].round(3))

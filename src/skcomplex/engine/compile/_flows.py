@@ -1,4 +1,4 @@
-"""Expand flows, auxiliaries, and delays into laws, and check that conserved quantities change only through flows."""
+"""Expand flows and delays into laws, and check that conserved quantities change only through flows."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseLaw,
-    BaseQuantity,
     ConservationError,
     Expression,
     LabelError,
@@ -28,10 +27,8 @@ from ...core.base import (
     symbols_of,
 )
 from ...core.laws import (
-    AuxiliaryQuantity,
     BoundaryLaw,
     EventLaw,
-    InvariantQuantity,
     JumpLaw,
     NoiseLaw,
     RateLaw,
@@ -43,7 +40,7 @@ from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
 from ...core.problems import Entry, LoopTerm, Reference, StockFlow
 from ...core.problems import Source as Read
-from ...core.problems._quantities import _CompiledFlow, _Recorded
+from ...core.problems._quantities import _CompiledDelay, _CompiledFlow, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'
 
@@ -55,8 +52,8 @@ def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> obj
     return value.subs(mapping)
 
 
-def _with_auxiliaries(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
-    """Return a law with the symbols of auxiliaries replaced by their expressions."""
+def _substituted_law(law: BaseLaw, mapping: Mapping[Expression, Expression]) -> BaseLaw:
+    """Return a law with symbols replaced by expressions, such as the calls of delays by their hidden stocks."""
     if not mapping:
         return law
     if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
@@ -202,9 +199,9 @@ def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
 
 
 def _claim_label(labels: set[str], owner: str, label: str) -> None:
-    """Add the label of a flow or a quantity of a component, raising an error for a label it already declares."""
+    """Add the label of a flow of a component, raising an error for a label it already declares."""
     if label in labels:
-        error_msg = f'{owner} declares two flows or quantities labelled {label!r}. Rename one.'
+        error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
         raise LabelError(error_msg)
     labels.add(label)
 
@@ -250,7 +247,7 @@ class _Born:
 
 
 class StockFlowPass:
-    """Pass of a compilation that expands flows, auxiliaries, and delays, and checks conserved quantities.
+    """Pass of a compilation that expands flows and delays, and checks conserved quantities.
 
     Args:
         quantities:
@@ -262,8 +259,8 @@ class StockFlowPass:
         self._born: dict[int, _Born] = {}
         self._flows: list[_Born] = []
         self._records: list[_Record] = []
-        self._invariants: dict[str, float] = {}
-        self._terms: list[tuple[_Spec, str, str, Expression, dict[Expression, str], str | None, str | None]] = []
+        self._delays: list[_CompiledDelay] = []
+        self._terms: list[tuple[_Spec, str, str, Expression, str | None, str | None]] = []
 
     def _quantity_of(self, target: object, spec: _Spec) -> tuple[str, str | None]:
         """Return the state name and the quantity of a law target."""
@@ -276,8 +273,6 @@ class StockFlowPass:
         spec: _Spec,
         flow: TransferLaw,
         label: str,
-        mapping: Mapping[Expression, Expression],
-        names: dict[Expression, str],
     ) -> list[BaseLaw]:
         """Return the rate or jump laws of a flow, after recording it."""
         source, source_label = _holder(flow.source, spec.references, spec.owner)
@@ -291,11 +286,11 @@ class StockFlowPass:
             raise ConservationError(error_msg)
         path = f'{spec.owner}.{label}'
         compiled = _CompiledFlow(path, source, sink, source_label, sink_label, next(iter(tags)))
-        amount = SR(_substituted(flow.amount, mapping))
+        amount = SR(flow.amount)
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         if flow.rate is not None:
             laws: list[BaseLaw] = [
-                JumpLaw(_substituted(flow.rate, mapping), {item: sign * amount for item, sign in holders}),
+                JumpLaw(flow.rate, {item: sign * amount for item, sign in holders}),
             ]
         else:
             laws = [RateLaw((item,), sign * amount) for item, sign in holders]
@@ -304,31 +299,11 @@ class StockFlowPass:
         self._flows.append(born)
         self._born.update({id(law): born for law in laws})
         self._records.append(_Record(path, amount, spec))
-        self._terms.append((spec, 'flow', path, SR(flow.amount), names, source, sink))
+        self._terms.append((spec, 'flow', path, amount, source, sink))
         return laws
 
-    def _expand_quantity(
-        self,
-        spec: _Spec,
-        quantity: BaseQuantity,
-        mapping: dict[Expression, Expression],
-        names: dict[Expression, str],
-    ) -> None:
-        """Record an auxiliary, an invariant, or an objective, and add the expression of an auxiliary to the mapping."""
-        path = f'{spec.owner}.{quantity.label}'
-        value = SR(_substituted(quantity.expression, mapping))
-        record = _Record(path, value, spec)
-        self._records.append(record)
-        if isinstance(quantity, InvariantQuantity):
-            self._invariants[path] = quantity.tolerance
-        elif isinstance(quantity, AuxiliaryQuantity):
-            self._terms.append((spec, 'auxiliary', path, SR(quantity.expression), names, None, None))
-            mapping[quantity.symbol], names[quantity.symbol] = value, path
-
-    def expand(self, spec: _Spec, laws: list[BaseLaw], quantities: list[BaseQuantity]) -> list[BaseLaw]:
-        """Return the laws of a component with flows and auxiliaries expanded into laws of the other kinds.
-
-        The quantities are recorded in order before the laws, so the laws can use every auxiliary.
+    def expand(self, spec: _Spec, laws: list[BaseLaw]) -> list[BaseLaw]:
+        """Return the laws of a component with flows expanded into laws of the other kinds.
 
         Args:
             spec:
@@ -337,34 +312,24 @@ class StockFlowPass:
             laws:
                 The laws of the component.
 
-            quantities:
-                The auxiliaries and invariants of the component.
-
         Returns:
             laws:
                 The expanded laws.
 
         Raises:
             LabelError:
-                Two flows or quantities of the component share a label.
+                Two flows of the component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
         """
-        mapping: dict[Expression, Expression] = {}
-        names: dict[Expression, str] = {}
         labels: set[str] = set()
-        for quantity in quantities:
-            if isinstance(quantity, InvariantQuantity) and quantity.is_member:
-                continue
-            _claim_label(labels, spec.owner, quantity.label)
-            self._expand_quantity(spec, quantity, mapping, names)
         expanded: list[BaseLaw] = []
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
                 _claim_label(labels, spec.owner, label)
-                expanded.extend(self._expand_flow(spec, law, label, mapping, names))
+                expanded.extend(self._expand_flow(spec, law, label))
                 continue
             if (
                 isinstance(law, RateLaw)
@@ -372,8 +337,8 @@ class StockFlowPass:
                 and isinstance(law.targets[0], Expression)
             ):
                 target, _ = self._quantity_of(law.targets[0], spec)
-                self._terms.append((spec, 'rate', target, law.value, names, None, None))
-            expanded.append(_with_auxiliaries(law, mapping))
+                self._terms.append((spec, 'rate', target, law.value, None, None))
+            expanded.append(law)
         return expanded
 
     def _check_conserved(self, spec: _Spec, law: BaseLaw) -> None:
@@ -502,7 +467,8 @@ class StockFlowPass:
                 spec.references[stage] = Reference(entry, True, column, Read.SINGLE)
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
-            laws[:] = [_with_auxiliaries(law, mapping) for law in laws]
+            self._delays.append(_CompiledDelay(call, output, {stage: spec.references[stage] for stage in stages}))
+            laws[:] = [_substituted_law(law, mapping) for law in laws]
             laws.extend(_delay_laws(kind, stages, value, time))
             for record in records:
                 record.expression = SR(record.expression).subs(mapping)
@@ -549,9 +515,9 @@ class StockFlowPass:
             ),
             boundary=boundary,
             terms=tuple(
-                LoopTerm(kind, path, expression, dict(names), dict(spec.references), source, sink)
-                for spec, kind, path, expression, names, source, sink in self._terms
+                LoopTerm(kind, path, expression, dict(spec.references), source, sink)
+                for spec, kind, path, expression, source, sink in self._terms
             ),
             discrete=discrete,
-            invariants=dict(self._invariants),
+            delays=tuple(self._delays),
         )

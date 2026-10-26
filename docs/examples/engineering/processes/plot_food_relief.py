@@ -14,9 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'food_relief'
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(120)
+simulation = run(MODEL, settings={'until': 120, 'dt': 0.5, 'observers': [observer]})
 
 # %%
 # The gap during the shipping delay

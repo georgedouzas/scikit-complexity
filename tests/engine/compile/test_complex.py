@@ -13,7 +13,7 @@ from skcomplex.core.components import Element
 from skcomplex.core.laws import Call, EquationLaw, EventLaw, JumpLaw, RateLaw, UpdateLaw, derivative, mod, total, where
 from skcomplex.core.problems import Entry, Layout
 from skcomplex.core.space import LatticeSpace, Neighborhood
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.analysis import power_spectrum
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
@@ -443,7 +443,7 @@ def test_complex_observable_is_complex():
     system = System(
         components=[PhaseElement('osc', z=3 + 4j, omega=0.0)],
     )
-    observables = [ObservableQuantity('double', _double), ObservableQuantity('size', _size)]
+    observables = [Observable('double', _double), Observable('size', _size)]
     trajectory = Simulation(system, dt=0.5, observables=observables).run(until=0.5).trajectory_
     assert trajectory.values('double')[0] == 6 + 8j
     assert trajectory.values('size')[0] == 5.0

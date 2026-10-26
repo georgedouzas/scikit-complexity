@@ -20,7 +20,6 @@ from ...core.base import (
     declarations_of,
 )
 from ...core.components import GroupElement, probe_laws
-from ...core.laws import InvariantQuantity
 from ...core.problems import CompiledAgents, Problem
 from ...core.space import BaseSpace
 from ...engine.compile import (
@@ -32,7 +31,6 @@ from ...engine.compile import (
     KernelSpec,
     Laws,
     Node,
-    Quantities,
     visual_of,
 )
 from ._laws import MatchLaw, RuleLaw, runs_rules
@@ -99,26 +97,12 @@ def _agent_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None
     return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
 
 
-def _member_invariants(quantities: Quantities) -> list[tuple[str, InvariantQuantity]]:
-    """Return the invariants of members and of model views, with the path of the component that declares each."""
-    return [
-        (spec.owner, quantity)
-        for spec, items in quantities
-        for quantity in items
-        if isinstance(quantity, InvariantQuantity) and quantity.is_member
-    ]
-
-
 def _compiled_agents(
     blocks: list[Block],
     rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
-    invariants: list[tuple[str, InvariantQuantity]],
 ) -> tuple[CompiledAgents, ...]:
-    """Return the agent elements and groups with their states, initial values, parameters, rules, and invariants."""
+    """Return the agent elements and groups with their states, initial values, parameters, and rules."""
     by_owner = {spec.owner: items for spec, items in rules}
-    by_path: dict[str, tuple[InvariantQuantity, ...]] = {}
-    for owner, invariant in invariants:
-        by_path[owner] = (*by_path.get(owner, ()), invariant)
     agents = []
     for block in blocks:
         node = block.node
@@ -144,7 +128,6 @@ def _compiled_agents(
                 parameters={name: entry.name for name, entry in block.entries.items()},
                 rules=by_owner.get(node.path, ()),
                 visual=_agent_visual(node),
-                invariants=by_path.get(node.path, ()),
             ),
         )
     return tuple(agents)
@@ -251,7 +234,7 @@ class SetRulesApartPass(BasePass):
 class AgentsProblemPass(BasePass):
     """Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
 
-    reads = ('problem', 'layout', 'reduced', 'rules', 'quantities')
+    reads = ('problem', 'layout', 'reduced', 'rules')
     writes = ('problem',)
 
     def _run(self, compilation: Compilation) -> None:
@@ -263,17 +246,10 @@ class AgentsProblemPass(BasePass):
         """
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
         rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.facts['rules'])
-        owners = compilation.owners
-        invariants = [
-            (owner, invariant)
-            for owner, invariant in _member_invariants(cast('Quantities', compilation.quantities))
-            if owners is None or owner in owners
-        ]
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
             cast('Problem', compilation.problem),
-            agents=_compiled_agents(blocks, rules, invariants),
+            agents=_compiled_agents(blocks, rules),
             model_rules=tuple((spec.owner, law) for spec, items in rules for law in items if spec.owner not in agents),
-            model_invariants=tuple((owner, invariant) for owner, invariant in invariants if owner not in agents),
             agent_space=_agent_space(blocks),
         )

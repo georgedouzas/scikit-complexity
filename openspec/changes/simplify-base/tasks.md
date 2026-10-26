@@ -17,10 +17,10 @@
 
 ## 3. Quantities
 
-- [ ] 3.1 Remove `BaseQuantity`, `quantities(s)`, and `AuxiliaryQuantity`. Write every auxiliary as an expression in
+- [x] 3.1 Remove `BaseQuantity`, `quantities(s)`, and `AuxiliaryQuantity`. Write every auxiliary as an expression in
   its laws, and give the models whose galleries plot an auxiliary an observable for it. Verify with the scenarios
   "Auxiliary as an expression" and "Hilsa fishery".
-- [ ] 3.2 Rename `ObservableQuantity` to `Observable`, and replace `InvariantQuantity` with
+- [x] 3.2 Rename `ObservableQuantity` to `Observable`, and replace `InvariantQuantity` with
   `Simulation(invariants=...)`. Verify with the scenario "Violated invariant".
 - [ ] 3.3 Replace `ObjectiveQuantity` with the `objective`, `terminal`, and `sense` arguments of the optimal control
   solvers. Verify with the scenario "Objective under discrete time".

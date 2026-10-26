@@ -10,7 +10,7 @@ from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import LatticeSpace, Neighborhood
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.lattices import LocalRuleLaw
 
@@ -84,12 +84,12 @@ class TrapSiteElement(Element):
         return [LocalRuleLaw(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
 
 
-def _trap_observables(system: System) -> list[ObservableQuantity]:
+def _trap_observables(system: System) -> list[Observable]:
     """Return the visits, the walkers, and the mean position of the traps."""
     return [
-        ObservableQuantity('visits', group='traps', variable='visited', reduce='sum'),
-        ObservableQuantity('walkers', group='traps', variable='occupied', reduce='sum'),
-        ObservableQuantity('position', _mean_position),
+        Observable('visits', group='traps', variable='visited', reduce='sum'),
+        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
+        Observable('position', _mean_position),
     ]
 
 

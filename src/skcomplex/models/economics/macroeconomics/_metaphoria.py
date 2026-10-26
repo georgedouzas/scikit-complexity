@@ -12,9 +12,9 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
-from ....core.laws import InvariantQuantity, Symbols, transfer
+from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.analysis import gini
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
@@ -34,6 +34,17 @@ def _bank_balance(bank: Any) -> float:  # noqa: ANN401
 def _living(fates: npt.ArrayLike) -> float:
     """Return the number of living people from their fates."""
     return float(np.sum(np.asarray(fates) == ALIVE))
+
+
+def _metaphoria_observables(system: System) -> list[Observable]:
+    """Return the living population, the Gini coefficient of money, and the bank balance of a monetary economy."""
+    observables = [
+        Observable('population', group='people', variable='fate', reduce=_living),
+        Observable('money_gini', group='people', variable='money', reduce=gini),
+    ]
+    if any(element.label == 'bank' for element in system.elements):
+        observables.append(Observable('bank_balance', _bank_balance, group='bank', reduce='sum'))
+    return observables
 
 
 def _people_by_id(model: ModelView) -> dict[int, AgentView]:
@@ -544,19 +555,6 @@ class CentralBankElement(Element):
         """
         return [RuleLaw(self.distribute, phase='banking')]
 
-    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
-        """Return the invariant of the balance sheet of the bank.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        return [InvariantQuantity('balance', _bank_balance, tolerance=1e-6)]
-
     def distribute(self, agent: AgentView, model: ModelView) -> None:
         """Pay the income of the step to a random person, or to a random firm when nobody lives.
 
@@ -792,10 +790,7 @@ class CensusInteraction(BaseInteraction):
     tags=('agents', 'mortality', 'evolution', 'money', 'hunter-gatherers', 'stock-flow consistent'),
     references=('Gooding 2019',),
     defaults={'until': 300},
-    observables=lambda system: [
-        ObservableQuantity('population', group='people', variable='fate', reduce=_living),
-        ObservableQuantity('money_gini', group='people', variable='money', reduce=gini),
-    ],
+    observables=_metaphoria_observables,
 )
 def metaphoria(
     n_people: int = 100,

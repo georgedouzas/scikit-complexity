@@ -18,7 +18,7 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.core.system import ObservableQuantity
+from skcomplex.core.system import Observable
 from skcomplex.engine.analysis import ccdf, gini
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -30,7 +30,7 @@ N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
     *describe(MODEL).observables_of(system),
-    ObservableQuantity('gini', group='agents', variable='W', reduce=gini),
+    Observable('gini', group='agents', variable='W', reduce=gini),
 ]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(

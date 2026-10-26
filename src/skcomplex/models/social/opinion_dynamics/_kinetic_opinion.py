@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, p
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.kinetics import EncounterLaw, moment
 
@@ -193,7 +193,7 @@ def _levels_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
 
 
-def opinion_observables(levels: int) -> list[ObservableQuantity]:
+def opinion_observables(levels: int) -> list[Observable]:
     """Return the mean opinion and the variance of the opinions of a distribution `opinions`.
 
     Args:
@@ -211,8 +211,8 @@ def opinion_observables(levels: int) -> list[ObservableQuantity]:
     """
     opinions = opinion_grid(levels)
     return [
-        ObservableQuantity('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
-        ObservableQuantity('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
+        Observable('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
+        Observable('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
     ]
 
 

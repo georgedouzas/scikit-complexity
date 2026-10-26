@@ -3,27 +3,31 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
-from ....core.system import System
+from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
 
-def _contest_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the past success of the first competitor and the share of the budget it gets."""
-    success = AuxiliaryQuantity('success', s.a / (s.a + s.b))
-    return [success, AuxiliaryQuantity('allocation', lookup(success.symbol, ALLOCATION_TABLE))]
+def _success(s: Symbols) -> Expression:
+    """Return the past success of the first competitor, its fraction of all resources."""
+    return s.a / (s.a + s.b)
+
+
+def _allocation(s: Symbols) -> Expression:
+    """Return the share of the budget the first competitor gets."""
+    return lookup(_success(s), ALLOCATION_TABLE)
 
 
 def _contest_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two competitors that share a budget in proportion to their past success."""
-    _, allocation = _contest_quantities(s)
+    allocation = _allocation(s)
     return [
-        TransferLaw(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
-        TransferLaw(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
+        TransferLaw(Source('budget'), s.a, s.budget * allocation, label='allocation_a'),
+        TransferLaw(Source('budget'), s.b, s.budget * (1 - allocation), label='allocation_b'),
         TransferLaw(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
         TransferLaw(s.b, Sink('depreciation'), s.b / s.lifetime, label='depreciation_b'),
     ]
@@ -40,21 +44,20 @@ ContestElement = Element.define(
         'lifetime': parameter(default=10.0, domain=NumericDomain.POSITIVE),
     },
     laws=_contest_laws,
-    quantities=_contest_quantities,
 )
 
 
-def _burden_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+def _symptom(s: Symbols) -> Expression:
     """Return the symptom, the gap between the desired and the current state of the problem."""
-    return [AuxiliaryQuantity('symptom', s.desired - s.capability - s.intervention)]
+    return s.desired - s.capability - s.intervention
 
 
 def _burden_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of a problem that a quick fix relieves while it erodes the capability of a fundamental one."""
-    (symptom,) = _burden_quantities(s)
-    building = distributed_delay(symptom.symbol, conserved=False, time=s.solution_delay) / s.build_time
+    symptom = _symptom(s)
+    building = distributed_delay(symptom, conserved=False, time=s.solution_delay) / s.build_time
     return [
-        TransferLaw(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
+        TransferLaw(Source('intervener'), s.intervention, s.fix_rate * symptom, label='fixing'),
         TransferLaw(Source('learning'), s.capability, building, label='building'),
         TransferLaw(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
     ]
@@ -74,29 +77,24 @@ BurdenElement = Element.define(
         'erosion': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_burden_laws,
-    quantities=_burden_quantities,
 )
 
 
-def _escalation_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the stock each party desires, a margin above its delayed view of the other's."""
-    return [
-        AuxiliaryQuantity(
-            'desired_a',
-            (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay),
-        ),
-        AuxiliaryQuantity(
-            'desired_b',
-            (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay),
-        ),
-    ]
+def _desired_a(s: Symbols) -> Expression:
+    """Return the stock the first party desires, a margin above its delayed view of the second's."""
+    return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
+
+
+def _desired_b(s: Symbols) -> Expression:
+    """Return the stock the second party desires, a margin above its delayed view of the first's."""
+    return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
 
 
 def _escalation_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two parties that each build their stock up to a margin above their view of the other's."""
-    desired_a, desired_b = _escalation_quantities(s)
-    build_a = where(desired_a.symbol > s.a, desired_a.symbol - s.a, 0) / s.adjustment_time
-    build_b = where(desired_b.symbol > s.b, desired_b.symbol - s.b, 0) / s.adjustment_time
+    desired_a, desired_b = _desired_a(s), _desired_b(s)
+    build_a = where(desired_a > s.a, desired_a - s.a, 0) / s.adjustment_time
+    build_b = where(desired_b > s.b, desired_b - s.b, 0) / s.adjustment_time
     return [
         TransferLaw(Source('production'), s.a, build_a, label='build_a'),
         TransferLaw(Source('production'), s.b, build_b, label='build_b'),
@@ -115,7 +113,6 @@ ArmsRaceElement = Element.define(
         'perception_delay': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_escalation_laws,
-    quantities=_escalation_quantities,
 )
 
 
@@ -124,6 +121,10 @@ ArmsRaceElement = Element.define(
     tags=('system traps', 'competitive exclusion', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [
+        observe_element('contest', 'success', _success),
+        observe_element('contest', 'allocation', _allocation),
+    ],
 )
 def success_to_the_successful(
     a: float = 55.0,
@@ -156,8 +157,8 @@ def success_to_the_successful(
     Returns:
         system:
             The model, with the resources `contest.a` and `contest.b` in years, the flows `contest.allocation_a`,
-            `contest.allocation_b`, `contest.depreciation_a`, and `contest.depreciation_b`, and the auxiliaries
-            `contest.success` and `contest.allocation`.
+            `contest.allocation_b`, `contest.depreciation_a`, and `contest.depreciation_b`. The observables of the
+            model are `contest.success` and `contest.allocation`.
 
     Examples:
         >>> from skcomplex.models.social.organizations import success_to_the_successful
@@ -172,6 +173,7 @@ def success_to_the_successful(
     tags=('system traps', 'addiction', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 60.0, 'dt': 0.5},
+    observables=lambda system: [observe_element('burden', 'symptom', _symptom)],
 )
 def shifting_the_burden(
     capability: float = 0.5,
@@ -217,7 +219,8 @@ def shifting_the_burden(
     Returns:
         system:
             The model, with the capability `burden.capability` and the intervention `burden.intervention` in years,
-            the flows `burden.fixing`, `burden.building`, and `burden.erosion`, and the auxiliary `burden.symptom`.
+            the flows `burden.fixing`, `burden.building`, and `burden.erosion`. The observable of the model is
+            `burden.symptom`.
 
     Examples:
         >>> from skcomplex.models.social.organizations import shifting_the_burden
@@ -242,6 +245,10 @@ def shifting_the_burden(
     tags=('system traps', 'arms race', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [
+        observe_element('race', 'desired_a', _desired_a),
+        observe_element('race', 'desired_b', _desired_b),
+    ],
 )
 def escalation(
     a: float = 10.0,
@@ -277,8 +284,8 @@ def escalation(
 
     Returns:
         system:
-            The model, with the stocks `race.a` and `race.b` in years, the flows `race.build_a` and `race.build_b`,
-            and the auxiliaries `race.desired_a` and `race.desired_b`.
+            The model, with the stocks `race.a` and `race.b` in years, and the flows `race.build_a` and
+            `race.build_b`. The observables of the model are `race.desired_a` and `race.desired_b`.
 
     Examples:
         >>> from skcomplex.models.social.organizations import escalation

@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
 
@@ -97,7 +97,7 @@ class DilutedNeuronElement(Element):
     tags=('neural network', 'associative memory', 'spin glass', 'discrete map'),
     references=('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021'),
     defaults={'until': 20, 'dt': 1},
-    observables=lambda system: [ObservableQuantity('overlap', _overlap, group='neurons')],
+    observables=lambda system: [Observable('overlap', _overlap, group='neurons')],
 )
 def diluted_hopfield(
     n_neurons: int = 4000,

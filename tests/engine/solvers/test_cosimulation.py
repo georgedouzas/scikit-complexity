@@ -17,7 +17,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw, UpdateLaw, count, maximum, mean, total
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
@@ -304,7 +304,7 @@ def test_held_observable_reduces_element_group():
         ],
         interactions=[CopyInteraction('copy', target='ledger/tally', source='herds/largest')],
     )
-    largest = ObservableQuantity('herds/largest', group='herd', reduce=np.max, variable='n')
+    largest = Observable('herds/largest', group='herd', reduce=np.max, variable='n')
     trajectory = Simulation(system, dt=1, observables=[largest]).run(until=1).trajectory_
     assert trajectory.values('herds/largest.value')[0] == 3.0
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(3.0)

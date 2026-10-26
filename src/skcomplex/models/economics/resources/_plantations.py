@@ -5,8 +5,8 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Symbols, TransferLaw, lookup, where
-from ....core.system import System
+from ....core.laws import RateLaw, Sink, Symbols, TransferLaw, lookup, where
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 PROFITABILITY_EFFECT = (
@@ -82,22 +82,26 @@ def _positive(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-def _cocoa_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the yield of cocoa, the profit per area, and the profitability of cocoa land."""
-    cocoa_yield = AuxiliaryQuantity(
-        'cocoa_yield',
-        s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT),
-    )
-    revenue = s.price * cocoa_yield.symbol
-    profit = AuxiliaryQuantity('profit_per_area', revenue - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX)
-    return [cocoa_yield, profit, AuxiliaryQuantity('profitability', _positive(profit.symbol) / revenue)]
+def _cocoa_yield(s: Symbols) -> Expression:
+    """Return the yield of cocoa per area, which the insects and the removal of shade change."""
+    return s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT)
+
+
+def _profit_per_area(s: Symbols) -> Expression:
+    """Return the profit per area of cocoa land."""
+    return s.price * _cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
+
+
+def _profitability(s: Symbols) -> Expression:
+    """Return the profitability of cocoa land, the positive profit over the revenue."""
+    return _positive(_profit_per_area(s)) / (s.price * _cocoa_yield(s))
 
 
 def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
     """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
-    cocoa_yield, profit, profitability = _cocoa_quantities(s)
-    desired = s.area * lookup(profitability.symbol, PROFITABILITY_EFFECT)
-    conversion = _positive(s.palm_margin - profitability.symbol) / s.palm_margin
+    profitability = _profitability(s)
+    desired = s.area * lookup(profitability, PROFITABILITY_EFFECT)
+    conversion = _positive(s.palm_margin - profitability) / s.palm_margin
     unprotected = 1 - s.subsidy
     return [
         TransferLaw(
@@ -109,7 +113,10 @@ def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
         TransferLaw(
             s.area,
             s.abandoned,
-            s.area * lookup(cocoa_yield.symbol, YIELD_EFFECT) * lookup(profit.symbol, PROFIT_EFFECT) / s.abandon_time,
+            s.area
+            * lookup(_cocoa_yield(s), YIELD_EFFECT)
+            * lookup(_profit_per_area(s), PROFIT_EFFECT)
+            / s.abandon_time,
             label='abandonment',
         ),
         TransferLaw(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
@@ -147,7 +154,6 @@ PlantationElement = Element.define(
         'subsidy': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_cocoa_laws,
-    quantities=_cocoa_quantities,
 )
 
 
@@ -156,6 +162,11 @@ PlantationElement = Element.define(
     tags=('agriculture', 'boom and bust', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Bala et al. 2017',),
     defaults={'until': 50.0, 'dt': 0.25},
+    observables=lambda system: [
+        observe_element('cocoa', 'cocoa_yield', _cocoa_yield),
+        observe_element('cocoa', 'profit_per_area', _profit_per_area),
+        observe_element('cocoa', 'profitability', _profitability),
+    ],
 )
 def cocoa(
     area: float = 10.0,
@@ -197,8 +208,9 @@ def cocoa(
     Returns:
         system:
             The model, with the land stocks `cocoa.area` and `cocoa.abandoned`, the indices `cocoa.shade_removal` and
-            `cocoa.insects`, the auxiliaries `cocoa.cocoa_yield`, `cocoa.profit_per_area`, and `cocoa.profitability`,
-            and the flows `cocoa.planting`, `cocoa.abandonment`, and `cocoa.conversion` per year, over years.
+            `cocoa.insects`, and the flows `cocoa.planting`, `cocoa.abandonment`, and `cocoa.conversion` per year, over
+            years. The observables of the model are `cocoa.cocoa_yield`, `cocoa.profit_per_area`, and
+            `cocoa.profitability`.
 
     Examples:
         >>> from skcomplex.models.economics.resources import cocoa

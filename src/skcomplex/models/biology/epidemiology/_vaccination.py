@@ -6,7 +6,7 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
 
@@ -101,7 +101,7 @@ class VaccinatedPopulationElement(Element):
     tags=('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode'),
     references=('Lenhart and Workman 2007',),
     defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver(objective=_cost)},
-    observables=lambda system: [ObservableQuantity('vaccinated', _vaccinated), ObservableQuantity('cost', _cost)],
+    observables=lambda system: [Observable('vaccinated', _vaccinated), Observable('cost', _cost)],
 )
 def sir_vaccination(
     S: float = 0.99,

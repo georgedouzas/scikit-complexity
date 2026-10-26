@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, Expression, NumericDomain, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols, where
 from ....core.space import LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.fields import FieldElement, gradient, laplacian
 
@@ -264,7 +264,7 @@ def budyko_sellers(
     tags=('ode', 'regulation', 'Gaia', 'vegetation'),
     references=('Watson and Lovelock 1983', 'Jensen 2023'),
     defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [ObservableQuantity('temperature', _daisyworld_temperature)],
+    observables=lambda system: [Observable('temperature', _daisyworld_temperature)],
 )
 def daisyworld(
     white: float = 0.2,

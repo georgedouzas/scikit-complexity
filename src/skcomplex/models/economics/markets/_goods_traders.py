@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 import math
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
@@ -12,9 +11,9 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import InvariantQuantity, Symbols
+from ....core.laws import Symbols
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
@@ -25,22 +24,17 @@ GOODS = ('sugar', 'spice', 'salt')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)
 
 
-def _total(good: str, model: Any) -> float:  # noqa: ANN401
-    """Return the total holding of a good over the traders bound to an exchange."""
-    return float(sum(getattr(agent, good) for agent in model.agents('traders')))
-
-
 def _utility(agent: Any) -> float:  # noqa: ANN401
     """Return the logarithm of the Cobb-Douglas utility of a trader."""
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _goods_observables(system: System) -> list[ObservableQuantity]:
+def _goods_observables(system: System) -> list[Observable]:
     """Return the mean utility of the traders and the total of every good."""
     del system
     return [
-        ObservableQuantity('utility', _utility, group='traders', reduce='mean'),
-        *(ObservableQuantity(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _utility, group='traders', reduce='mean'),
+        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     ]
 
 
@@ -121,8 +115,8 @@ class ExchangeInteraction(BaseInteraction):
 
     Every pair barters small quantities of every pair of goods at the geometric mean of their marginal rates of
     substitution while both gain. A trader holds every good in the state of its name and its Cobb-Douglas weight in
-    the state `<good>_weight`. Every trade is a transfer between the two traders, and the invariants of the exchange
-    check that the total of every good stays the same. The exchange reports the mean `price` of the second good in
+    the state `<good>_weight`. Every trade is a transfer between the two traders, so the total of every good stays
+    the same, which the default run checks as invariants. The exchange reports the mean `price` of the second good in
     units of the first, the standard deviation `dispersion` of its logarithm over the trades of the step, and the
     number of trades `volume`.
 
@@ -184,21 +178,6 @@ class ExchangeInteraction(BaseInteraction):
             RuleLaw(self.trade, phase='trade'),
         ]
 
-    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
-        """Return the invariant of the total of every good over the traders.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the interaction.
-        """
-        return [
-            InvariantQuantity(f'total {good}', functools.partial(_total, good), tolerance=1e-6) for good in self.goods
-        ]
-
     def trade(self, model: Any) -> None:  # noqa: ANN401
         """Barter between every pair of partners and report the prices of the second good in the first.
 
@@ -221,7 +200,7 @@ class ExchangeInteraction(BaseInteraction):
     field='economics/markets',
     tags=('market', 'agents', 'barter', 'price convergence', 'grid'),
     references=('Gooding 2019 ch. 8-12', 'Epstein and Axtell 1996'),
-    defaults={'until': 50},
+    defaults={'until': 50, 'invariants': dict.fromkeys(GOODS, 1e-6)},
     observables=_goods_observables,
 )
 def goods_traders(

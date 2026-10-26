@@ -8,7 +8,7 @@ import numpy as np
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
@@ -161,7 +161,7 @@ class DebtExchangeInteraction(BaseInteraction):
     tags=('wealth', 'agents', 'exchange', 'kinetic'),
     references=('Chakraborti and Chakrabarti 2000', 'Dragulescu and Yakovenko 2000', 'Yakovenko and Rosser 2009'),
     defaults={'until': 200},
-    observables=lambda system: [ObservableQuantity('variance', group='traders', variable='wealth', reduce='var')],
+    observables=lambda system: [Observable('variance', group='traders', variable='wealth', reduce='var')],
 )
 def kinetic_wealth_exchange(
     n_agents: int = 500,

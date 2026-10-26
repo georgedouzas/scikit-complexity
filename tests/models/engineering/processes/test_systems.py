@@ -11,7 +11,7 @@ from ...conftest import _run_monitored
 
 def test_rice_milling_passes_the_harvest_through():
     """Test that over the last years the mill processes the mean harvest and sells its outturn as rice."""
-    trajectory = _run_monitored(rice_milling(harvest=2000.0, outturn=0.65), 0.25, 120)
+    trajectory = _run_monitored(rice_milling(harvest=2000.0, outturn=0.65), 0.25, 120, 'rice_milling')
     last_years = np.asarray(trajectory.times) >= 72
     assert trajectory.values('mill.milling')[last_years].mean() == pytest.approx(2000.0, rel=0.05)
     assert trajectory.values('mill.rice_sales')[last_years].mean() == pytest.approx(0.65 * 2000.0, rel=0.05)
@@ -45,7 +45,7 @@ def test_food_relief_delays_then_meets_the_need():
 
 def test_irrigation_pumps_groundwater_in_the_dry_season():
     """Test that the farmers pump the aquifer only when the reservoir runs low, drawing the aquifer down."""
-    trajectory = _run_monitored(irrigation(), 1.0, 730)
+    trajectory = _run_monitored(irrigation(), 1.0, 730, 'irrigation')
     pumping, reservoir = trajectory.values('scheme.pumping'), trajectory.values('scheme.reservoir')
     assert pumping.max() > 0
     assert reservoir[pumping > 0].max() < 10.0

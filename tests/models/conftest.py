@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from skcomplex.core.problems import BaseProblem
-from skcomplex.core.system import System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
 from skcomplex.engine.solvers import Solver
 from skcomplex.models import create, describe
@@ -32,9 +32,16 @@ def _trajectory(
     )
 
 
-def _run_monitored(system: System, dt: float, until: float) -> Trajectory:
+def _observables(system: System, model: str | None) -> list[Observable]:
+    """Return the standard observables of a system of a model, or none without a model."""
+    return [] if model is None else describe(model).observables_of(system)
+
+
+def _run_monitored(system: System, dt: float, until: float, model: str | None = None) -> Trajectory:
     """Return the trajectory of a system under a conservation monitor, which raises on any leak."""
-    return Simulation(system, dt=dt, observers=[ConservationObserver()]).run(until=until).trajectory_
+    observables = _observables(system, model)
+    simulation = Simulation(system, dt=dt, observers=[ConservationObserver()], observables=observables)
+    return simulation.run(until=until).trajectory_
 
 
 def _peak(trajectory: Trajectory, name: str) -> float:
@@ -49,9 +56,10 @@ def _series(name: str, until: float, **arguments: Any) -> Trajectory:  # noqa: A
     return Simulation(system, dt=1, random_state=0, observables=observables).run(until).trajectory_
 
 
-def _run_seeded(system: System, until: float, dt: float) -> Trajectory:
+def _run_seeded(system: System, until: float, dt: float, model: str | None = None) -> Trajectory:
     """Return the trajectory of a system run with a fixed random state."""
-    return Simulation(system, dt=dt, random_state=0).run(until=until).trajectory_
+    simulation = Simulation(system, dt=dt, random_state=0, observables=_observables(system, model))
+    return simulation.run(until=until).trajectory_
 
 
 class EventsObserver(BaseObserver):

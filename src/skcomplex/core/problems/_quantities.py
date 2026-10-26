@@ -32,21 +32,27 @@ class _Recorded:
 
 
 @dataclass(frozen=True)
+class _CompiledDelay:
+    """Delay or smoothing of a compiled system, its call in the laws and its output read from hidden stocks."""
+
+    call: Expression
+    output: Expression
+    references: Mapping[Expression, Any]
+
+
+@dataclass(frozen=True)
 class LoopTerm:
     """Node of the feedback graph of a system with the expression its value or its rate is computed from.
 
     Args:
         kind:
-            `'auxiliary'`, `'flow'`, or `'rate'` for a rate law outside flows.
+            `'flow'`, or `'rate'` for a rate law outside flows.
 
         path:
-            The node of an auxiliary or a flow, or the state a rate law targets.
+            The node of a flow, or the state a rate law targets.
 
         expression:
-            The expression, with the symbols of auxiliaries kept.
-
-        auxiliaries:
-            The paths of the auxiliaries by their symbols.
+            The expression.
 
         references:
             The references of the expression's symbols.
@@ -61,7 +67,6 @@ class LoopTerm:
     kind: str
     path: str
     expression: Expression
-    auxiliaries: Mapping[Expression, str]
     references: Mapping[Expression, Any]
     source: str | None = None
     sink: str | None = None
@@ -79,7 +84,7 @@ class StockFlow:
             The flows.
 
         recorded:
-            The flows and auxiliaries that trajectories record.
+            The flows and the running values of objectives that trajectories record.
 
         boundary:
             The hidden state that accumulates the net inflow from the environment of each quantity with boundary
@@ -91,8 +96,8 @@ class StockFlow:
         discrete:
             Whether flow amounts are per step rather than rates.
 
-        invariants:
-            The tolerance of every invariant by the path that trajectories record it under.
+        delays:
+            The delays and smoothings of the laws, in the order the compiler replaced them by hidden stocks.
     """
 
     quantities: Mapping[str, tuple[str, ...]]
@@ -101,4 +106,4 @@ class StockFlow:
     boundary: Mapping[str, str] = field(default_factory=dict)
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
-    invariants: Mapping[str, float] = field(default_factory=dict)
+    delays: tuple[_CompiledDelay, ...] = ()

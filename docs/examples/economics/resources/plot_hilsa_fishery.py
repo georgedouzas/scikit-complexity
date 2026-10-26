@@ -14,9 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'hilsa_fishery'
 
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(120)
+simulation = run(MODEL, settings={'until': 120, 'dt': 0.5, 'observers': [observer]})
 
 # %%
 # Management scenarios
@@ -51,10 +50,12 @@ scenarios = {
     'adult catch 0.9': {'adult_harvest': 0.9},
 }
 for name, changes in scenarios.items():
-    run = simulation.trajectory_ if not changes else Simulation(create(MODEL, **changes), dt=0.5).run(120).trajectory_
-    times = np.asarray(run.times) / 12
-    stock.plot(times, run.values('hilsa.adult_weight'), label=name)
-    catch.plot(times, run.values('hilsa.adult_catch') * 0.82e3, label=name)
+    scenario = (
+        simulation.trajectory_ if not changes else run(MODEL, settings={'until': 120, 'dt': 0.5}, **changes).trajectory_
+    )
+    times = np.asarray(scenario.times) / 12
+    stock.plot(times, scenario.values('hilsa.adult_weight'), label=name)
+    catch.plot(times, scenario.values('hilsa.adult_catch') * 0.82e3, label=name)
 stock.set_xlabel('years')
 stock.set_ylabel('tonnes')
 stock.set_title('Weight of adults about to spawn')

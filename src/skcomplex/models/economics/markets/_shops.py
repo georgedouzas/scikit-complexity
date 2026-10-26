@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, p
 from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._markets import Trade
@@ -24,13 +24,13 @@ def _largest_share(sales: Any) -> float:  # noqa: ANN401
     return float(values.max() / values.sum()) if values.size and values.sum() > 0 else 0.0
 
 
-def _shops_observables(system: System) -> list[ObservableQuantity]:
+def _shops_observables(system: System) -> list[Observable]:
     """Return the number of shops, their mean price, and the share of the sales of the largest shop."""
     del system
     return [
-        ObservableQuantity('open_shops', group='shops', variable='price', reduce='count'),
-        ObservableQuantity('mean_price', group='shops', variable='price', reduce='mean'),
-        ObservableQuantity('concentration', group='shops', variable='sales', reduce=_largest_share),
+        Observable('open_shops', group='shops', variable='price', reduce='count'),
+        Observable('mean_price', group='shops', variable='price', reduce='mean'),
+        Observable('concentration', group='shops', variable='sales', reduce=_largest_share),
     ]
 
 

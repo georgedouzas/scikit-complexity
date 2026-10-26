@@ -11,7 +11,7 @@ from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 from ..realizations._learning import logit_choice
@@ -109,7 +109,7 @@ class ConsumerElement(Element):
     tags=('consumer choice', 'social influence', 'agents', 'grid'),
     references=('Chesney 2021 ch. 3', 'Chesney 2021 ch. 7'),
     defaults={'until': 50},
-    observables=lambda system: [ObservableQuantity('fair_share', group='consumers', variable='fair')],
+    observables=lambda system: [Observable('fair_share', group='consumers', variable='fair')],
 )
 def fair_food(
     width: int = 20,

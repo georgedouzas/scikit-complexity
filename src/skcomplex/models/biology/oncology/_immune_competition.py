@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, p
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols
 from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.kinetics import DestructionLaw, EncounterLaw, ProliferationLaw, moment
 
@@ -232,7 +232,7 @@ def _classes_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
 
 
-def immune_observables(classes: int) -> list[ObservableQuantity]:
+def immune_observables(classes: int) -> list[Observable]:
     """Return the tumour density, the mean tumour progression, and the mean immune activation of the model.
 
     Args:
@@ -250,9 +250,9 @@ def immune_observables(classes: int) -> list[ObservableQuantity]:
     """
     activities = activity_grid(classes)
     return [
-        ObservableQuantity('tumour_density', partial(cell_density, activities=activities), group='tumour'),
-        ObservableQuantity('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
-        ObservableQuantity('immune_activation', partial(mean_activity, activities=activities), group='immune'),
+        Observable('tumour_density', partial(cell_density, activities=activities), group='tumour'),
+        Observable('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
+        Observable('immune_activation', partial(mean_activity, activities=activities), group='immune'),
     ]
 
 

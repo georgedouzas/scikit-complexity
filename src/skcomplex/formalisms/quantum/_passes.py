@@ -33,7 +33,7 @@ from ...core.components import GroupElement
 from ...core.laws import Symbols
 from ...core.problems import BaseProblem, CompiledElement, CompiledInteraction, Entry, Getter, Layout, numpy_function
 from ...core.space import LatticeSpace, neighbor_pairs
-from ...core.system import ObservableQuantity, System, reduce_values
+from ...core.system import Observable, System, reduce_values
 from ...engine.compile import BaseSystemCompiler, Node, coerce_value, flatten_system, spectral_multiplier
 from ._components import QuantumView, hilbert_state, is_quantum
 from ._laws import DissipatorLaw, GeneratorLaw, Operator
@@ -645,7 +645,7 @@ class QuantumProblem(BaseProblem):
     hamiltonian_operator: Operator = field(default_factory=lambda: Operator({}), repr=False)
     cache: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
-    def observable_getters(self, observables: Iterable[tuple[str, ObservableQuantity]]) -> dict[str, Getter]:
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter]:
         """Return the getters of the observables, with the energy, and the purity when the system is open.
 
         Args:
@@ -729,7 +729,7 @@ def hamiltonian_at(problem: QuantumProblem, t: float, p: Vector) -> sp.csr_array
     return _matrix_at(problem.hamiltonian, t, p, math.prod(problem.dimensions))
 
 
-def _member_getter(problem: QuantumProblem, path: str, observable: ObservableQuantity, group: str) -> Getter:
+def _member_getter(problem: QuantumProblem, path: str, observable: Observable, group: str) -> Getter:
     """Return the getter of a quantum observable evaluated member by member and reduced."""
     if group not in problem.members:
         error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
@@ -879,7 +879,7 @@ def compile_quantum(
 
 def quantum_getters(
     problem: QuantumProblem,
-    observables: Iterable[tuple[str, ObservableQuantity]],
+    observables: Iterable[tuple[str, Observable]],
 ) -> dict[str, Getter]:
     """Return the getters of the observables of a quantum problem, with its energy, and its purity when it is open.
 

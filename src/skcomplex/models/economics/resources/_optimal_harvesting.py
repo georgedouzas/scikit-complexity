@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
 
@@ -105,7 +105,7 @@ class HarvestedResourceElement(Element):
         'dt': 0.2,
         'solver': CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal'),
     },
-    observables=lambda system: [ObservableQuantity('catch', _catch)],
+    observables=lambda system: [Observable('catch', _catch)],
 )
 def optimal_harvesting(
     x: float = 1.0,

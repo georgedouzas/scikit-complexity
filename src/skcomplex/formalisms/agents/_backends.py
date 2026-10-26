@@ -785,7 +785,7 @@ class MesaSolver(Solver):
     discrete time, and each agent runs the rules of its element type in declaration order. Interaction rules run once
     after the agents. Rules add and remove members of variable groups only. The class variable `supports` declares
     what the backend runs, which validation checks systems against: discrete time, no space or a lattice, network, or
-    continuous space, rule, boundary, transfer, matching, and invariant laws, and elements and fixed and variable
+    continuous space, rule, boundary, transfer, and matching laws, and elements and fixed and variable
     groups with any domain but Hilbert spaces.
 
     Attributes:
@@ -814,7 +814,7 @@ class MesaSolver(Solver):
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.DISCRETE},
         space={SpaceKind.NONE, SpaceKind.LATTICE, SpaceKind.NETWORK, SpaceKind.CONTINUOUS},
-        laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH, LawKind.INVARIANT},
+        laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ElementKind.ELEMENT, ElementKind.GROUP, ElementKind.VARIABLE_GROUP, ElementKind.SYSTEM},
         orders={OrderKind.INTEGER},
@@ -856,7 +856,6 @@ class MesaSolver(Solver):
         self._live: Vector | None = None
         self._state: Vector = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
-        self._invariant_values: dict[tuple[int, str, str], float] = {}
         self._populating = True
         self._specs = {spec.path: spec for spec in problem.agents}
         self._classes: dict[type, CompiledAgents] = {}
@@ -869,10 +868,6 @@ class MesaSolver(Solver):
             (ModelView(self, owner, roles.get(owner)), rule)
             for owner, rule in problem.model_rules
             if isinstance(rule, RuleLaw)
-        ]
-        self._model_invariants = [
-            (ModelView(self, owner, roles.get(owner)), owner, invariant)
-            for owner, invariant in problem.model_invariants
         ]
         time = getattr(problem.system, 'time', None)
         schedule = time.schedule_ if isinstance(time, DiscreteTime) else None
@@ -887,7 +882,6 @@ class MesaSolver(Solver):
         for spec in problem.agents:
             self._populate(spec)
         self._populating = False
-        self._check_invariants()
         self._collect()
 
     def _agent_class(self, spec: CompiledAgents) -> type:
@@ -1057,20 +1051,6 @@ class MesaSolver(Solver):
                     self._run_phase(phase)
             self.round_ = 0
         self._remember()
-        self._check_invariants()
-
-    def _check_invariants(self) -> None:
-        """Check the invariants of every agent and interaction against their values when they were first checked."""
-        for spec in self._specs.values():
-            for agent in self._group_agents(spec.path) if spec.invariants else ():
-                view = _view_of(agent)
-                for invariant in spec.invariants:
-                    key = (agent.unique_id, spec.path, invariant.label)
-                    first = self._invariant_values.setdefault(key, invariant.value_of(view))
-                    invariant._verify(view, first, f'agent {view.id} of {spec.path}')
-        for model, owner, invariant in self._model_invariants:
-            first = self._invariant_values.setdefault((-1, owner, invariant.label), invariant.value_of(model))
-            invariant._verify(model, first, owner)
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""

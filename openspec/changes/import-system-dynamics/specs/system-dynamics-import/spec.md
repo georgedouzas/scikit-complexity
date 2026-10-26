@@ -21,9 +21,9 @@ abstract model of PySD's translators, never from the code PySD generates.
 - **THEN** the two systems have the same states, parameters, and laws
 
 ### Requirement: Stocks, flows, and auxiliaries keep their meaning
-Every stock SHALL become a state, every constant a parameter, and every auxiliary an `Auxiliary` recorded under its
-name. A flow that leaves one stock and enters another SHALL become a `TransferLaw` between them, a flow of one stock a
-transfer with the environment, and the rest of a stock's net rate a `RateLaw`.
+Every stock SHALL become a state, every constant a parameter, and every auxiliary an expression in the laws with an
+observable recorded under its name. A flow that leaves one stock and enters another SHALL become a `TransferLaw`
+between them, a flow of one stock a transfer with the environment, and the rest of a stock's net rate a `RateLaw`.
 
 #### Scenario: SIR flows are transfers
 - **WHEN** an SIR model whose infection flow leaves susceptible and enters infected is read

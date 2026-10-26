@@ -4,9 +4,11 @@
 # License: MIT
 
 
+from collections.abc import Mapping
+
 import numpy as np
 
-from ...core.base import ConservationError, SimulationError, Vector
+from ...core.base import ConservationError, SimulationError, ValidationError, Vector
 from ...core.problems import BaseProblem, StockFlow
 from ._frames import Frame
 from ._observers import BaseObserver
@@ -116,22 +118,41 @@ class ConservationObserver(BaseObserver):
 
 
 class InvariantObserver(BaseObserver):
-    """Observer that checks at every frame that every invariant of the laws stays within its tolerance.
+    """Observer that checks at every frame that every named observable stays within its tolerance of its first value.
 
-    Every run attaches one when its problem declares invariants.
+    A simulation attaches one when it is given invariants.
 
-    Attributes:
-        invariants_:
+    Args:
+        invariants:
             The tolerance of every invariant, by the path of its observable.
 
+    Attributes:
         initial_:
             The value of every invariant at the first frame.
+
+    Examples:
+        >>> from skcomplex.core.system import Observable, System
+        >>> from skcomplex.engine.runtime import InvariantObserver, Simulation
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> system = System(components=[PopulationElement.group('herd', 2, n=[2.0, 6.0])])
+        >>> total = Observable('total', group='herd', reduce='sum', variable='n')
+        >>> monitor = InvariantObserver({'total': 1e-9})
+        >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).run(3)
+        >>> monitor.initial_
+        {'total': 8.0}
     """
 
+    def __init__(self, invariants: Mapping[str, float]) -> None:
+        self.invariants = invariants
+
     def _prepare(self, problem: BaseProblem) -> None:
-        """Keep the invariants of the problem."""
-        stock_flow = problem.stock_flow
-        self.invariants_ = dict(stock_flow.invariants) if stock_flow is not None else {}
+        """Forget the values of the invariants of an earlier run.
+
+        Args:
+            problem:
+                The compiled problem the run advances.
+        """
+        del problem
         self.initial_: dict[str, float] = {}
 
     def _run(self, frame: Frame | None = None) -> None:
@@ -142,12 +163,21 @@ class InvariantObserver(BaseObserver):
                 The recorded frame, or `None` at the last run, which checks nothing.
 
         Raises:
+            ValidationError:
+                An invariant names no observable of the run.
+
             ConservationError:
                 An invariant changed by more than its tolerance.
         """
         if frame is None:
             return
-        for path, tolerance in self.invariants_.items():
+        for path, tolerance in self.invariants.items():
+            if path not in frame.observables:
+                error_msg = (
+                    f'The invariant {path} names no observable of the run. Pass an observable labelled {path!r} '
+                    'in `observables`.'
+                )
+                raise ValidationError(error_msg)
             value = float(np.sum(frame.observables[path]))
             initial = self.initial_.setdefault(path, value)
             if abs(value - initial) > tolerance:
