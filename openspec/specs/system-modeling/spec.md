@@ -432,24 +432,7 @@ activation schedule outside its time, or observables.
 
 #### Scenario: Execution arguments are rejected
 - **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `System`
-- **THEN** a `TypeError` is raised, and its message names the argument's new home
-
-### Requirement: Systems are components
-A system SHALL be a component, derived from the same base as elements, groups, and interactions, so systems nest to any
-depth, and an interaction SHALL refer to a component of a nested system by a slash path relative to the system that
-holds the interaction. Two direct children of a system with the same label SHALL be reported by validation.
-
-#### Scenario: Interaction across nested systems
-- **WHEN** a parent system holds a predation interaction between `forest/foxes` and `meadow/rabbits`
-- **THEN** the compiled system couples the fox count of the forest system to the rabbit count of the meadow system
-
-#### Scenario: Duplicate labels
-- **WHEN** two direct children of a system share a label
-- **THEN** validation reports one issue whose path is the system and whose message names the duplicated label
-
-#### Scenario: System is a component
-- **WHEN** a user checks whether a `System` instance is an instance of `Component`
-- **THEN** the check is true
+- **THEN** a `TypeError` is raised as for any unknown argument
 
 ### Requirement: Groups have a fixed or variable size and live on parts of the space
 A group SHALL hold identical members of one element type as arrays. With `variable=True`, laws SHALL add and remove
@@ -692,3 +675,20 @@ names.
 #### Scenario: Clone keeps declared values
 - **WHEN** a user clones a group of 100 members with per-member values
 - **THEN** the clone has the same label, size, and values, and compiles to the same problem
+
+### Requirement: Systems hold nested systems
+A system SHALL hold nested systems among its parts without being a component, so systems nest to any depth, and an
+interaction SHALL refer to a component of a nested system by a slash path relative to the system that holds the
+interaction. Two direct children of a system with the same label SHALL be reported by validation.
+
+#### Scenario: Interaction across nested systems
+- **WHEN** a parent system holds a predation interaction between `forest/foxes` and `meadow/rabbits`
+- **THEN** the compiled system couples the fox count of the forest system to the rabbit count of the meadow system
+
+#### Scenario: Duplicate labels
+- **WHEN** two direct children of a system share a label
+- **THEN** validation reports one issue whose path is the system and whose message names the duplicated label
+
+#### Scenario: System is not a component
+- **WHEN** a user checks whether a `System` instance is an instance of `BaseComponent`
+- **THEN** the check is false, and the instance is an instance of `BaseSystem`

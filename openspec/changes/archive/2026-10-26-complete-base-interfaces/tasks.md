@@ -47,4 +47,4 @@
 - [x] 4.1 Amend the constitution with the three verbs, trivial constructors and prepared attributes, the split between
   values and configurable objects, and the allowed magic methods. Update the user guide, the README, and the gallery
   for the new verbs.
-- [ ] 4.2 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.
+- [x] 4.2 Run formatting, checks, the docs build, and tests through nox once, and verify that all of them pass.
