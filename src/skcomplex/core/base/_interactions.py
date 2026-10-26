@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, Self, cast
 
 from ._errors import ValidationError
-from ._laws import BaseLaw, BaseQuantity
+from ._laws import BaseLaw
 from ._types import (
     Variable,
     VariableKind,
@@ -95,7 +95,6 @@ class BaseInteraction(BaseEstimator):
     `check()` rejects a value the type does not declare, a declared variable without a default that is not given, a type
     that declares a state or an unknown binding, and a layer of an interaction not over neighbours. `prepare()` sets
     `declarations_`, and `run(s)` returns the laws of the interaction for a namespace of symbols, from the hook `laws`.
-    The hook `quantities` returns the auxiliaries, invariants, and objectives of the interaction for the same namespace.
 
     Attributes:
         declarations_:
@@ -221,7 +220,6 @@ class BaseInteraction(BaseEstimator):
         roles: Sequence[str] = (),
         parameters: Mapping[str, Any] | None = None,
         laws: Callable[..., list[BaseLaw]] | None = None,
-        quantities: Callable[..., Sequence[BaseQuantity]] | None = None,
         over: str | None = None,
     ) -> type['BaseInteraction']:
         """Return a new interaction type built from declarations, without writing a class.
@@ -241,10 +239,6 @@ class BaseInteraction(BaseEstimator):
 
             laws:
                 A function `laws(s)` or `laws(self, s)` that returns the laws of the interaction.
-
-            quantities:
-                A function `quantities(s)` or `quantities(self, s)` that returns the auxiliaries, invariants, and
-                objectives of the interaction.
 
             over:
                 The binding of the laws, such as `'neighbors'`, or `None` to inherit it.
@@ -271,7 +265,6 @@ class BaseInteraction(BaseEstimator):
             roles=roles,
             parameters=parameters,
             laws=laws,
-            quantities=quantities,
             attributes=attributes,
         )
 
@@ -285,18 +278,5 @@ class BaseInteraction(BaseEstimator):
         Returns:
             laws:
                 The laws of the interaction.
-        """
-        return []
-
-    def quantities(self, s: Any) -> list[Any]:  # noqa: ANN401
-        """Return the auxiliaries, invariants, and objectives of the interaction, none by default.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the interaction.
         """
         return []

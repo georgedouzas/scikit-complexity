@@ -13,8 +13,6 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
-    BaseQuantity,
-    DeclarationError,
     DomainKind,
     Form,
     LabelError,
@@ -45,8 +43,8 @@ from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend, Entry
 from ...core.problems._neighbourhoods import cone_heading, position_state
 from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace
-from ...core.system import ObservableQuantity, System
-from ._census import Census, CensusRecord, quantity_kinds
+from ...core.system import Observable, System
+from ._census import Census, CensusRecord, objective_kinds
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
 from ._noise import process_covariance
@@ -68,10 +66,6 @@ OBJECTIVE_TIMES = frozenset({TimeKind.STATIC, TimeKind.CONTINUOUS})
 OWN_NEIGHBORHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
-    DeclarationError: (
-        'declaration',
-        'Return laws from `laws`, and auxiliaries, invariants, and objectives from `quantities`.',
-    ),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
@@ -249,15 +243,18 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
     return issues
 
 
-def _objective_issues(quantities: list[tuple[str, BaseQuantity]], times: dict[str, TimeKind | None]) -> list[Issue]:
+def _objective_issues(
+    objectives: list[tuple[str, ObjectiveQuantity]],
+    times: dict[str, TimeKind | None],
+) -> list[Issue]:
     """Return the objectives of components whose time is neither static nor continuous."""
     issues = []
-    for path, quantity in quantities:
+    for path, objective in objectives:
         time = times.get(path.rpartition('/')[0])
-        if not isinstance(quantity, ObjectiveQuantity) or time is None or time in OBJECTIVE_TIMES:
+        if time is None or time in OBJECTIVE_TIMES:
             continue
         message = (
-            f'The ObjectiveQuantity {quantity.label!r} of {path} needs {names_of(OBJECTIVE_TIMES)} time, but the '
+            f'The ObjectiveQuantity {objective.label!r} of {path} needs {names_of(OBJECTIVE_TIMES)} time, but the '
             f'component lives in {time} time.'
         )
         classes = ' or '.join(f'`{TIME_CLASSES[kind]}`' for kind in sorted(OBJECTIVE_TIMES))
@@ -367,7 +364,7 @@ def _solver_issues(solver: object, census: Census, system: System) -> list[Issue
         stepper = type(solver)
     needs = {
         'time': {kind for kind in declared_times(system).values() if kind is not None},
-        'laws': {record.law.law_kind for record in records}.union(*quantity_kinds(census.quantities).values()),
+        'laws': {record.law.law_kind for record in records}.union(*objective_kinds(census.objectives).values()),
         'domains': {
             _domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
         },
@@ -630,7 +627,7 @@ def _counted(
     system: System,
     solver: object,
     backend: object,
-    observables: Sequence[ObservableQuantity],
+    observables: Sequence[Observable],
 ) -> tuple[Compilation | None, list[Issue]]:
     """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
@@ -691,7 +688,7 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues = _census_issues(compilation)
     issues += _bound_issues(nodes)
     issues += _law_issues(records, declared_times(system))
-    issues += _objective_issues(cast('Census', compilation.census).quantities, declared_times(system))
+    issues += _objective_issues(cast('Census', compilation.census).objectives, declared_times(system))
     issues += _neighborhood_issues(records, nodes)
     issues += _space_issues(system, nodes)
     issues += _order_issues(nodes)
@@ -753,7 +750,7 @@ def validate(
     *,
     solver: object = 'auto',
     backend: object = 'auto',
-    observables: Sequence[ObservableQuantity] = (),
+    observables: Sequence[Observable] = (),
 ) -> 'ValidationReport':
     """Return every problem of a system, of its solver, and of its backend, before compilation.
 

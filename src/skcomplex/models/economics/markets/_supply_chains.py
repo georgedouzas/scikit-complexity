@@ -7,8 +7,8 @@ from itertools import pairwise
 
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.system import System
+from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
@@ -27,16 +27,10 @@ def _orders(echelon: Symbols) -> Expression:
     return where(orders > 0, orders, 0)
 
 
-def _echelon_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the orders and the shipments of an echelon."""
-    return [AuxiliaryQuantity('orders', _orders(s)), AuxiliaryQuantity('shipments', _shipments(s))]
-
-
 def _echelon_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
-    _, shipments = _echelon_quantities(s)
     return [
-        RateLaw(s.backlog, -shipments.symbol),
+        RateLaw(s.backlog, -_shipments(s)),
         RateLaw(s.expected, -s.theta * s.expected),
     ]
 
@@ -56,17 +50,17 @@ def _link_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-def _customer_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the demand of the customers."""
-    return [AuxiliaryQuantity('demand', s.demand + step(s.t, s.step_time, s.demand_step))]
+def _customer_orders(s: Symbols) -> Expression:
+    """Return the orders of the customers, their demand after its step."""
+    return s.demand + step(s.t, s.step_time, s.demand_step)
 
 
 def _customer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the customers, whose demand reaches the retailer and who take its shipments."""
-    (demand,) = _customer_quantities(s)
+    demand = _customer_orders(s)
     return [
-        RateLaw(s.retailer.backlog, demand.symbol),
-        RateLaw(s.retailer.expected, s.retailer.theta * demand.symbol),
+        RateLaw(s.retailer.backlog, demand),
+        RateLaw(s.retailer.expected, s.retailer.theta * demand),
         TransferLaw(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
     ]
 
@@ -99,7 +93,6 @@ EchelonElement = Element.define(
         'dispatch_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_echelon_laws,
-    quantities=_echelon_quantities,
 )
 
 SupplyLinkInteraction = BaseInteraction.define(
@@ -121,7 +114,6 @@ RetailDemandInteraction = BaseInteraction.define(
         'step_time': parameter(default=5.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_customer_laws,
-    quantities=_customer_quantities,
 )
 
 BreweryInteraction = BaseInteraction.define(
@@ -137,6 +129,11 @@ BreweryInteraction = BaseInteraction.define(
     tags=('supply chain', 'bullwhip effect', 'delay', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Sterman 1989',),
     defaults={'until': 36.0, 'dt': 0.5},
+    observables=lambda system: [
+        *(observe_element(label, 'orders', _orders) for label in ECHELONS),
+        *(observe_element(label, 'shipments', _shipments) for label in ECHELONS),
+        observe_element('customers', 'orders', _customer_orders),
+    ],
 )
 def beer_game(
     inventory: float = 12.0,
@@ -203,10 +200,11 @@ def beer_game(
     Returns:
         system:
             The model, with the stocks `<echelon>.inventory`, `<echelon>.in_transit`, `<echelon>.backlog`,
-            `<echelon>.expected`, and `<echelon>.supply_line` and the auxiliaries `<echelon>.orders` and
-            `<echelon>.shipments` of the echelons `retailer`, `wholesaler`, `distributor`, and `factory`, the flows
-            `<upstream>_to_<downstream>.shipments` and `<upstream>_to_<downstream>.arrivals` of the links,
-            `customers.sales` and `customers.demand`, and `brewery.starts` and `brewery.completions`.
+            `<echelon>.expected`, and `<echelon>.supply_line` of the echelons `retailer`, `wholesaler`, `distributor`,
+            and `factory`, and the flows `<upstream>_to_<downstream>.shipments` and
+            `<upstream>_to_<downstream>.arrivals` of the links, `customers.sales`, and `brewery.starts` and
+            `brewery.completions`. The observables of the model are the orders `<echelon>.orders` and the shipments
+            `<echelon>.shipments` of every echelon, and the orders of the customers `customers.orders`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import beer_game

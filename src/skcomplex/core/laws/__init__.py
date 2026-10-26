@@ -1,7 +1,7 @@
 """Laws that components and interactions follow, by time semantics, and the expressions they are written in."""
 
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
-from ._flows import AuxiliaryQuantity, InvariantQuantity, Sink, Source, TransferLaw, distributed_delay, lookup, transfer
+from ._flows import Sink, Source, TransferLaw, distributed_delay, lookup, transfer
 from ._functions import (
     both,
     delayed,
@@ -53,14 +53,12 @@ from ._utils import Symbols, values_of
 
 __all__: list[str] = [
     'NEIGHBOR_REDUCTIONS',
-    'AuxiliaryQuantity',
     'BoundaryLaw',
     'Call',
     'Draw',
     'EmissionLaw',
     'EquationLaw',
     'EventLaw',
-    'InvariantQuantity',
     'JumpLaw',
     'NeighborReduction',
     'NoiseLaw',

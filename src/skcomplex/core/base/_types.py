@@ -257,7 +257,6 @@ class LawKind(Term):
     MATCH: ClassVar['LawKind']
     TRANSFER: ClassVar['LawKind']
     BOUNDARY: ClassVar['LawKind']
-    INVARIANT: ClassVar['LawKind']
     OBJECTIVE: ClassVar['LawKind']
     ENCOUNTER: ClassVar['LawKind']
 
@@ -306,7 +305,6 @@ LawKind.SAMPLE = LawKind.register('SAMPLE', 'sample')
 LawKind.MATCH = LawKind.register('MATCH', 'match')
 LawKind.TRANSFER = LawKind.register('TRANSFER', 'transfer')
 LawKind.BOUNDARY = LawKind.register('BOUNDARY', 'boundary')
-LawKind.INVARIANT = LawKind.register('INVARIANT', 'invariant')
 LawKind.OBJECTIVE = LawKind.register('OBJECTIVE', 'objective')
 LawKind.ENCOUNTER = LawKind.register('ENCOUNTER', 'encounter')
 Trait.FORMLESS = Trait.register('FORMLESS', 'formless')
@@ -1086,7 +1084,7 @@ def _is_declaration(value: object) -> bool:
 
 
 def _namespace_method(function: Callable[..., Sequence[Any]], name: str) -> Callable[..., Sequence[Any]]:
-    """Return a `laws` or `quantities` method from a function of the namespace, or of the instance and the namespace."""
+    """Return a `laws` method from a function of the namespace, or of the instance and the namespace."""
     if len(inspect.signature(function).parameters) >= 2:  # noqa: PLR2004
         return function
 
@@ -1189,10 +1187,9 @@ def _define_type(
     states: Mapping[str, Any] | None = None,
     parameters: Mapping[str, Any] | None = None,
     laws: Callable[..., list[Any]] | None = None,
-    quantities: Callable[..., Sequence[Any]] | None = None,
     attributes: Mapping[str, Any] | None = None,
 ) -> type:
-    """Return a subclass of a type built from declarations, laws and quantities functions, and class attributes.
+    """Return a subclass of a type built from declarations, a laws function, and class attributes.
 
     A state or a parameter given as a plain value is declared with that value as its default.
     """
@@ -1205,8 +1202,6 @@ def _define_type(
     namespace['__qualname__'] = name
     if laws is not None:
         namespace['laws'] = _namespace_method(laws, 'laws')
-    if quantities is not None:
-        namespace['quantities'] = _namespace_method(quantities, 'quantities')
     new_type = type(name, (kind,), namespace)
     new_type._declarations()  # type: ignore[attr-defined]
     return new_type

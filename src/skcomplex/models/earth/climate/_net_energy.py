@@ -3,29 +3,39 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw
-from ....core.system import System
+from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 
-def _energy_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the energy return on investment, the gross energy, its extraction cost, and the net energy per capita."""
-    remaining = s.reserve / s.reserve_size
-    eroi = AuxiliaryQuantity('eroi', 1 + (s.initial_eroi - 1) * remaining**s.decline)
-    gross = AuxiliaryQuantity('gross_energy', s.capacity * remaining)
-    cost = AuxiliaryQuantity('extraction_cost', gross.symbol / eroi.symbol)
-    net = gross.symbol - cost.symbol
-    return [eroi, gross, cost, AuxiliaryQuantity('net_per_capita', net / s.population)]
+def _eroi(s: Symbols) -> Expression:
+    """Return the energy return on investment, which falls with the remaining fraction of the reserve."""
+    return 1 + (s.initial_eroi - 1) * (s.reserve / s.reserve_size) ** s.decline
+
+
+def _gross_energy(s: Symbols) -> Expression:
+    """Return the gross energy extracted per year."""
+    return s.capacity * s.reserve / s.reserve_size
+
+
+def _extraction_cost(s: Symbols) -> Expression:
+    """Return the energy the extraction work costs per year."""
+    return _gross_energy(s) / _eroi(s)
+
+
+def _net_per_capita(s: Symbols) -> Expression:
+    """Return the net energy per person."""
+    return (_gross_energy(s) - _extraction_cost(s)) / s.population
 
 
 def _energy_laws(s: Symbols) -> list[BaseLaw]:
     """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population."""
-    _, gross, cost, _ = _energy_quantities(s)
-    net = gross.symbol - cost.symbol
+    cost = _extraction_cost(s)
+    net = _gross_energy(s) - cost
     return [
-        TransferLaw(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
+        TransferLaw(s.reserve, Sink('extraction_work'), cost, label='energy_cost'),
         TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
         RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
         TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
@@ -50,7 +60,6 @@ EnergySectorElement = Element.define(
         'death_rate': parameter(default=0.015, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_energy_laws,
-    quantities=_energy_quantities,
 )
 
 
@@ -59,6 +68,12 @@ EnergySectorElement = Element.define(
     tags=('energy', 'net energy', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Mobus 2022',),
     defaults={'until': 250.0, 'dt': 1.0},
+    observables=lambda system: [
+        observe_element('energy', 'eroi', _eroi),
+        observe_element('energy', 'gross_energy', _gross_energy),
+        observe_element('energy', 'extraction_cost', _extraction_cost),
+        observe_element('energy', 'net_per_capita', _net_per_capita),
+    ],
 )
 def energy_return(
     reserve: float = 1000.0,
@@ -99,9 +114,9 @@ def energy_return(
     Returns:
         system:
             The model, with the reserve `energy.reserve`, the capacity `energy.capacity`, the population
-            `energy.population`, the auxiliaries `energy.eroi`, `energy.gross_energy`, `energy.extraction_cost`, and
-            `energy.net_per_capita`, and the flows `energy.energy_cost`, `energy.net_energy`, `energy.births`, and
-            `energy.deaths` per year, over years.
+            `energy.population`, and the flows `energy.energy_cost`, `energy.net_energy`, `energy.births`, and
+            `energy.deaths` per year, over years. The observables of the model are `energy.eroi`,
+            `energy.gross_energy`, `energy.extraction_cost`, and `energy.net_per_capita`.
 
     Examples:
         >>> from skcomplex.models.earth.climate import energy_return

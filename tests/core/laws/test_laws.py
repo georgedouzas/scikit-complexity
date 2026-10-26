@@ -18,7 +18,6 @@ from skcomplex.core.base import (
 from skcomplex.core.components import Element
 from skcomplex.core.laws import (
     EquationLaw,
-    InvariantQuantity,
     JumpLaw,
     NoiseLaw,
     ObjectiveQuantity,
@@ -136,12 +135,16 @@ IncomeElement = Element.define(
 )
 
 
+def _pump_laws(s):
+    """Return the rate of the pump and the gain it maximises."""
+    return [RateLaw(s.x, -s.x + s.u), ObjectiveQuantity('gain', s.x**2 + s.weight * s.u, terminal=s.x, sense='max')]
+
+
 PumpElement = Element.define(
     'PumpElement',
     states={'x': 1.0},
     parameters={'u': parameter(0.0, adaptive=True, bounds=(0, 1)), 'weight': 2.0},
-    laws=lambda s: [RateLaw(s.x, -s.x + s.u)],
-    quantities=lambda s: [ObjectiveQuantity('gain', s.x**2 + s.weight * s.u, terminal=s.x, sense='max')],
+    laws=_pump_laws,
 )
 
 
@@ -272,18 +275,6 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     first = Simulation(written, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
     second = Simulation(solved, solver=PRECISE, dt=0.1).run(until=3).trajectory_.values('mass.x')
     assert first == pytest.approx(second, abs=1e-8)
-
-
-def test_violated_invariant_names_itself_and_the_frame():
-    """Test that a law creating a quantity from nothing breaks the declared invariant at the first frame."""
-    LeakyElement = Element.define(
-        'LeakyElement',
-        states={'a': 1.0},
-        laws=lambda s: [RateLaw(s.a, 1.0)],
-        quantities=lambda s: [InvariantQuantity('total', s.a)],
-    )
-    with pytest.raises(ConservationError, match=r'invariant l\.total .* at frame 1'):
-        Simulation(System(components=[LeakyElement('l')]), dt=0.5).run(until=2)
 
 
 def test_adaptive_parameter_changes_only_when_the_policy_fires():

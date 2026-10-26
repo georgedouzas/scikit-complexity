@@ -1,31 +1,26 @@
-"""Define flows of conserved quantities, auxiliaries, lookup tables, and system-dynamics delays."""
+"""Define flows of conserved quantities, lookup tables, and system-dynamics delays."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import pickle  # nosec B403: pickles the invariant's function to check that it pickles, and never loads
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import Any, ClassVar, Self, cast
+from typing import Any, ClassVar, Self
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
     BaseLaw,
-    BaseQuantity,
-    ConservationError,
     DomainKind,
     Expression,
     LawClass,
     LawKind,
     Requires,
-    SymbolicVector,
     Trait,
     ValidationError,
     register_laws,
-    symbol,
 )
 from ._functions import series
 from ._laws import _checked_value, _is_number
@@ -256,7 +251,7 @@ class TransferLaw(BaseLaw):
             The symbolic amount, a rate, a per-step amount, or a jump size.
 
         label:
-            The name of the flow, unique among the flows and auxiliaries of its component, or `None` for
+            The name of the flow, unique among the flows and objectives of its component, or `None` for
             `flow_<index>`.
 
         rate:
@@ -303,134 +298,6 @@ class TransferLaw(BaseLaw):
             )
             raise ValidationError(error_msg)
         return replace(self, **changes) if changes else self
-
-
-@dataclass(frozen=True)
-class AuxiliaryQuantity(BaseQuantity):
-    """Named intermediate expression that laws reuse through its symbol and that trajectories record.
-
-    A component returns its auxiliaries from `quantities`, and its laws use `auxiliary.symbol` where the expression
-    belongs, and the compiler substitutes the expression. The loop analysis keeps auxiliaries as nodes of the feedback
-    graph, and the trajectory records the value under `<component path>.<label>`.
-
-    Args:
-        label:
-            The name of the auxiliary, unique among the flows and quantities of its component.
-
-        expression:
-            The symbolic expression, which can use the symbols of earlier auxiliaries.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import AuxiliaryQuantity
-        >>> n, b = symbol('n'), symbol('b')
-        >>> births = AuxiliaryQuantity('births', b * n)
-        >>> births.symbol
-        births__aux
-    """
-
-    def _check(self) -> Self:
-        """Return the auxiliary with its expression checked and normalized, raising a named error for an invalid one."""
-        return replace(self, expression=_checked_value(f'expression of the auxiliary {self.label}', self.expression))
-
-    @property
-    def symbol(self) -> Expression:
-        """The symbol laws use in place of the expression."""
-        return symbol(f'{self.label}__aux')
-
-
-@dataclass(frozen=True)
-class InvariantQuantity(BaseQuantity):
-    """Expression of the states of a component that stays constant during a run, such as a conserved total.
-
-    A component returns its invariants from `quantities`. The trajectory records the expression under
-    `<component path>.<label>`, and every run checks at every frame that it differs from its value at the first frame by
-    no more than the tolerance, raising an error that names the invariant and the first frame that breaks it. A group
-    of agents declares an invariant of each member as a module-level function of the member, which the agent stepper
-    checks after every step against the member's first value. An interaction of agents declares an invariant of the
-    agents it binds as a module-level function of its model view, such as the total of a state over a group, which the
-    agent stepper checks after every step against its first value.
-
-    Args:
-        label:
-            The name of the invariant, unique among the flows and quantities of its component.
-
-        expression:
-            The expression of states and parameters, or a module-level function of a member of an agent group or of
-            the model view of an interaction of agents.
-
-        tolerance:
-            The largest change from the first frame that the run accepts.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import InvariantQuantity
-        >>> a, b = symbol('a'), symbol('b')
-        >>> InvariantQuantity('total', a + b).tolerance
-        1e-09
-    """
-
-    tolerance: float = 1e-9
-
-    def _check(self) -> Self:
-        """Return the invariant with its expression checked and normalized, raising a named error for an invalid one."""
-        if not self.is_member:
-            return replace(
-                self,
-                expression=_checked_value(f'expression of the invariant {self.label}', self.expression),
-            )
-        try:
-            pickle.dumps(self.expression)
-        except (pickle.PicklingError, AttributeError, TypeError) as error:
-            error_msg = (
-                f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
-            )
-            raise ValidationError(error_msg) from error
-        return self
-
-    @property
-    def is_member(self) -> bool:
-        """Whether the invariant is a function of each member of an agent group or of an interaction's model view."""
-        return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
-
-    def value_of(self, member: Any) -> float:  # noqa: ANN401
-        """Return the value of the invariant of a member, for an invariant given as a function of a member.
-
-        Args:
-            member:
-                The member, or the model view of an interaction, as rules receive it.
-
-        Returns:
-            value:
-                The value of the function at the member.
-        """
-        function = cast('Callable[[Any], float]', self.expression)
-        return float(function(member))
-
-    def _verify(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
-        """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
-
-        Args:
-            member:
-                The member, or the model view of an interaction, as rules receive it.
-
-            first:
-                The value of the invariant when the member was first checked.
-
-            name:
-                The name of the member in the message, such as its group and id, or the path of the interaction.
-
-        Raises:
-            ConservationError:
-                The invariant changed by more than the tolerance.
-        """
-        difference = self.value_of(member) - first
-        if abs(difference) > self.tolerance:
-            error_msg = (
-                f'The invariant {self.label!r} of {name} does not hold: it changed by {difference:.6g}. Change '
-                'the states it reads with transfers, or change all of them in the same rule.'
-            )
-            raise ConservationError(error_msg)
 
 
 register_laws(TransferLaw)

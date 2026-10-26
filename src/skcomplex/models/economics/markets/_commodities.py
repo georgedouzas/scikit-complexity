@@ -3,50 +3,57 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
-from ....core.system import System
+from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))
 
 
-def _commodity_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the coverage of demand by the inventory, the price, the expected price, and the orders of capacity."""
-    demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    coverage = AuxiliaryQuantity('coverage', s.inventory / demand)
-    price = AuxiliaryQuantity('price', s.reference_price * lookup(coverage.symbol / s.desired_coverage, PRICE_TABLE))
-    expected = AuxiliaryQuantity(
-        'expected_price',
-        distributed_delay(price.symbol, conserved=False, time=s.expectation_time),
-    )
-    starts = AuxiliaryQuantity(
-        'capacity_orders',
-        s.capacity / s.lifetime * lookup(expected.symbol / s.reference_price, INVESTMENT_TABLE),
-    )
-    return [coverage, price, expected, starts]
+def _demand(s: Symbols) -> Expression:
+    """Return the demand at the reference price, after its step."""
+    return s.demand + step(s.t, s.step_time, s.demand_step)
+
+
+def _coverage(s: Symbols) -> Expression:
+    """Return the coverage of the demand by the inventory."""
+    return s.inventory / _demand(s)
+
+
+def _price(s: Symbols) -> Expression:
+    """Return the price, which falls as the coverage rises above the desired coverage."""
+    return s.reference_price * lookup(_coverage(s) / s.desired_coverage, PRICE_TABLE)
+
+
+def _expected_price(s: Symbols) -> Expression:
+    """Return the expected price, the price smoothed over the expectation time."""
+    return distributed_delay(_price(s), conserved=False, time=s.expectation_time)
+
+
+def _capacity_orders(s: Symbols) -> Expression:
+    """Return the orders of capacity, which rise with the expected price."""
+    return s.capacity / s.lifetime * lookup(_expected_price(s) / s.reference_price, INVESTMENT_TABLE)
 
 
 def _commodity_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the commodity market."""
-    demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    _, price, _, starts = _commodity_quantities(s)
-    relative_price = price.symbol / s.reference_price
+    relative_price = _price(s) / s.reference_price
     production = s.capacity * relative_price**s.supply_elasticity
     return [
         TransferLaw(Source('producers'), s.inventory, production, label='production'),
         TransferLaw(
             s.inventory,
             Sink('consumers'),
-            demand * relative_price ** (-s.demand_elasticity),
+            _demand(s) * relative_price ** (-s.demand_elasticity),
             label='consumption',
         ),
         TransferLaw(
             Source('construction'),
             s.capacity,
-            distributed_delay(starts.symbol, order=3, time=s.construction_delay),
+            distributed_delay(_capacity_orders(s), order=3, time=s.construction_delay),
             label='completions',
         ),
         TransferLaw(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
@@ -72,7 +79,6 @@ CommodityMarketElement = Element.define(
         'lifetime': parameter(default=15.0, domain=NumericDomain.POSITIVE),
     },
     laws=_commodity_laws,
-    quantities=_commodity_quantities,
 )
 
 
@@ -81,6 +87,12 @@ CommodityMarketElement = Element.define(
     tags=('commodity cycle', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Bala et al. 2017',),
     defaults={'until': 60.0, 'dt': 0.25},
+    observables=lambda system: [
+        observe_element('market', 'coverage', _coverage),
+        observe_element('market', 'price', _price),
+        observe_element('market', 'expected_price', _expected_price),
+        observe_element('market', 'capacity_orders', _capacity_orders),
+    ],
 )
 def commodity_cycle(
     inventory: float = 25.0,
@@ -149,8 +161,8 @@ def commodity_cycle(
     Returns:
         system:
             The model, with the inventory `market.inventory` and the capacity `market.capacity` in years, the flows
-            `market.production`, `market.consumption`, `market.completions`, and `market.retirements`, and the
-            auxiliaries `market.coverage`, `market.price`, `market.expected_price`, and `market.capacity_orders`.
+            `market.production`, `market.consumption`, `market.completions`, and `market.retirements`. The observables
+            of the model are `market.coverage`, `market.price`, `market.expected_price`, and `market.capacity_orders`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import commodity_cycle

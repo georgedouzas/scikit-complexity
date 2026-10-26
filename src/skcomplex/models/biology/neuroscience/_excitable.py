@@ -13,7 +13,7 @@ from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.lattices import LocalRuleLaw
 
@@ -102,7 +102,7 @@ class ExcitableElementElement(Element):
     references=('Kinouchi and Copelli 2006', 'Larremore et al. 2011'),
     defaults={'until': 1000, 'dt': 1},
     observables=lambda system: [
-        ObservableQuantity('activity', group='neurons', variable='phase', reduce=_excited_fraction),
+        Observable('activity', group='neurons', variable='phase', reduce=_excited_fraction),
     ],
 )
 def kinouchi_copelli(

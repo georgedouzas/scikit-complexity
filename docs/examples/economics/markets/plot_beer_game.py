@@ -14,9 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'beer_game'
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
@@ -34,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(36)
+simulation = run(MODEL, settings={'until': 36, 'dt': 0.5, 'observers': [observer]})
 
 # %%
 # The bullwhip effect
@@ -45,7 +44,7 @@ simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).run(36)
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (orders, peaks) = plt.subplots(1, 2, figsize=(10, 4))
-orders.plot(times, trajectory.values('customers.demand'), color='black', linestyle=':', label='customer demand')
+orders.plot(times, trajectory.values('customers.orders'), color='black', linestyle=':', label='customer demand')
 for echelon in ECHELONS:
     orders.plot(times, trajectory.values(f'{echelon}.orders'), label=echelon)
 orders.set_xlabel('weeks')

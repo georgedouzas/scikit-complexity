@@ -11,7 +11,7 @@ import numpy.typing as npt
 from ....core.base import BaseLaw, NumericDomain, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -155,8 +155,8 @@ class ShopperElement(Element):
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 10},
     observables=lambda system: [
-        ObservableQuantity('items_left', _items_left, group='shoppers'),
-        ObservableQuantity('spent', group='shoppers', variable='spent'),
+        Observable('items_left', _items_left, group='shoppers'),
+        Observable('spent', group='shoppers', variable='spent'),
     ],
 )
 def produce_market(

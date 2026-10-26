@@ -8,7 +8,6 @@ from ._errors import (
     BackendWarning,
     CapacityError,
     ConservationError,
-    DeclarationError,
     ExperimentError,
     IncompatibleLawsError,
     LabelError,
@@ -26,7 +25,7 @@ from ._errors import (
     ValidationError,
 )
 from ._interactions import BaseInteraction
-from ._laws import BaseLaw, BaseQuantity, has_trait, is_registered, law_classes, register_laws
+from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
 from ._types import (
     NUMERIC_DOMAINS,
     BaseDomain,
@@ -81,12 +80,10 @@ __all__: list[str] = [
     'BaseEstimator',
     'BaseInteraction',
     'BaseLaw',
-    'BaseQuantity',
     'Binding',
     'CapacityError',
     'CategoricalDomain',
     'ConservationError',
-    'DeclarationError',
     'DomainKind',
     'ElementKind',
     'ExperimentError',

@@ -7,11 +7,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Self
 
-from ..base import BaseQuantity, ValidationError
+from ..base import ValidationError
 
 
 @dataclass(frozen=True)
-class AggregateQuantity(BaseQuantity):
+class AggregateQuantity:
     """Summary of a group, the count of its members or a reduction of one of their states.
 
     A system declares its aggregates among its components. In a co-simulation the scheduler computes the value at every
@@ -45,13 +45,23 @@ class AggregateQuantity(BaseQuantity):
         'count'
     """
 
+    label: str
     expression: object = None
     group: str = field(default='', kw_only=True)
     reduce: str | Callable[[Any], float] = field(default='count', kw_only=True)
     variable: str | None = field(default=None, kw_only=True)
 
-    def _check(self) -> Self:
-        """Return the aggregate after checking that it names a group and has no expression."""
+    def check(self) -> Self:
+        """Return the aggregate after checking that it names a group and has no expression.
+
+        Returns:
+            aggregate:
+                The aggregate itself.
+
+        Raises:
+            ValidationError:
+                The aggregate has an expression, or names no group.
+        """
         if not self.group:
             error_msg = f'The aggregate {self.label!r} names no group. Give the path of the group it summarises.'
             raise ValidationError(error_msg)

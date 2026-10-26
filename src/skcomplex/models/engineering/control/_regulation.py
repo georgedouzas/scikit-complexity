@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import cos, sin
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import EquationLaw, RateLaw, Symbols, derivative
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.analysis import linearize, lqr
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
@@ -153,7 +153,7 @@ class DrivenOscillatorElement(Element):
     tags=('control', 'feedback', 'pid', 'unstable equilibrium', 'ode'),
     references=('Åström and Murray 2008',),
     defaults={'until': 5.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [ObservableQuantity('tilt', _tilt)],
+    observables=lambda system: [Observable('tilt', _tilt)],
 )
 def pid_inverted_pendulum(
     theta: float = 0.1,
@@ -223,7 +223,7 @@ def pid_inverted_pendulum(
     tags=('control', 'feedback', 'linear-quadratic regulator', 'oscillator', 'ode'),
     references=('Åström and Murray 2008',),
     defaults={'until': 10.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [ObservableQuantity('energy', _oscillator_energy)],
+    observables=lambda system: [Observable('energy', _oscillator_energy)],
 )
 def lqr_oscillator(
     x: float = 1.0,

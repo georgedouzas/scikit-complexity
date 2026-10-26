@@ -30,8 +30,7 @@ class BaseElement(BaseEstimator):
 
     `check()` rejects a value the type does not declare and a declared variable without a default that is not given,
     `prepare()` sets `declarations_`, and `run(s)` returns the laws of the component for a namespace of symbols, from
-    the hook `laws` that a type overrides. A type returns its auxiliaries, invariants, and objectives from the hook
-    `quantities`, which takes the same namespace. Validation checks every component of a system.
+    the hook `laws` that a type overrides. Validation checks every component of a system.
 
     Args:
         label:
@@ -166,18 +165,5 @@ class BaseElement(BaseEstimator):
         Returns:
             laws:
                 The laws of the component.
-        """
-        return []
-
-    def quantities(self, s: Any) -> list[Any]:  # noqa: ANN401
-        """Return the auxiliaries, invariants, and objectives of the component, none by default.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
         """
         return []

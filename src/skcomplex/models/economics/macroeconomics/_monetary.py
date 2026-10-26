@@ -5,7 +5,7 @@
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, UpdateLaw
+from ....core.laws import Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -29,32 +29,21 @@ MonetaryBankElement = Element.define(
 )
 
 
-def _circuit_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the consumption demand of the households and the new loans of the firms."""
-    households, firms = s.households, s.firms
-    return [
-        AuxiliaryQuantity(
-            'consumption_demand',
-            s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits,
-        ),
-        AuxiliaryQuantity('new_loans', s.credit * firms.sales),
-    ]
-
-
 def _circuit(s: Symbols) -> list[BaseLaw]:
     """Return the transactions of one period between households, firms, and the bank."""
     households, firms, bank = s.households, s.firms, s.bank
-    consumption, lending = _circuit_quantities(s)
+    consumption = s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits
+    lending = s.credit * firms.sales
     return [
-        TransferLaw(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
+        TransferLaw(households.deposits, firms.deposits, consumption, label='consumption'),
         TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
         TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
         TransferLaw(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
         TransferLaw(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
-        TransferLaw(Source('lending'), firms.deposits, lending.symbol, label='lending'),
+        TransferLaw(Source('lending'), firms.deposits, lending, label='lending'),
         TransferLaw(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
-        UpdateLaw(firms.loans, firms.loans + lending.symbol - s.repayment * firms.loans),
-        UpdateLaw(firms.sales, consumption.symbol),
+        UpdateLaw(firms.loans, firms.loans + lending - s.repayment * firms.loans),
+        UpdateLaw(firms.sales, consumption),
     ]
 
 
@@ -72,7 +61,6 @@ CircuitInteraction = BaseInteraction.define(
         'repayment': parameter(default=0.08, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_circuit,
-    quantities=_circuit_quantities,
 )
 
 

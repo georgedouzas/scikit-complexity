@@ -18,12 +18,8 @@ class QuarticElement(Element):
     u: float = parameter(0.0, adaptive=True, bounds=(-1, 1))
 
     def laws(self, s):
-        """Return the rate."""
-        return [RateLaw(s.x, s.u)]
-
-    def quantities(self, s):
-        """Return the quartic cost."""
-        return [ObjectiveQuantity('objective', s.x**2 + s.u**4 - s.u**2)]
+        """Return the rate and the quartic cost."""
+        return [RateLaw(s.x, s.u), ObjectiveQuantity('objective', s.x**2 + s.u**4 - s.u**2)]
 
 
 def test_pontryagin_matches_riccati_solution(linear_quadratic, riccati_control):

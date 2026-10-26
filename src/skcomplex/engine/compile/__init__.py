@@ -2,7 +2,7 @@
 
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, register_owner
-from ._compilation import BlockLaws, Compilation, Laws, Quantities
+from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, compiled_problem, partition_system
 from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
@@ -46,7 +46,6 @@ __all__: list[str] = [
     'Node',
     'ObservableEvaluator',
     'OwnerRule',
-    'Quantities',
     'ValidationReport',
     'ValidationWarning',
     'aggregates_of',

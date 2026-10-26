@@ -139,8 +139,9 @@ def test_model_conforms(entry, tmp_path):
     dt = settings.get('dt', 1.0)
     until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(entry.name, save_path=tmp_path / 'run.rrd')
-    simulation = Simulation(system, observers=[observer], random_state=0, **settings).run(until=until)
-    trajectory = simulation.trajectory_
+    observables = describe(entry.name).observables_of(system)
+    simulation = Simulation(system, observers=[observer], observables=observables, random_state=0, **settings)
+    trajectory = simulation.run(until=until).trajectory_
     assert observer.logged_frames_ == len(trajectory.times)
     for name in problem.states.names:
         assert len(trajectory.values(name)) == len(trajectory.times)

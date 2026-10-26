@@ -7,8 +7,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...core.base import BaseLaw, BaseQuantity, Expression, Form
-from ...core.laws import EventLaw
+from ...core.base import BaseLaw, Expression, Form
+from ...core.laws import EventLaw, ObjectiveQuantity
 from ...core.problems import BaseBackend, Lowered, Output, Problem, ReductionSchedule
 from ...core.problems._problem import _MarkovMatrix
 from ...core.system import System
@@ -23,7 +23,7 @@ from ._tree import Node
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], Block]]
-type Quantities = list[tuple[KernelSpec, list[BaseQuantity]]]
+type Objectives = list[tuple[KernelSpec, list[ObjectiveQuantity]]]
 
 INPUTS = ('system', 'backend', 'solver', 'owners', 'held')
 PLANNING = frozenset({'nodes', 'census', 'plan'})
@@ -70,8 +70,8 @@ class Compilation:
         collected:
             The laws of every kernel spec as declared, with its block.
 
-        quantities:
-            The auxiliaries, invariants, and objectives of every kernel spec as declared.
+        objectives:
+            The objectives of every kernel spec as declared.
 
         apart:
             The laws set apart from the kernels of their spec, which a pass of their own compiles.
@@ -167,7 +167,7 @@ class Compilation:
     layout: Declarations | None = None
     specs: list[tuple[KernelSpec, Block]] | None = None
     collected: BlockLaws | None = None
-    quantities: Quantities | None = None
+    objectives: Objectives | None = None
     apart: Laws | None = None
     lowered: BlockLaws | None = None
     markov: list[tuple[KernelSpec, MatrixLaw]] | None = None

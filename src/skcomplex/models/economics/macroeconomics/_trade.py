@@ -6,7 +6,7 @@
 from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, where
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
 TradingEconomyElement = Element.define(
@@ -58,12 +58,12 @@ def _output(s: Symbols) -> Expression:
     return s.home.demand + s.home.government + s.home.X - s.home.M
 
 
-def _trade_observables(system: System) -> list[ObservableQuantity]:
+def _trade_observables(system: System) -> list[Observable]:
     """Return the trade balance, the real exchange rate, and the output."""
     return [
-        ObservableQuantity('balance', _balance),
-        ObservableQuantity('real_rate', _real_rate),
-        ObservableQuantity('output', _output),
+        Observable('balance', _balance),
+        Observable('real_rate', _real_rate),
+        Observable('output', _output),
     ]
 
 

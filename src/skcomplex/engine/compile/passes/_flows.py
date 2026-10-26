@@ -1,4 +1,4 @@
-"""Compile the flows of stocks, auxiliaries, conserved quantities, and system-dynamics delays of components."""
+"""Compile the flows of stocks, conserved quantities, and system-dynamics delays of components."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +9,7 @@ from typing import cast
 from ....core.base import BaseLaw
 from ....core.laws import TransferLaw
 from ....core.problems import Problem, StockFlow
-from .._compilation import BlockLaws, Compilation, Quantities
+from .._compilation import BlockLaws, Compilation, Objectives
 from .._declarations import Declarations
 from .._flows import StockFlowPass, quantities_of
 from .._pipeline import BasePass
@@ -23,13 +23,13 @@ def _flow_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
 
 
 class ExpandFlowsPass(BasePass):
-    """Pass that expands the flows, auxiliaries, invariants, and objectives of components into laws of other kinds."""
+    """Pass that expands the flows of components into laws of other kinds, and records their flows and objectives."""
 
-    reads = ('collected', 'quantities', 'layout')
+    reads = ('collected', 'objectives', 'layout')
     writes = ('collected', 'flows')
 
     def _run(self, compilation: Compilation) -> None:
-        """Expand the flows of the collected laws, and record the quantities.
+        """Expand the flows of the collected laws, and record the objectives.
 
         Args:
             compilation:
@@ -37,9 +37,9 @@ class ExpandFlowsPass(BasePass):
         """
         declarations = cast('Declarations', compilation.layout)
         flows = StockFlowPass(quantities_of(declarations.blocks))
-        quantities = {id(spec): items for spec, items in cast('Quantities', compilation.quantities)}
+        objectives = {id(spec): items for spec, items in cast('Objectives', compilation.objectives)}
         compilation.collected = [
-            (spec, flows.expand(spec, list(laws), quantities.get(id(spec), [])), block)
+            (spec, flows.expand(spec, list(laws), objectives.get(id(spec), [])), block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
         compilation.facts['flows'] = flows

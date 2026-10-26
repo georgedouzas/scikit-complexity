@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 from ..realizations._markets import MarketInteraction, SampleAndSwitch, Trade
@@ -317,17 +317,17 @@ class CreditMarketInteraction(MarketInteraction):
         model.report('spread', spread)
 
 
-def _credit_observables(system: System) -> list[ObservableQuantity]:
+def _credit_observables(system: System) -> list[Observable]:
     """Return the concentration, equity, worth, returns, injections, defaults, and losses of the credit market."""
     return [
-        ObservableQuantity('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        ObservableQuantity('largest_share', group='banks', variable='lent', reduce=_largest_share),
-        ObservableQuantity('bank_equity', group='banks', variable='equity', reduce='sum'),
-        ObservableQuantity('firm_worth', group='firms', variable='net_worth', reduce='sum'),
-        ObservableQuantity('returns', group='firms', variable='gross_return', reduce='sum'),
-        ObservableQuantity('injected', group='firms', variable='injected', reduce='sum'),
-        ObservableQuantity('defaults', group='firms', variable='defaulted', reduce='sum'),
-        ObservableQuantity('bad_debt', group='banks', variable='losses', reduce='sum'),
+        Observable('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
+        Observable('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        Observable('bank_equity', group='banks', variable='equity', reduce='sum'),
+        Observable('firm_worth', group='firms', variable='net_worth', reduce='sum'),
+        Observable('returns', group='firms', variable='gross_return', reduce='sum'),
+        Observable('injected', group='firms', variable='injected', reduce='sum'),
+        Observable('defaults', group='firms', variable='defaulted', reduce='sum'),
+        Observable('bad_debt', group='banks', variable='losses', reduce='sum'),
     ]
 
 

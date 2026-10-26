@@ -14,7 +14,7 @@ from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parame
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, neighbors, uniform
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
@@ -142,8 +142,8 @@ class NonreciprocalMoverElement(Element):
     references=('Fruchart, Hanai, Littlewood, and Vitelli 2021', 'te Vrugt and Wittkowski 2024'),
     defaults={'until': 300.0, 'dt': 1.0},
     observables=lambda system: [
-        ObservableQuantity('heading_a', _heading_a, group='movers'),
-        ObservableQuantity('heading_b', _heading_b, group='movers'),
+        Observable('heading_a', _heading_a, group='movers'),
+        Observable('heading_b', _heading_b, group='movers'),
     ],
 )
 def nonreciprocal_vicsek(

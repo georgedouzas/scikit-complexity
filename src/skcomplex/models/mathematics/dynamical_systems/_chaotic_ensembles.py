@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import floor
 from ....core.base import Expression, NumericDomain, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import Symbols, UpdateLaw, mod, where
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
@@ -61,8 +61,8 @@ def _draw_cloud(
     references=('Bertin 2021',),
     defaults={'until': 200, 'dt': 1},
     observables=lambda system: [
-        ObservableQuantity('displacement', group='walkers', variable='y'),
-        ObservableQuantity('square_displacement', _square_displacement, group='walkers'),
+        Observable('displacement', group='walkers', variable='y'),
+        Observable('square_displacement', _square_displacement, group='walkers'),
     ],
 )
 def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:

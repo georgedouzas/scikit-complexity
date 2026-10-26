@@ -118,8 +118,7 @@ class CollocationSolver(OptimalControlSolver):
         ...     'PlantElement',
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
-        ...     laws=lambda s: [RateLaw(s.x, s.u)],
-        ...     quantities=lambda s: [ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
+        ...     laws=lambda s: [RateLaw(s.x, s.u), ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
         ... )
         >>> solver = CollocationSolver(nodes=51, scheme='hermite-simpson')
         >>> simulation = Simulation(System(components=[PlantElement('plant')]), solver=solver).run(until=1.0)

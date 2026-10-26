@@ -10,7 +10,6 @@ import skcomplex.formalisms.control  # registers the optimal control solvers the
 import skcomplex.formalisms.particles  # noqa: F401  # registers the LAMMPS solver the tests name
 from skcomplex.core.base import (
     BaseInteraction,
-    DeclarationError,
     Form,
     NoiseKind,
     NumericDomain,
@@ -21,9 +20,9 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.components import Element, WienerProcess
-from skcomplex.core.laws import InvariantQuantity, NoiseLaw, ObjectiveQuantity, RateLaw, UpdateLaw, neighbors
+from skcomplex.core.laws import NoiseLaw, ObjectiveQuantity, RateLaw, UpdateLaw, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
 from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.groups import CayleySpace, finitely_presented_group
@@ -214,12 +213,8 @@ class PlantElement(Element):
     u: float = parameter(0.5, adaptive=True, bounds=(0, 1))
 
     def laws(self, s):
-        """Return the rate of the state."""
-        return [RateLaw(s.x, s.u - s.x)]
-
-    def quantities(self, s):
-        """Return the cost."""
-        return [ObjectiveQuantity('objective', s.x**2 + s.u**2)]
+        """Return the rate of the state and the cost."""
+        return [RateLaw(s.x, s.u - s.x), ObjectiveQuantity('objective', s.x**2 + s.u**2)]
 
 
 class NoisyPlantElement(PlantElement):
@@ -236,12 +231,8 @@ class TankElement(Element):
     level: float = state(1.0)
 
     def laws(self, s):
-        """Return the update of the level."""
-        return [UpdateLaw(s.level, s.level / 2)]
-
-    def quantities(self, s):
-        """Return the cost of the level."""
-        return [ObjectiveQuantity('objective', s.level)]
+        """Return the update of the level and its cost."""
+        return [UpdateLaw(s.level, s.level / 2), ObjectiveQuantity('objective', s.level)]
 
 
 def test_validate_control_outside_bounds():
@@ -490,41 +481,15 @@ def test_validate_accepts_correlated_noise_with_automatic_solver():
     assert NoiseKind.CORRELATED in SOLVERS.resolve((Form.SDE, 'auto')).supports.noise
 
 
-def test_quantity_among_the_laws_is_rejected():
-    """Test that an invariant returned from `laws` is a named error that names the component and `quantities`."""
+def test_observable_among_the_laws_is_rejected():
+    """Test that an observable returned from `laws` is an error that names the component and the laws it takes."""
     MixedElement = Element.define(
         'MixedElement',
         states={'a': 1.0},
-        laws=lambda s: [RateLaw(s.a, -s.a), InvariantQuantity('total', s.a)],
+        laws=lambda s: [RateLaw(s.a, -s.a), Observable('level', s.a)],
     )
     (issue,) = validate(System(components=[MixedElement('tank')])).errors
-    assert (issue.code, issue.path, issue.error) == ('declaration', 'tank', DeclarationError)
-    assert "InvariantQuantity 'total'" in issue.message
-    assert 'Return it from `quantities` instead' in issue.message
-    with pytest.raises(DeclarationError, match='tank'):
+    assert issue.path == 'tank'
+    assert '`laws` of tank must return a list of' in issue.message
+    with pytest.raises(ValidationError, match='tank'):
         compile_system(System(components=[MixedElement('tank')]))
-
-
-def test_law_among_the_quantities_is_rejected():
-    """Test that a law returned from `quantities` is a named error that names the component and `laws`."""
-    MixedElement = Element.define(
-        'MixedElement',
-        states={'a': 1.0},
-        quantities=lambda s: [RateLaw(s.a, -s.a)],
-    )
-    (issue,) = validate(System(components=[MixedElement('tank')])).errors
-    assert (issue.code, issue.path, issue.error) == ('declaration', 'tank', DeclarationError)
-    assert 'returns a RateLaw' in issue.message
-    assert 'Return it from `laws` instead' in issue.message
-
-
-def test_observable_among_the_quantities_is_rejected():
-    """Test that an observable returned from `quantities` is a named error that says where observables go."""
-    MixedElement = Element.define(
-        'MixedElement',
-        states={'a': 1.0},
-        quantities=lambda s: [ObservableQuantity('level', s.a)],
-    )
-    (issue,) = validate(System(components=[MixedElement('tank')])).errors
-    assert issue.error is DeclarationError
-    assert 'A run takes the observables' in issue.message

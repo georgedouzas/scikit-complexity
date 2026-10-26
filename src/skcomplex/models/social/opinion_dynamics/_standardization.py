@@ -12,7 +12,7 @@ from scipy.special import expit
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import Element
 from ....core.laws import Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import ModelView, RuleLaw
 
@@ -168,8 +168,8 @@ class StandardizationInteraction(BaseInteraction):
     references=('Bertin 2021', 'Bertin and Jensen 2019'),
     defaults={'until': 1000},
     observables=lambda system: [
-        ObservableQuantity('q', group='agents', variable='spin', reduce=_standardization),
-        ObservableQuantity('m', group='agents', variable='spin', reduce='mean'),
+        Observable('q', group='agents', variable='spin', reduce=_standardization),
+        Observable('m', group='agents', variable='spin', reduce='mean'),
     ],
 )
 def standardized_agents(

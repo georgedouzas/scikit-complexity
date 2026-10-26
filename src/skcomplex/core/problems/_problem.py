@@ -28,9 +28,8 @@ from ..base import (
     declarations_of,
 )
 from ..components import Element, GroupElement
-from ..laws import InvariantQuantity
 from ..space import BaseSpace
-from ..system import ObservableQuantity, System
+from ..system import Observable, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layouts import Layout
 from ._quantities import StockFlow, _CompiledObjective
@@ -384,9 +383,6 @@ class CompiledAgents:
 
         visual:
             The visual that draws the agents.
-
-        invariants:
-            The invariants of every agent, functions of the agent the stepper checks after every step.
     """
 
     path: str
@@ -397,7 +393,6 @@ class CompiledAgents:
     parameters: Mapping[str, str]
     rules: tuple[BaseLaw, ...]
     visual: VisualSpec
-    invariants: tuple[InvariantQuantity, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -621,7 +616,7 @@ class BaseProblem:
             The transition and emission matrices of the Markov laws, checked when their parameters change.
 
         stock_flow:
-            The quantities, flows, auxiliaries, and feedback terms of the system, or `None` without them.
+            The quantities, flows, objectives, and feedback terms of the system, or `None` without them.
 
         topology:
             The topology requests of the laws and the networks they change, or `None` for a problem without them.
@@ -685,7 +680,7 @@ class BaseProblem:
         del name
         return None
 
-    def observable_getters(self, observables: Iterable[tuple[str, ObservableQuantity]]) -> dict[str, Getter] | None:
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
         """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
 
         Args:
@@ -760,10 +755,6 @@ class Problem(BaseProblem):
 
         model_rules:
             The rules of interactions of an agent-based problem, with the path of their interaction.
-
-        model_invariants:
-            The invariants of interactions of an agent-based problem, functions of the interaction's model view, with
-            the path of their interaction.
 
         agent_space:
             The space the agents of an agent-based problem live in, or `None`.
@@ -862,7 +853,7 @@ class Problem(BaseProblem):
             fractional form, 1 for the ordinary states, and empty for the other forms.
 
         stock_flow:
-            The quantities, flows, auxiliaries, and feedback terms of the system, or `None` for partitioned and Mesa
+            The quantities, flows, objectives, and feedback terms of the system, or `None` for partitioned and Mesa
             problems.
 
         backend:
@@ -885,7 +876,6 @@ class Problem(BaseProblem):
     has_callables: bool
     has_group_sums: bool
     model_rules: tuple[tuple[str, BaseLaw], ...] = ()
-    model_invariants: tuple[tuple[str, InvariantQuantity], ...] = ()
     delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
     breakpoints: _Breakpoints = field(default_factory=_Breakpoints)

@@ -15,9 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import run
 
 MODEL = 'food_security'
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).run(50)
+simulation = run(MODEL, settings={'until': 50, 'dt': 0.25, 'observers': [observer]})
 
 # %%
 # Policies against a growing requirement
@@ -59,8 +58,10 @@ policies = {
     },
 }
 for name, changes in policies.items():
-    run = simulation.trajectory_ if not changes else Simulation(create(MODEL, **changes), dt=0.25).run(50).trajectory_
-    ax.plot(np.asarray(run.times), run.values('rice.self_sufficiency'), label=name)
+    scenario = (
+        simulation.trajectory_ if not changes else run(MODEL, settings={'until': 50, 'dt': 0.25}, **changes).trajectory_
+    )
+    ax.plot(np.asarray(scenario.times), scenario.values('rice.self_sufficiency'), label=name)
 times = np.asarray(simulation.trajectory_.times)
 start = simulation.trajectory_.values('rice.self_sufficiency')[0]
 ax.plot(times, start * np.exp(-0.03 * times), 'k:', label='exp(-0.03 t)')

@@ -3,10 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
 from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
@@ -67,8 +69,8 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     u: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
     w: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the balances of the cells and of the drug.
+    def laws(self, s: Symbols) -> list[Any]:
+        """Return the balances of the cells and of the drug, and the cost of the tumour and of the squared dose.
 
         Args:
             s:
@@ -78,20 +80,7 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
             laws:
                 The laws of the component.
         """
-        return super().laws(s)
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the treatment, the tumour and the squared dose.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        return [ObjectiveQuantity('cost', s.A + s.w * s.u**2 / 2, terminal=s.A)]
+        return [*super().laws(s), ObjectiveQuantity('cost', s.A + s.w * s.u**2 / 2, terminal=s.A)]
 
 
 class OptimalImmunotherapyElement(Element):
@@ -186,8 +175,8 @@ class OptimalImmunotherapyElement(Element):
     w1: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
     w2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the balances of effector cells, tumour cells, and IL-2.
+    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
+        """Return the balances of effector cells, tumour cells, and IL-2, and the cost of the tumour and the doses.
 
         Args:
             s:
@@ -198,25 +187,13 @@ class OptimalImmunotherapyElement(Element):
                 The laws of the component.
         """
         x, y, z = s.x, s.y, s.z
+        cost = s.y + s.w1 * s.u1**2 / 2 + s.w2 * s.u2**2 / 2
         return [
             RateLaw(x, s.alpha_a * y - s.d1 * x + s.a1 * s.u1 + s.rho1 * x * z / (1 + z)),
             RateLaw(y, s.r1 * y * (1 - s.b * y) - s.c1 * x * y / (1 + y)),
             RateLaw(z, s.a2 * s.u2 + s.rho2 * x * y / (s.alpha3 + y) - s.du * z),
+            ObjectiveQuantity('cost', cost, terminal=s.y),
         ]
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the treatment, the tumour and the squared doses of both therapies.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        cost = s.y + s.w1 * s.u1**2 / 2 + s.w2 * s.u2**2 / 2
-        return [ObjectiveQuantity('cost', cost, terminal=s.y)]
 
 
 @register_model(
@@ -224,7 +201,7 @@ class OptimalImmunotherapyElement(Element):
     tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
     references=(BOOK, 'de Pillis and Radunskaya 2001'),
     defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver()},
-    observables=lambda system: [ObservableQuantity('tumour_share', _tumour_share)],
+    observables=lambda system: [Observable('tumour_share', _tumour_share)],
 )
 def optimal_chemotherapy(
     E: float = 0.15,
@@ -269,7 +246,7 @@ def optimal_chemotherapy(
     tags=('optimal control', 'immunotherapy', 'adoptive therapy', 'IL-2', 'pontryagin', 'ode'),
     references=(BOOK, 'Kirschner and Panetta 1998'),
     defaults={'until': 50.0, 'dt': 0.5, 'solver': PontryaginSolver(nodes=1001)},
-    observables=lambda system: [ObservableQuantity('immune_ratio', _immune_ratio)],
+    observables=lambda system: [Observable('immune_ratio', _immune_ratio)],
 )
 def optimal_immunotherapy(
     x: float = 0.1,

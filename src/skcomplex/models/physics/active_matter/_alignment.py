@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import I, exp, sin
 from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role
 from ....core.laws import RateLaw, Symbols
 from ....core.space import ContinuousSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ._particles import ActiveParticleElement
@@ -106,8 +106,8 @@ class PolarAlignmentInteraction(BaseInteraction):
     references=('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020'),
     defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.05)},
     observables=lambda system: [
-        ObservableQuantity('mean_heading', _heading, group='swimmers'),
-        ObservableQuantity('polarization', _polarization),
+        Observable('mean_heading', _heading, group='swimmers'),
+        Observable('polarization', _polarization),
     ],
 )
 def aligning_active_brownian_particles(

@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import (
     BaseLaw,
-    BaseQuantity,
     DomainKind,
     Expression,
     LawClass,
@@ -526,10 +525,10 @@ class BoundaryLaw(BaseLaw):
 
 
 @dataclass(frozen=True)
-class ObjectiveQuantity(BaseQuantity):
+class ObjectiveQuantity:
     """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
 
-    A component returns its objective from `quantities`. Under continuous time the value of a run is the integral of
+    A component returns its objective among its laws. Under continuous time the value of a run is the integral of
     the running value `expression` over the run plus the terminal value `terminal` at its horizon, the time `until` of
     the run. The controls are the bounded adaptive parameters of the system. The trajectory records the running value
     under `<component path>.<label>`. An objective needs static or continuous time.
@@ -559,11 +558,22 @@ class ObjectiveQuantity(BaseQuantity):
         x^2
     """
 
+    label: str
+    expression: object
     terminal: object = 0
     sense: str = 'min'
 
-    def _check(self) -> Self:
-        """Return the objective with its values checked and normalized, raising a named error for an invalid one."""
+    def check(self) -> Self:
+        """Return the objective with its values checked and normalized.
+
+        Returns:
+            objective:
+                The checked objective, with its values as Sage expressions.
+
+        Raises:
+            ValidationError:
+                The sense is unknown, or a value is invalid, such as a NumPy array.
+        """
         if self.sense not in SENSES:
             error_msg = f'Unknown sense {self.sense!r} of the objective {self.label}. Use one of {", ".join(SENSES)}.'
             raise ValidationError(error_msg)

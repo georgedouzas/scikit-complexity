@@ -12,7 +12,7 @@ import rerun.blueprint as rrb
 
 from ...core.base import ValidationError
 from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
-from ...core.system import ObservableQuantity, System
+from ...core.system import Observable, System
 from ..compile import compile_system, observables_of
 from ._points import PointsVisual
 from ._scalars import ScalarsVisual
@@ -29,7 +29,7 @@ WHOLE_RUN = rrb.TimeAxis(
 )
 
 
-def _problem_of(system: System | BaseProblem, observables: Sequence[ObservableQuantity] = ()) -> BaseProblem:
+def _problem_of(system: System | BaseProblem, observables: Sequence[Observable] = ()) -> BaseProblem:
     """Return the problem of a system with its observables, compiling it when it is not compiled yet."""
     return system if isinstance(system, BaseProblem) else compile_system(system, observables=observables)
 
@@ -250,7 +250,7 @@ def default_blueprint(
     *,
     parameters: bool = False,
     primary: str | None = None,
-    observables: Sequence[ObservableQuantity] = (),
+    observables: Sequence[Observable] = (),
 ) -> rrb.Blueprint:
     """Return a Rerun blueprint built from the views the visuals of a system declare.
 

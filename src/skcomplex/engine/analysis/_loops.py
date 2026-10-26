@@ -28,7 +28,7 @@ class Loop:
 
     Args:
         nodes:
-            The states, auxiliaries, and flows of the loop, in the order of their influence, starting at its first
+            The states and flows of the loop, in the order of their influence, starting at its first
             state by name, or at its first node by name when it holds no state.
 
         polarity:
@@ -50,7 +50,7 @@ class Loops:
 
     Args:
         graph:
-            The directed graph from each state, auxiliary, or flow to every node whose value or rate it enters, with
+            The directed graph from each state or flow to every node whose value or rate it enters, with
             the edge attributes `sign` and `gain`.
 
         loops:
@@ -143,15 +143,12 @@ class _Graph:
         self.problem = problem
         stock_flow = _stock_flow(problem)
         self.readers: dict[Expression, tuple[bool, int]] = {}
-        self.expanded: dict[Expression, Expression] = {}
         self.edges: dict[tuple[str, str], Expression] = defaultdict(lambda: SR(0))
         for term in stock_flow.terms:
             self._add(term)
 
     def _node_of(self, item: Expression, term: LoopTerm) -> str | None:
-        """Return the node a symbol stands for, an auxiliary or a state, or `None` for parameters and time."""
-        if item in term.auxiliaries:
-            return term.auxiliaries[item]
+        """Return the state a symbol stands for, or `None` for parameters and time."""
         reference = term.references.get(item)
         if reference is None:
             return None
@@ -164,15 +161,10 @@ class _Graph:
     def _add(self, term: LoopTerm) -> None:
         """Add the edges of one term, from every node its expression reads."""
         expression = _without_delays(term.expression)
-        expanded = SR(expression).subs(self.expanded)
-        if term.kind == 'auxiliary':
-            self.expanded[next(item for item, path in term.auxiliaries.items() if path == term.path)] = expanded
         for item in symbols_of([expression]) - {self.problem.time}:
             node = self._node_of(item, term)
             if node is not None:
-                self.edges[(node, term.path)] += SR(expression).diff(item).subs(self.expanded)
-        for item in symbols_of([expanded]) - {self.problem.time}:
-            self._node_of(item, term)
+                self.edges[(node, term.path)] += SR(expression).diff(item)
         if term.kind == 'flow':
             if term.sink is not None:
                 self.edges[(term.path, term.sink)] += 1
@@ -228,10 +220,10 @@ def _problem_of(system: System | Problem) -> Problem:
 def loops(system: System | Problem, at: npt.ArrayLike | None = None) -> Loops:
     """Return the signed dependency graph of a system and its feedback loops.
 
-    An edge goes from each state, auxiliary, or flow to every auxiliary, flow, or state rate whose expression reads
-    it, with the sign of the partial derivative, and from each flow to its sink with sign `+` and its source with sign
-    `-`. Delays and smoothings pass their input with gain one. The loops are the cycles of the graph, found with
-    Johnson's algorithm, and a loop's polarity is the product of its edge signs.
+    An edge goes from each state or flow to every flow or state rate whose expression reads it, with the sign of the
+    partial derivative, and from each flow to its sink with sign `+` and its source with sign `-`. Delays and smoothings
+    pass their input with gain one. The loops are the cycles of the graph, found with Johnson's algorithm, and a loop's
+    polarity is the product of its edge signs.
 
     Args:
         system:

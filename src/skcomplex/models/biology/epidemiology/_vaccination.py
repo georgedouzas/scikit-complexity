@@ -6,7 +6,7 @@
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
 
@@ -70,8 +70,8 @@ class VaccinatedPopulationElement(Element):
     a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
     b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the flows between the fractions.
+    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
+        """Return the flows between the fractions, and the cost of the infected fraction and of the vaccination effort.
 
         Args:
             s:
@@ -86,20 +86,8 @@ class VaccinatedPopulationElement(Element):
             RateLaw(s.S, -infection - vaccination),
             RateLaw(s.I, infection - recovery),
             RateLaw(s.R, recovery + vaccination),
+            ObjectiveQuantity('cost', s.a * s.I + s.b * s.u**2 / 2),
         ]
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the epidemic, the infected fraction and the effort of vaccination.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        return [ObjectiveQuantity('cost', s.a * s.I + s.b * s.u**2 / 2)]
 
 
 @register_model(
@@ -107,7 +95,7 @@ class VaccinatedPopulationElement(Element):
     tags=('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode'),
     references=('Lenhart and Workman 2007',),
     defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver()},
-    observables=lambda system: [ObservableQuantity('vaccinated', _vaccinated)],
+    observables=lambda system: [Observable('vaccinated', _vaccinated)],
 )
 def sir_vaccination(
     S: float = 0.99,

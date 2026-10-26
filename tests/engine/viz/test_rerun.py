@@ -29,7 +29,7 @@ from skcomplex.formalisms.agents import RuleLaw
 from skcomplex.formalisms.fields import FieldElement
 from skcomplex.formalisms.particles import ParticleElement
 from skcomplex.formalisms.topology import add_node
-from skcomplex.models import create
+from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
 from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
@@ -337,9 +337,11 @@ def _logged_paths(monkeypatch, tmp_path, system, until, **settings):
     return logged, observer
 
 
-def test_rerun_observer_logs_stock_flow_auxiliaries_under_their_element(monkeypatch, tmp_path):
-    """Test that an auxiliary of a stock and flow model is logged under its element, so its view is not blank."""
-    logged, _ = _logged_paths(monkeypatch, tmp_path, create('hilsa_fishery'), until=10, dt=1)
+def test_rerun_observer_logs_observables_of_elements_under_their_element(monkeypatch, tmp_path):
+    """Test that an observable of an element of a stock and flow model is logged under its element, not blank."""
+    system = create('hilsa_fishery')
+    observables = describe('hilsa_fishery').observables_of(system)
+    logged, _ = _logged_paths(monkeypatch, tmp_path, system, until=10, dt=1, observables=observables)
     assert 'hilsa/adult_weight' in logged
     assert 'hilsa.adult_weight' not in logged
 

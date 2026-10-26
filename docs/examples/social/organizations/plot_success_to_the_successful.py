@@ -16,9 +16,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.analysis import loops
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, run
 
 MODEL = 'success_to_the_successful'
 
@@ -36,14 +35,14 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).run(100)
+simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observer]})
 
 # %%
 # The winner takes all
 # --------------------
-# The loop analysis finds two reinforcing loops, one through each competitor's allocation, and two balancing loops of
-# depreciation. Starting runs from several splits of the same 100 units shows that the symmetric split is unstable,
-# and whoever starts ahead wins.
+# The loop analysis finds three reinforcing loops, one through each competitor's allocation and one through both, and
+# two balancing loops of depreciation. Starting runs from several splits of the same 100 units shows that the
+# symmetric split is unstable, and whoever starts ahead wins.
 
 polarities = [loop.polarity for loop in loops(create(MODEL)).loops]
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
@@ -58,8 +57,8 @@ stocks.set_ylabel('resources')
 stocks.set_title('The resources of the competitors')
 stocks.legend()
 for a in (30.0, 45.0, 49.0, 51.0, 55.0, 70.0):
-    run = Simulation(create(MODEL, a=a, b=100.0 - a), dt=1.0).run(100)
-    splits.plot(times, run.trajectory_.values('contest.success'), label=f'a starts at {a:.0f}')
+    scenario = run(MODEL, settings={'until': 100, 'dt': 1.0}, a=a, b=100.0 - a)
+    splits.plot(times, scenario.trajectory_.values('contest.success'), label=f'a starts at {a:.0f}')
 splits.set_xlabel('years')
 splits.set_ylabel('share of the first competitor')
 splits.set_title('The share of the first competitor')

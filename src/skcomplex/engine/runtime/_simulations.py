@@ -13,7 +13,7 @@ import numpy.typing as npt
 
 from ...core.base import BaseEstimator, Form, NumericDomain, ParameterError, SimulationError, ValidationError, Vector
 from ...core.problems import BaseBackend, BaseProblem, Entry, with_initial_state
-from ...core.system import ObservableQuantity, System
+from ...core.system import Observable, System
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
 from ._clocks import AsFastAsPossibleClock, BaseClock
@@ -102,6 +102,11 @@ class Simulation(BaseEstimator):
             The observables to compute and record at every frame, labelled by their path from the root, such as
             `village/mean_wealth` for an observable of the nested system `village`.
 
+        invariants:
+            The tolerance of every observable that must stay constant, by the path of the observable. At every frame
+            the run checks that each stays within its tolerance of its value at the first frame, and raises a
+            `ConservationError` that names the observable and the first frame that breaks it.
+
         initial_state:
             Initial values that replace those of the components, by dotted state name, such as `{'rabbits.n': 20}`.
             The whole state of a quantum system is `<system label>.state`, which takes a vector, a density matrix, or
@@ -149,7 +154,8 @@ class Simulation(BaseEstimator):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[ObservableQuantity] = (),
+        observables: Sequence[Observable] = (),
+        invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
     ) -> None:
         self.system = system
@@ -163,6 +169,7 @@ class Simulation(BaseEstimator):
         self.checked = checked
         self.schedule = schedule
         self.observables = observables
+        self.invariants = invariants
         self.initial_state = initial_state
 
     def _check_dt(self, problem: BaseProblem, until: float) -> float:
@@ -219,9 +226,7 @@ class Simulation(BaseEstimator):
         initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
-        stock_flow = self.problem_.stock_flow
-        invariants = stock_flow is not None and stock_flow.invariants
-        monitors = [InvariantObserver()] if invariants else []
+        monitors = [InvariantObserver(self.invariants)] if self.invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.time_ = 0.0
         self.state_ = initial_state

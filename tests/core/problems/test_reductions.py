@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, state
 from skcomplex.core.components import Element
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, count, maximum, mean, minimum, total, variance
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 
@@ -262,8 +262,8 @@ def test_kuramoto_through_observables(backend):
     """Test that laws reading observables of their own partition compile to one ODE at the current state."""
     system, theta, omega = _kuramoto(40, observables=True)
     observables = [
-        ObservableQuantity('X', _cosine, group='oscillators'),
-        ObservableQuantity('Y', _sine, group='oscillators'),
+        Observable('X', _cosine, group='oscillators'),
+        Observable('Y', _sine, group='oscillators'),
     ]
     problem = compile_system(system, backend=backend, observables=observables)
     assert problem.form.name == 'ODE'
@@ -278,7 +278,7 @@ def test_callable_observable_in_same_partition():
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
-        compile_system(system, observables=[ObservableQuantity('spread', group='herd', variable='x', reduce=np.ptp)])
+        compile_system(system, observables=[Observable('spread', group='herd', variable='x', reduce=np.ptp)])
 
 
 def test_observable_read_in_its_own_partition():
@@ -296,7 +296,7 @@ def test_observable_read_in_its_own_partition():
         ],
         interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
     )
-    observables = [ObservableQuantity('mean_wealth', group='savers', variable='W')]
+    observables = [Observable('mean_wealth', group='savers', variable='W')]
     simulation = Simulation(system, dt=0.5, observables=observables).run(until=5)
     problem, trajectory = simulation.problem_, simulation.trajectory_
     assert not problem.partitions

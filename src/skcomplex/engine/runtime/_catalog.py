@@ -10,13 +10,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...core.base import Registry, ValidationError
-from ...core.system import ObservableQuantity, System
+from ...core.system import Observable, System
 from ..compile import compile_system
 from ._simulations import Simulation
 
 type Factory = Callable[..., System]
 
-RUN_SETTINGS = ('until', 'dt', 'solver', 'backend', 'clock', 'random_state', 'checked', 'initial_state')
+RUN_SETTINGS = ('until', 'dt', 'solver', 'backend', 'clock', 'random_state', 'checked', 'invariants', 'initial_state')
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ class ModelEntry:
     tags: tuple[str, ...] = ()
     references: tuple[str, ...] = ()
     defaults: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-    observables: Callable[[System], Sequence[ObservableQuantity]] | None = dataclasses.field(default=None, repr=False)
+    observables: Callable[[System], Sequence[Observable]] | None = dataclasses.field(default=None, repr=False)
     initial_state: Callable[..., Mapping[str, Any] | None] | None = dataclasses.field(default=None, repr=False)
 
     def initial_state_of(self, **parameters: Any) -> dict[str, Any]:  # noqa: ANN401
@@ -78,7 +78,7 @@ class ModelEntry:
             return {}
         return dict(self.initial_state(**{**self.parameters, **parameters}) or {})
 
-    def observables_of(self, system: System) -> list[ObservableQuantity]:
+    def observables_of(self, system: System) -> list[Observable]:
         """Return the standard observables of a system of the model, which `run` records.
 
         Args:
@@ -143,7 +143,7 @@ def register_model(
     tags: Sequence[str] = (),
     references: Sequence[str] = (),
     defaults: Mapping[str, Any] | None = None,
-    observables: Callable[[System], Sequence[ObservableQuantity]] | None = None,
+    observables: Callable[[System], Sequence[Observable]] | None = None,
     initial_state: Callable[..., Mapping[str, Any] | None] | None = None,
 ) -> Callable[[Factory], Factory]:
     """Return a decorator that registers a factory as a ready-made model.

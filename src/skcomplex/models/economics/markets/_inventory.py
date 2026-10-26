@@ -5,8 +5,8 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.system import System
+from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
+from ....core.system import System, observe_element
 from ....engine.runtime import register_model
 
 
@@ -16,22 +16,29 @@ def _sales(s: Symbols) -> Expression:
     return where(s.inventory < demand, s.inventory, demand)
 
 
-def _dealer_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
-    """Return the perceived sales, the desired inventory, and the orders of the car dealership."""
-    perceived = AuxiliaryQuantity('perceived', distributed_delay(_sales(s), conserved=False, time=s.perception_delay))
-    desired = AuxiliaryQuantity('desired_inventory', s.coverage * perceived.symbol)
-    gap_orders = perceived.symbol + (desired.symbol - s.inventory) / s.response_delay
-    return [perceived, desired, AuxiliaryQuantity('orders', where(gap_orders > 0, gap_orders, 0))]
+def _perceived(s: Symbols) -> Expression:
+    """Return the perceived sales of the car dealership, its sales smoothed over the perception delay."""
+    return distributed_delay(_sales(s), conserved=False, time=s.perception_delay)
+
+
+def _desired_inventory(s: Symbols) -> Expression:
+    """Return the inventory the car dealership desires, a coverage of its perceived sales."""
+    return s.coverage * _perceived(s)
+
+
+def _orders(s: Symbols) -> Expression:
+    """Return the orders of the car dealership, its perceived sales and the gap to its desired inventory."""
+    gap_orders = _perceived(s) + (_desired_inventory(s) - s.inventory) / s.response_delay
+    return where(gap_orders > 0, gap_orders, 0)
 
 
 def _dealer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the car dealership."""
-    *_, orders = _dealer_quantities(s)
     return [
         TransferLaw(
             Source('factory'),
             s.inventory,
-            distributed_delay(orders.symbol, order=3, time=s.delivery_delay),
+            distributed_delay(_orders(s), order=3, time=s.delivery_delay),
             label='deliveries',
         ),
         TransferLaw(s.inventory, Sink('customers'), _sales(s), label='sales'),
@@ -51,7 +58,6 @@ CarDealershipElement = Element.define(
         'delivery_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
     },
     laws=_dealer_laws,
-    quantities=_dealer_quantities,
 )
 
 
@@ -60,6 +66,11 @@ CarDealershipElement = Element.define(
     tags=('inventory', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 1.0},
+    observables=lambda system: [
+        observe_element('dealer', 'perceived', _perceived),
+        observe_element('dealer', 'desired_inventory', _desired_inventory),
+        observe_element('dealer', 'orders', _orders),
+    ],
 )
 def car_dealer(
     inventory: float = 200.0,
@@ -108,9 +119,9 @@ def car_dealer(
 
     Returns:
         system:
-            The model, with the cars on the lot `dealer.inventory`, the flows `dealer.deliveries` and `dealer.sales`,
-            and the auxiliaries `dealer.perceived` for the perceived sales, `dealer.desired_inventory`, and
-            `dealer.orders`.
+            The model, with the cars on the lot `dealer.inventory`, and the flows `dealer.deliveries` and
+            `dealer.sales`. The observables of the model are `dealer.perceived` for the perceived sales,
+            `dealer.desired_inventory`, and `dealer.orders`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import car_dealer

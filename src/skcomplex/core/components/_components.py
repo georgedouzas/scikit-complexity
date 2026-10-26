@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from typing import Any, ClassVar
 
 import numpy as np
@@ -12,7 +12,6 @@ from ..base import (
     BaseElement,
     BaseInteraction,
     BaseLaw,
-    BaseQuantity,
     ElementKind,
     NumericDomain,
     Requires,
@@ -155,7 +154,6 @@ class Element(BaseElement):
         states: Mapping[str, Any] | None = None,
         parameters: Mapping[str, Any] | None = None,
         laws: Callable[..., list[BaseLaw]] | None = None,
-        quantities: Callable[..., Sequence[BaseQuantity]] | None = None,
         visual: VisualSpec | None = None,
     ) -> type['Element']:
         """Return a new element type built from declarations, without writing a class.
@@ -175,10 +173,6 @@ class Element(BaseElement):
 
             laws:
                 A function `laws(s)` or `laws(self, s)` that returns the intrinsic laws of the type.
-
-            quantities:
-                A function `quantities(s)` or `quantities(self, s)` that returns the auxiliaries, invariants, and
-                objectives of the type.
 
             visual:
                 The visual of the type, or `None` to inherit it.
@@ -206,7 +200,6 @@ class Element(BaseElement):
             states=states,
             parameters=parameters,
             laws=laws,
-            quantities=quantities,
             attributes=attributes,
         )
 

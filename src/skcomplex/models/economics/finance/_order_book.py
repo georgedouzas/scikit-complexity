@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 import math
 from typing import Any, ClassVar, cast
 
@@ -11,27 +10,24 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.laws import InvariantQuantity, Symbols, transfer
+from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._markets import OrderBook, Trade
 
 LOWEST_PRICE = 0.01
+HOLDINGS = ('money', 'shares')
 
 
-def _total(holding: str, model: Any) -> float:  # noqa: ANN401
-    """Return the total of a holding over the traders bound to a book."""
-    return float(sum(getattr(agent, holding) for agent in model.agents('traders')))
-
-
-def _order_book_observables(system: System) -> list[ObservableQuantity]:
-    """Return the share of chartists and the mean wealth of the traders."""
+def _order_book_observables(system: System) -> list[Observable]:
+    """Return the share of chartists, the mean wealth of the traders, and their total money and shares."""
     del system
     return [
-        ObservableQuantity('chartists', group='traders', variable='strategy', reduce='mean'),
-        ObservableQuantity('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        Observable('chartists', group='traders', variable='strategy', reduce='mean'),
+        Observable('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        *(Observable(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS),
     ]
 
 
@@ -195,9 +191,9 @@ class BookInteraction(BaseInteraction):
     """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
 
     The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.realizations`, and
-    every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the invariants of the
-    book check that the total money and the total shares stay the same. The book reports the last traded `price`, the
-    previous price when nothing trades, and the traded `volume`.
+    every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the total money and the
+    total shares stay the same, which the default run checks as invariants. The book reports the last traded `price`,
+    the previous price when nothing trades, and the traded `volume`.
 
     Args:
         label:
@@ -247,22 +243,6 @@ class BookInteraction(BaseInteraction):
             RuleLaw(self.settle, phase='trade'),
         ]
 
-    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
-        """Return the invariants of the total money and the total shares of the traders.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the interaction.
-        """
-        return [
-            InvariantQuantity(f'total {name}', functools.partial(_total, name), tolerance=1e-6)
-            for name in ('money', 'shares')
-        ]
-
     def settle(self, model: Any) -> None:  # noqa: ANN401
         """Transfer the money and the shares of every trade and report the last price and the volume.
 
@@ -284,7 +264,7 @@ class BookInteraction(BaseInteraction):
     field='economics/finance',
     tags=('stock market', 'agents', 'order book', 'imitation', 'fundamentalists', 'chartists'),
     references=('Caiani et al. 2016 ch. 3', 'Lux and Marchesi 1999'),
-    defaults={'until': 200},
+    defaults={'until': 200, 'invariants': {f'total_{name}': 1e-6 for name in HOLDINGS}},
     observables=_order_book_observables,
 )
 def order_book(

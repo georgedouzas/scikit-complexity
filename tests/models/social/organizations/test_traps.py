@@ -15,18 +15,18 @@ def _polarities(system):
 
 
 def test_success_to_the_successful_gives_everything_to_the_initially_larger():
-    """Test that the initially larger competitor takes the whole budget, through two reinforcing loops."""
+    """Test that the initially larger competitor takes the whole budget, through the reinforcing loops of the budget."""
     for a, b in ((55.0, 45.0), (45.0, 55.0)):
         trajectory = _run_seeded(success_to_the_successful(a=a, b=b), 100.0, 5.0)
         winner, loser = ('contest.a', 'contest.b') if a > b else ('contest.b', 'contest.a')
         assert trajectory.values(winner)[-1] > 99.0
         assert trajectory.values(loser)[-1] < 1.0
-    assert _polarities(success_to_the_successful()) == ['balancing', 'balancing', 'reinforcing', 'reinforcing']
+    assert _polarities(success_to_the_successful()) == ['balancing'] * 2 + ['reinforcing'] * 3
 
 
 def test_shifting_the_burden_lets_the_quick_fix_take_over():
     """Test that the quick fix replaces the capability of the system, which builds up to the goal without it."""
-    addicted = _run_seeded(shifting_the_burden(), 40.0, 1.0)
+    addicted = _run_seeded(shifting_the_burden(), 40.0, 1.0, 'shifting_the_burden')
     assert addicted.values('burden.capability')[-1] < 0.01
     assert addicted.values('burden.intervention')[-1] == pytest.approx(1.0, abs=0.01)
     assert abs(addicted.values('burden.symptom')[-1]) < 0.01

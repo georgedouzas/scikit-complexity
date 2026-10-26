@@ -10,7 +10,7 @@ import numpy as np
 
 from ...core.base import Form, ValidationError
 from ...core.problems import BaseBackend, BaseProblem, Partition, Problem, with_initial_state
-from ...core.system import ObservableQuantity, System
+from ...core.system import Observable, System
 from ._compilation import Compilation
 from ._declarations import is_interaction
 from ._observables import _with_observables, check_held_reads
@@ -119,7 +119,7 @@ def compiled_problem(system: 'System | BaseProblem', purpose: str) -> Problem:
 def compile_system(
     system: System,
     backend: str | BaseBackend = 'auto',
-    observables: Sequence[ObservableQuantity] = (),
+    observables: Sequence[Observable] = (),
     *,
     solver: object = 'auto',
     initial_state: Mapping[str, object] | None = None,

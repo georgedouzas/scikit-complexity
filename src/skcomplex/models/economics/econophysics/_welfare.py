@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, p
 from ....core.components import Element, GroupElement
 from ....core.laws import Symbols, total
 from ....core.space import ContinuousTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.kinetics import EncounterLaw, moment
 
@@ -168,7 +168,7 @@ def _classes_of(system: System) -> int:
     return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
 
 
-def wealth_observables(classes: int) -> list[ObservableQuantity]:
+def wealth_observables(classes: int) -> list[Observable]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution `wealth` over wealth classes.
 
     Args:
@@ -186,9 +186,9 @@ def wealth_observables(classes: int) -> list[ObservableQuantity]:
     """
     wealth = wealth_classes(classes)
     return [
-        ObservableQuantity('density', partial(wealth_density, wealth=wealth), group='wealth'),
-        ObservableQuantity('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
-        ObservableQuantity('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
+        Observable('density', partial(wealth_density, wealth=wealth), group='wealth'),
+        Observable('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
+        Observable('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
 
 

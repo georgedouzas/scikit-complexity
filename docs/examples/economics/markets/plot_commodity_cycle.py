@@ -15,9 +15,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.engine.analysis import loops
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, run
 
 MODEL = 'commodity_cycle'
 
@@ -31,14 +30,15 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.25, observers=[observer]).run(60)
+simulation = run(MODEL, settings={'until': 60, 'dt': 0.25, 'observers': [observer]})
 
 # %%
 # The price leads the capacity
 # ----------------------------
-# The loop analysis finds the balancing loops of the market. The longest one runs from the price through the expected
-# price, the capacity orders, the construction delay, and the capacity back to the inventory and the price, and its
-# delay drives the cycle. The price peaks first, the capacity orders follow, and the capacity peaks years later.
+# The loop analysis finds the balancing loops of the market. The longest one runs from the capacity through the
+# production to the inventory, whose price sets the capacity orders, and back through the construction delay and the
+# completions to the capacity, and its delay drives the cycle. The price peaks first, the capacity orders follow, and
+# the capacity peaks years later.
 
 polarities = [loop.polarity for loop in loops(create(MODEL)).loops]
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))

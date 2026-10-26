@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import exp, log
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
 from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
 
@@ -71,8 +71,8 @@ class RamseyEconomyElement(Element):
     rho: float = parameter(default=0.03, domain=NumericDomain.POSITIVE)
     v: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the accumulation of capital.
+    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
+        """Return the accumulation of capital, and the discounted utility of consumption and capital to maximise.
 
         Args:
             s:
@@ -82,21 +82,11 @@ class RamseyEconomyElement(Element):
             laws:
                 The laws of the component.
         """
-        return [RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c)]
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the discounted utility of consumption to maximise, with the discounted value of the capital left.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
         discount = exp(-s.rho * s.t)
-        return [ObjectiveQuantity('utility', discount * log(s.c), terminal=discount * s.v * s.k, sense='max')]
+        return [
+            RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c),
+            ObjectiveQuantity('utility', discount * log(s.c), terminal=discount * s.v * s.k, sense='max'),
+        ]
 
 
 @register_model(
@@ -104,7 +94,7 @@ class RamseyEconomyElement(Element):
     tags=('optimal control', 'growth', 'capital', 'collocation', 'ode'),
     references=('Dilão 2023',),
     defaults={'until': 40.0, 'dt': 0.5, 'solver': CollocationSolver(nodes=81)},
-    observables=lambda system: [ObservableQuantity('saving_rate', _saving_rate)],
+    observables=lambda system: [Observable('saving_rate', _saving_rate)],
 )
 def optimal_consumption(
     k: float = 1.0,

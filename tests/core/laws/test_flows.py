@@ -1,8 +1,6 @@
 """Test the `_flows` module of `skcomplex.core.laws`."""
 
 import functools
-import pickle  # nosec B403: round-trips the pickles the tests themselves make
-from operator import attrgetter
 
 import numpy as np
 import pytest
@@ -11,9 +9,7 @@ from scipy import stats
 from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.components import Element
 from skcomplex.core.laws import (
-    AuxiliaryQuantity,
     BoundaryLaw,
-    InvariantQuantity,
     RateLaw,
     Sink,
     Source,
@@ -26,7 +22,7 @@ from skcomplex.core.laws import (
     where,
 )
 from skcomplex.core.space import DiscreteTime
-from skcomplex.core.system import System
+from skcomplex.core.system import Observable, System, observe_element
 from skcomplex.engine.analysis import conservation, loop_dominance, loops
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
@@ -34,7 +30,7 @@ from skcomplex.formalisms.agents import RuleLaw
 
 
 class TanksElement(Element):
-    """Two stocks with a transfer between them and the invariant of their total."""
+    """Two stocks with a transfer between them."""
 
     a: float = state(3.0)
     b: float = state(1.0)
@@ -42,10 +38,6 @@ class TanksElement(Element):
     def laws(self, s):
         """Return the transfer."""
         return [TransferLaw(s.a, s.b, s.a / 4, label='flow')]
-
-    def quantities(self, s):
-        """Return the invariant of the total."""
-        return [InvariantQuantity('total', s.a + s.b)]
 
 
 def _tub_laws(s):
@@ -56,16 +48,10 @@ def _tub_laws(s):
     ]
 
 
-def _population_quantities(s):
-    """Return the birth rate."""
-    return [AuxiliaryQuantity('birth_rate', s.b * s.n)]
-
-
 def _population_laws(s):
-    """Return births through an auxiliary and deaths proportional to the population."""
-    (births,) = _population_quantities(s)
+    """Return births and deaths proportional to the population."""
     return [
-        TransferLaw(Source(), s.n, births.symbol, label='births'),
+        TransferLaw(Source(), s.n, s.b * s.n, label='births'),
         TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
     ]
 
@@ -84,9 +70,9 @@ def _ledger_laws(s):
     ]
 
 
-def _fertility_quantities(s):
-    """Return an auxiliary that reads a table of food per person."""
-    return [AuxiliaryQuantity('fertility', lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)]))]
+def _fertility(s):
+    """Return the fertility, a table of food per person."""
+    return lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)])
 
 
 TubElement = Element.define(
@@ -102,7 +88,6 @@ PopulationElement = Element.define(
     states={'n': state(10.0, quantity='people')},
     parameters={'b': 0.03, 'd': 0.01},
     laws=_population_laws,
-    quantities=_population_quantities,
 )
 
 
@@ -124,7 +109,6 @@ FertilityElement = Element.define(
     'FertilityElement',
     states={'food': state(-1.0)},
     laws=lambda s: [RateLaw(s.food, 1.0)],
-    quantities=_fertility_quantities,
 )
 
 
@@ -146,7 +130,7 @@ def _balance(agent):
 
 
 class BankElement(Element):
-    """Bank whose rule lowers its assets alone."""
+    """Bank whose rule lowers its assets alone, which breaks its balance sheet."""
 
     assets: float = state(10.0)
     liabilities: float = state(8.0)
@@ -155,10 +139,6 @@ class BankElement(Element):
     def laws(self, s):
         """Return the rule that loses assets."""
         return [RuleLaw(self.lose)]
-
-    def quantities(self, s):
-        """Return the invariant of the balance."""
-        return [InvariantQuantity('assets == liabilities + equity', _balance)]
 
     def lose(self, agent, model):
         """Lower the assets by 1."""
@@ -203,13 +183,8 @@ def _credit_system(settles):
     )
 
 
-def _total_money(model):
-    """Return the money of every holder bound to the payments."""
-    return sum(agent.money for agent in model.agents('holders'))
-
-
 class PaymentsInteraction(BaseInteraction):
-    """Payments between holders, which create money when asked, under the invariant of the total."""
+    """Payments between holders, which create money when asked."""
 
     holders: str = role()
     creates: float = parameter(0.0)
@@ -217,10 +192,6 @@ class PaymentsInteraction(BaseInteraction):
     def laws(self, s):
         """Return the rule that moves money."""
         return [RuleLaw(self.move)]
-
-    def quantities(self, s):
-        """Return the invariant of the total money."""
-        return [InvariantQuantity('total money', _total_money)]
 
     def move(self, model):
         """Move one unit from the first holder to the second, and create money when the payments create it."""
@@ -311,8 +282,10 @@ def test_jump_flows_move_their_size_at_random_times():
 
 
 def test_table_function_interpolates_and_stays_flat():
-    """Test that the fertility auxiliary interpolates the table linearly and holds its ends."""
-    trajectory = Simulation(System(components=[FertilityElement('f')]), dt=0.5).run(4).trajectory_
+    """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
+    fertility = observe_element('f', 'fertility', _fertility)
+    trajectory = Simulation(System(components=[FertilityElement('f')]), dt=0.5, observables=[fertility]).run(4)
+    trajectory = trajectory.trajectory_
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
     assert trajectory.values('f.fertility') == pytest.approx(expected)
@@ -343,10 +316,10 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
     system = System(components=[PopulationElement('pop')])
     found = {loop.nodes: loop.polarity for loop in loops(system).loops}
-    assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.birth_rate', 'pop.births'): 'reinforcing'}
+    assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).run(5).trajectory_
     dominance = loop_dominance(trajectory)
-    assert dominance.gains[-1] == pytest.approx([-0.01, 0.03])
+    assert dominance.gains[-1] == pytest.approx([0.03, -0.01])
     assert dominance.loops[int(dominance.dominant[-1])].polarity == 'reinforcing'
 
 
@@ -362,10 +335,16 @@ def test_monitor_detects_drift_beyond_the_flows():
         Simulation(System(components=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
 
 
-def test_member_invariant_violation_names_the_agent_the_invariant_and_the_change():
-    """Test that lowering assets alone breaks the invariant of every member after the step."""
-    with pytest.raises(ConservationError, match=r"'assets == liabilities \+ equity' of agent \d+ of banks.*-1"):
-        Simulation(System(components=[BankElement.group('banks', 1)])).run(2)
+def test_invariant_of_agents_names_the_observable_and_the_change():
+    """Test that lowering assets alone breaks the balance sheet that an observable of the agents sums."""
+    balance = Observable('balance', _balance, group='banks', reduce='sum')
+    simulation = Simulation(
+        System(components=[BankElement.group('banks', 1)]),
+        observables=[balance],
+        invariants={'balance': 1e-9},
+    )
+    with pytest.raises(ConservationError, match='invariant balance changed from 0 to -1 at frame 1'):
+        simulation.run(2)
 
 
 def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
@@ -392,25 +371,18 @@ def test_transfer_moves_between_states_and_checks_names():
         transfer(lender, borrower, 1.0, 'cash')
 
 
-def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
-    """Test that invariants of members take module-level functions, which pickle."""
-    with pytest.raises(ValidationError, match='cannot be pickled'):
-        InvariantQuantity('lambda', lambda agent: 0.0).check()
-    data = pickle.dumps(InvariantQuantity('equity', attrgetter('equity')))
-    invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
-    assert invariant.label == 'equity'
-
-
 @pytest.mark.parametrize(('creates', 'violated'), [(0.0, False), (0.5, True)])
 def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
-    """Test that an invariant of an interaction holds under transfers and names the interaction when money appears."""
+    """Test that the total money of the agents holds under transfers and the run names it when money appears."""
     system = System(
         components=[LenderElement.group('holders', 3, variable=True, money=5.0)],
         interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
     )
+    total = Observable('total_money', group='holders', variable='money', reduce='sum')
+    simulation = Simulation(system, observables=[total], invariants={'total_money': 1e-9})
     if violated:
-        with pytest.raises(ConservationError, match="'total money' of payments"):
-            Simulation(system).run(3)
+        with pytest.raises(ConservationError, match='invariant total_money'):
+            simulation.run(3)
         return
-    trajectory = Simulation(system).run(3).trajectory_
+    trajectory = simulation.run(3).trajectory_
     assert trajectory.agents('holders', 3).values['money'].sum() == pytest.approx(15.0)

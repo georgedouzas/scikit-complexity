@@ -8,7 +8,7 @@ from typing import Any
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, lookup, where
+from ....core.laws import Sink, Source, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -94,26 +94,12 @@ class OilEconomyElement(Element):
         self.yield_table = yield_table
         self.price_table = price_table
 
-    def quantities(self, s: Symbols) -> list[AuxiliaryQuantity]:
-        """Return the yield per unit of capital and the profit of the extraction.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        efficiency = AuxiliaryQuantity(
-            'yield_per_capital',
-            lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table)),
-        )
+    def _profit(self, s: Symbols, efficiency: Expression) -> Expression:
+        """Return the profit of the extraction at a yield per unit of capital."""
         price = s.price
         if self.price_table is not None:
-            price = lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table))
-        extraction = s.capital * efficiency.symbol
-        return [efficiency, AuxiliaryQuantity('profit', price * extraction - s.cost * s.capital)]
+            price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
+        return price * s.capital * efficiency - s.cost * s.capital
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the extraction from the resource and the investment in and depreciation of the capital.
@@ -126,9 +112,9 @@ class OilEconomyElement(Element):
             laws:
                 The laws of the component.
         """
-        efficiency, profit = self.quantities(s)
-        extraction = s.capital * efficiency.symbol
-        investment = _investment(profit.symbol, s.growth_goal * s.capital)
+        efficiency = lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table))
+        extraction = s.capital * efficiency
+        investment = _investment(self._profit(s, efficiency), s.growth_goal * s.capital)
         return [
             TransferLaw(s.resource, Sink('market'), extraction, label='extraction'),
             TransferLaw(Source('investors'), s.capital, investment, label='investment'),
@@ -199,25 +185,6 @@ class FisheryElement(Element):
         self.regeneration_table = regeneration_table
         self.price_table = price_table
 
-    def quantities(self, s: Symbols) -> list[AuxiliaryQuantity]:
-        """Return the yield per unit of capital, the price, and the profit of the harvest.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        efficiency = AuxiliaryQuantity(
-            'yield_per_capital',
-            lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table)),
-        )
-        price = AuxiliaryQuantity('price', lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table)))
-        harvest = s.capital * efficiency.symbol
-        return [efficiency, price, AuxiliaryQuantity('profit', price.symbol * harvest - s.cost * s.capital)]
-
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the regeneration and harvest of the resource and the investment in and depreciation of the capital.
 
@@ -229,10 +196,11 @@ class FisheryElement(Element):
             laws:
                 The laws of the component.
         """
-        efficiency, _, profit = self.quantities(s)
-        harvest = s.capital * efficiency.symbol
+        efficiency = lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table))
+        price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
+        harvest = s.capital * efficiency
         regeneration = s.resource * lookup(s.resource, _table(RESOURCE_LEVELS, self.regeneration_table))
-        investment = _investment(profit.symbol, s.growth_goal * s.capital)
+        investment = _investment(price * harvest - s.cost * s.capital, s.growth_goal * s.capital)
         return [
             TransferLaw(Source('spawning'), s.resource, regeneration, label='regeneration'),
             TransferLaw(s.resource, Sink('market'), harvest, label='harvest'),

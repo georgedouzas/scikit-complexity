@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.base import SimulationError
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.realizations import (
     InstitutionInteraction,
@@ -42,6 +42,6 @@ def test_observable_and_set_parameter_by_view():
         components=[TraderElement.group('traders', 4, money=2.0)],
         interactions=[ReaderInteraction('reader')],
     )
-    observables = [ObservableQuantity('wealth', group='traders', variable='money', reduce='sum')]
+    observables = [Observable('wealth', group='traders', variable='money', reduce='sum')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=2).trajectory_
     assert trajectory.values('reader.total')[-1] == 8.0

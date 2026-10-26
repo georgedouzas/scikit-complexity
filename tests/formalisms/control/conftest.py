@@ -23,13 +23,9 @@ class IntegratorElement(Element):
     x: float = state(1.0)
     u: float = parameter(0.0, adaptive=True, bounds=(-10, 10))
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the rate of the state."""
-        return [RateLaw(s.x, s.u)]
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost `(x^2 + u^2) / 2`."""
-        return [ObjectiveQuantity('objective', (s.x**2 + s.u**2) / 2)]
+    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
+        """Return the rate of the state and the cost `(x^2 + u^2) / 2`."""
+        return [RateLaw(s.x, s.u), ObjectiveQuantity('objective', (s.x**2 + s.u**2) / 2)]
 
 
 class FisheryElement(Element):
@@ -40,14 +36,10 @@ class FisheryElement(Element):
     cost: float = parameter(0.2)
     discount: float = parameter(0.1)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the logistic regrowth less the harvest."""
-        return [RateLaw(s.x, s.x * (1 - s.x) - s.effort * s.x)]
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the discounted profit to maximise."""
+    def laws(self, s: Symbols) -> list[BaseLaw | ObjectiveQuantity]:
+        """Return the logistic regrowth less the harvest, and the discounted profit to maximise."""
         profit = exp(-s.discount * s.t) * (s.x - s.cost) * s.effort
-        return [ObjectiveQuantity('objective', profit, sense='max')]
+        return [RateLaw(s.x, s.x * (1 - s.x) - s.effort * s.x), ObjectiveQuantity('objective', profit, sense='max')]
 
 
 def _riccati_control(times: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

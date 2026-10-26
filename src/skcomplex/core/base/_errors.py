@@ -13,11 +13,7 @@ class ValidationError(SkcomplexError):
 
 
 class ConservationError(ValidationError):
-    """A conserved quantity changes outside its flows, or a balance-sheet identity does not hold."""
-
-
-class DeclarationError(ValidationError):
-    """A component returns a quantity from its laws, or a law from its quantities."""
+    """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
 
 
 class LabelError(ValidationError):

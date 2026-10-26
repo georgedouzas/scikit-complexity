@@ -13,7 +13,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, p
 from ....core.components import Element
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import ObservableQuantity, System
+from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 
@@ -36,13 +36,13 @@ def _busy(agent: Any) -> float:  # noqa: ANN401
     return float(agent.task != IDLE)
 
 
-def _ridesharing_observables(system: System) -> list[ObservableQuantity]:
+def _ridesharing_observables(system: System) -> list[Observable]:
     """Return the number of waiting riders, their mean waiting time, and the share of busy cabs."""
     del system
     return [
-        ObservableQuantity('queue', group='riders', variable='waited', reduce='count'),
-        ObservableQuantity('mean_wait', group='riders', variable='waited', reduce='mean'),
-        ObservableQuantity('utilisation', _busy, group='cabs', reduce='mean'),
+        Observable('queue', group='riders', variable='waited', reduce='count'),
+        Observable('mean_wait', group='riders', variable='waited', reduce='mean'),
+        Observable('utilisation', _busy, group='cabs', reduce='mean'),
     ]
 
 

@@ -5,7 +5,7 @@ import numpy as np
 from skcomplex.core.base import parameter, state
 from skcomplex.core.components import Element
 from skcomplex.core.space import DiscreteTime
-from skcomplex.core.system import ObservableQuantity, System
+from skcomplex.core.system import Observable, System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.formalisms.agents import Phase, PhasesSchedule, RuleLaw
 from skcomplex.models import run
@@ -53,7 +53,7 @@ def test_interest_rate_rule():
         interactions=[CentralBankInteraction('bank', phase='policy')],
         time=DiscreteTime(schedule=PhasesSchedule([Phase('policy')])),
     )
-    observables = [ObservableQuantity('price_level', group='shops', variable='price')]
+    observables = [Observable('price_level', group='shops', variable='price')]
     trajectory = Simulation(system, random_state=0, observables=observables).run(until=40).trajectory_
     rate, inflation = trajectory.values('bank.rate'), trajectory.values('bank.inflation')
     changed = np.diff(rate) != 0
