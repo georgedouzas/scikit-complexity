@@ -17,13 +17,11 @@ from skcomplex.core.base import (
     law_classes,
     symbol,
 )
-from skcomplex.core.components import AggregateQuantity
 from skcomplex.core.laws import (
     AuxiliaryQuantity,
     BoundaryLaw,
     EventLaw,
     InvariantQuantity,
-    ObjectiveQuantity,
     RateLaw,
     Totalistic,
     TransferLaw,
@@ -84,7 +82,7 @@ def test_law_is_importable_at_run_time():
     assert BaseLaw.__module__ == 'skcomplex.core.base._laws'
 
 
-QUANTITIES = (ObservableQuantity, AuxiliaryQuantity, InvariantQuantity, ObjectiveQuantity, AggregateQuantity)
+QUANTITIES = (ObservableQuantity, AuxiliaryQuantity, InvariantQuantity)
 
 
 @pytest.mark.parametrize('quantity', QUANTITIES, ids=lambda quantity: quantity.__name__)

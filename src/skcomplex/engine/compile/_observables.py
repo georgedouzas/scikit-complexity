@@ -170,6 +170,14 @@ def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
     return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
 
 
+def _entry_of(problem: BaseProblem, name: str) -> Entry | None:
+    """Return the entry of a state or parameter of a problem by name, or `None`."""
+    for layout in (problem.states, problem.parameters):
+        if layout.has(name):
+            return layout.entry(name)
+    return None
+
+
 def _is_lowerable(scope: str, observable: ObservableQuantity, nodes: dict[str, Node]) -> bool:
     """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
     if observable.group is None:
@@ -247,6 +255,39 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
         yield scope, observable
     for child in system.systems:
         yield from observables_of(child, _join(scope, child.label))
+
+
+def namespace_of(problem: BaseProblem, scope: str = '') -> Symbols:
+    """Return the namespace of the states and parameters of the single elements and interactions of a system.
+
+    The namespace nests the symbols by their dotted names, so `s.plant.x` is the state `plant.x`, and
+    `s.forest.foxes.n` the state `forest/foxes.n`. It also holds the time `s.t`.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        scope:
+            The path of the nested system whose symbols the namespace holds, empty for the root.
+
+    Returns:
+        namespace:
+            The namespace.
+
+    Examples:
+        >>> from skcomplex.engine.compile import compile_system, namespace_of
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> namespace_of(compile_system(System(components=[PopulationElement('rabbits')]))).rabbits.n
+        n_rabbits
+    """
+    prefix = f'{scope}/' if scope else ''
+    items: dict[str, Any] = {
+        name[len(prefix) :]: problem.symbols[name]
+        for name in problem.symbols
+        if name.startswith(prefix) and (entry := _entry_of(problem, name)) is not None and entry.members is None
+    }
+    return _tree(items, t=problem.time)
 
 
 def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
@@ -609,17 +650,12 @@ class ObservableEvaluator:
     def _expression_getter(self, scope: str, path: str, observable: ObservableQuantity) -> Getter:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
-        items: dict[str, Any] = {
-            name[len(prefix) :]: self.problem.symbols[name]
-            for name in self.problem.symbols
-            if name.startswith(prefix) and (entry := self._entry(name)) is not None and entry.members is None
-        }
         earlier = {
             other: symbol(f'_observable_{index}')
             for index, other in enumerate(self.getters_)
             if other.startswith(prefix) and '/' not in other[len(prefix) :]
         }
-        namespace = _tree(items, t=self.problem.time)
+        namespace = namespace_of(self.problem, scope)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
@@ -627,10 +663,7 @@ class ObservableEvaluator:
 
     def _entry(self, name: str) -> Any:  # noqa: ANN401
         """Return the entry of a state or parameter by name, or `None`."""
-        for layout in (self.problem.states, self.problem.parameters):
-            if layout.has(name):
-                return layout.entry(name)
-        return None
+        return _entry_of(self.problem, name)
 
     def _reduction_getter(self, scope: str, path: str, observable: ObservableQuantity) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""

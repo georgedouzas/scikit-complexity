@@ -34,7 +34,6 @@ from ...core.laws import (
     InvariantQuantity,
     JumpLaw,
     NoiseLaw,
-    ObjectiveQuantity,
     RateLaw,
     Sink,
     TransferLaw,
@@ -44,7 +43,7 @@ from ...core.laws import Source as Environment
 from ...core.laws._flows import delay_parts
 from ...core.problems import Entry, LoopTerm, Reference, StockFlow
 from ...core.problems import Source as Read
-from ...core.problems._quantities import _CompiledFlow, _CompiledObjective, _Recorded
+from ...core.problems._quantities import _CompiledFlow, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'
 
@@ -264,7 +263,6 @@ class StockFlowPass:
         self._flows: list[_Born] = []
         self._records: list[_Record] = []
         self._invariants: dict[str, float] = {}
-        self._objectives: list[tuple[_Record, Expression, str]] = []
         self._terms: list[tuple[_Spec, str, str, Expression, dict[Expression, str], str | None, str | None]] = []
 
     def _quantity_of(self, target: object, spec: _Spec) -> tuple[str, str | None]:
@@ -321,9 +319,7 @@ class StockFlowPass:
         value = SR(_substituted(quantity.expression, mapping))
         record = _Record(path, value, spec)
         self._records.append(record)
-        if isinstance(quantity, ObjectiveQuantity):
-            self._objectives.append((record, SR(_substituted(quantity.terminal, mapping)), quantity.sense))
-        elif isinstance(quantity, InvariantQuantity):
+        if isinstance(quantity, InvariantQuantity):
             self._invariants[path] = quantity.tolerance
         elif isinstance(quantity, AuxiliaryQuantity):
             self._terms.append((spec, 'auxiliary', path, SR(quantity.expression), names, None, None))
@@ -342,7 +338,7 @@ class StockFlowPass:
                 The laws of the component.
 
             quantities:
-                The auxiliaries, invariants, and objectives of the component.
+                The auxiliaries and invariants of the component.
 
         Returns:
             laws:
@@ -558,8 +554,4 @@ class StockFlowPass:
             ),
             discrete=discrete,
             invariants=dict(self._invariants),
-            objectives=tuple(
-                _CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
-                for record, terminal, sense in self._objectives
-            ),
         )

@@ -12,7 +12,7 @@ from typing import Any, ClassVar
 import numpy as np
 from numba.extending import register_jitable
 
-from ...core.base import BackendError, Form, LawKind, SolverError, Vector
+from ...core.base import BackendError, Form, SolverError, Vector
 from ...core.problems import BaseProblem, BaseSolver, Problem
 from ..compile import SOLVERS, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
@@ -58,14 +58,8 @@ class Solver(BaseSolver[Problem]):
     """
 
     def _check_capabilities(self, problem: Problem) -> None:
-        """Raise an error for renewal laws, fractional noise, or objectives of a problem that the stepper lacks."""
+        """Raise an error for renewal laws or fractional noise of a problem that the stepper lacks."""
         name = type(self).__name__
-        if problem.objectives and LawKind.OBJECTIVE not in self.supports.laws:
-            error_msg = (
-                f'{name} follows the laws of a system but does not optimise its objectives. Use an optimal control '
-                'solver, PontryaginSolver or CollocationSolver.'
-            )
-            raise SolverError(error_msg)
         if problem.renewals and not self.renews:
             error_msg = (
                 f'{name} does not fire renewal laws. Use RK4Solver for rate laws, EulerMaruyamaSolver for noise laws, '

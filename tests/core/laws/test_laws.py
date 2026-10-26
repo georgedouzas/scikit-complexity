@@ -21,7 +21,6 @@ from skcomplex.core.laws import (
     InvariantQuantity,
     JumpLaw,
     NoiseLaw,
-    ObjectiveQuantity,
     RateLaw,
     UpdateLaw,
     derivative,
@@ -141,7 +140,6 @@ PumpElement = Element.define(
     states={'x': 1.0},
     parameters={'u': parameter(0.0, adaptive=True, bounds=(0, 1)), 'weight': 2.0},
     laws=lambda s: [RateLaw(s.x, -s.x + s.u)],
-    quantities=lambda s: [ObjectiveQuantity('gain', s.x**2 + s.weight * s.u, terminal=s.x, sense='max')],
 )
 
 
@@ -316,27 +314,10 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     assert np.all(np.abs(roots) > 1)
 
 
-def test_objective_checks_its_values():
-    """Test that checking an objective turns its running and terminal values into symbolic expressions."""
-    checked = ObjectiveQuantity('cost', symbol('x'), terminal=1).check()
-    assert (checked.label, checked.sense) == ('cost', 'min')
-    assert str(checked.terminal) == '1'
-
-
-def test_objective_rejects_unknown_sense():
-    """Test that an objective takes the sense `min` or `max` only."""
-    with pytest.raises(ValidationError, match='Unknown sense'):
-        ObjectiveQuantity('objective', symbol('x'), sense='best').check()
-
-
-def test_objective_compiles_running_and_terminal_values():
-    """Test that compiling keeps the running and terminal values with the sense, and leaves the form an ODE."""
+def test_adaptive_parameters_compile_with_their_bounds():
+    """Test that compiling keeps the bounded adaptive parameters, the controls, and leaves the form an ODE."""
     problem = compile_system(System(components=[PumpElement('pump')]))
-    (objective,) = problem.objectives
     assert problem.form.name == 'ODE'
-    assert objective.path == 'pump.gain'
-    assert objective.sense == 'max'
-    assert str(objective.terminal) == str(problem.symbols['pump.x'])
     assert set(problem.adaptive_parameters) == {'pump.u'}
     assert problem.adaptive_parameters['pump.u'].bounds == (0.0, 1.0)
 

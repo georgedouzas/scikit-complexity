@@ -23,7 +23,7 @@ def _flow_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None:
 
 
 class ExpandFlowsPass(BasePass):
-    """Pass that expands the flows, auxiliaries, invariants, and objectives of components into laws of other kinds."""
+    """Pass that expands the flows, auxiliaries, and invariants of components into laws of other kinds."""
 
     reads = ('collected', 'quantities', 'layout')
     writes = ('collected', 'flows')

@@ -1,9 +1,9 @@
 """Test the `_vaccination` module of `skcomplex.models.biology.epidemiology`."""
 
 import numpy as np
+from sklearn.base import clone
 
-from skcomplex.formalisms.control import PontryaginSolver
-from skcomplex.models import run
+from skcomplex.models import describe, run
 
 
 def test_sir_vaccination_lowers_the_peak():
@@ -15,8 +15,9 @@ def test_sir_vaccination_lowers_the_peak():
     assert controlled.values('population.u')[0] > controlled.values('population.u')[-1]
 
 
-def test_optimal_control_models_record_their_costs():
-    """Test that the running cost of the objective is recorded with the solution's cost."""
-    simulation = run('sir_vaccination', settings={'until': 5.0, 'solver': PontryaginSolver(nodes=51)})
-    assert np.all(simulation.trajectory_.values('population.cost') > 0)
+def test_sir_vaccination_records_its_running_cost():
+    """Test that the observable `cost` records the running cost of the objective of the default solver."""
+    solver = clone(describe('sir_vaccination').defaults['solver']).set_params(nodes=51)
+    simulation = run('sir_vaccination', settings={'until': 5.0, 'solver': solver})
+    assert np.all(simulation.trajectory_.values('cost') > 0)
     assert simulation.stepper_.solution_.cost > 0

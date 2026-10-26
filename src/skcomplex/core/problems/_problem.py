@@ -33,7 +33,7 @@ from ..space import BaseSpace
 from ..system import ObservableQuantity, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layouts import Layout
-from ._quantities import StockFlow, _CompiledObjective
+from ._quantities import StockFlow
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
@@ -632,8 +632,8 @@ class BaseProblem:
         >>> from skcomplex.core.problems import Layout
         >>> from skcomplex.core.problems import BaseProblem
         >>> problem = BaseProblem(Form.ODE, Layout([]), Layout([]), np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.stochastic, problem.objectives, problem.adaptive_parameters, problem.lattice_shape('a.n')
-        (False, (), {}, None)
+        >>> problem.stochastic, problem.adaptive_parameters, problem.lattice_shape('a.n')
+        (False, {}, None)
     """
 
     form: Form
@@ -660,11 +660,6 @@ class BaseProblem:
     def stochastic(self) -> bool:
         """Whether the problem draws random values, so its solver takes the random number generator."""
         return False
-
-    @property
-    def objectives(self) -> tuple[_CompiledObjective, ...]:
-        """Objectives of the system, which optimal control solvers optimise."""
-        return () if self.stock_flow is None else self.stock_flow.objectives
 
     @property
     def adaptive_parameters(self) -> dict[str, Variable]:

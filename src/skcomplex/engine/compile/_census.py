@@ -17,7 +17,6 @@ from ...core.base import (
     DeclarationError,
     ElementKind,
     Expression,
-    LawKind,
     Registry,
     SkcomplexError,
     SymbolicVector,
@@ -42,7 +41,6 @@ from ...core.laws import (
     InvariantQuantity,
     JumpLaw,
     NoiseLaw,
-    ObjectiveQuantity,
     RateLaw,
     UpdateLaw,
     values_of,
@@ -59,7 +57,7 @@ from ._tree import Node
 
 type OwnerRule = Callable[[KernelSpec, BaseLaw, set[str]], str | None]
 
-DECLARED_QUANTITIES = (AuxiliaryQuantity, InvariantQuantity, ObjectiveQuantity)
+DECLARED_QUANTITIES = (AuxiliaryQuantity, InvariantQuantity)
 
 OWNER_RULES = Registry[OwnerRule]('owner rule')
 
@@ -174,7 +172,7 @@ def _is_vector(entry: Entry, elements: dict[str, Block]) -> bool:
 
 
 def declared_quantities(spec: KernelSpec, component: BaseElement | BaseInteraction) -> list[BaseQuantity]:
-    """Return the checked auxiliaries, invariants, and objectives a component returns for its namespace.
+    """Return the checked auxiliaries and invariants a component returns for its namespace.
 
     Args:
         spec:
@@ -189,7 +187,7 @@ def declared_quantities(spec: KernelSpec, component: BaseElement | BaseInteracti
 
     Raises:
         DeclarationError:
-            `quantities` returns a law, or something other than auxiliaries, invariants, and objectives.
+            `quantities` returns a law, or something other than auxiliaries and invariants.
 
         ValidationError:
             A quantity is invalid.
@@ -351,24 +349,6 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     return checked
 
 
-def quantity_kinds(quantities: list[tuple[str, BaseQuantity]]) -> dict[str, set[LawKind]]:
-    """Return the law kinds that the quantities of every component need a solver to support, the objective kind.
-
-    Args:
-        quantities:
-            The quantities, each with the path of its component.
-
-    Returns:
-        kinds:
-            The kinds by the path of the component.
-    """
-    kinds: dict[str, set[LawKind]] = {}
-    for owner, quantity in quantities:
-        if isinstance(quantity, ObjectiveQuantity):
-            kinds.setdefault(owner, set()).add(LawKind.OBJECTIVE)
-    return kinds
-
-
 def census_of(system: System, nodes: list[Node]) -> Census:
     """Return the census of the laws of a system, with the errors of the components that fail.
 
@@ -482,7 +462,7 @@ class Census:
             The path of every failing component with its error.
 
         quantities:
-            The auxiliaries, invariants, and objectives of the components, each with the path of its component.
+            The auxiliaries and invariants of the components, each with the path of its component.
     """
 
     system: System

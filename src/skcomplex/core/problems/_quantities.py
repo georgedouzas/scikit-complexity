@@ -32,17 +32,6 @@ class _Recorded:
 
 
 @dataclass(frozen=True)
-class _CompiledObjective:
-    """Objective of a compiled system, with its running and terminal values and the references of their symbols."""
-
-    path: str
-    expression: Expression
-    terminal: Expression
-    sense: str
-    references: Mapping[Expression, Any]
-
-
-@dataclass(frozen=True)
 class LoopTerm:
     """Node of the feedback graph of a system with the expression its value or its rate is computed from.
 
@@ -104,9 +93,6 @@ class StockFlow:
 
         invariants:
             The tolerance of every invariant by the path that trajectories record it under.
-
-        objectives:
-            The objectives that optimal control solvers optimise.
     """
 
     quantities: Mapping[str, tuple[str, ...]]
@@ -116,4 +102,3 @@ class StockFlow:
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
     invariants: Mapping[str, float] = field(default_factory=dict)
-    objectives: tuple[_CompiledObjective, ...] = ()

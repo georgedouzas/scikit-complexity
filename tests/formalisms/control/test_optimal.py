@@ -1,8 +1,9 @@
 """Test the reading of optimal control problems and the following of their solutions over a run."""
 
+import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError, parameter, state
+from skcomplex.core.base import SolverError, ValidationError, parameter, state
 from skcomplex.core.components import Element
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
@@ -11,7 +12,7 @@ from skcomplex.formalisms.control import CollocationSolver, PontryaginSolver
 
 
 class FreeElement(Element):
-    """State with an unbounded adaptive parameter and no objective."""
+    """State with an unbounded adaptive parameter."""
 
     x: float = state(1.0)
     u: float = parameter(0.0, adaptive=True)
@@ -21,26 +22,48 @@ class FreeElement(Element):
         return [RateLaw(s.x, s.u)]
 
 
-def test_optimal_control_needs_an_objective():
-    """Test that a system without an objective is rejected by the optimal control solvers."""
-    with pytest.raises(SolverError, match='one objective'):
-        Simulation(System(components=[FreeElement('plant')]), solver=PontryaginSolver()).run(until=1.0)
+@pytest.mark.parametrize('solver', [PontryaginSolver, CollocationSolver])
+def test_optimal_control_needs_an_objective(linear_quadratic, solver):
+    """Test that an optimal control solver without an objective raises a named error."""
+    with pytest.raises(SolverError, match='has no objective'):
+        Simulation(linear_quadratic, solver=solver()).run(until=1.0)
 
 
-def test_optimal_control_stops_at_the_horizon(linear_quadratic):
+def test_optimal_control_rejects_an_unknown_sense(linear_quadratic, quadratic_cost):
+    """Test that a sense other than minimum or maximum is rejected."""
+    with pytest.raises(ValidationError, match='Unknown sense'):
+        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost, sense='best')).run(until=1.0)
+
+
+def test_optimal_control_needs_bounded_controls(quadratic_cost):
+    """Test that a system without a bounded adaptive parameter has nothing to control."""
+    with pytest.raises(SolverError, match='no bounded adaptive parameter'):
+        Simulation(System(components=[FreeElement('plant')]), solver=PontryaginSolver(quadratic_cost)).run(until=1.0)
+
+
+def test_optimal_control_maximises_the_negated_cost(linear_quadratic, quadratic_cost, riccati_control):
+    """Test that maximising the negated cost gives the control that minimises the cost."""
+    solver = PontryaginSolver(lambda s: -quadratic_cost(s), sense='max')
+    trajectory = Simulation(linear_quadratic, solver=solver, dt=0.05).run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
+
+
+def test_optimal_control_stops_at_the_horizon(linear_quadratic, quadratic_cost):
     """Test that a run solved until a horizon cannot be extended beyond it."""
-    simulation = Simulation(linear_quadratic, solver=CollocationSolver(nodes=11), dt=0.5).run(until=1.0)
+    solver = CollocationSolver(quadratic_cost, nodes=11)
+    simulation = Simulation(linear_quadratic, solver=solver, dt=0.5).run(until=1.0)
     with pytest.raises(SolverError, match='horizon'):
         simulation.extend(until=2.0)
 
 
-def test_optimal_control_needs_a_finite_horizon(linear_quadratic):
+def test_optimal_control_needs_a_finite_horizon(linear_quadratic, quadratic_cost):
     """Test that a run without an end is rejected."""
     with pytest.raises(SolverError, match='finite horizon'):
-        Simulation(linear_quadratic, solver=PontryaginSolver()).start()
+        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost)).start()
 
 
-def test_default_solver_does_not_optimise_objectives(linear_quadratic):
-    """Test that the default solver, which follows laws, refuses a system with an objective."""
-    with pytest.raises(SolverError, match='does not optimise'):
-        Simulation(linear_quadratic).run(until=1.0)
+def test_default_solver_follows_the_laws(linear_quadratic):
+    """Test that the default solver keeps the controls of a system at their initial values."""
+    trajectory = Simulation(linear_quadratic, dt=0.5).run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('plant.u'), 0.0)
+    np.testing.assert_allclose(trajectory.values('plant.x'), 1.0)

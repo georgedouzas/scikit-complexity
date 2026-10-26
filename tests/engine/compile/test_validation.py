@@ -21,7 +21,7 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.components import Element, WienerProcess
-from skcomplex.core.laws import InvariantQuantity, NoiseLaw, ObjectiveQuantity, RateLaw, UpdateLaw, neighbors
+from skcomplex.core.laws import InvariantQuantity, NoiseLaw, RateLaw, UpdateLaw, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import ObservableQuantity, System
 from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
@@ -208,7 +208,7 @@ def test_report_raises_every_error():
 
 
 class PlantElement(Element):
-    """Element steered by a bounded control input, with a quadratic cost."""
+    """Element steered by a bounded control input."""
 
     x: float = state(1.0)
     u: float = parameter(0.5, adaptive=True, bounds=(0, 1))
@@ -216,10 +216,6 @@ class PlantElement(Element):
     def laws(self, s):
         """Return the rate of the state."""
         return [RateLaw(s.x, s.u - s.x)]
-
-    def quantities(self, s):
-        """Return the cost."""
-        return [ObjectiveQuantity('objective', s.x**2 + s.u**2)]
 
 
 class NoisyPlantElement(PlantElement):
@@ -230,20 +226,6 @@ class NoisyPlantElement(PlantElement):
         return [*super().laws(s), NoiseLaw(s.x, 0.1)]
 
 
-class TankElement(Element):
-    """Element whose objective is placed under discrete time."""
-
-    level: float = state(1.0)
-
-    def laws(self, s):
-        """Return the update of the level."""
-        return [UpdateLaw(s.level, s.level / 2)]
-
-    def quantities(self, s):
-        """Return the cost of the level."""
-        return [ObjectiveQuantity('objective', s.level)]
-
-
 def test_validate_control_outside_bounds():
     """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
     (issue,) = validate(System(components=[PlantElement('plant', u=2.0)])).errors
@@ -252,21 +234,10 @@ def test_validate_control_outside_bounds():
     assert '(0.0, 1.0)' in issue.fix
 
 
-def test_validate_objective_under_discrete_time():
-    """Test that an objective under discrete time is reported at its law, needing static or continuous time."""
-    issues = validate(System(components=[TankElement('tank')], time=DiscreteTime())).errors
-    issue = next(issue for issue in issues if issue.code == 'law-time')
-    assert issue.path == 'tank'
-    assert "ObjectiveQuantity 'objective' of tank" in issue.message
-    assert 'continuous, static time' in issue.message
-
-
-def test_validate_objective_with_a_solver_without_objectives():
-    """Test that an objective run with a solver that does not optimise lists the solvers that do."""
-    (issue,) = validate(System(components=[PlantElement('plant')]), solver='rk4').errors
-    assert 'objective' in issue.message
-    assert 'collocation, pontryagin' in issue.fix
+def test_validate_controls_with_an_optimal_control_solver():
+    """Test that a system with bounded controls is valid for an optimal control solver and for a stepper."""
     assert validate(System(components=[PlantElement('plant')]), solver='pontryagin').ok
+    assert validate(System(components=[PlantElement('plant')]), solver='rk4').ok
 
 
 def test_validate_noise_with_an_optimal_control_solver():

@@ -21,7 +21,7 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
+from ._optimal import ControlSolution, Cost, GridFunction, OptimalControlSolver, _ControlProblem
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
@@ -81,6 +81,16 @@ class CollocationSolver(OptimalControlSolver):
     minimised with its sign changed.
 
     Args:
+        objective:
+            The running cost, a function of the namespace `s` of the states, parameters, and time of the system by
+            dotted name, such as `lambda s: s.plant.x**2`, or a number.
+
+        terminal:
+            The terminal cost at the horizon, a function of the same namespace or a number.
+
+        sense:
+            `'min'` to minimise the objective or `'max'` to maximise it.
+
         nodes:
             The number of times of the grid, from the start to the horizon.
 
@@ -102,15 +112,15 @@ class CollocationSolver(OptimalControlSolver):
 
     Raises:
         ValidationError:
-            The scheme or the method is unknown, or the grid has fewer than 2 nodes.
+            The sense, the scheme, or the method is unknown, or the grid has fewer than 2 nodes.
 
         SolverError:
-            The optimiser does not converge.
+            The solver has no objective, or the optimiser does not converge.
 
     Examples:
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import ObjectiveQuantity, RateLaw
+        >>> from skcomplex.core.laws import RateLaw
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.formalisms.control import CollocationSolver
         >>> from skcomplex.core.system import System
@@ -119,9 +129,9 @@ class CollocationSolver(OptimalControlSolver):
         ...     states={'x': 1.0},
         ...     parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
         ...     laws=lambda s: [RateLaw(s.x, s.u)],
-        ...     quantities=lambda s: [ObjectiveQuantity('cost', (s.x**2 + s.u**2) / 2)],
         ... )
-        >>> solver = CollocationSolver(nodes=51, scheme='hermite-simpson')
+        >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
+        >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
         >>> simulation = Simulation(System(components=[PlantElement('plant')]), solver=solver).run(until=1.0)
         >>> float(round(simulation.trajectory_.values('plant.u')[0], 3))
         -0.762
@@ -130,7 +140,7 @@ class CollocationSolver(OptimalControlSolver):
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
         space={SpaceKind.NONE},
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.OBJECTIVE},
+        laws={LawKind.RATE, LawKind.EQUATION},
         domains={DomainKind.REAL, DomainKind.ANGLE},
         components={ElementKind.ELEMENT, ElementKind.SYSTEM},
         orders={OrderKind.INTEGER},
@@ -138,12 +148,19 @@ class CollocationSolver(OptimalControlSolver):
 
     def __init__(
         self,
+        objective: Cost | None = None,
+        *,
+        terminal: Cost = 0.0,
+        sense: str = 'min',
         nodes: int = 101,
         scheme: str = 'hermite-simpson',
         method: str = 'SLSQP',
         tolerance: float = 1e-10,
         max_iterations: int = 1000,
     ) -> None:
+        self.objective = objective
+        self.terminal = terminal
+        self.sense = sense
         self.nodes = nodes
         self.scheme = scheme
         self.method = method

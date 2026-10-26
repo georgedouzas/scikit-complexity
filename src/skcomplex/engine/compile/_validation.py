@@ -13,7 +13,6 @@ import numpy as np
 
 from ...core.base import (
     BackendError,
-    BaseQuantity,
     DeclarationError,
     DomainKind,
     Form,
@@ -40,13 +39,13 @@ from ...core.base import (
     law_classes,
 )
 from ...core.components import Element, GroupElement, WienerProcess
-from ...core.laws import JumpLaw, NoiseLaw, ObjectiveQuantity, neighborhoods_in, values_of
+from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
 from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend, Entry
 from ...core.problems._neighbourhoods import cone_heading, position_state
 from ...core.space import Adjacency, BaseSpace, Cone, NetworkSpace
 from ...core.system import ObservableQuantity, System
-from ._census import Census, CensusRecord, quantity_kinds
+from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
 from ._noise import process_covariance
@@ -64,13 +63,12 @@ TIME_CLASSES = {
     TimeKind.DISCRETE: 'DiscreteTime()',
     TimeKind.STATIC: 'StaticTime()',
 }
-OBJECTIVE_TIMES = frozenset({TimeKind.STATIC, TimeKind.CONTINUOUS})
 OWN_NEIGHBORHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     DeclarationError: (
         'declaration',
-        'Return laws from `laws`, and auxiliaries, invariants, and objectives from `quantities`.',
+        'Return laws from `laws`, and auxiliaries and invariants from `quantities`.',
     ),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
@@ -249,22 +247,6 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
     return issues
 
 
-def _objective_issues(quantities: list[tuple[str, BaseQuantity]], times: dict[str, TimeKind | None]) -> list[Issue]:
-    """Return the objectives of components whose time is neither static nor continuous."""
-    issues = []
-    for path, quantity in quantities:
-        time = times.get(path.rpartition('/')[0])
-        if not isinstance(quantity, ObjectiveQuantity) or time is None or time in OBJECTIVE_TIMES:
-            continue
-        message = (
-            f'The ObjectiveQuantity {quantity.label!r} of {path} needs {names_of(OBJECTIVE_TIMES)} time, but the '
-            f'component lives in {time} time.'
-        )
-        classes = ' or '.join(f'`{TIME_CLASSES[kind]}`' for kind in sorted(OBJECTIVE_TIMES))
-        issues.append(Issue('law-time', path, message, f'Declare {names_of(OBJECTIVE_TIMES)} time with {classes}.'))
-    return issues
-
-
 def _reductions_of(value: object) -> list[NeighborReduction]:
     """Return every neighbourhood reduction of a law value, nested ones included."""
     found = []
@@ -367,7 +349,7 @@ def _solver_issues(solver: object, census: Census, system: System) -> list[Issue
         stepper = type(solver)
     needs = {
         'time': {kind for kind in declared_times(system).values() if kind is not None},
-        'laws': {record.law.law_kind for record in records}.union(*quantity_kinds(census.quantities).values()),
+        'laws': {record.law.law_kind for record in records},
         'domains': {
             _domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
         },
@@ -691,7 +673,6 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues = _census_issues(compilation)
     issues += _bound_issues(nodes)
     issues += _law_issues(records, declared_times(system))
-    issues += _objective_issues(cast('Census', compilation.census).quantities, declared_times(system))
     issues += _neighborhood_issues(records, nodes)
     issues += _space_issues(system, nodes)
     issues += _order_issues(nodes)

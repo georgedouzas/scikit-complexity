@@ -71,7 +71,7 @@ class Compilation:
             The laws of every kernel spec as declared, with its block.
 
         quantities:
-            The auxiliaries, invariants, and objectives of every kernel spec as declared.
+            The auxiliaries and invariants of every kernel spec as declared.
 
         apart:
             The laws set apart from the kernels of their spec, which a pass of their own compiles.

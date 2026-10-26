@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
@@ -18,6 +18,13 @@ def _vaccinated(s: Symbols) -> Expression:
     population = s.population
     vaccinated: Expression = population.u * population.S
     return vaccinated
+
+
+def _cost(s: Symbols) -> Expression:
+    """Return the running cost of the epidemic, the infected fraction and the effort of vaccination."""
+    population = s.population
+    cost: Expression = population.a * population.I + population.b * population.u**2 / 2
+    return cost
 
 
 class VaccinatedPopulationElement(Element):
@@ -88,26 +95,13 @@ class VaccinatedPopulationElement(Element):
             RateLaw(s.R, recovery + vaccination),
         ]
 
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the epidemic, the infected fraction and the effort of vaccination.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        return [ObjectiveQuantity('cost', s.a * s.I + s.b * s.u**2 / 2)]
-
 
 @register_model(
     field='biology/epidemiology',
     tags=('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode'),
     references=('Lenhart and Workman 2007',),
-    defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver()},
-    observables=lambda system: [ObservableQuantity('vaccinated', _vaccinated)],
+    defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver(objective=_cost)},
+    observables=lambda system: [ObservableQuantity('vaccinated', _vaccinated), ObservableQuantity('cost', _cost)],
 )
 def sir_vaccination(
     S: float = 0.99,
@@ -146,7 +140,7 @@ def sir_vaccination(
     Returns:
         system:
             The model, with the fractions `population.S`, `population.I`, and `population.R`, the vaccination rate
-            `population.u`, the running cost `population.cost`, and the observable `vaccinated`.
+            `population.u`, and the observables `vaccinated` and `cost`, the running cost.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import sir_vaccination

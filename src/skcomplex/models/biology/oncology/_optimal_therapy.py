@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import Element
-from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
+from ....core.laws import RateLaw, Symbols
 from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.control import PontryaginSolver
@@ -26,6 +26,32 @@ def _immune_ratio(s: Symbols) -> Expression:
     site = s.site
     ratio: Expression = site.x / (site.y + 1)
     return ratio
+
+
+def _chemotherapy_cost(s: Symbols) -> Expression:
+    """Return the running cost of the chemotherapy, the tumour and the squared dose, `A + w u^2 / 2`."""
+    patient = s.patient
+    cost: Expression = patient.A + patient.w * patient.u**2 / 2
+    return cost
+
+
+def _tumour(s: Symbols) -> Expression:
+    """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
+    tumour: Expression = s.patient.A
+    return tumour
+
+
+def _immunotherapy_cost(s: Symbols) -> Expression:
+    """Return the running cost of the immunotherapy, the tumour and the squared doses of both therapies."""
+    site = s.site
+    cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
+    return cost
+
+
+def _tumour_site(s: Symbols) -> Expression:
+    """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
+    tumour: Expression = s.site.y
+    return tumour
 
 
 class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
@@ -79,19 +105,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
                 The laws of the component.
         """
         return super().laws(s)
-
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the treatment, the tumour and the squared dose.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        return [ObjectiveQuantity('cost', s.A + s.w * s.u**2 / 2, terminal=s.A)]
 
 
 class OptimalImmunotherapyElement(Element):
@@ -204,26 +217,12 @@ class OptimalImmunotherapyElement(Element):
             RateLaw(z, s.a2 * s.u2 + s.rho2 * x * y / (s.alpha3 + y) - s.du * z),
         ]
 
-    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
-        """Return the cost of the treatment, the tumour and the squared doses of both therapies.
-
-        Args:
-            s:
-                The namespace of the symbols the quantities can use.
-
-        Returns:
-            quantities:
-                The quantities of the component.
-        """
-        cost = s.y + s.w1 * s.u1**2 / 2 + s.w2 * s.u2**2 / 2
-        return [ObjectiveQuantity('cost', cost, terminal=s.y)]
-
 
 @register_model(
     field='biology/oncology',
     tags=('optimal control', 'chemotherapy', 'pontryagin', 'ode'),
     references=(BOOK, 'de Pillis and Radunskaya 2001'),
-    defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver()},
+    defaults={'until': 30.0, 'dt': 0.25, 'solver': PontryaginSolver(objective=_chemotherapy_cost, terminal=_tumour)},
     observables=lambda system: [ObservableQuantity('tumour_share', _tumour_share)],
 )
 def optimal_chemotherapy(
@@ -254,7 +253,7 @@ def optimal_chemotherapy(
     Returns:
         system:
             The model, with the cells `patient.E`, `patient.A`, and `patient.N`, the drug `patient.U`, the infusion
-            rate `patient.u`, the running cost `patient.cost`, and the observable `tumour_share`.
+            rate `patient.u`, and the observable `tumour_share`.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import optimal_chemotherapy
@@ -268,7 +267,11 @@ def optimal_chemotherapy(
     field='biology/oncology',
     tags=('optimal control', 'immunotherapy', 'adoptive therapy', 'IL-2', 'pontryagin', 'ode'),
     references=(BOOK, 'Kirschner and Panetta 1998'),
-    defaults={'until': 50.0, 'dt': 0.5, 'solver': PontryaginSolver(nodes=1001)},
+    defaults={
+        'until': 50.0,
+        'dt': 0.5,
+        'solver': PontryaginSolver(objective=_immunotherapy_cost, terminal=_tumour_site, nodes=1001),
+    },
     observables=lambda system: [ObservableQuantity('immune_ratio', _immune_ratio)],
 )
 def optimal_immunotherapy(
@@ -303,7 +306,7 @@ def optimal_immunotherapy(
     Returns:
         system:
             The model, with the effector cells `site.x`, the tumour `site.y`, IL-2 `site.z`, the therapies `site.u1`
-            and `site.u2`, the running cost `site.cost`, and the observable `immune_ratio`.
+            and `site.u2`, and the observable `immune_ratio`.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import optimal_immunotherapy
