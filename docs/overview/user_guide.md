@@ -3140,13 +3140,16 @@ farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
 trajectory = Simulation(farming, random_state=0).run(until=50).trajectory_
 print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
+print(trajectory.values('village/farmers_count.value')[-1])
 ```
 
 - Every partition holds the states of the other partitions as inputs, which keep their values from the last
   synchronisation point while it advances.
-- `AggregateQuantity(label, group=..., reduce='count' | 'sum' | 'mean' | callable, variable=None)`, among the
-  `aggregates` of a system, turns an agent group or an element group into the single value `value`, which other
-  partitions read through a role bound to its path and by its dotted name, such as `village/size.value`.
+- A law of one partition reads a reduction of a group of another through a role bound to the group, such as
+  `count(s.farmers)` or `total(s.farmers.wealth)`. The co-simulation computes every reduction of agents at each
+  synchronisation point and holds it until the next, in the state `value` of an element next to the group, such as
+  `village/farmers_count.value`. A reduction of an element group reads the states of the other partition, which keep
+  their values from the last synchronisation point too.
 - Agent rules read the states of other partitions through `model.inputs[name]`, such as
   `model.inputs['land/stock.n']`.
 - The `CoSimulationSolver` advances every partition with its own solver, chosen per partition through

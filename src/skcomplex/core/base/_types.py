@@ -258,6 +258,7 @@ class LawKind(Term):
     TRANSFER: ClassVar['LawKind']
     BOUNDARY: ClassVar['LawKind']
     INVARIANT: ClassVar['LawKind']
+    OBJECTIVE: ClassVar['LawKind']
     ENCOUNTER: ClassVar['LawKind']
 
 
@@ -306,6 +307,7 @@ LawKind.MATCH = LawKind.register('MATCH', 'match')
 LawKind.TRANSFER = LawKind.register('TRANSFER', 'transfer')
 LawKind.BOUNDARY = LawKind.register('BOUNDARY', 'boundary')
 LawKind.INVARIANT = LawKind.register('INVARIANT', 'invariant')
+LawKind.OBJECTIVE = LawKind.register('OBJECTIVE', 'objective')
 LawKind.ENCOUNTER = LawKind.register('ENCOUNTER', 'encounter')
 Trait.FORMLESS = Trait.register('FORMLESS', 'formless')
 Trait.KERNEL_FREE = Trait.register('KERNEL_FREE', 'kernel-free')

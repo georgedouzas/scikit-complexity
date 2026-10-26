@@ -6,8 +6,8 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import AggregateQuantity, Element
-from ....core.laws import RateLaw, Symbols
+from ....core.components import Element
+from ....core.laws import RateLaw, Symbols, count
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
@@ -99,14 +99,14 @@ class HarvestInteraction(BaseInteraction):
             The path of the resource stock.
 
         harvesters:
-            The path of the aggregate that counts the harvesters.
+            The path of the group of harvesters, which the harvest counts.
 
         effort:
             The harvest rate per harvester and unit of stock.
 
     Examples:
         >>> from skcomplex.models.economics.resources import HarvestInteraction
-        >>> HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=0.05).effort
+        >>> HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=0.05).effort
         0.05
     """
 
@@ -125,7 +125,7 @@ class HarvestInteraction(BaseInteraction):
             laws:
                 The laws of the component.
         """
-        return [RateLaw(s.resource.n, -s.effort * s.harvesters.value * s.resource.n)]
+        return [RateLaw(s.resource.n, -s.effort * count(s.harvesters) * s.resource.n)]
 
 
 @register_model(
@@ -162,10 +162,6 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         ['land', 'village']
     """
     land = System('land', components=[StockElement('stock', n=K, r=r, K=K)])
-    village = System(
-        'village',
-        components=[FarmerElement.group('farmers', farmers)],
-        aggregates=[AggregateQuantity('size', group='farmers')],
-    )
-    harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=effort)
+    village = System('village', components=[FarmerElement.group('farmers', farmers)])
+    harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=effort)
     return System(components=[land, village], interactions=[harvest])

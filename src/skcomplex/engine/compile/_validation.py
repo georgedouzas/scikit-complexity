@@ -5,7 +5,7 @@
 
 import inspect
 import warnings
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -15,6 +15,7 @@ from ...core.base import (
     BackendError,
     DeclarationError,
     DomainKind,
+    Expression,
     Form,
     LabelError,
     LawClass,
@@ -31,15 +32,17 @@ from ...core.base import (
     SpaceKind,
     SpaceTooLargeError,
     Supports,
+    SymbolicVector,
     TimeKind,
     UnregisteredLawError,
     ValidationError,
     VariableKind,
     declarations_of,
     law_classes,
+    symbol,
 )
 from ...core.components import Element, GroupElement, WienerProcess
-from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, values_of
+from ...core.laws import JumpLaw, NoiseLaw, neighborhoods_in, reductions_in, values_of
 from ...core.laws._reductions import NeighborReduction
 from ...core.problems import BACKENDS, BaseBackend, Entry
 from ...core.problems._neighbourhoods import cone_heading, position_state
@@ -49,7 +52,14 @@ from ._census import Census, CensusRecord
 from ._compilation import Compilation
 from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
 from ._noise import process_covariance
-from ._observables import _with_observables, held_observables, with_held_observables
+from ._observables import (
+    _HeldReduction,
+    _with_observables,
+    held_observables,
+    held_reduction,
+    with_held_observables,
+    with_held_reductions,
+)
 from ._pipeline import _registered_passes, registered_checks, run_passes
 from ._planner import _Plan, solver_classes, solver_registry
 from ._system_compilers import claiming_compiler
@@ -608,6 +618,27 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 
+def _law_values(record: CensusRecord) -> Iterator[object]:
+    """Yield the symbolic values of the law of a census record, with the items of vectors."""
+    for value in values_of(record.law):
+        if isinstance(value, SymbolicVector):
+            yield from value
+        elif isinstance(value, Expression):
+            yield value
+
+
+def _held_reductions(census: Census, time: Expression) -> list[_HeldReduction]:
+    """Return the reductions of agents that the laws of a census read, each once, in the order the laws read them."""
+    found: dict[tuple[str, ...], _HeldReduction] = {}
+    for record in census.records:
+        for value in _law_values(record):
+            for reduction in reductions_in(value):
+                held = held_reduction(reduction, census.agents, time, record.path)
+                if held is not None:
+                    found.setdefault(held.key, held)
+    return list(found.values())
+
+
 def _counted(
     system: System,
     solver: object,
@@ -616,7 +647,8 @@ def _counted(
 ) -> tuple[Compilation | None, list[Issue]]:
     """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-    The compilation stops after flattening for a system that a whole-system pass compiles.
+    The compilation stops after flattening for a system that a whole-system pass compiles. When laws read reductions
+    of agents, the compilation starts again from a system tree that holds each of them in an element.
     """
     try:
         observed = _with_observables(system, observables)
@@ -638,6 +670,16 @@ def _counted(
     if held:
         tree, paths = with_held_observables(observed, held)
         compilation = Compilation(tree, cast('str | BaseBackend', backend), solver, held=tuple(paths))
+    run_passes(compilation, passes, until='census')
+    try:
+        reductions = _held_reductions(cast('Census', compilation.census), symbol('t'))
+    except ValidationError as error:
+        code, fix = FIXES.get(type(error), ('reduction', 'Reduce an expression of the agents of one group.'))
+        return None, [Issue(code, system.label, str(error), fix, error=type(error))]
+    if not reductions:
+        return compilation, []
+    tree = with_held_reductions(compilation.system, reductions)
+    compilation = Compilation(tree, cast('str | BaseBackend', backend), solver, held=compilation.held)
     return run_passes(compilation, passes, until='census'), []
 
 

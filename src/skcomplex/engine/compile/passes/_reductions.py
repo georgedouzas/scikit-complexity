@@ -53,6 +53,7 @@ from ....core.space import Adjacency, BaseNeighborhood
 from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations
+from .._observables import _HeldElement, held_reduction
 from .._pipeline import BasePass
 from .._specs import KernelSpec, activity_symbol, group_space
 from .._stochastic import DrawLowering
@@ -238,8 +239,34 @@ class _Reductions:
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(weights, dtype=float)
 
+    def _held(self, reduction: Reduction, spec: KernelSpec) -> Expression | None:
+        """Return the state of the element that holds a reduction of agents, or `None` for a reduction of elements."""
+        held = held_reduction(reduction, self.declarations.agents, self.declarations.time, spec.owner)
+        if held is None:
+            return None
+        block = next(
+            (
+                block
+                for block in self.declarations.blocks.values()
+                if isinstance(block.node.component, _HeldElement) and block.node.component.reduction.key == held.key
+            ),
+            None,
+        )
+        if block is None:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reduces the agents of {held.group}, which only a '
+                'co-simulation computes, at its synchronisation points. Compile the system with `compile_system`.'
+            )
+            raise ValidationError(error_msg)
+        value = cast('Expression', block.symbols['value'])
+        spec.references[value] = Reference(block.entries['value'], True, 0, Source.SINGLE)
+        return value
+
     def _placeholder(self, reduction: Reduction, spec: KernelSpec) -> Expression:
-        """Return the placeholder of a reduction, or the placeholders of its real and imaginary parts."""
+        """Return the placeholder of a reduction, the state that holds a reduction of agents, or its complex parts."""
+        held = self._held(reduction, spec)
+        if held is not None:
+            return held
         if not SR(reduction.argument).has(I):
             return self._compiled(reduction, spec)
         if reduction.kind not in {'sum', 'mean'}:

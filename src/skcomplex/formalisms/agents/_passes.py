@@ -190,8 +190,8 @@ class AgentsPass(BasePass):
     An agent is a member of a variable group, or of an element or group whose own laws include a `RuleLaw`. When the
     tree holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
     too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
-    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
-    space are never passive agents.
+    binds them through a role. Single elements, such as the holders of reductions, and groups on the sites, edges, or
+    hyperedges of a space are never passive agents.
     """
 
     reads = ('nodes',)

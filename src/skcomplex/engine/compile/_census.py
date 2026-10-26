@@ -387,7 +387,7 @@ def census_of(system: System, nodes: list[Node]) -> Census:
             quantities += declared
         except SkcomplexError as error:
             errors.append((block.node.path, error))
-    return Census(system, records, errors, quantities)
+    return Census(system, records, errors, quantities, declarations.agents)
 
 
 @dataclass(frozen=True)
@@ -463,9 +463,14 @@ class Census:
 
         quantities:
             The auxiliaries and invariants of the components, each with the path of its component.
+
+        agents:
+            The path of the agent group and the variable of every symbol that reduces agents, an empty variable for
+            the symbol of the members.
     """
 
     system: System
     records: list[CensusRecord]
     errors: list[tuple[str, SkcomplexError]]
     quantities: list[tuple[str, BaseQuantity]] = field(default_factory=list)
+    agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)
