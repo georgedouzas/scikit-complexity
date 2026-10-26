@@ -37,12 +37,16 @@
   - **`_utils.py`:** `BaseEstimator` and `Registry`.
 
   `BaseElement` and `BaseInteraction` share the declaration helpers in `_types.py`, so neither imports the other.
-- **A part is a base of bases.** `BasePart` derives from the framework's `BaseEstimator` and defines `label` and the
-  three verbs, each calling its private hook. `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` derive from
+- **A part is a base of bases.** `BasePart` derives from scikit-learn's `BaseEstimator` and `ABC`, and defines the
+  contract of a part: the abstract hooks `_check`, `_prepare`, and `_run`, each returning the part or its contribution,
+  and the verbs `check`, `prepare`, and `run` written once on them. It does not derive from the framework's
+  `BaseEstimator`, whose hooks return nothing and which releases what it acquires, which parts never do. `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` derive from
   it; no other base does. This replaces the rule that no base derives from another, for the parts of a system only.
   - **Elements, interactions, systems:** `check()` validates the arguments, `prepare(namespace=None)` derives
-    `declarations_`, and `run(s)` returns laws. A system's `run(s)` returns the laws of its children, so the compiler
-    collects the laws of any tree by running its root. Each returns `self` from `check` and `prepare`.
+    `declarations_`, and `run(s)` returns laws. A system's `run(s)` returns the laws of its children, each run on the
+    namespace under its label. Each returns `self` from `check` and `prepare`. The compiler keeps running every part
+    on its own namespace, since it must know the owner of every law to bind roles and name errors; it prepares every
+    law with its owner's namespace and path.
   - **Laws (option chosen by the maintainer: verbs return the part).** A law stays a frozen dataclass, so
     `check()` returns a checked copy, as today, and `prepare(namespace)` returns a prepared copy whose `targets_`,
     `reads_`, and `owner_` are resolved against its owner's declarations, moving that knowledge out of the census.

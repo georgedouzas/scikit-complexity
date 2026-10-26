@@ -718,10 +718,11 @@ class MarketInteraction(BaseInteraction):
         self.goods = goods
         self.on_trade = on_trade
 
-    def _check(self) -> None:
+    def _check(self) -> Self:
         """Raise an error for an undeclared or missing value, or an unknown option of the protocol."""
         super()._check()
         self.protocol.check()
+        return self
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.

@@ -65,14 +65,17 @@ def values_of(law: BaseLaw, *, include: Collection[str] | None = None, exclude: 
         >>> from skcomplex.core.laws import JumpLaw, NoiseLaw, values_of
         >>> s, i = symbol('s'), symbol('i')
         >>> values_of(JumpLaw(0.1 * s * i, {s: -1, i: 1}))
-        [0.1*i*s, s, -1, i, 1, None, None, None]
+        [0.1*i*s, s, -1, i, 1, None, None]
         >>> values_of(NoiseLaw(s, 0.2 * s, process='market'), include=('value', 'process'))
         [0.2*s, 'market']
     """
     names = [
         item.name
         for item in dataclasses.fields(law)
-        if (include is None or item.name in include) and item.name not in exclude
+        if (include is None or item.name in include)
+        and item.name not in exclude
+        and item.name != 'label'
+        and not item.name.endswith('_')
     ]
     stack: list[object] = [getattr(law, name) for name in reversed(names)]
     found: list[object] = []

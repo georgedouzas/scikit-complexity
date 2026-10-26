@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from ...core.base import ElementKind, VisualSpec
 from ...core.components import Element, GroupElement
@@ -89,7 +89,7 @@ class FieldElement(GroupElement):
         self.discretization = discretization
         self.symmetry = symmetry
 
-    def _prepare(self, space: BaseSpace | None = None) -> None:
+    def _prepare(self, space: BaseSpace | None = None) -> Self:
         """Set `declarations_`, `size_`, and `default_visual_`, the visual of the field when it sets none.
 
         The default visual is an image on a lattice and a colored mesh on a mesh. On a network the field takes the
@@ -98,6 +98,10 @@ class FieldElement(GroupElement):
         Args:
             space:
                 The space the field inherits from its system, unused since a field has a space of its own.
+
+        Returns:
+            field:
+                The field itself.
         """
         super()._prepare(space)
         declared: VisualSpec = self.element.visual
@@ -109,6 +113,7 @@ class FieldElement(GroupElement):
             self.default_visual_ = VisualSpec('sites')
         else:
             self.default_visual_ = declared
+        return self
 
 
 def boundary_of(field: FieldElement, state: str) -> tuple[str, Any]:

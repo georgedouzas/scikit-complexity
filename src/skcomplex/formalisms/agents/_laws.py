@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar, Self
 
 import numpy as np
@@ -188,7 +188,7 @@ class MatchLaw(BaseLaw):
     right: str | None = None
     pairing: Pairing | None = None
     capacity: int = 1
-    label: str = 'match'
+    label: str | None = field(default='match', kw_only=True)
     phase: str | None = None
 
     def _check(self) -> Self:

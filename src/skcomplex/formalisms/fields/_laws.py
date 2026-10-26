@@ -177,6 +177,7 @@ class FluxLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.RATE
+    contribution: ClassVar[str | None] = 'flux'
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(

@@ -277,7 +277,7 @@ class NumbaBackend(BaseBackend):
                 The numeric functions.
         """
         form, size = self.form_, self.size_
-        used = {
+        used: dict[type, list[Kernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == Form.SDE else [],
@@ -287,7 +287,9 @@ class NumbaBackend(BaseBackend):
         reductions = reductions or ReductionSchedule()
         reduced = bool(reductions.steps)
         fused = _reductions_compile(reductions)
-        compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
+        compiled: dict[type, bool] = {
+            kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()
+        }
         backends = report_fallbacks(self.name, used, compiled, reductions)
         source = _Source()
         if reduced and fused:
@@ -359,14 +361,14 @@ class NumbaBackend(BaseBackend):
             function = getattr(module, name)
             return lambda t, x, p: function(t, x, p, layout)
 
-        numpy = {
+        numpy: dict[type, Any] = {
             RateLaw: lambda: adding_function(used[RateLaw], size),
             NoiseLaw: lambda: concatenating_function(used[NoiseLaw]),
             JumpLaw: lambda: concatenating_function(used[JumpLaw]),
             UpdateLaw: lambda: assigning_function(used[UpdateLaw]),
             BoundaryLaw: lambda: assigning_function(used[BoundaryLaw]),
         }
-        names = {
+        names: dict[type, str] = {
             RateLaw: 'drift',
             NoiseLaw: 'diffusion',
             JumpLaw: 'propensities',

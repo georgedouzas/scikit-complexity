@@ -5,6 +5,7 @@
 
 from typing import Any, ClassVar, Self, cast
 
+from ._parts import BasePart
 from ._types import (
     Variable,
     _argument_names,
@@ -16,10 +17,9 @@ from ._types import (
     _get_default,
     _get_params,
 )
-from ._utils import BaseEstimator
 
 
-class BaseElement(BaseEstimator):
+class BaseElement(BasePart):
     """Base of every part of a system: elements and groups.
 
     A component type declares its variables and roles as class attributes made by `state`, `parameter`, and `role`.
@@ -69,8 +69,12 @@ class BaseElement(BaseEstimator):
         """Return the declarations of the type, after rejecting the names it reserves."""
         return _declarations(cls)
 
-    def _check(self) -> None:
-        """Raise an error for a value the type does not declare, or a declared variable without a default not given.
+    def _check(self) -> Self:
+        """Return the element, raising an error for a value the type does not declare or a missing required value.
+
+        Returns:
+            element:
+                The element itself.
 
         Raises:
             ArgumentError:
@@ -81,10 +85,17 @@ class BaseElement(BaseEstimator):
                 The type declares a variable whose name is reserved.
         """
         _check_declared(self, BaseElement)
+        return self
 
-    def _prepare(self) -> None:
-        """Set `declarations_`, the declarations of the type."""
+    def _prepare(self) -> Self:
+        """Return the element with `declarations_`, the declarations of its type, set.
+
+        Returns:
+            element:
+                The element itself.
+        """
         self.declarations_ = type(self)._declarations()
+        return self
 
     def _run(self, s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the component for a namespace of symbols, from the hook `laws`.

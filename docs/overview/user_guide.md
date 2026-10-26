@@ -399,7 +399,7 @@ cells = System(components=[MackeyGlassElement('cells')])
 print(Simulation(cells, dt=0.5).run(until=300).trajectory_.values('cells.x')[-1])
 ```
 
-**Events.** `EventLaw(guard, reset, direction, terminal, label)` fires when the guard crosses zero, upward for
+**Events.** `EventLaw(guard, reset, direction, terminal, label=None)` fires when the guard crosses zero, upward for
 `direction=1`, downward for `-1`, and either way for `0`. The solver locates the crossing on its interpolant to the
 precision of the root finder, applies the reset to every named state at once, and restarts from there. A terminal
 event ends the run at the crossing. Every frame carries the events since the previous one, and the trajectory keeps

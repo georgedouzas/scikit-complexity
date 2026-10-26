@@ -25,7 +25,7 @@ def test_values_of_flattens_calls_vectors_and_mappings():
     x, y, k = symbol('x'), symbol('y'), symbol('k')
     assert values_of(RateLaw(x, Call(_double, (k * x,)))) == [x, k * x, None]
     assert values_of(RateLaw(vector([x, y]), vector([y, -x]))) == [x, y, y, -x, None]
-    assert values_of(EventLaw(x, {y: 0, x: k})) == [x, y, 0, x, k, 0, False, None]
+    assert values_of(EventLaw(x, {y: 0, x: k})) == [x, y, 0, x, k, 0, False]
 
 
 def test_values_of_reads_chosen_fields():

@@ -186,7 +186,6 @@ class RelaxationLaw(BaseLaw):
     relax: Sequence[LocalRuleLaw | DriveLaw]
     stable: Callable[..., bool]
     max_iterations: int = 100_000
-    label: str | None = None
     activity: Callable[..., Any] | None = None
 
     def _check(self) -> Self:
@@ -469,7 +468,6 @@ class ExtremalLaw(BaseLaw):
     key: Expression | None = None
     extremum: str = 'min'
     repeat: int = 1
-    label: str | None = None
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""

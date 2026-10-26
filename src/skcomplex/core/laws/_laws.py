@@ -155,6 +155,7 @@ class RateLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.RATE
+    contribution: ClassVar[str | None] = 'value'
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
@@ -227,6 +228,7 @@ class NoiseLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.NOISE
+    contribution: ClassVar[str | None] = 'value'
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
@@ -319,9 +321,10 @@ class JumpLaw(BaseLaw):
     @property
     def renewal(self) -> 'RenewalLaw | None':
         """Renewal the compiler runs for a jump on a clock of waiting times, or `None` for an exponential clock."""
-        return None if self.waiting is None else RenewalLaw(self.waiting, self.reset, self.label)
+        return None if self.waiting is None else RenewalLaw(self.waiting, self.reset, label=self.label)
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP
+    contribution: ClassVar[str | None] = 'changes'
     time_class: ClassVar[LawClass] = LawClass.EVENT
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
@@ -333,7 +336,6 @@ class JumpLaw(BaseLaw):
     changes: Mapping[Expression, float] = field(default_factory=dict)
     waiting: object = None
     reset: Mapping[Any, object] | None = None
-    label: str | None = None
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""
@@ -376,6 +378,7 @@ class UpdateLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    contribution: ClassVar[str | None] = 'value'
     time_class: ClassVar[LawClass] = LawClass.DISCRETE
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
@@ -508,6 +511,7 @@ class BoundaryLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.BOUNDARY
+    contribution: ClassVar[str | None] = 'value'
     time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
@@ -555,6 +559,7 @@ class EventLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.EVENT
+    contribution: ClassVar[str | None] = 'reset'
     time_class: ClassVar[LawClass] = LawClass.EVENT
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS})
@@ -563,7 +568,6 @@ class EventLaw(BaseLaw):
     reset: Mapping[Any, object] | None = None
     direction: int = 0
     terminal: bool = False
-    label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -596,7 +600,6 @@ class RenewalLaw(BaseLaw):
 
     waiting: object
     reset: Mapping[Any, object] | None = None
-    label: str | None = None
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, raising a named error for an invalid one."""

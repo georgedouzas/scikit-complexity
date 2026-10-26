@@ -642,8 +642,8 @@ def _counted(
 ) -> tuple[Compilation | None, list[Issue]]:
     """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-    The compilation stops after flattening for a system that a whole-system pass compiles. When laws read reductions
-    of agents, the compilation starts again from a system tree that holds each of them in an element.
+    The compilation stops after flattening for a system that a whole-system pass compiles. When laws read reductions of
+    agents, the compilation starts again from a system tree that holds each of them in an element.
     """
     try:
         observed = _with_observables(system, observables)

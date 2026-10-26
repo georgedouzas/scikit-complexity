@@ -3,11 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from typing import Any, ClassVar, Self
 
 from ._errors import RegistryError
-from ._types import LawClass, LawKind, Requires, Trait
+from ._parts import BasePart
+from ._types import LawClass, LawKind, Requires, Trait, symbols_of
 from ._utils import Registry
 
 
@@ -130,7 +131,7 @@ def has_trait(law: object, trait: Trait) -> bool:
 
 
 @dataclass(frozen=True)
-class BaseLaw:
+class BaseLaw(BasePart):
     """Base of every law, a frozen dataclass of the states it changes, with its kind, its time class, and its traits.
 
     A law class declares as class variables its `law_kind`, its `time_class` among continuous, event, discrete,
@@ -161,12 +162,68 @@ class BaseLaw:
     time_class: ClassVar[LawClass]
     traits: ClassVar[frozenset[Trait]] = frozenset()
     requires: ClassVar[Requires] = Requires()
+    contribution: ClassVar[str | None] = None
 
     targets: tuple[Any, ...] = field(default_factory=tuple, kw_only=True)
+    label: str | None = field(default=None, kw_only=True)
+    targets_: tuple[Any, ...] = field(default=(), kw_only=True, compare=False, repr=False)
+    reads_: frozenset[Any] = field(default=frozenset(), kw_only=True, compare=False, repr=False)
+    owner_: str | None = field(default=None, kw_only=True, compare=False, repr=False)
 
     def _check(self) -> Self:
         """Return the law with its values checked and normalized, the law itself by default."""
         return self
+
+    def _expressions(self) -> list[Any]:
+        """Return the symbolic values of the law's fields, the expressions it reads."""
+        found: list[Any] = []
+        pending: list[Any] = [getattr(self, item.name) for item in fields(self) if not item.name.endswith('_')]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, tuple | list | frozenset | set):
+                pending.extend(value)
+            elif isinstance(value, dict):
+                pending.extend(value.values())
+            elif hasattr(value, 'variables') and callable(value.variables):
+                found.append(value)
+        return found
+
+    def _prepare(self, namespace: Any = None, owner: str | None = None) -> Self:  # noqa: ANN401
+        """Return the law with its targets, the symbols it reads, and the path of its owner set.
+
+        Args:
+            namespace:
+                The namespace of symbols of its owner, which the law was written against.
+
+            owner:
+                The path of the element or interaction that returns the law.
+
+        Returns:
+            law:
+                A prepared copy of the law.
+        """
+        reads = frozenset(symbols_of(self._expressions()))
+        return replace(self, targets_=tuple(self.targets), reads_=reads, owner_=owner)
+
+    def _run(self, **values: float) -> Any:  # noqa: ANN401
+        """Return the contribution of the law at given values of the symbols it reads.
+
+        Args:
+            **values:
+                The value of every symbol it reads, by name.
+
+        Returns:
+            contribution:
+                The value of the field named by `contribution`, such as the rate of a rate law, or the values of every
+                symbolic field by name for a law that names none.
+        """
+        if self.contribution is not None:
+            return _evaluated(getattr(self, self.contribution), values)
+        return {
+            item.name: _evaluated(getattr(self, item.name), values)
+            for item in fields(self)
+            if not item.name.endswith('_') and item.name not in {'targets', 'label'}
+        }
 
     def check(self) -> Self:
         """Return the law with its values checked and normalized.
@@ -187,6 +244,18 @@ class BaseLaw:
             targets = tuple(targets) if isinstance(targets, list) else (targets,)
             return replace(self, targets=targets)._check()
         return self._check()
+
+
+def _evaluated(value: Any, values: dict[str, float]) -> Any:  # noqa: ANN401
+    """Return a value with every symbol substituted by its value, a number when nothing symbolic is left."""
+    if isinstance(value, tuple | list):
+        return type(value)(_evaluated(item, values) for item in value)
+    if isinstance(value, dict):
+        return {key: _evaluated(item, values) for key, item in value.items()}
+    if not (hasattr(value, 'subs') and hasattr(value, 'variables')):
+        return value
+    result = value.subs(**values)
+    return float(result) if not result.variables() and result.is_real() else result
 
 
 LAWS = Registry[type[BaseLaw]]('law')

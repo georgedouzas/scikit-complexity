@@ -18,8 +18,8 @@ package.
 
 ### Requirement: Bases are unrelated
 No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System`
-SHALL derive from `BasePart`. `BasePart`, `BaseSpace`, `BaseTime`, `BaseSolver`, and `BaseBackend` SHALL derive from
-the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
+SHALL derive from `BasePart`, which derives from scikit-learn's `BaseEstimator`. `BaseSpace`, `BaseTime`, `BaseSolver`,
+and `BaseBackend` SHALL derive from the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
 
 #### Scenario: Unrelated bases
 - **WHEN** a test checks every pair of base classes with `issubclass`

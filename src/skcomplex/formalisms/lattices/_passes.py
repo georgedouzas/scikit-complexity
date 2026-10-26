@@ -5,7 +5,7 @@
 
 import itertools
 from dataclasses import replace
-from typing import cast
+from typing import Any, cast
 
 from ...core.base import BaseLaw, Form, SpaceKind, Trait, ValidationError, has_trait
 from ...core.problems import Problem, Source, resolve_backend
@@ -87,7 +87,7 @@ def _compile_lattice(
 ) -> tuple[LatticeStep, ...]:
     """Return the steps of local rules, drives, relaxations, and Monte Carlo sampling in declaration order."""
     steps: list[LatticeStep] = []
-    compilers = {
+    compilers: dict[type, Any] = {
         LocalRuleLaw: compile_rule,
         DriveLaw: compile_drive,
         RelaxationLaw: compile_relaxation,
@@ -97,7 +97,7 @@ def _compile_lattice(
         if not any(has_trait(law, Trait.LATTICE) for law in laws):
             continue
         context = _lattice_context(spec, declarations, fused)
-        steps += [compilers[type(law)](law, context) for law in laws if type(law) in compilers]  # type: ignore[operator]
+        steps += [compilers[type(law)](law, context) for law in laws if type(law) in compilers]
         sampling = _monte_carlo_step(spec, laws, context)
         if sampling is not None:
             steps.append(sampling)
@@ -189,11 +189,12 @@ class LatticeProblemPass(BasePass):
         )
 
 
+LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw)
 STEPWISE_FORMS: dict[frozenset[type], Form] = {
     **{
         frozenset(kinds): Form.LATTICE
         for count in (1, 2, 3, 4)
-        for kinds in itertools.combinations((LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw), count)
+        for kinds in itertools.combinations(LATTICE_LAWS, count)
     },
     frozenset({Energy, MoveLaw}): Form.MONTE_CARLO,
     frozenset({Energy, MoveLaw, SamplerLaw}): Form.MONTE_CARLO,

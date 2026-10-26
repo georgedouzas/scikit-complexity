@@ -26,6 +26,7 @@ from ._errors import (
 )
 from ._interactions import BaseInteraction
 from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
+from ._parts import BasePart
 from ._types import (
     NUMERIC_DOMAINS,
     BaseDomain,
@@ -80,6 +81,7 @@ __all__: list[str] = [
     'BaseEstimator',
     'BaseInteraction',
     'BaseLaw',
+    'BasePart',
     'Binding',
     'CapacityError',
     'CategoricalDomain',

@@ -8,6 +8,7 @@ from typing import Any, ClassVar, Self, cast
 
 from ._errors import ValidationError
 from ._laws import BaseLaw
+from ._parts import BasePart
 from ._types import (
     Variable,
     VariableKind,
@@ -20,7 +21,6 @@ from ._types import (
     _get_default,
     _get_params,
 )
-from ._utils import BaseEstimator
 
 BINDINGS = ('members', 'pairs', 'neighbors', 'hyperedges')
 
@@ -48,7 +48,7 @@ def _interaction_declarations(kind: type['BaseInteraction']) -> dict[str, Variab
     return declarations
 
 
-class BaseInteraction(BaseEstimator):
+class BaseInteraction(BasePart):
     """Base class of laws that couple elements to each other or to the environment.
 
     Subclasses declare their roles with `role` and their parameters with `parameter`, and override `laws`. Inside
@@ -118,8 +118,12 @@ class BaseInteraction(BaseEstimator):
         """Return the declarations of the type, after checking its binding and that it declares no state."""
         return _interaction_declarations(cls)
 
-    def _check(self) -> None:
-        """Raise an error for a value or a layer the interaction cannot take, or a type that declares a state.
+    def _check(self) -> Self:
+        """Return the interaction, raising an error for a value or a layer it cannot take, or a declared state.
+
+        Returns:
+            interaction:
+                The interaction itself.
 
         Raises:
             ArgumentError:
@@ -138,10 +142,17 @@ class BaseInteraction(BaseEstimator):
                 'neighbours run on the edges of a layer.'
             )
             raise ValidationError(error_msg)
+        return self
 
-    def _prepare(self) -> None:
-        """Set `declarations_`, the declarations of the type."""
+    def _prepare(self) -> Self:
+        """Return the interaction with `declarations_`, the declarations of its type, set.
+
+        Returns:
+            interaction:
+                The interaction itself.
+        """
         self.declarations_ = type(self)._declarations()
+        return self
 
     def _run(self, s: Any) -> list[Any]:  # noqa: ANN401
         """Return the laws of the interaction for a namespace of symbols, from the hook `laws`.

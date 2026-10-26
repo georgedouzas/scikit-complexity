@@ -64,3 +64,14 @@ def test_base_holds_no_quantity():
     """Test that the base defines elements, interactions, and laws, and no base of quantities."""
     assert not hasattr(base, 'BaseQuantity')
     assert not any(name.endswith('Quantity') for name in base.__all__)
+
+
+def test_law_runs_alone_once_prepared():
+    """Test that a prepared rate law knows its targets, reads, and owner, and runs into its rate at given values."""
+    n, r = symbol('n'), symbol('r')
+    law = RateLaw(n, r * n).prepare(None, 'meadow/rabbits')
+    assert law.run(n=10, r=0.5) == 5.0
+    assert law.targets_ == (n,)
+    assert law.reads_ == {n, r}
+    assert law.owner_ == 'meadow/rabbits'
+    assert law == RateLaw(n, r * n).check()

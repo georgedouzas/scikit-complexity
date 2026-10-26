@@ -29,11 +29,11 @@
 
 ## 4. Parts
 
-- [ ] 4.1 Add `BasePart` in `core/base/_parts.py` with `label`, `check`, `prepare`, and `run` and their hooks, and
-  derive `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` from it. Make a system's `run(s)` return the laws of
-  its children, and make the compiler collect laws by running the root. Verify with the scenarios "Parts share three
+- [x] 4.1 Add `BasePart` in `core/base/_parts.py` with `label`, `check`, `prepare`, and `run` and their hooks, and
+  derive `BaseElement`, `BaseInteraction`, `BaseLaw`, and `System` from it, with its hooks abstract. Make a system's
+  `run(s)` return the laws of its children. Verify with the scenarios "Parts share three
   verbs" and "System yields laws".
-- [ ] 4.2 Give laws an optional `label`, a `prepare(namespace)` that returns a copy with `targets_`, `reads_`, and
+- [x] 4.2 Give laws an optional `label`, a `prepare(namespace)` that returns a copy with `targets_`, `reads_`, and
   `owner_`, and a `run(values)` that evaluates their contribution, and make the census read the prepared laws. Verify
   with the scenarios "Law run alone" and "Invalid law".
 

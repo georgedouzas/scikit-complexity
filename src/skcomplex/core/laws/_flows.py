@@ -271,6 +271,7 @@ class TransferLaw(BaseLaw):
     """
 
     law_kind: ClassVar[LawKind] = LawKind.TRANSFER
+    contribution: ClassVar[str | None] = 'amount'
     time_class: ClassVar[LawClass] = LawClass.ANY
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(domains={DomainKind.REAL})
@@ -278,7 +279,6 @@ class TransferLaw(BaseLaw):
     source: Holder
     sink: Holder
     amount: object
-    label: str | None = None
     rate: object = None
 
     def _check(self) -> Self:

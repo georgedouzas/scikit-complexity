@@ -245,7 +245,7 @@ def _with_delays(
                 target: _substitute_delays(SR(value), spec, declarations, compilation)
                 for target, value in (law.reset or {}).items()
             }
-            compilation.events.append((spec, EventLaw(guard, reset, law.direction, law.terminal, law.label)))
+            compilation.events.append((spec, EventLaw(guard, reset, law.direction, law.terminal, label=law.label)))
         elif isinstance(law, JumpLaw):
             result.append(JumpLaw(_substitute_delays(law.rate, spec, declarations, compilation), law.changes))
         elif isinstance(law, RateLaw | NoiseLaw):

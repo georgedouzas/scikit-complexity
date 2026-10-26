@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import numpy as np
 
@@ -424,7 +424,7 @@ class GroupElement(BaseElement):
         self.layer = layer
         self.capacity = capacity
 
-    def _check(self) -> None:
+    def _check(self) -> Self:
         """Raise an error for a part, an element type, a size, or values the group cannot take.
 
         Raises:
@@ -435,14 +435,19 @@ class GroupElement(BaseElement):
                 The element type is not an `Element` subclass, the size is not a positive integer, a value
                 names a variable the element type does not declare, or a per-member value does not have one row per
                 member.
+
+        Returns:
+            group:
+                The group itself.
         """
         super()._check()
         if self.on is not None and self.on not in PARTS:
             error_msg = f'Group {self.label!r} lives on {self.on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
         _check_group(self)
+        return self
 
-    def _prepare(self, space: BaseSpace | None = None) -> None:
+    def _prepare(self, space: BaseSpace | None = None) -> Self:
         """Set `declarations_`, `default_visual_`, the visual of the group when it sets none, and `size_`.
 
         The default visual of a group is the visual of its element type. The size of a group on parts of a space
@@ -455,10 +460,15 @@ class GroupElement(BaseElement):
         Raises:
             SpaceError:
                 The group lives on parts but has neither a size nor a space, or the space does not have the part.
+
+        Returns:
+            group:
+                The group itself.
         """
         super()._prepare()
         self.default_visual_ = self.element.visual
         self.size_ = _size_of(self, space)
+        return self
 
 
 def _probe_namespace(component_type: type[BaseElement | BaseInteraction]) -> Symbols:

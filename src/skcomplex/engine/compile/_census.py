@@ -267,7 +267,7 @@ def declared_laws(spec: KernelSpec, component: object) -> list[BaseLaw]:
     checked = []
     for law in declared:
         try:
-            checked.append(law.check())
+            checked.append(law.prepare(spec.namespace, spec.owner))
         except ValidationError as error:
             error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
             raise ValidationError(error_msg) from error
