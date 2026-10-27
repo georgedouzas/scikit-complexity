@@ -1,47 +1,49 @@
-"""Memories of agent rules: the past values of states that the element types of agents remember."""
+"""Memories of agent rules: the past values of the states of agents that keep lags."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
-
 import numpy as np
 import numpy.typing as npt
+
+from ..problems import VariableKind, declarations_of
+from ._mesa import AgentView, _agent_type
 
 type Array = npt.NDArray[np.float64]
 
 
-def memory(agent: Any, state: str, window: int | None = None) -> Array:  # noqa: ANN401
-    """Return the past values of a state of an agent, recorded at the end of every step, the last one last.
+def memory(agent: AgentView, state: str, window: int | None = None) -> Array:
+    """Return the past values of a state of an agent, the values at the ends of the last steps, the last one last.
 
-    The agent stepper records the states that the element type of the agent lists in its class variable `remembers`,
-    which maps each state to the number of values kept.
+    An agent remembers a state declared with lags, `StateSpec(lags=m)`: the agent stepper keeps its last `m` values
+    in the companion states `<state>_lag1` to `<state>_lag<m>`, which rules may also read one by one. Before the
+    first steps the lags hold their initial values, the `initial` of the spec or else the initial value of the state.
 
     Args:
         agent:
             The agent view a rule receives.
 
         state:
-            The name of a remembered state.
+            The name of a state with lags.
 
         window:
             The number of last values, or `None` for every kept value.
 
     Returns:
         values:
-            The values, an empty array before the first step.
+            The values, the oldest first.
 
     Raises:
         KeyError:
-            The element type does not remember the state.
+            The state of the agent keeps no lags.
     """
-    mesa_agent = object.__getattribute__(agent, '_agent')
-    stepper = object.__getattribute__(agent, '_stepper')
-    element = stepper._spec_of(mesa_agent).element
-    element_type = getattr(element, 'element', type(element))
-    if state not in (getattr(element_type, 'remembers', None) or {}):
-        error_msg = f'{element_type.__name__} does not remember {state!r}. List it in the class variable `remembers`.'
+    spec = agent._stepper._spec_of(agent._agent)
+    declaration = declarations_of(_agent_type(spec), VariableKind.STATE).get(state)
+    if declaration is None or not declaration.lags:
+        error_msg = (
+            f'The agents of {spec.path} do not remember {state!r}. Declare the state with lags, such as '
+            '`StateSpec(lags=3)`, to keep its last values.'
+        )
         raise KeyError(error_msg)
-    values = list(getattr(mesa_agent, 'memories_', {}).get(state, ()))
-    values = values if window is None else values[len(values) - min(window, len(values)) :]
-    return np.asarray(values, dtype=float)
+    lags = declaration.lags if window is None else min(window, declaration.lags)
+    return np.asarray([getattr(agent, f'{state}_lag{index}') for index in range(lags, 0, -1)], dtype=float)

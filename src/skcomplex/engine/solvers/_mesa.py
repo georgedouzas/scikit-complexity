@@ -791,24 +791,25 @@ class MesaSolver(Solver):
             The Mesa model.
 
     Examples:
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import RuleLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import MesaSolver
         >>> class CounterElement(Element):
-        ...     count: float = state(0.0)
+        ...     def __init__(self, label, count: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.count = count
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, namespace):
         ...         return [RuleLaw(self.tick)]
         ...
         ...     def tick(self, agent, model):
         ...         agent.count += 1
-        >>> trajectory = (
-        ...     Simulation(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
-        ...     .run(until=4)
-        ...     .trajectory_
-        ... )
+        >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
+        >>> trajectory = Simulation(system, solver=MesaSolver()).run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
@@ -817,8 +818,6 @@ class MesaSolver(Solver):
         time={DiscreteTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace},
         laws={RuleLaw, BoundaryLaw, TransferLaw, MatchLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
@@ -860,6 +859,14 @@ class MesaSolver(Solver):
         self._evaluator: ObservableEvaluator | None = None
         self._populating = True
         self._specs = {spec.path: spec for spec in problem.agents}
+        self._lags = {
+            spec.path: {
+                name: declaration.lags
+                for name, declaration in declarations_of(_agent_type(spec), VariableKind.STATE).items()
+                if declaration.lags
+            }
+            for spec in problem.agents
+        }
         self._classes: dict[type, CompiledAgents] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
@@ -872,7 +879,7 @@ class MesaSolver(Solver):
             if isinstance(rule, RuleLaw)
         ]
         time = getattr(problem.system, 'time', None)
-        schedule = time.schedule_ if isinstance(time, DiscreteTime) else None
+        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
         self._phases = _phase_plan(schedule.phases if isinstance(schedule, PhasesScheduleSpec) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
@@ -1092,20 +1099,12 @@ class MesaSolver(Solver):
                 rule.function(model)
 
     def _remember(self) -> None:
-        """Record the states that the element types of agents remember, at the end of a step."""
-        remembering = {}
-        for spec in self.problem_.agents:
-            agent_type = spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element)
-            remembering[spec.path] = getattr(agent_type, 'remembers', None) or {}
-        if not any(remembering.values()):
-            return
+        """Shift the past values of the states with lags of every agent, at the end of a step."""
         for agent in self.model_.agents:
-            remembers = remembering[self._spec_of(agent).path]
-            if not remembers:
-                continue
-            memories = agent.__dict__.setdefault('memories_', {})
-            for name, window in remembers.items():
-                memories.setdefault(name, deque(maxlen=window)).append(getattr(agent, name))
+            for name, lags in self._lags[self._spec_of(agent).path].items():
+                for index in range(lags, 1, -1):
+                    setattr(agent, f'{name}_lag{index}', getattr(agent, f'{name}_lag{index - 1}'))
+                setattr(agent, f'{name}_lag1', getattr(agent, name))
 
     def _set_parameter(self, name: str, value: float) -> None:
         """Set a parameter during a step, so the rules read it at once and the trajectory records it.

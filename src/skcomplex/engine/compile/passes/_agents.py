@@ -186,7 +186,7 @@ class UnpackMatchesPass(BasePass):
                 The compilation state.
         """
         compilation.collected = [
-            (spec, [law.rule if isinstance(law, MatchLaw) else law for law in laws], block)
+            (spec, [law._get_rule() if isinstance(law, MatchLaw) else law for law in laws], block)
             for spec, laws, block in cast('BlockLaws', compilation.collected)
         ]
 

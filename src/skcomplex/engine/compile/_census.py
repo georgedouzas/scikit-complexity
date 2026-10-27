@@ -160,8 +160,7 @@ def _special_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | No
         return renewal_group(spec, RenewalLaw(law.waiting, law.reset))
     if isinstance(law, RenewalLaw):
         return renewal_group(spec, law)
-    rule = law.rule if isinstance(law, MatchLaw) else law
-    if isinstance(rule, RuleLaw):
+    if isinstance(law, RuleLaw | MatchLaw):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
     if request_of(law) is not None:
