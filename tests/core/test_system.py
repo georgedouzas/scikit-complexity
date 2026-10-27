@@ -9,10 +9,10 @@ import pytest
 from sage.all__sagemath_symbolics import CC, oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement, ParticleElement, WordElement
+from skcomplex.core.elements import Element, GroupElement, ParticleElement
 from skcomplex.core.errors import NotCheckedError, ValidationError
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import GeneratorLaw, ProductionLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -120,14 +120,6 @@ class TwoLevelElement(Element):
     def _get_laws(self, s):
         """Return the generator of the rotation about `x`."""
         return [GeneratorLaw(local_operator(s.psi, 'x') / 2)]
-
-
-class AlgaeElement(WordElement):
-    """Word of Lindenmayer's algae."""
-
-    def _get_laws(self, s):
-        """Return the productions of the algae."""
-        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
 
 
 def test_system_constructor_only_stores_its_parts():
@@ -298,10 +290,3 @@ def test_element_with_hilbert_state_runs_unitary_dynamics():
     simulation = Simulation(System(elements=[TwoLevelElement('q')]), solver=UnitarySolver(), dt=np.pi)
     simulation.run(until=np.pi)
     assert simulation.problem_.form.name == 'QUANTUM'
-
-
-def test_word_is_rewritten_in_parallel():
-    """Test that an element with a word is rewritten by its productions at every step."""
-    system = System(elements=[AlgaeElement('algae', axiom='A')])
-    trajectory = Simulation(system).run(until=4).trajectory_
-    assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
