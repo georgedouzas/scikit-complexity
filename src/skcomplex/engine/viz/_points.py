@@ -198,10 +198,13 @@ class PointsVisual(BaseVisual):
                 dimensions, followed by a time series view of the other logged states, if any.
 
         Examples:
+            >>> from skcomplex.core.elements import GroupElement, ParticleElement
+            >>> from skcomplex.core.spaces import ContinuousSpace
+            >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import PointsVisual
-            >>> from skcomplex.models import create
-            >>> problem = compile_system(create('ideal_gas', n_molecules=10, n_dim=3))
+            >>> gas = GroupElement('gas', element=ParticleElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
+            >>> problem = compile_system(System(elements=[gas], space=ContinuousSpace(n_dim=3)))
             >>> views = PointsVisual(position='x', states=()).prepare(problem.elements[0], problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']

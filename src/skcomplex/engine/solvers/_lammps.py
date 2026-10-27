@@ -109,13 +109,20 @@ def _mass(problem: Problem, p: Vector, element: CompiledElement) -> float:
 
 
 def _filter_system(system: System, keep: set[str], scope: str = '') -> System:
-    """Return a copy of a system tree that keeps only the interactions whose paths are in `keep`."""
+    """Return a copy of a system tree that keeps only the interactions whose paths are in `keep`.
+
+    A box becomes an unbounded continuous space of its dimension, since LAMMPS applies the walls and the periodic
+    sides itself and the copy only evaluates forces.
+    """
+    space = system.space
+    if isinstance(space, ContinuousSpace):
+        space = ContinuousSpace(n_dim=space.n_dim or len(space.extent))
     return System(
         system.label,
         elements=system.elements,
         interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],
         systems=[_filter_system(child, keep, f'{scope}{child.label}/') for child in system.systems],
-        space=system.space,
+        space=space,
         time=system.time,
     )
 
@@ -198,14 +205,15 @@ class LammpsSolver(ExternalSolver):
             Whether the LAMMPS instance is closed.
 
     Examples:
-        >>> from skcomplex.core.elements import GroupElement
-        >>> import numpy as np
-        >>> from skcomplex.engine.solvers import LammpsSolver
-        >>> from skcomplex.core.elements import ParticleElement
+        >>> from skcomplex.core.elements import GroupElement, ParticleElement
+        >>> from skcomplex.core.interactions import PairPotentialInteraction
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.particles import LAMMPS_PAIRS, LennardJonesInteraction
         >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import LammpsSolver
+        >>> class LennardJonesInteraction(PairPotentialInteraction):
+        ...     def _get_pair_energy(self, namespace, r):
+        ...         return 4 * (r**-12 - r**-6)
         >>> system = System(
         ...     elements=[
         ...         GroupElement('gas', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
@@ -213,7 +221,7 @@ class LammpsSolver(ExternalSolver):
         ...     interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
-        >>> solver = LammpsSolver(dt=0.005, pairs=LAMMPS_PAIRS)
+        >>> solver = LammpsSolver(dt=0.005)
         >>> trajectory = Simulation(system, solver=solver, dt=0.1).run(until=0.5).trajectory_
         >>> positions = trajectory.values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
@@ -224,8 +232,6 @@ class LammpsSolver(ExternalSolver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-        
-        
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )
@@ -309,9 +315,12 @@ class LammpsSolver(ExternalSolver):
             name: float(_parameter(problem, p, item.path, name)[0])
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
-        roles = {role: SimpleNamespace(m=float(_parameter(problem, p, _role_path(item, role), 'm')[0])) for role in item.roles}
+        roles = {
+            role: SimpleNamespace(m=float(_parameter(problem, p, _role_path(item, role), 'm')[0]))
+            for role in item.roles
+        }
         distance = symbol('r', RealSet.open(0, oo))
-        energy = interaction.pair_energy(SimpleNamespace(**values, **roles), distance)
+        energy = interaction._get_pair_energy(SimpleNamespace(**values, **roles), distance)
         return lepton_expression(energy, distance)
 
     def _box_commands(self, problem: Problem, x: Vector) -> list[str]:

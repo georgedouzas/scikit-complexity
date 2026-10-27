@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
-from ...core.errors import SolverError
+from ...core.errors import SolverError, ValidationError
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
 from ...core.spaces import ContinuousTime
 from ...core.types import Vector
@@ -17,13 +17,12 @@ from ..problems import OrderKind, SupportSpec
 from ._optimal_control import ControlSolution, Cost, GridFunction, OptimalControlSolver, _ControlProblem
 
 MIN_RELAXATION = 1e-3
+MIN_NODES = 2
 
 CONTROL_SUPPORT = SupportSpec(
     time={ContinuousTime},
     space={None},
     laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
-    
-    
     orders={OrderKind.INTEGER},
 )
 
@@ -102,21 +101,28 @@ class PontryaginSolver(OptimalControlSolver):
             no unique explicit solution.
 
         ValidationError:
-            The sense is neither `'min'` nor `'max'`.
+            The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
 
     Examples:
-        >>> from skcomplex.core.declarations import state
-        >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import PontryaginSolver
-        >>> from skcomplex.core.system import System
         >>> class PlantElement(Element):
-        ...     x = state(1.0)
-        ...     u = parameter(0.0, adaptive=True, bounds=(-10, 10))
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         x: Annotated[float, StateSpec()] = 1.0,
+        ...         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.u = u
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, s.u)]
         >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
         >>> simulation = Simulation(System(elements=[PlantElement('plant')]), solver=solver).run(until=1.0)
@@ -144,6 +150,24 @@ class PontryaginSolver(OptimalControlSolver):
         self.relaxation = relaxation
         self.tolerance = tolerance
         self.max_iterations = max_iterations
+
+    def _check(self) -> None:
+        """Raise an error for a missing objective, an unknown sense, too few nodes, or a bad relaxation.
+
+        Raises:
+            SolverError:
+                The solver has no objective.
+
+            ValidationError:
+                The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
+        """
+        super()._check()
+        if not (isinstance(self.nodes, int) and self.nodes >= MIN_NODES):
+            error_msg = f'nodes = {self.nodes!r} must be an integer of at least {MIN_NODES}.'
+            raise ValidationError(error_msg)
+        if not 0 < self.relaxation <= 1:
+            error_msg = f'relaxation = {self.relaxation!r} must lie in (0, 1].'
+            raise ValidationError(error_msg)
 
     def _costates(self, times: Vector, states: Vector, controls: Vector, p: Vector) -> Vector:
         """Return the costates on a grid, integrated backward from the horizon by Runge-Kutta steps."""

@@ -111,18 +111,25 @@ class CollocationSolver(OptimalControlSolver):
             The solver has no objective, or the optimiser does not converge.
 
     Examples:
-        >>> from skcomplex.core.declarations import state
-        >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CollocationSolver
-        >>> from skcomplex.core.system import System
         >>> class PlantElement(Element):
-        ...     x = state(1.0)
-        ...     u = parameter(0.0, adaptive=True, bounds=(-10, 10))
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         x: Annotated[float, StateSpec()] = 1.0,
+        ...         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.u = u
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, s.u)]
         >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
         >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
@@ -135,8 +142,6 @@ class CollocationSolver(OptimalControlSolver):
         time={ContinuousTime},
         space={None},
         laws={RateLaw, FluxLaw, EquationLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
@@ -161,8 +166,17 @@ class CollocationSolver(OptimalControlSolver):
         self.tolerance = tolerance
         self.max_iterations = max_iterations
 
-    def _check_settings(self) -> None:
-        """Raise an error for an unknown scheme or method, or a grid of fewer than two nodes."""
+    def _check(self) -> None:
+        """Raise an error for a missing objective, an unknown sense, scheme, or method, or too few nodes.
+
+        Raises:
+            SolverError:
+                The solver has no objective.
+
+            ValidationError:
+                The sense, the scheme, or the method is unknown, or the grid has fewer than 2 nodes.
+        """
+        super()._check()
         if self.scheme not in SCHEMES:
             error_msg = f'Unknown collocation scheme {self.scheme!r}. Use one of {", ".join(SCHEMES)}.'
             raise ValidationError(error_msg)
@@ -229,12 +243,7 @@ class CollocationSolver(OptimalControlSolver):
         Args:
             control_problem:
                 The optimal control problem.
-
-        Raises:
-            ValidationError:
-                The scheme or the method is unknown, or the grid has fewer than 2 nodes.
         """
-        self._check_settings()
         states, controls = control_problem.states, control_problem.control_symbols
         rates, running = control_problem.rates, control_problem.running
         self._rates_states: GridFunction = control_problem.function(

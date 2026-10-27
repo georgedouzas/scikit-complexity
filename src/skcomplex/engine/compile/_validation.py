@@ -323,7 +323,7 @@ def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list
 
 
 def _solver_issues(solver: object, census: Census, system: System) -> list[Issue]:
-    """Return the requirements of a system that the solver passed does not support."""
+    """Return the arguments the solver passed rejects and the requirements of a system it does not support."""
     records = census.records
     stepper = type(solver)
     needs = {
@@ -332,6 +332,11 @@ def _solver_issues(solver: object, census: Census, system: System) -> list[Issue
         'space': {None if record.space is None else type(record.space) for record in records},
     }
     issues = []
+    try:
+        solver.check()  # type: ignore[attr-defined]
+    except SkcomplexError as error:
+        fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
+        issues.append(Issue('solver-argument', system.label, str(error), fix, error=type(error)))
     for category, terms in needs.items():
         missing = stepper.supports.missing(category, terms)
         if missing:
