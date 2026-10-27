@@ -1,26 +1,18 @@
 """Test the `_simulations` module of `skcomplex.engine.runtime`."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
 from skcomplex.analysis import flow_matrix
-from skcomplex.core.base import (
-    ParameterError,
-    SimulationError,
-    SolverError,
-    ValidationError,
-    parameter,
-    state,
-)
-from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.laws import (
-    RateLaw,
-    RuleLaw,
-)
+from skcomplex.core.base import SimulationError, SolverError
+from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.errors import ParameterError, ValidationError
+from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
@@ -96,10 +88,19 @@ def _logistic():
 class SaverElement(Element):
     """Agent that adds its group's rate to its savings every step."""
 
-    savings: float = state(0.0)
-    rate: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        savings: Annotated[float, StateSpec()] = 0.0,
+        rate: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.savings = savings
+        self.rate = rate
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the saving rule."""
         return [RuleLaw(self.save)]
 
@@ -112,10 +113,19 @@ class SaverElement(Element):
 class HeaterElement(Element):
     """Heater element."""
 
-    T = state(0.0)
-    power = parameter(0.0, adaptive=True, bounds=(0, 1))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 0.0,
+        power: Annotated[object, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.power = power
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the heater element."""
         return [RateLaw(s.T, s.power - s.T)]
 

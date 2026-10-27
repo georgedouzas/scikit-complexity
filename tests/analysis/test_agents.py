@@ -1,12 +1,13 @@
 """Test order parameters, kinetic temperatures, neighbour statistics, coarse-graining, and agent displacement."""
 
 import math
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import NN
 from scipy.spatial import cKDTree
-from skcomplex.core.components import Element
 
 from skcomplex.analysis import (
     clark_evans_ratio,
@@ -23,10 +24,11 @@ from skcomplex.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError, BaseLaw, NumericDomain, VisualSpec, state
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import RuleLaw, Symbols
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import BaseLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import AgentView, ModelView
 from skcomplex.engine.runtime import Simulation
@@ -36,10 +38,17 @@ from skcomplex.models import run
 class GridWalkerElement(Element):
     """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
-    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {}),
+        *,
+        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.steps = steps
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule."""
         return [RuleLaw(self.step)]
 
@@ -53,10 +62,17 @@ class GridWalkerElement(Element):
 class DiffuserElement(Element):
     """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
-    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {}),
+        *,
+        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.steps = steps
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule."""
         return [RuleLaw(self.step)]
 

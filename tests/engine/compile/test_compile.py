@@ -1,33 +1,23 @@
 """Test the `_compile` module of `skcomplex.engine.compile`."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
 import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    Expression,
-    Form,
-    IncompatibleLawsError,
-    LabelError,
-    NumericDomain,
-    RoleError,
-    SpaceError,
-    SymbolicVector,
-    ValidationError,
-    domain_of,
-    parameter,
-    role,
-    symbol,
-)
-from skcomplex.core.elements import GroupElement, LatticeElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
-from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw, mod
+from skcomplex.core.base import Form, IncompatibleLawsError, domain_of, symbol
+from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
+from skcomplex.core.errors import LabelError, RoleError, SpaceError, ValidationError
+from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.models.biology.ecology import (
@@ -46,22 +36,36 @@ from ...conftest import CallableGrowthInteraction, NodeElement, _correlated, _su
 from .conftest import _pair
 
 
-class UndeclaredInteraction(BaseInteraction):
+class UndeclaredInteraction(Interaction):
     """Interaction that uses a symbol it does not declare."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a law with an undeclared symbol."""
         return [RateLaw(s.target.n, symbol('k') * s.target.n)]
 
 
-class DoubleUpdateInteraction(BaseInteraction):
+class DoubleUpdateInteraction(Interaction):
     """Interaction that updates the same state twice."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return two updates of one state."""
         return [UpdateLaw(s.target.price, 1), UpdateLaw(s.target.price, 2)]
 
@@ -74,27 +78,51 @@ def _ecology(growth):
 class HubElement(Element):
     """Hub element."""
 
-    y = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
 
 
-class SiteDriveInteraction(BaseInteraction):
+class SiteDriveInteraction(Interaction):
     """Growth of a hub at the rate of the state of one site."""
 
-    hub: str = role()
-    site: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        hub: Annotated[str, RoleSpec()],
+        site: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.hub = hub
+        self.site = site
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the growth of the hub."""
         return [RateLaw(s.hub.y, s.site.x)]
 
 
-class SitesDriveInteraction(BaseInteraction):
+class SitesDriveInteraction(Interaction):
     """Growth of a hub at the rate of the summed states of several sites."""
 
-    hub: str = role()
-    sites: list[str] = role(variadic=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        hub: Annotated[str, RoleSpec()],
+        sites: Annotated[list[str], RoleSpec(variadic=True)],
+    ) -> None:
+        super().__init__(label)
+        self.hub = hub
+        self.sites = sites
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the growth of the hub."""
         return [RateLaw(s.hub.y, sum((item.x for item in s.sites), 0))]
 
@@ -137,63 +165,113 @@ CUTOFF = 2.5
 class LennardJonesInteraction(PairPotentialInteraction):
     """Lennard-Jones pair potential."""
 
-    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
         return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
 
 
-class DoublingInteraction(BaseInteraction):
+class DoublingInteraction(Interaction):
     """Interaction with a callable rate over a group."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a callable rate equal to twice the member counts."""
         name = f'{self.target}.n'
         return [RateLaw(s.target.n, lambda t, values: 2 * values[name])]
 
 
-class BirthInteraction(BaseInteraction):
+class BirthInteraction(Interaction):
     """Stochastic birth of every member of a group."""
 
-    target: str = role()
-    rate: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return one jump per member."""
         return [JumpLaw(s.rate * s.target.n, {s.target.n: 1})]
 
 
-class VolatilityInteraction(BaseInteraction):
+class VolatilityInteraction(Interaction):
     """Noise on every member of a group."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the noise amplitude `n`."""
         return [NoiseLaw(s.target.n, s.target.n)]
 
 
-class HalvingInteraction(BaseInteraction):
+class HalvingInteraction(Interaction):
     """Discrete halving of every member of a group."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the next value `n / 2`."""
         return [UpdateLaw(s.target.n, s.target.n / 2)]
 
 
-class SingleUpdateFromGroupInteraction(BaseInteraction):
+class SingleUpdateFromGroupInteraction(Interaction):
     """Update of a single element from a group, which has no meaning."""
 
-    target: str = role()
-    total: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        total: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.total = total
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return an update of the single element."""
         return [UpdateLaw(s.total.n, s.target.n)]
 
@@ -220,23 +298,37 @@ def _lennard_jones_gas(n, seed=0):
 RECEIVED: dict[str, object] = {}
 
 
-class RecorderInteraction(BaseInteraction):
+class RecorderInteraction(Interaction):
     """Interaction that records the symbols it receives and adds no change."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Record the symbols and return a zero rate on the velocity."""
         RECEIVED.update(x=s.target.x, m=s.target.m)
         return [RateLaw(s.target.v, 0)]
 
 
-class SympyGrowthInteraction(BaseInteraction):
+class SympyGrowthInteraction(Interaction):
     """Interaction whose rate is a SymPy expression."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a SymPy rate."""
         return [RateLaw(s.target.n, sympy.Symbol('r') * 2)]
 
@@ -642,12 +734,19 @@ def test_compile_update_of_single_element_from_group_raises_error():
 def test_compile_boundary_twice_raises_error():
     """Test that a state takes one boundary law."""
 
-    class WrapInteraction(BaseInteraction):
+    class WrapInteraction(Interaction):
         """Wrap interaction."""
 
-        target = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the wrap interaction."""
             return [BoundaryLaw(s.target.x[0], mod(s.target.x[0], 1))]
 
@@ -666,9 +765,17 @@ def test_compile_system_without_processes_keeps_identity_columns():
     class WalkerElement(Element):
         """Walker element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the walker element."""
             return [NoiseLaw(s.x, 1.0), NoiseLaw(s.x, 2.0)]
 
@@ -718,9 +825,17 @@ def test_stratonovich_correction_of_several_laws_adds_up():
     class TwiceElement(Element):
         """Twice element."""
 
-        x = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the twice element."""
             return [
                 NoiseLaw(s.x, s.x, convention='stratonovich'),
@@ -740,11 +855,11 @@ def test_components_receive_sage_symbols_and_vectors():
         space=ContinuousSpace(n_dim=3),
     )
     compile_system(system)
-    assert isinstance(RECEIVED['x'], SymbolicVector)
+    assert isinstance(RECEIVED['x'], FreeModuleElement)
     assert len(RECEIVED['x']) == 3
     assert all(isinstance(component, Expression) and component.is_symbol() for component in RECEIVED['x'])
     assert RECEIVED['m'].is_real()
-    assert domain_of(RECEIVED['m']) is NumericDomain.POSITIVE
+    assert domain_of(RECEIVED['m']) is RealSet.open(0, oo)
 
 
 def test_sympy_rate_is_rejected():

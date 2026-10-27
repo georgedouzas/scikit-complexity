@@ -1,12 +1,11 @@
 """Test generating functions, rate functions, and exponential reweighting."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
 from scipy import special
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
 from skcomplex.analysis import (
     block_generating_function,
@@ -17,7 +16,9 @@ from skcomplex.analysis import (
     tilted_generating_function,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import JumpLaw
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 
 
@@ -89,9 +90,17 @@ def test_block_generating_function_needs_two_blocks():
 class CounterElement(Element):
     """Counter element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the counter element."""
         return [JumpLaw(1.0, {s.n: 1})]
 

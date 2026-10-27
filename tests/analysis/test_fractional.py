@@ -1,24 +1,35 @@
 """Test the Mittag-Leffler function and the exact solution of linear fractional relaxation."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
 from skcomplex.analysis import equations_of, mittag_leffler, solve_symbolically
-from skcomplex.core.base import AnalysisError, parameter, state
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 
 
 class RelaxingElement(Element):
     """Element whose state relaxes with a Caputo derivative of order 0.6."""
 
-    x: float = state(2.0, order=0.6)
-    lam: float = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=0.6)] = 2.0,
+        lam: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.lam = lam
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the relaxation rate."""
         return [RateLaw(s.x, -s.lam * s.x)]
 
@@ -26,9 +37,17 @@ class RelaxingElement(Element):
 class SaturatingElement(Element):
     """Element whose fractional state follows a nonlinear law."""
 
-    x: float = state(0.5, order=0.6)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=0.6)] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the logistic rate."""
         return [RateLaw(s.x, s.x * (1 - s.x))]
 

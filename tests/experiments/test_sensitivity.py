@@ -1,13 +1,13 @@
 """Test the `_sensitivity` module of `skcomplex.experiments`."""
 
 import math
+from typing import Annotated
 
 import pytest
 from sage.all__sagemath_symbolics import sin
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter
 
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.elements import Element
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.experiments import (
     sensitivity,
@@ -17,9 +17,19 @@ from skcomplex.experiments import (
 class PointElement(Element):
     """Point element."""
 
-    x1 = parameter(0.0)
-    x2 = parameter(0.0)
-    x3 = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x1: Annotated[object, ParameterSpec()] = 0.0,
+        x2: Annotated[object, ParameterSpec()] = 0.0,
+        x3: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x1 = x1
+        self.x2 = x2
+        self.x3 = x3
 
 
 def _ishigami(s):

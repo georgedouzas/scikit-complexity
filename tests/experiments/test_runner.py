@@ -6,9 +6,9 @@ import sys
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
-from skcomplex.core.base import ValidationError, parameter, state
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.system import System
 from skcomplex.experiments import (
@@ -22,10 +22,19 @@ from skcomplex.models.biology.epidemiology import sir
 class LogisticMapElement(Element):
     """Logistic map element."""
 
-    x = state(default=0.2)
-    r = parameter(3.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        r: Annotated[object, ParameterSpec()] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the logistic map element."""
         return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
 
@@ -38,6 +47,9 @@ def last_value(trajectory):
 SCRIPT_WITHOUT_GUARD = """
 import skcomplex.models.mathematics.dynamical_systems
 from skcomplex.analysis import orbit_diagram
+from typing import Annotated
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.laws.utils import series
 
 orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2, dt=1, executor='process')
 """

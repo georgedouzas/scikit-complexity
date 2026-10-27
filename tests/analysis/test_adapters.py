@@ -1,9 +1,11 @@
 """Test the data kinds, the trajectory adapters, and the discovery of applicable analyses."""
 
+from typing import Annotated
+
 import networkx as nx
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import NN
 
 from skcomplex.analysis import (
     ANALYSES,
@@ -21,8 +23,10 @@ from skcomplex.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError, NumericDomain, parameter, state
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import JumpLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.experiments import Experiment
@@ -32,11 +36,21 @@ from skcomplex.models import create, run
 class BirthDeathElement(Element):
     """Birth death element."""
 
-    n = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    birth = parameter(5.0)
-    death = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(domain=NN)] = 10.0,
+        birth: Annotated[object, ParameterSpec()] = 5.0,
+        death: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.birth = birth
+        self.death = death
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the birth death element."""
         return [JumpLaw(s.birth, {s.n: 1}), JumpLaw(s.death * s.n, {s.n: -1})]
 

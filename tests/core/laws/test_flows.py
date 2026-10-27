@@ -1,31 +1,21 @@
 """Test the `_flows` module of `skcomplex.core.laws`."""
 
 import functools
+from typing import Annotated
 
 import numpy as np
 import pytest
 from scipy import stats
-from skcomplex.core.components import Element
 
 from skcomplex.analysis import conservation, loop_dominance, loops
-from skcomplex.core.base import BaseInteraction, ConservationError, LabelError, ValidationError, parameter, role, state
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import (
-    BoundaryLaw,
-    RateLaw,
-    RuleLaw,
-    Sink,
-    Source,
-    TransferLaw,
-    UpdateLaw,
-    distributed_delay,
-    lookup,
-    step,
-    transfer,
-    where,
-)
+from skcomplex.core.base import ConservationError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import LabelError, ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import BoundaryLaw, RateLaw, RuleLaw, Sink, Source, TransferLaw, UpdateLaw
+from skcomplex.core.laws.utils import distributed_delay, lookup, step, transfer, where
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
@@ -34,10 +24,19 @@ from skcomplex.engine.runtime import ConservationObserver, Simulation
 class TanksElement(Element):
     """Two stocks with a transfer between them."""
 
-    a: float = state(3.0)
-    b: float = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[float, StateSpec()] = 3.0,
+        b: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the transfer."""
         return [TransferLaw(s.a, s.b, s.a / 4, label='flow')]
 
@@ -80,10 +79,19 @@ def _fertility(s):
 class TubElement(Element):
     """Tub element."""
 
-    water = state(0.0, quantity='water')
-    k = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec(quantity='water')] = 0.0,
+        k: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the tub element."""
         return _tub_laws(s)
 
@@ -91,11 +99,21 @@ class TubElement(Element):
 class PopulationElement(Element):
     """Population element."""
 
-    n = state(10.0, quantity='people')
-    b = parameter(0.03)
-    d = parameter(0.01)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(quantity='people')] = 10.0,
+        b: Annotated[object, ParameterSpec()] = 0.03,
+        d: Annotated[object, ParameterSpec()] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.b = b
+        self.d = d
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the population element."""
         return _population_laws(s)
 
@@ -103,9 +121,17 @@ class PopulationElement(Element):
 class ClippedElement(Element):
     """Clipped element."""
 
-    water = state(0.0, quantity='water')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec(quantity='water')] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the clipped element."""
         return _clipped_laws(s)
 
@@ -113,11 +139,21 @@ class ClippedElement(Element):
 class LedgerElement(Element):
     """Ledger element."""
 
-    a = state(10.0, quantity='money')
-    b = state(0.0, quantity='money')
-    c = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(quantity='money')] = 10.0,
+        b: Annotated[object, StateSpec(quantity='money')] = 0.0,
+        c: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.c = c
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the ledger element."""
         return _ledger_laws(s)
 
@@ -125,9 +161,17 @@ class LedgerElement(Element):
 class FertilityElement(Element):
     """Fertility element."""
 
-    food = state(-1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        food: Annotated[object, StateSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.food = food
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the fertility element."""
         return [RateLaw(s.food, 1.0)]
 
@@ -155,11 +199,21 @@ def _balance(agent):
 class BankElement(Element):
     """Bank whose rule lowers its assets alone, which breaks its balance sheet."""
 
-    assets: float = state(10.0)
-    liabilities: float = state(8.0)
-    equity: float = state(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        assets: Annotated[float, StateSpec()] = 10.0,
+        liabilities: Annotated[float, StateSpec()] = 8.0,
+        equity: Annotated[float, StateSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.assets = assets
+        self.liabilities = liabilities
+        self.equity = equity
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rule that loses assets."""
         return [RuleLaw(self.lose)]
 
@@ -171,18 +225,37 @@ class BankElement(Element):
 class LenderElement(Element):
     """Lender holding claims on firms, positive loans."""
 
-    loans: float = state(0.0, quantity='loans')
-    money: float = state(0.0, quantity='money')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
+        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.loans = loans
+        self.money = money
 
 
 class BorrowerElement(Element):
     """Firm that owes its loans, a negative holding, and goes bankrupt when its money runs out."""
 
-    loans: float = state(0.0, quantity='loans')
-    money: float = state(0.0, quantity='money')
-    settles: float = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
+        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
+        settles: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.loans = loans
+        self.money = money
+        self.settles = settles
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rule that removes bankrupt firms."""
         return [RuleLaw(self.default)]
 
@@ -212,13 +285,21 @@ def _credit_system(settles):
     )
 
 
-class PaymentsInteraction(BaseInteraction):
+class PaymentsInteraction(Interaction):
     """Payments between holders, which create money when asked."""
 
-    holders: str = role()
-    creates: float = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        holders: Annotated[str, RoleSpec()],
+        creates: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.holders = holders
+        self.creates = creates
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rule that moves money."""
         return [RuleLaw(self.move)]
 
@@ -243,9 +324,17 @@ def test_transfer_with_the_environment_takes_none():
     class FilledElement(Element):
         """Filled element."""
 
-        n = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            n: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.n = n
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the filled element."""
             return [TransferLaw(None, s.n, 1.0, label='inflow')]
 
@@ -268,10 +357,19 @@ def test_flow_between_quantities_is_rejected():
     class MixedElement(Element):
         """Mixed element."""
 
-        x = state(1.0, quantity='mass')
-        y = state(0.0, quantity='energy')
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(quantity='mass')] = 1.0,
+            y: Annotated[object, StateSpec(quantity='energy')] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the mixed element."""
             return [TransferLaw(s.x, s.y, s.x)]
 
@@ -288,9 +386,17 @@ def test_flow_holders_and_labels_are_checked():
     class TwiceElement(Element):
         """Twice element."""
 
-        x = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the twice element."""
             return [TransferLaw(Source(), s.x, 1.0, label='f'), TransferLaw(s.x, Sink(), 1.0, label='f')]
 
@@ -301,10 +407,19 @@ def test_flow_holders_and_labels_are_checked():
     class ReadsElement(Element):
         """Reads element."""
 
-        x = state(1.0)
-        k = parameter(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+            k: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.k = k
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the reads element."""
             return [TransferLaw(s.k, s.x, 1)]
 
@@ -328,10 +443,19 @@ def test_jump_flows_move_their_size_at_random_times():
     class JumpingElement(Element):
         """Jumping element."""
 
-        a = state(50.0, quantity='coins')
-        b = state(0.0, quantity='coins')
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            a: Annotated[object, StateSpec(quantity='coins')] = 50.0,
+            b: Annotated[object, StateSpec(quantity='coins')] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.a = a
+            self.b = b
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the jumping element."""
             return [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')]
 

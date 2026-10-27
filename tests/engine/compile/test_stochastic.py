@@ -1,41 +1,44 @@
 """Test stochastic maps: random draws in update laws, Markov chains, and hidden Markov sources."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
 import quantecon
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import IncompatibleLawsError, NumericDomain, ParameterError, ValidationError, parameter, state
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import (
-    EmissionLaw,
-    RateLaw,
-    TransitionLaw,
-    UpdateLaw,
-    bernoulli,
-    categorical,
-    normal,
-    total,
-    uniform,
-    where,
-)
+from skcomplex.core.base import IncompatibleLawsError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import ParameterError, ValidationError
+from skcomplex.core.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
+from skcomplex.core.laws.utils import bernoulli, categorical, normal, total, uniform, where
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 EMISSION = [[0.7, 0.3], [0.2, 0.8]]
-BINARY = NumericDomain.categorical(0, 1)
+BINARY = FiniteEnumeratedSet([0, 1])
 
 
 class UniformElement(Element):
     """Uniform element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the uniform element."""
         return [UpdateLaw(s.x, uniform('u', 0, 1))]
 
@@ -43,9 +46,17 @@ class UniformElement(Element):
 class WalkerElement(Element):
     """Walker element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the walker element."""
         return [UpdateLaw(s.x, s.x + normal('step', 0, 1))]
 
@@ -53,10 +64,19 @@ class WalkerElement(Element):
 class FlipElement(Element):
     """Flip element."""
 
-    a = state(0.0)
-    b = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec()] = 0.0,
+        b: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the flip element."""
         return [UpdateLaw(s.a, bernoulli('flip', 0.5)), UpdateLaw(s.b, 1 - bernoulli('flip', 0.5))]
 
@@ -64,11 +84,21 @@ class FlipElement(Element):
 class RampElement(Element):
     """Ramp element."""
 
-    x = state(0.0)
-    y = state(0.0)
-    p = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        p: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.p = p
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the ramp element."""
         return [UpdateLaw(s.x, s.x + 1), UpdateLaw(s.y, bernoulli('b', s.p * s.x))]
 
@@ -76,10 +106,19 @@ class RampElement(Element):
 class ConflictElement(Element):
     """Conflict element."""
 
-    a = state(0.0)
-    b = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec()] = 0.0,
+        b: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the conflict element."""
         return [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, uniform('u', 0, 2))]
 
@@ -87,9 +126,17 @@ class ConflictElement(Element):
 class DriftingElement(Element):
     """Drifting element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the drifting element."""
         return [RateLaw(s.x, normal('kick', 0, 1))]
 
@@ -97,10 +144,19 @@ class DriftingElement(Element):
 class ChainElement(Element):
     """Chain element."""
 
-    x = state(default=0, domain=BINARY)
-    stay = parameter(0.9, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=BINARY)] = 0,
+        stay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.stay = stay
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the chain element."""
         return [TransitionLaw(s.x, [[s.stay, 1 - s.stay], [0.4, 0.6]])]
 
@@ -108,9 +164,17 @@ class ChainElement(Element):
 class BrokenElement(Element):
     """Broken element."""
 
-    x = state(default=0, domain=BINARY)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=BINARY)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the broken element."""
         return [TransitionLaw(s.x, [[0.8, 0.1], [0.4, 0.6]])]
 
@@ -173,9 +237,17 @@ def test_compile_system_keeps_conditions_on_draws_undecided():
     class CoinElement(Element):
         """Coin element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the coin element."""
             return [UpdateLaw(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))]
 
@@ -270,10 +342,19 @@ def test_compile_system_draws_beside_reductions():
     class SpinsElement(Element):
         """Spins element."""
 
-        s = state(1.0)
-        h = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            s: Annotated[object, StateSpec()] = 1.0,
+            h: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.s = s
+            self.h = h
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the spins element."""
             return [
                 UpdateLaw(s.h, where(uniform('u', 0, 1e-9) < total(s.s, weights=weights), 1, -1)),
@@ -291,11 +372,21 @@ def test_compile_system_agrees_across_backends():
     class MixedElement(Element):
         """Mixed element."""
 
-        x = state(0.0)
-        k = state(0.0)
-        b = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            k: Annotated[object, StateSpec()] = 0.0,
+            b: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.k = k
+            self.b = b
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the mixed element."""
             return [
                 UpdateLaw(s.x, s.x / 2 + uniform('u', 0, 1)),
@@ -316,9 +407,17 @@ def test_compile_system_keeps_deterministic_maps_unchanged():
     class LogisticElement(Element):
         """Logistic element."""
 
-        x = state(0.3)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.3,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the logistic element."""
             return [UpdateLaw(s.x, 3.7 * s.x * (1 - s.x))]
 
@@ -352,9 +451,17 @@ def test_compile_system_runs_compiled_chains_fast():
     class TwoElement(Element):
         """Two element."""
 
-        x = state(default=0, domain=BINARY)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(domain=BINARY)] = 0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the two element."""
             return [TransitionLaw(s.x, CHAIN)]
 
@@ -363,9 +470,17 @@ def test_compile_system_runs_compiled_chains_fast():
     class FlipperElement(Element):
         """Flipper element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the flipper element."""
             return [UpdateLaw(s.x, 1 - s.x)]
 

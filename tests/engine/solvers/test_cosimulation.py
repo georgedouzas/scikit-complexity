@@ -1,24 +1,18 @@
 """Test co-simulation: partitioning, held inputs, held reductions, agent inputs, scheduling, and convergence."""
 
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    Form,
-    IncompatibleLawsError,
-    SolverError,
-    ValidationError,
-    parameter,
-    role,
-    state,
-)
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw, count, maximum, mean, total
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.base import Form, IncompatibleLawsError, SolverError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.laws.utils import count, maximum, mean, total
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
@@ -37,7 +31,7 @@ from skcomplex.models.economics.resources import harvesting
 class BreederElement(Element):
     """Agent that creates one offspring every step."""
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the breeding rule."""
         return [RuleLaw(self.breed)]
 
@@ -49,10 +43,19 @@ class BreederElement(Element):
 class IdleElement(Element):
     """Agent that keeps its wealth and records the soil it sees."""
 
-    wealth: float = state(1.0)
-    seen: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec()] = 1.0,
+        seen: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
+        self.seen = seen
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the observing rule."""
         return [RuleLaw(self.observe)]
 
@@ -64,50 +67,80 @@ class IdleElement(Element):
 REDUCTIONS = {'sum': total, 'mean': mean, 'max': maximum}
 
 
-class CountingInteraction(BaseInteraction):
+class CountingInteraction(Interaction):
     """Rate equal to the number of members of a group, `dn/dt = count(source)`."""
 
-    target: str = role()
-    source: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate `count(source)`."""
         return [RateLaw(s.target.n, count(s.source))]
 
 
-class WealthInteraction(BaseInteraction):
+class WealthInteraction(Interaction):
     """Rate equal to a reduction of the wealth of a group, such as `dn/dt = total(source.wealth)`."""
 
-    target: str = role()
-    source: str = role()
-
-    def __init__(self, label, *, reduction='sum', **values):
-        super().__init__(label, **values)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        reduction='sum',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
         self.reduction = reduction
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate, the reduction of the wealth."""
         return [RateLaw(s.target.n, REDUCTIONS[self.reduction](s.source.wealth))]
 
 
-class TallyInteraction(BaseInteraction):
+class TallyInteraction(Interaction):
     """Update that sets a tally to the total of a group, `n <- total(source.n)`."""
 
-    target: str = role()
-    source: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update to the total."""
         return [UpdateLaw(s.target.k, total(s.source.n))]
 
 
-class CopyInteraction(BaseInteraction):
+class CopyInteraction(Interaction):
     """Update that copies a held observable into a tally, `k <- value`."""
 
-    target: str = role()
-    source: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update to the observable."""
         return [UpdateLaw(s.target.k, s.source.value)]
 
@@ -115,17 +148,34 @@ class CopyInteraction(BaseInteraction):
 class TallyElement(Element):
     """Tally of a discrete subsystem."""
 
-    k: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
 
 
-class TendingInteraction(BaseInteraction):
+class TendingInteraction(Interaction):
     """Interaction with a rate on a population and a rule on agents."""
 
-    soil: str = role()
-    farmers: str = role()
-    rate: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        soil: Annotated[str, RoleSpec()],
+        farmers: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.soil = soil
+        self.farmers = farmers
+        self.rate = rate
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return one rate law and one rule."""
         return [RateLaw(s.soil.n, s.rate), RuleLaw(self.tend)]
 

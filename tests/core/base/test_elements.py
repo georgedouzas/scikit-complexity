@@ -1,14 +1,16 @@
 """Test the `_elements` module of `skcomplex.core.base`."""
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import pytest
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.declarations import role
 from sklearn.base import clone
 
-from skcomplex.core.base import ArgumentError, BaseElement, BaseInteraction, parameter, state, symbol
-from skcomplex.core.laws import RateLaw, Symbols
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.base import ArgumentError, symbol
+from skcomplex.core.elements import BaseElement, Element, GroupElement
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
@@ -18,10 +20,16 @@ from skcomplex.models.biology.ecology import PopulationElement, PredationInterac
 class TallyElement(Element):
     """Element with a setting next to its declared state."""
 
-    value: float = state(0.0)
-
-    def __init__(self, label, *, source='', **values):
-        super().__init__(label, **values)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec()] = 0.0,
+        source='',
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
         self.source = source
 
 
@@ -38,11 +46,21 @@ def _firm_leverage(s):
 class FirmElement(Element):
     """Firm whose debt grows at a rate that its leverage, an expression of its states, slows down."""
 
-    debt: float = state(1.0)
-    equity: float = state(2.0)
-    r: float = parameter(0.1)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        debt: Annotated[float, StateSpec()] = 1.0,
+        equity: Annotated[float, StateSpec()] = 2.0,
+        r: Annotated[float, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.debt = debt
+        self.equity = equity
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the growth of the debt, slowed by the leverage."""
         leverage = _leverage(s)
         return [RateLaw(s.debt, s.r * s.debt * (1 - leverage))]
@@ -59,7 +77,17 @@ class PendulumElement(Element):
             The initial angle.
     """
 
-    theta: float = state(0.0, order=2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[float, StateSpec(order=2)] = 0.0,
+        theta_d1: float = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
 
 
 def test_component_is_the_base_of_elements_and_groups_only():
@@ -109,7 +137,7 @@ def test_component_runs_its_laws_and_prepares_its_declarations():
     )('growth', target='rabbits').prepare()
     assert list(growth.declarations_) == ['target', 'r']
     n, r = symbol('n'), symbol('r')
-    (law,) = growth.run(Symbols(target=Symbols(n=n), r=r))
+    (law,) = growth.run(SimpleNamespace(target=SimpleNamespace(n=n), r=r))
     assert isinstance(law, RateLaw)
     assert law.value == r * n
 

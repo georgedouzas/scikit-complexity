@@ -2,7 +2,8 @@
 
 import pytest
 
-from skcomplex.core.base import TimeKind, ValidationError
+from skcomplex.core.base import TimeKind
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, StaticTime
 from skcomplex.core.specs import ScheduleSpec
 

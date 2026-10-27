@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import box_counting_dimension
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 

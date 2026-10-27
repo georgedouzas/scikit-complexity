@@ -1,31 +1,23 @@
 """Test the `_components` module of `skcomplex.core.components`."""
 
 import pickle  # nosec B403: the tests pickle and load only objects they create
-from typing import Any, ClassVar
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element, GroupElement
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    LabelError,
-    NumericDomain,
-    RoleError,
-    ValidationError,
-    VariableKind,
-    VisualSpec,
-    declarations_of,
-    parameter,
-    role,
-    state,
-)
-from skcomplex.core.elements import LatticeElement, ParticleElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
+from skcomplex.core.errors import LabelError, RoleError, ValidationError
+from skcomplex.core.interactions import Interaction, PairInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import VariableKind, declarations_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement, PredationInteraction
 
@@ -33,17 +25,34 @@ from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, Popul
 class StockElement(Element):
     """Stock element."""
 
-    n = state(1.0, domain=NumericDomain.NONNEGATIVE)
-    k = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.k = k
 
 
-class GrowthInteraction(BaseInteraction):
+class GrowthInteraction(Interaction):
     """Growth interaction."""
 
-    target = role()
-    r = parameter(0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        r: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the growth interaction."""
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
@@ -56,10 +65,19 @@ def _decay_laws(self, s):
 class DecayingElement(Element):
     """Decaying element."""
 
-    n = state(1.0)
-    k = parameter(0.2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 1.0,
+        k: Annotated[object, ParameterSpec()] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the decaying element."""
         return _decay_laws(self, s)
 
@@ -67,41 +85,55 @@ class DecayingElement(Element):
 class StockClassElement(Element):
     """Stock written as a class."""
 
-    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.k = k
 
 
-class GrowthClassInteraction(BaseInteraction):
+class GrowthClassInteraction(Interaction):
     """Growth written as a class."""
-
-    target: str = role()
-    r: float = parameter(0.5, domain=NumericDomain.POSITIVE)
-
-    def laws(self, s):
-        """Return exponential growth."""
-        return [RateLaw(s.target.n, s.r * s.target.n)]
-
-
-class AttractionInteraction(BaseInteraction):
-    """Pair interaction that returns a boundary law, which pair interactions do not take."""
-
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
     def __init__(
         self,
         label: str,
         *,
-        period: float | None = None,
-        **values: Any,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.r = r
+
+    def _get_laws(self, s):
+        """Return exponential growth."""
+        return [RateLaw(s.target.n, s.r * s.target.n)]
+
+
+class AttractionInteraction(PairInteraction):
+    """Pair interaction that returns a boundary law, which pair interactions do not take."""
+
+    def __init__(
+        self,
+        label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
         self.period = period
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a boundary law."""
         return [BoundaryLaw(s.first.v, s.first.v)]
 
@@ -109,16 +141,32 @@ class AttractionInteraction(BaseInteraction):
 class BoxElement(Element):
     """Box element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class TransferInteraction(BaseInteraction):
+class TransferInteraction(Interaction):
     """Transfer interaction."""
 
-    source = role()
-    sink = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[object, RoleSpec()],
+        sink: Annotated[object, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.sink = sink
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the transfer interaction."""
         return [RateLaw(s.sink.n, s.source.n)]
 
@@ -126,7 +174,15 @@ class TransferInteraction(BaseInteraction):
 class CellElement(Element):
     """Cell element."""
 
-    size = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        size: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.size = size
 
 
 def _numpy_vector_rate(s):
@@ -164,7 +220,7 @@ def test_defined_types_match_classes():
 def test_defined_types_declare_fields():
     """Test that defined types declare their states, parameters, and roles like classes."""
     assert set(declarations_of(StockElement, VariableKind.STATE)) == {'n'}
-    assert declarations_of(StockElement, VariableKind.STATE)['n'].domain is NumericDomain.NONNEGATIVE
+    assert declarations_of(StockElement, VariableKind.STATE)['n'].domain is RealSet.closed_open(0, oo)
     assert set(declarations_of(StockElement, VariableKind.PARAMETER)) == {'k'}
     assert set(declarations_of(GrowthInteraction, VariableKind.ROLE)) == {'target'}
     assert issubclass(StockElement, Element)
@@ -365,15 +421,20 @@ def test_pair_interaction_rejects_other_law_kinds():
 def test_pair_interaction_needs_vector_position():
     """Test that pair interactions need a vector position state."""
 
-    class ContactInteraction(BaseInteraction):
+    class ContactInteraction(PairInteraction):
         """Pair interaction between populations, which have no position."""
 
-        over: ClassVar[str] = 'pairs'
-        first: str = role()
-        second: str = role()
-        cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+        def __init__(
+            self,
+            label: str,
+            first: Annotated[str, RoleSpec()],
+            second: Annotated[str, RoleSpec()],
+            cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+            position: str = 'x',
+        ) -> None:
+            super().__init__(label, first, second, cutoff=cutoff, position=position)
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return a rate law."""
             return [RateLaw(s.first.n, s.second.n)]
 
@@ -392,7 +453,16 @@ def test_lattice_keeps_visual_of_element_type():
         """Column element."""
 
         visual = VisualSpec('heights')
-        h = state(0.0)
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            h: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.h = h
 
     assert LatticeElement('columns', element=ColumnElement, space=LatticeSpace((3,))).visual.kind == 'heights'
 
@@ -403,7 +473,15 @@ def test_lattice_without_type_visual_is_an_image():
     class CellElement(Element):
         """Cell element."""
 
-        h = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            h: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.h = h
 
     assert LatticeElement('cells', element=CellElement, space=LatticeSpace((3,))).visual.kind == 'image'
 
@@ -439,9 +517,17 @@ def test_numpy_scalar_times_vector_is_rejected():
     class MovingElement(Element):
         """Moving element."""
 
-        v = state(0.0, vector=True)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            v: Annotated[object, StateSpec(vector=True)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.v = v
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the moving element."""
             return _numpy_vector_rate(s)
 
@@ -474,10 +560,19 @@ def test_jump_increment_symbol_is_rejected():
     class CounterElement(Element):
         """Counter element."""
 
-        n = state(0.0)
-        k = parameter(2.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            n: Annotated[object, StateSpec()] = 0.0,
+            k: Annotated[object, ParameterSpec()] = 2.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.n = n
+            self.k = k
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the counter element."""
             return _parameter_jump(s)
 

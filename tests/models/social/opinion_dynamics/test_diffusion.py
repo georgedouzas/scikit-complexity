@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.models.social.opinion_dynamics import (
     influentials,
     threshold_adoption,

@@ -1,17 +1,20 @@
 """Test the symbolic functions for conditions and remainders."""
 
 import warnings
+from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, role
 
-from skcomplex.core.base import BaseInteraction, ValidationError, state, symbol
-from skcomplex.core.elements import ParticleElement
-from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw, both, derivative, either, lag, mod, series, where
+from skcomplex.core.base import symbol
+from skcomplex.core.elements import Element, ParticleElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import both, derivative, either, lag, mod, series, where
 from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
@@ -119,9 +122,17 @@ def _driven_by(data):
     class DrivenElement(Element):
         """Driven element."""
 
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the driven element."""
             return [RateLaw(s.y, data(s.t))]
 
@@ -155,9 +166,17 @@ def test_condition_on_a_nested_modulo_of_time_compiles():
     class NestedElement(Element):
         """Nested element."""
 
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the nested element."""
             return [RateLaw(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))]
 
@@ -170,11 +189,25 @@ def test_condition_on_a_nested_modulo_of_time_compiles():
 class DoublePendulumElement(Element):
     """Double pendulum element."""
 
-    a = state(default=1.0, order=2)
-    b = state(default=0.5, order=2)
-    g = parameter(9.81)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(order=2)] = 1.0,
+        a_d1: float = 0.0,
+        b: Annotated[object, StateSpec(order=2)] = 0.5,
+        b_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.a_d1 = a_d1
+        self.b = b
+        self.b_d1 = b_d1
+        self.g = g
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the double pendulum element."""
         return [
             EquationLaw(
@@ -191,9 +224,19 @@ class DoublePendulumElement(Element):
 class TooFarElement(Element):
     """Too far element."""
 
-    x = state(default=1.0, lags=1)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(lags=1)] = 1.0,
+        x_lag1: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_lag1 = x_lag1
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the too far element."""
         return [UpdateLaw(s.x, lag(s.x, 2))]
 
@@ -201,10 +244,23 @@ class TooFarElement(Element):
 class JerkElement(Element):
     """Jerk element."""
 
-    x = state(default=0.0, order=3, initial=(0.0, 1.0))
-    A = parameter(0.6)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
+        x_d2: float = 1.0,
+        x_d1: float = 0.0,
+        A: Annotated[object, ParameterSpec()] = 0.6,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d2 = x_d2
+        self.x_d1 = x_d1
+        self.A = A
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the jerk element."""
         return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
 
@@ -240,12 +296,19 @@ def test_third_order_jerk_is_bounded_and_chaotic():
 def test_derivative_at_order_is_rejected_in_rates():
     """Test that a rate cannot read the derivative of a state's own order."""
 
-    class BadInteraction(BaseInteraction):
+    class BadInteraction(Interaction):
         """Bad interaction."""
 
-        target = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the bad interaction."""
             return [RateLaw(s.target.x, derivative(s.target.x, 2))]
 

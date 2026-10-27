@@ -1,15 +1,15 @@
 """Test the fixed-step integrators of stochastic differential equations."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import NoiseLaw
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -66,10 +66,19 @@ def test_euler_maruyama_same_seed_on_both_backends():
 class PairElement(Element):
     """Pair element."""
 
-    x = state(1.0)
-    y = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the pair element."""
         return [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')]
 
@@ -113,10 +122,19 @@ def test_shared_stratonovich_process_has_exact_mean():
     class CrossElement(Element):
         """Cross element."""
 
-        x = state(1.0)
-        y = state(0.5)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+            y: Annotated[object, StateSpec()] = 0.5,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the cross element."""
             return [
                 NoiseLaw(s.x, sigma * s.y, convention='stratonovich', process='common'),

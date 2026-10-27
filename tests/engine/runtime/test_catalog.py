@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, observables_of, validate
 from skcomplex.engine.problems import Problem

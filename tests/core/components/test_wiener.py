@@ -1,11 +1,15 @@
 """Test the `_wiener` module of `skcomplex.core.components`."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 
-from skcomplex.core.base import BaseElement, BaseInteraction, LabelError, RoleError, role
+from skcomplex.core.elements import BaseElement
+from skcomplex.core.errors import LabelError, RoleError
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import NoiseLaw
-from skcomplex.core.specs import WienerProcessSpec
+from skcomplex.core.specs import RoleSpec, WienerProcessSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -14,13 +18,21 @@ from skcomplex.engine.solvers import EulerMaruyamaSolver
 from ...conftest import HoldingElement, _correlated
 
 
-class ShockInteraction(BaseInteraction):
+class ShockInteraction(Interaction):
     """Unit noise on one element from the first process of a set of Wiener processes."""
 
-    target: str = role()
-    noise: WienerProcessSpec = role(noise=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.noise = noise
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the noise of the target."""
         return [NoiseLaw(s.target.n, 1.0, process=s.noise.dW)]
 

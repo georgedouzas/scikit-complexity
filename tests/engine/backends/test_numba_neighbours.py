@@ -1,12 +1,16 @@
 """Test that compiled pair kernels find neighbours in the bounded cell grids of the neighbour search."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import NumericDomain, parameter
 from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
@@ -17,10 +21,23 @@ CUTOFF = 2.5
 class SoftSphereInteraction(PairPotentialInteraction):
     """Repulsive pair potential `epsilon * (sigma / r) ** 12`."""
 
-    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         """Return `epsilon * (sigma / r) ** 12`."""
         return s.epsilon * (s.sigma / r) ** 12
 

@@ -3,28 +3,21 @@
 import subprocess  # nosec B404: the cache tests start a second Python process
 import sys
 import textwrap
+from typing import Annotated
 
 import numba
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BackendError,
-    BackendWarning,
-    BaseInteraction,
-    Form,
-    NumericDomain,
-    SolverError,
-    parameter,
-    role,
-    vector,
-)
-from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
-from skcomplex.core.laws import Call, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.base import BackendError, BackendWarning, Form, SolverError, vector
+from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import Call
 from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, Lowering, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
@@ -47,10 +40,23 @@ CUTOFF = 2.5
 class LennardJonesInteraction(PairPotentialInteraction):
     """Lennard-Jones pair potential."""
 
-    epsilon: float = parameter(1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
         return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
 
@@ -61,54 +67,90 @@ def _logistic(t, n, r):
     return r * n * (1 - n / 100)
 
 
-class CompiledGrowthInteraction(BaseInteraction):
+class CompiledGrowthInteraction(Interaction):
     """Logistic growth computed by a Numba-compiled function."""
 
-    target: str = role()
-    r: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the compiled rate."""
         return [RateLaw(s.target.n, Call(_logistic, (s.target.n, s.r)))]
 
 
-class PythonGrowthInteraction(BaseInteraction):
+class PythonGrowthInteraction(Interaction):
     """Logistic growth computed by a plain Python callable of the values."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the Python rate."""
         name = f'{self.target}.n'
         return [RateLaw(s.target.n, lambda t, values: values[name] * (1 - values[name] / 100))]
 
 
-class HalvingInteraction(BaseInteraction):
+class HalvingInteraction(Interaction):
     """Discrete halving of every member."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the next value `n / 2`."""
         return [UpdateLaw(s.target.n, s.target.n / 2)]
 
 
-class VolatilityInteraction(BaseInteraction):
+class VolatilityInteraction(Interaction):
     """Noise proportional to every member."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the noise amplitude."""
         return [RateLaw(s.target.n, 0.1 * s.target.n), NoiseLaw(s.target.n, 0.2 * s.target.n)]
 
 
-class DecayInteraction(BaseInteraction):
+class DecayInteraction(Interaction):
     """Jump with a negative propensity, which is invalid."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a jump with a negative rate."""
         return [JumpLaw(-s.target.n, {s.target.n: -1})]
 
@@ -264,10 +306,19 @@ def test_numpy_backend_calls_vector_call_once_per_step():
     class PairElement(Element):
         """Pair element."""
 
-        x = state(1.0)
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the pair element."""
             return [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))]
 
@@ -361,12 +412,19 @@ def test_cached_kernels_are_keyed_on_the_compiled_helpers(tmp_path, monkeypatch)
 def test_rk4_matches_exponential(backend, numba_backend):
     """Test that RK4 with step 0.001 integrates exponential growth to 1e-10 relative error."""
 
-    class GrowthInteraction(BaseInteraction):
+    class GrowthInteraction(Interaction):
         """Exponential growth of every member."""
 
-        target: str = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[str, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the rate `n`."""
             return [RateLaw(s.target.n, s.target.n)]
 

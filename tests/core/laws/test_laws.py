@@ -1,32 +1,19 @@
 """Test the `_laws` module of `skcomplex.core.laws`."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import sin
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    ConservationError,
-    NumericDomain,
-    ValidationError,
-    parameter,
-    role,
-    state,
-    symbol,
-)
-from skcomplex.core.laws import (
-    EquationLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    UpdateLaw,
-    derivative,
-    draw,
-    lag,
-    step,
-    where,
-)
+from skcomplex.core.base import ConservationError, symbol
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import derivative, draw, lag, step, where
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -34,18 +21,31 @@ from skcomplex.engine.solvers import VelocityVerletSolver
 
 from .conftest import PRECISE, MassElement
 
-POSITIVE = NumericDomain.POSITIVE
+POSITIVE = RealSet.open(0, oo)
 
 
 class WrittenElement(Element):
     """Written element."""
 
-    theta = state(default=0.3, order=2)
-    m = parameter(default=2.0, domain=POSITIVE)
-    g = parameter(9.81)
-    l = parameter(1.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.3,
+        theta_d1: float = 0.0,
+        m: Annotated[object, ParameterSpec(domain=POSITIVE)] = 2.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        l: Annotated[object, ParameterSpec()] = 1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.m = m
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the written element."""
         return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
@@ -53,11 +53,23 @@ class WrittenElement(Element):
 class SolvedElement(Element):
     """Solved element."""
 
-    theta = state(default=0.3, order=2)
-    g = parameter(9.81)
-    l = parameter(1.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.3,
+        theta_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        l: Annotated[object, ParameterSpec()] = 1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the solved element."""
         return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
 
@@ -65,9 +77,19 @@ class SolvedElement(Element):
 class SquaredElement(Element):
     """Squared element."""
 
-    x = state(default=1.0, order=2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 1.0,
+        x_d1: float = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the squared element."""
         return [EquationLaw(derivative(s.x, 2) ** 2, s.x)]
 
@@ -84,13 +106,21 @@ OscillatorsElement = type(
 )
 
 
-class PushInteraction(BaseInteraction):
+class PushInteraction(Interaction):
     """Push interaction."""
 
-    target = role()
-    f = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        f: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.f = f
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the push interaction."""
         return [RateLaw(s.target.theta, s.f)]
 
@@ -118,20 +148,36 @@ def _switched_rate(s):
 class EconomyElement(Element):
     """Prices that grow every step, with an adaptive policy rate."""
 
-    price: float = state(1.0)
-    rate: float = parameter(0.02, adaptive=True)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        price: Annotated[float, StateSpec()] = 1.0,
+        rate: Annotated[float, ParameterSpec(adaptive=True)] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.price = price
+        self.rate = rate
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the growth of prices."""
         return [UpdateLaw(s.price, s.price * 1.03)]
 
 
-class PolicyInteraction(BaseInteraction):
+class PolicyInteraction(Interaction):
     """Rule that raises the policy rate whenever prices exceed a target."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update of the adaptive rate."""
         return [UpdateLaw(s.target.rate, where(s.target.price > 1.05, s.target.rate + 0.01, s.target.rate))]
 
@@ -139,9 +185,19 @@ class PolicyInteraction(BaseInteraction):
 class FibonacciElement(Element):
     """Fibonacci element."""
 
-    x = state(default=1.0, lags=1, initial=(1.0,))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
+        x_lag1: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_lag1 = x_lag1
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the fibonacci element."""
         return [UpdateLaw(s.x, s.x + lag(s.x, 1))]
 
@@ -149,12 +205,25 @@ class FibonacciElement(Element):
 class IncomeElement(Element):
     """Income element."""
 
-    Y = state(default=110.0, lags=1, initial=(100.0,))
-    c = parameter(0.8)
-    v = parameter(1.5)
-    G = parameter(20.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Y: Annotated[object, StateSpec(lags=1, initial=(100.0,))] = 110.0,
+        Y_lag1: float = 100.0,
+        c: Annotated[object, ParameterSpec()] = 0.8,
+        v: Annotated[object, ParameterSpec()] = 1.5,
+        G: Annotated[object, ParameterSpec()] = 20.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Y = Y
+        self.Y_lag1 = Y_lag1
+        self.c = c
+        self.v = v
+        self.G = G
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the income element."""
         return [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)]
 
@@ -162,11 +231,21 @@ class IncomeElement(Element):
 class PumpElement(Element):
     """Pump element."""
 
-    x = state(1.0)
-    u = parameter(0.0, adaptive=True, bounds=(0, 1))
-    weight = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        u: Annotated[object, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.0,
+        weight: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.u = u
+        self.weight = weight
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the pump element."""
         return [RateLaw(s.x, -s.x + s.u)]
 
@@ -174,33 +253,61 @@ class PumpElement(Element):
 class PendulumElement(Element):
     """Pendulum element."""
 
-    theta = state(default=0.1, domain=NumericDomain.ANGLE, order=2)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.1,
+        theta_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the pendulum element."""
         return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
 
 
-class SpringInteraction(BaseInteraction):
+class SpringInteraction(Interaction):
     """Spring interaction."""
 
-    target = role()
-    k = parameter(8.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        k: Annotated[object, ParameterSpec()] = 8.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the spring interaction."""
         return [RateLaw(s.target.x, -s.k * s.target.x / s.target.m)]
 
 
-class DamperInteraction(BaseInteraction):
+class DamperInteraction(Interaction):
     """Damper interaction."""
 
-    target = role()
-    c = parameter(0.4)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        c: Annotated[object, ParameterSpec()] = 0.4,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.c = c
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the damper interaction."""
         return [RateLaw(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)]
 
@@ -208,19 +315,34 @@ class DamperInteraction(BaseInteraction):
 class StockElement(Element):
     """Stock element."""
 
-    n = state(default=1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the stock element."""
         return [RateLaw(s.n, -s.n)]
 
 
-class MismatchedInteraction(BaseInteraction):
+class MismatchedInteraction(Interaction):
     """Mismatched interaction."""
 
-    target = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the mismatched interaction."""
         return [RateLaw(s.target.x, -s.target.x, order=1)]
 
@@ -233,9 +355,17 @@ def _leaky_laws(s):
 class LeakyElement(Element):
     """Leaky element."""
 
-    money = state(1.0, quantity='money')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        money: Annotated[object, StateSpec(quantity='money')] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.money = money
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the leaky element."""
         return _leaky_laws(s)
 

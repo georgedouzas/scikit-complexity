@@ -1,15 +1,18 @@
 """Test fixed points, Jacobians, stability, nullclines, and divergence."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import role, state
 
 from skcomplex.analysis import divergence, fixed_points, jacobian, nullclines, stability
-from skcomplex.core.base import AnalysisError, BaseInteraction
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import RateLaw, total
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import total
+from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
@@ -74,14 +77,29 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
     class StrategyElement(Element):
         """Strategy element."""
 
-        x = state(0.5)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.5,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-    class ReplicationInteraction(BaseInteraction):
+    class ReplicationInteraction(Interaction):
         """Replication interaction."""
 
-        population = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            population: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.population = population
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the replication interaction."""
             return [
                 RateLaw(
@@ -115,9 +133,17 @@ def test_group_above_limit():
     class MemberElement(Element):
         """Member element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the member element."""
             return [RateLaw(s.x, total(s.x) - s.x)]
 

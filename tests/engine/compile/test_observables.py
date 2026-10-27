@@ -1,10 +1,15 @@
 """Test the `_observables` module of `skcomplex.engine.compile`."""
 
-import pytest
-from skcomplex.core.components import Element, GroupElement
+from typing import Annotated
 
-from skcomplex.core.base import BaseInteraction, RoleError, role, state
-from skcomplex.core.laws import RateLaw, RuleLaw, total
+import pytest
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import RoleError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw, RuleLaw
+from skcomplex.core.laws.utils import total
+from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of, runs_rules, validate
 from skcomplex.engine.compile.passes import contains_quantum
@@ -15,7 +20,15 @@ from skcomplex.models.biology.ecology import PopulationElement
 class ObservedValueElement(Element):
     """Observed value element."""
 
-    y = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
 
 
 def _observed(entry_name):
@@ -85,9 +98,17 @@ def test_reductions_agree_with_observables(entry):
 class WealthyElement(Element):
     """Agent that keeps its wealth."""
 
-    wealth: float = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a rule that keeps the wealth."""
         return [RuleLaw(self.keep)]
 
@@ -96,25 +117,42 @@ class WealthyElement(Element):
         del agent, model
 
 
-class MixedReductionInteraction(BaseInteraction):
+class MixedReductionInteraction(Interaction):
     """Rate that reads a reduction of agents mixed with other symbols."""
 
-    target: str = role()
-    first: str = role()
-    second: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.first = first
+        self.second = second
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a rate that reads the reduction the interaction tests."""
         return [RateLaw(s.target.n, total(s.first.wealth + s.second.wealth))]
 
 
-class ForeignReductionInteraction(BaseInteraction):
+class ForeignReductionInteraction(Interaction):
     """Rate that reduces agents with a state of a single element."""
 
-    target: str = role()
-    first: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        first: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.first = first
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return a rate that reduces the wealth of the agents times the target."""
         return [RateLaw(s.target.n, total(s.first.wealth * s.target.n))]
 

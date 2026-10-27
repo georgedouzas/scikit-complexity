@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import BoxNeighborhood, LatticeSpace
 
 

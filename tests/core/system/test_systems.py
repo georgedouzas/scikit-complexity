@@ -1,26 +1,20 @@
 """Test systems defined by their components, interactions, space, and time."""
 
-from typing import ClassVar
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
-from skcomplex.core.components import Element, GroupElement
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    NumericDomain,
-    SpaceError,
-    TensorDomain,
-    ValidationError,
-    parameter,
-    role,
-    state,
-)
-from skcomplex.core.elements import LatticeElement, ParticleElement, WordElement
-from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.base import TensorDomain
+from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement, WordElement
+from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.interactions import HyperedgeInteraction, Interaction, PairInteraction, PairPotentialInteraction
 from skcomplex.core.laws import GeneratorLaw, ProductionLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import HilbertDomain, QuantumView, compile_system, is_quantum, validate
 from skcomplex.engine.compile.passes import structure_of
@@ -32,16 +26,32 @@ from skcomplex.models.biology.ecology import PopulationElement
 class StockElement(Element):
     """Element with one nonnegative state."""
 
-    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class GrowthInteraction(BaseInteraction):
+class GrowthInteraction(Interaction):
     """Exponential growth of the state of its target."""
 
-    target: str = role()
-    r: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate of growth."""
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
@@ -49,9 +59,17 @@ class GrowthInteraction(BaseInteraction):
 class CounterElement(Element):
     """Element whose state grows by one every step."""
 
-    k: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update of the count."""
         return [UpdateLaw(s.k, s.k + 1)]
 
@@ -167,9 +185,17 @@ def test_network_hyperedges_hold_nodes_of_the_graph():
 class CellElement(Element):
     """Element whose members divide every step."""
 
-    size: float = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        size: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.size = size
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rule of division."""
         return [RuleLaw(self.divide)]
 
@@ -217,9 +243,17 @@ PAULI = HilbertDomain(
 class TwoLevelElement(Element):
     """Element whose only state lies in a two-dimensional Hilbert space, driven by the operator `x`."""
 
-    psi: object = state('up', domain=PAULI)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        psi: Annotated[object, StateSpec(domain=PAULI)] = 'up',
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.psi = psi
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the generator of the rotation about `x`."""
         return [GeneratorLaw(s.x / 2)]
 
@@ -269,10 +303,8 @@ def test_state_on_an_interaction_is_rejected():
 def test_unknown_binding_is_rejected():
     """Test that creating an interaction with an unknown binding raises an error that lists the bindings."""
 
-    class EverywhereInteraction(BaseInteraction):
+    class EverywhereInteraction(Interaction):
         """Interaction with an unknown binding."""
-
-        over: ClassVar[str] = 'everything'
 
     with pytest.raises(ValidationError, match='members, pairs, neighbors, hyperedges'):
         EverywhereInteraction('everywhere').check()
@@ -281,12 +313,18 @@ def test_unknown_binding_is_rejected():
 def test_pairs_binding_needs_its_roles_and_cutoff():
     """Test that a binding over pairs without a cutoff is reported with the declarations it lacks."""
 
-    class ContactInteraction(BaseInteraction):
+    class ContactInteraction(PairInteraction):
         """Pair interaction without a cutoff."""
 
-        over: ClassVar[str] = 'pairs'
-        first: str = role()
-        second: str = role()
+        def __init__(
+            self,
+            label: str,
+            first: Annotated[str, RoleSpec()],
+            second: Annotated[str, RoleSpec()],
+            cutoff: float = 1.0,
+            position: str = 'x',
+        ) -> None:
+            super().__init__(label, first, second, cutoff=cutoff, position=position)
 
     system = System(
         elements=[GroupElement('herd', element=StockElement, size=3)],
@@ -299,11 +337,17 @@ def test_pairs_binding_needs_its_roles_and_cutoff():
 def test_hyperedges_binding_needs_a_network_with_hyperedges():
     """Test that a binding over hyperedges of a group on a lattice is reported."""
 
-    class TriadicInteraction(BaseInteraction):
+    class TriadicInteraction(HyperedgeInteraction):
         """Interaction over the hyperedges of its target."""
 
-        over: ClassVar[str] = 'hyperedges'
-        target: str = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[str, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
     system = System(
         elements=[LatticeElement('nodes', element=StockElement, space=LatticeSpace(4))],
@@ -316,9 +360,21 @@ def test_hyperedges_binding_needs_a_network_with_hyperedges():
 class SoftSphereInteraction(PairPotentialInteraction):
     """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
 
-    k: float = parameter(50.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.k = k
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         """Return the soft repulsion energy."""
         return s.k * (s.cutoff - r) ** 2 / 2
 

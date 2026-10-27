@@ -1,12 +1,15 @@
 """Test the compilation of renewal laws."""
 
-import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, state
+from typing import Annotated
 
-from skcomplex.core.base import Form, ValidationError
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, draw, mean, normal
+import pytest
+
+from skcomplex.core.base import Form
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import draw, mean, normal
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 
@@ -14,9 +17,17 @@ from skcomplex.engine.compile import compile_system
 class CounterElement(Element):
     """Counter element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the counter element."""
         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
 
@@ -24,9 +35,17 @@ class CounterElement(Element):
 class DecayElement(Element):
     """Decay element."""
 
-    y = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the decay element."""
         return [RateLaw(s.y, -s.y)]
 
@@ -69,10 +88,19 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
     class WalkerElement(Element):
         """Walker element."""
 
-        x = state(0.0)
-        v = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            v: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.v = v
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the walker element."""
             return [RateLaw(s.x, s.v), JumpLaw(waiting=draw('wait', 'expon'), reset={s.v: -s.v})]
 
@@ -121,9 +149,17 @@ def test_compile_system_accepts_draws_in_update_laws_from_scipy():
     class JumpingElement(Element):
         """Jumping element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the jumping element."""
             return [UpdateLaw(s.x, s.x + draw('jump', 'lomax', c=2.0) + normal('noise'))]
 

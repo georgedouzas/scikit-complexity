@@ -1,16 +1,17 @@
 """Test network spaces: graphs from random streams, layers, and the arrays of their edges and adjacency."""
 
+from typing import Annotated
+
 import networkx as nx
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
-from skcomplex.core.elements import LatticeElement
+from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.laws import UpdateLaw, neighbors
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 
@@ -148,11 +149,21 @@ def test_reductions_read_the_edges_of_their_layer(backend):
     class LayeredElement(Element):
         """Layered element."""
 
-        y = state(0.0)
-        contacts = state(0.0)
-        colleagues = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+            contacts: Annotated[object, StateSpec()] = 0.0,
+            colleagues: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
+            self.contacts = contacts
+            self.colleagues = colleagues
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the layered element."""
             return [
                 UpdateLaw(s.contacts, neighbors(s.other.y)),

@@ -2,18 +2,18 @@
 
 import sys
 import time
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 import rerun as rr
-from sage.all__sagemath_symbolics import I
-from skcomplex.core.components import Element, GroupElement
+from sage.all__sagemath_symbolics import CC, I
 
-from skcomplex.core.base import NumericDomain, VisualSpec, state
-from skcomplex.core.elements import FieldElement, ParticleElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame, RealTimeClock, Simulation
@@ -247,7 +247,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     class MortalElement(Element):
         """Agent that removes itself when its id is 1."""
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the removal rule."""
             return [RuleLaw(self.die)]
 
@@ -274,9 +274,17 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
 class TurningElement(Element):
     """Complex amplitude that turns at unit frequency."""
 
-    z: complex = state(1.0, domain=NumericDomain.COMPLEX)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return `dz/dt = i z`."""
         return [RateLaw(s.z, I * s.z)]
 
@@ -369,9 +377,17 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     class NodeElement(Element):
         """Node element."""
 
-        age = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            age: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.age = age
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the node element."""
             return [UpdateLaw(s.age, s.age + 1)]
 
@@ -381,7 +397,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     class GrowthElement(Element):
         """Growth element."""
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the growth element."""
             return [UpdateLaw(add_node(edges=1), 1)]
 

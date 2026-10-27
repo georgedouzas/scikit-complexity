@@ -1,17 +1,17 @@
 """Test the `_markets` module of `skcomplex.models.economics.realizations`."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
-from skcomplex.core.base import BaseInteraction, role, state
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import MatchLaw, RuleLaw
 from skcomplex.core.laws.utils import matches
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.realizations import (
@@ -57,14 +57,14 @@ def _zero_intelligence(n_traders, rng):
     costs = rng.uniform(0, 150, n_traders)
 
     class BuyerElement(TraderElement):
-        def laws(self, s):
+        def _get_laws(self, s):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
             agent.bid = model.rng.uniform(0, agent.value) if agent.demand > 0 else 0.0
 
     class SellerElement(TraderElement):
-        def laws(self, s):
+        def _get_laws(self, s):
             return [RuleLaw(self.quote, phase='quote')]
 
         def quote(self, agent, model):
@@ -89,21 +89,38 @@ def _zero_intelligence(n_traders, rng):
 class LimitTraderElement(Element):
     """Trader with a limit price on both sides of the book."""
 
-    bid: float = state(0.0)
-    ask: float = state(math.inf)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        bid: Annotated[float, StateSpec()] = 0.0,
+        ask: Annotated[float, StateSpec()] = math.inf,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.bid = bid
+        self.ask = ask
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return no rules."""
         return []
 
 
-class BookInteraction(BaseInteraction):
+class BookInteraction(Interaction):
     """Interaction that pairs buyers with sellers by an order book and records the pairs."""
 
-    buyers: str = role()
-    sellers: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        buyers: Annotated[str, RoleSpec()],
+        sellers: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.buyers = buyers
+        self.sellers = sellers
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the matching and the rule that records it."""
         return [
             MatchLaw('buyers', 'sellers', pairing=OrderBook(arrival='sequential').evaluate, label='trades'),

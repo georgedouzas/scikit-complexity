@@ -9,11 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from skcomplex.core.base import (
-    BaseEstimator,
-    Registry,
-    wrap_angle,
-)
+from skcomplex.core.base import BaseEstimator, Registry, wrap_angle
 
 SOURCE = str(Path(str(files('skcomplex'))))
 PACKAGES = ('skcomplex.core', 'skcomplex.engine', 'skcomplex.experiments', 'skcomplex.analysis')

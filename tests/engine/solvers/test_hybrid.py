@@ -2,15 +2,18 @@
 
 import math
 import warnings
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter
 from sklearn.base import clone
 
-from skcomplex.core.base import SolverError, ValidationError, state
-from skcomplex.core.laws import EventLaw, NoiseLaw, RateLaw, delayed, pulse_train, series, step
+from skcomplex.core.base import SolverError
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import CrossingLaw, NoiseLaw, RateLaw
+from skcomplex.core.laws.utils import delayed, pulse_train, series, step
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import BaseObserver, Simulation
@@ -32,20 +35,37 @@ from skcomplex.models.physics.mechanics import bouncing_ball, huygens_clocks
 class ClockElement(Element):
     """Clock element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the clock element."""
-        return [RateLaw(s.x, 1), EventLaw(s.x - 3.2, terminal=True)]
+        return [RateLaw(s.x, 1), CrossingLaw(s.x - 3.2, terminal=True)]
 
 
 class FirstOrderElement(Element):
     """First order element."""
 
-    y = state(0.0)
-    k = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[object, StateSpec()] = 0.0,
+        k: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the first order element."""
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
@@ -67,9 +87,17 @@ def _geometric(convention):
 class DelayedElement(Element):
     """Delayed element."""
 
-    x = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the delayed element."""
         return [RateLaw(s.x, -delayed(s.x, 1.0))]
 
@@ -147,9 +175,17 @@ def test_declared_history_is_read_before_the_start():
     class RememberedElement(Element):
         """Remembered element."""
 
-        x = state(1.0, history=lambda t: 1 + t)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(history=lambda t: 1 + t)] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the remembered element."""
             return _with_history(s)
 
@@ -163,9 +199,17 @@ def test_history_is_keyed_by_state():
     class RememberedElement(Element):
         """Remembered element."""
 
-        x = state(1.0, history=2.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(history=2.0)] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the remembered element."""
             return _with_history(s)
 
@@ -198,11 +242,19 @@ def test_event_without_reset_fires_once():
     class MarkerElement(Element):
         """Marker element."""
 
-        x = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the marker element."""
-            return [RateLaw(s.x, -1), EventLaw(s.x, direction=-1)]
+            return [RateLaw(s.x, -1), CrossingLaw(s.x, direction=-1)]
 
     trajectory = Simulation(System(elements=[MarkerElement('m')]), dt=0.5).run(until=2).trajectory_
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
@@ -216,11 +268,19 @@ def test_chattering_event_raises(solver):
     class StickyElement(Element):
         """Sticky element."""
 
-        x = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the sticky element."""
-            return [RateLaw(s.x, -1), EventLaw(s.x, {s.x: 1e-12}, direction=-1)]
+            return [RateLaw(s.x, -1), CrossingLaw(s.x, {s.x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
         Simulation(System(elements=[StickyElement('c')]), dt=0.5, solver=solver).run(until=2)
@@ -241,9 +301,17 @@ def test_pulse_train_and_series_breakpoints():
     class DrivenElement(Element):
         """Driven element."""
 
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the driven element."""
             return [
                 RateLaw(s.y, pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous')),
@@ -300,9 +368,17 @@ def test_milstein_and_heun_converge_on_additive_noise():
     class OrnsteinElement(Element):
         """Ornstein element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the ornstein element."""
             return [RateLaw(s.x, -s.x), NoiseLaw(s.x, 1.0)]
 
@@ -353,10 +429,19 @@ def test_very_short_delay_with_scipy(tau):
     class ShortElement(Element):
         """Short element."""
 
-        x = state(1.0, history=1.0)
-        tau = parameter(tau)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(history=1.0)] = 1.0,
+            tau: Annotated[object, ParameterSpec()] = tau,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.tau = tau
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the short element."""
             return _short_delay(s)
 
@@ -376,10 +461,19 @@ def test_periodic_breakpoints_over_unbounded_runs():
     class DosedElement(Element):
         """Dosed element."""
 
-        c = state(0.0)
-        k = parameter(0.1)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            c: Annotated[object, StateSpec()] = 0.0,
+            k: Annotated[object, ParameterSpec()] = 0.1,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.c = c
+            self.k = k
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the dosed element."""
             return _monthly_dose(s)
 
@@ -401,10 +495,19 @@ def test_delay_of_parameter_expression():
     class ScaledElement(Element):
         """Scaled element."""
 
-        x = state(1.0)
-        tau = parameter(0.5)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+            tau: Annotated[object, ParameterSpec()] = 0.5,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.tau = tau
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the scaled element."""
             return _scaled_delay(s)
 

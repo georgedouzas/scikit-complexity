@@ -1,8 +1,6 @@
 """Share the helpers of the compilation tests."""
 
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, state
-
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import NoiseLaw
 
 

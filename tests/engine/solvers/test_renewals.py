@@ -1,16 +1,17 @@
 """Test the renewal stepper and the renewals of fixed-step steppers."""
 
 import itertools
+from typing import Annotated
 
 import numpy as np
 import pytest
 import rerun as rr
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, state
 
 from skcomplex.core.base import Form, SolverError
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import JumpLaw, RateLaw, bernoulli, draw, mean, normal
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import JumpLaw, RateLaw
+from skcomplex.core.laws.utils import bernoulli, draw, mean, normal
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import RenewalRecord
@@ -22,9 +23,17 @@ from skcomplex.engine.viz import RerunObserver
 class CounterElement(Element):
     """Counter element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the counter element."""
         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1}, label='ticks')]
 
@@ -32,9 +41,17 @@ class CounterElement(Element):
 class ResettingElement(Element):
     """Resetting element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the resetting element."""
         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.x: draw('value', 'norm', loc=2, scale=3)})]
 
@@ -42,10 +59,19 @@ class ResettingElement(Element):
 class KickedElement(Element):
     """Kicked element."""
 
-    a = state(0.0)
-    b = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec()] = 0.0,
+        b: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the kicked element."""
         return [
             JumpLaw(waiting=draw('wait', 'expon'), reset={s.a: normal('kick', 0, 1), s.b: -normal('kick', 0, 1)}),
@@ -55,10 +81,19 @@ class KickedElement(Element):
 class WaitingElement(Element):
     """Waiting element."""
 
-    n = state(0.0)
-    alpha = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.alpha = alpha
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the waiting element."""
         return [JumpLaw(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.n: s.n + 1})]
 
@@ -66,10 +101,19 @@ class WaitingElement(Element):
 class FlierElement(Element):
     """Flier element."""
 
-    x = state(0.0)
-    v = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the flier element."""
         return [
             RateLaw(s.x, s.v),
@@ -80,9 +124,17 @@ class FlierElement(Element):
 class FollowingElement(Element):
     """Following element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the following element."""
         return [
             RateLaw(s.x, mean(s.x) - s.x + 1),

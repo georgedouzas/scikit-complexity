@@ -3,32 +3,20 @@
 import subprocess  # nosec B404: the cache test starts a second Python process
 import sys
 import textwrap
+from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.analysis import power_spectrum
-from skcomplex.core.base import BackendError, NumericDomain, ValidationError, parameter, state
-from skcomplex.core.elements import FieldElement, GroupElement
-from skcomplex.core.laws import (
-    Call,
-    EquationLaw,
-    EventLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    RateLaw,
-    RuleLaw,
-    UpdateLaw,
-    derivative,
-    mod,
-    total,
-    where,
-)
-from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.base import BackendError
+from skcomplex.core.elements import Element, FieldElement, GroupElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
+from skcomplex.core.laws.utils import Call, derivative, laplacian, mod, total, where
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import LammpsSolver, NumbaBackend
 from skcomplex.engine.compile import compile_system
@@ -50,10 +38,19 @@ STIFF = (IMEXEulerSolver(dt=0.05), IMEX2Solver(dt=0.05), CrankNicolsonSolver(dt=
 class PhaseElement(Element):
     """Complex amplitude that turns at a constant frequency."""
 
-    z: complex = state(1.0, domain=NumericDomain.COMPLEX)
-    omega: float = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
+        omega: Annotated[float, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.omega = omega
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return `dz/dt = i omega z`."""
         return [RateLaw(s.z, I * s.omega * s.z)]
 
@@ -61,10 +58,19 @@ class PhaseElement(Element):
 class QuadraticElement(Element):
     """Complex quadratic map `z -> z^2 + c`."""
 
-    z: complex = state(0.0, domain=NumericDomain.COMPLEX)
-    c: complex = parameter(0.0, domain=NumericDomain.COMPLEX)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+        c: Annotated[complex, ParameterSpec(domain=CC)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.c = c
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the map."""
         return [UpdateLaw(s.z, s.z**2 + s.c)]
 
@@ -72,10 +78,19 @@ class QuadraticElement(Element):
 class ReadoutElement(Element):
     """Rotation of a complex state with its modulus read into a real state."""
 
-    z: complex = state(2.0, domain=NumericDomain.COMPLEX)
-    r: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 2.0,
+        r: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rotation and the readout."""
         return [UpdateLaw(s.z, s.z * exp(I * 0.3)), UpdateLaw(s.r, abs(s.z))]
 
@@ -83,9 +98,17 @@ class ReadoutElement(Element):
 class StuartElement(Element):
     """Stuart-Landau oscillator, whose law is not holomorphic."""
 
-    z: complex = state(0.5 + 0.2j, domain=NumericDomain.COMPLEX)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[complex, StateSpec(domain=CC)] = 0.5 + 0.2j,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return `dz/dt = (1 + i) z - |z|^2 z`."""
         return [RateLaw(s.z, (1 + I) * s.z - abs(s.z) ** 2 * s.z)]
 
@@ -93,10 +116,19 @@ class StuartElement(Element):
 class SplitStuartElement(Element):
     """Stuart-Landau oscillator written with its real and imaginary parts."""
 
-    u: float = state(0.5)
-    v: float = state(0.2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[float, StateSpec()] = 0.5,
+        v: Annotated[float, StateSpec()] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the split law."""
         square = s.u**2 + s.v**2
         return [RateLaw(s.u, s.u - s.v - square * s.u), RateLaw(s.v, s.u + s.v - square * s.v)]
@@ -105,11 +137,21 @@ class SplitStuartElement(Element):
 class ComplexGinzburgLandauElement(Element):
     """Complex Ginzburg-Landau equation with one complex field."""
 
-    A: complex = state(0.0, domain=NumericDomain.COMPLEX)
-    b: float = parameter(1.0)
-    c: float = parameter(-1.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+        c: Annotated[float, ParameterSpec()] = -1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A = A
+        self.b = b
+        self.c = c
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return `A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`."""
         return [RateLaw(s.A, s.A + (1 + I * s.b) * laplacian(s.A) - (1 + I * s.c) * abs(s.A) ** 2 * s.A)]
 
@@ -117,9 +159,17 @@ class ComplexGinzburgLandauElement(Element):
 class SchrodingerElement(Element):
     """Free Schrödinger equation."""
 
-    psi: complex = state(0.0, domain=NumericDomain.COMPLEX)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        psi: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.psi = psi
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return `dpsi/dt = i/2 laplacian(psi)`."""
         return [RateLaw(s.psi, I / 2 * laplacian(s.psi))]
 
@@ -181,13 +231,13 @@ def test_complex_parameter_per_site_is_read_and_updated():
 
 def test_layout_of_real_systems_is_unchanged():
     """Test that a real variable keeps one float per component and its names."""
-    entry = Entry('a.x', 0, (2,), NumericDomain.REAL)
+    entry = Entry('a.x', 0, (2,), RR)
     assert (entry.size, entry.columns, entry.component_names) == (2, 2, ['a.x[0]', 'a.x[1]'])
 
 
 def test_complex_view_is_zero_copy():
     """Test that the complex values of a layout view the stored floats without copying."""
-    layout = Layout([Entry('a.z', 0, (3,), NumericDomain.COMPLEX, is_complex=True)])
+    layout = Layout([Entry('a.z', 0, (3,), CC, is_complex=True)])
     vector = np.arange(6.0)
     values = layout.read(vector, 'a.z')
     assert np.shares_memory(values, vector)
@@ -196,9 +246,9 @@ def test_complex_view_is_zero_copy():
 
 def test_complex_component_is_located_by_its_part():
     """Test that the real and imaginary parts of a complex variable are located as real components."""
-    layout = Layout([Entry('a.z', 0, (), NumericDomain.COMPLEX, is_complex=True)])
+    layout = Layout([Entry('a.z', 0, (), CC, is_complex=True)])
     entry, indices = layout.locate('a.z.imag')
-    assert (entry.domain, indices) == (NumericDomain.REAL, slice(1, 2))
+    assert (entry.domain, indices) == (RR, slice(1, 2))
 
 
 def test_harmonic_phase_turns_on_the_unit_circle():
@@ -227,9 +277,17 @@ def test_complex_value_for_real_state_is_rejected():
     """Test that a complex value for a real state names the law, the state, and the ways out."""
 
     class WrongElement(Element):
-        x: float = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             return [RateLaw(s.x, I * s.x)]
 
     with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*COMPLEX'):
@@ -240,9 +298,17 @@ def test_ordering_complex_value_is_rejected():
     """Test that a condition `z > 2` on a complex state suggests the modulus or the real part."""
 
     class OrderedElement(Element):
-        z: complex = state(1.0, domain=NumericDomain.COMPLEX)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[complex, StateSpec(domain=CC)] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
 
-        def laws(self, s):
+        def _get_laws(self, s):
             return [UpdateLaw(s.z, where(s.z > 2, s.z, 2 * s.z))]
 
     with pytest.raises(ValidationError, match=r'UpdateLaw of a .*no order.*abs.*real_part'):
@@ -253,10 +319,19 @@ def test_complex_functions_split_into_parts():
     """Test that the parts, conjugate, argument, and a sum over a group give the values NumPy gives."""
 
     class PartsElement(Element):
-        z: complex = state(3 + 4j, domain=NumericDomain.COMPLEX)
-        w: complex = state(0.0, domain=NumericDomain.COMPLEX)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[complex, StateSpec(domain=CC)] = 3 + 4j,
+            w: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
+            self.w = w
 
-        def laws(self, s):
+        def _get_laws(self, s):
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.w, real_part(s.z) + I * imag_part(conjugate(s.z)) + arg(s.z))]
 
     problem = compile_system(System(elements=[PartsElement('a')]))
@@ -264,10 +339,19 @@ def test_complex_functions_split_into_parts():
     assert np.isclose(problem.states.read(updated, 'a.w'), 3 - 4j + np.angle(3 + 4j))
 
     class MeanElement(Element):
-        z: complex = state(0.0, domain=NumericDomain.COMPLEX)
-        m: complex = state(0.0, domain=NumericDomain.COMPLEX)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+            m: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
+            self.m = m
 
-        def laws(self, s):
+        def _get_laws(self, s):
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.m, total(exp(I * s.z)))]
 
     values = np.array([0.0, 1.0, 2.0])
@@ -392,9 +476,17 @@ def test_mesa_backend_rejects_complex_agent_state():
     """Test that an agent type with a complex state names the state and the Mesa backend."""
 
     class WalkerElement(Element):
-        z: complex = state(0.0, domain=NumericDomain.COMPLEX)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[complex, StateSpec(domain=CC)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
 
-        def laws(self, s):
+        def _get_laws(self, s):
             return [RuleLaw(lambda agent, model: None)]
 
     with pytest.raises(BackendError, match=r'walkers.*complex state z.*Mesa'):
@@ -420,10 +512,20 @@ def test_complex_equation_and_event_split_into_parts():
     """Test that a second-order complex equation and an event on a complex state run on their parts."""
 
     class OscillatorElement(Element):
-        z: complex = state(1.0, domain=NumericDomain.COMPLEX, order=2, initial=(1j,))
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[complex, StateSpec(domain=CC, order=2, initial=(1j,))] = 1.0,
+            z_d1: float = 1j,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
+            self.z_d1 = z_d1
 
-        def laws(self, s):
-            return [EquationLaw(derivative(s.z, 2) == -s.z), EventLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
+        def _get_laws(self, s):
+            return [EquationLaw(derivative(s.z, 2) == -s.z), CrossingLaw(real_part(s.z) - 2, {s.z: 0}, terminal=True)]
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
     trajectory = Simulation(System(elements=[OscillatorElement('o')]), solver=solver, dt=0.5).run(until=3).trajectory_
@@ -449,9 +551,17 @@ def test_unsupported_complex_laws_are_rejected(law, message):
     class BadElement(Element):
         """Bad element."""
 
-        z = state(1.0, domain=NumericDomain.COMPLEX)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            z: Annotated[object, StateSpec(domain=CC)] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.z = z
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the bad element."""
             return law(s)
 

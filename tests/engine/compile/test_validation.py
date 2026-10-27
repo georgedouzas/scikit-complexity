@@ -3,27 +3,33 @@
 import importlib.util
 import subprocess  # nosec B404: the test starts a new Python process without the fractional formalism
 import sys
+from typing import Annotated
 
 import pytest
 import skcomplex.formalisms.control  # registers the optimal control solvers the tests name
 import skcomplex.formalisms.particles  # noqa: F401  # registers the LAMMPS solver the tests name
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    Form,
-    NoiseKind,
-    NumericDomain,
-    ValidationError,
-    VisualSpec,
-    parameter,
-    role,
-    state,
-)
-from skcomplex.core.elements import GroupElement, LatticeElement
-from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw, neighbors
+from skcomplex.core.base import Form, NoiseKind
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood
-from skcomplex.core.specs import EnergySpec, MoveSpec, ObservableSpec, SamplerSpec, WienerProcessSpec
+from skcomplex.core.specs import (
+    EnergySpec,
+    MoveSpec,
+    ObservableSpec,
+    ParameterSpec,
+    RoleSpec,
+    SamplerSpec,
+    StateSpec,
+    VisualSpec,
+    WienerProcessSpec,
+)
 from skcomplex.core.system import System
 from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
 
@@ -34,48 +40,95 @@ from .conftest import _pair
 class StockElement(Element):
     """Element with one nonnegative state."""
 
-    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
 class OpinionElement(Element):
     """Element with one categorical state."""
 
-    view: float = state(0, domain=NumericDomain.categorical('left', 'right'))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        view: Annotated[float, StateSpec(domain=FiniteEnumeratedSet(['left', 'right']))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.view = view
 
 
 class WalkerElement(Element):
     """Element with a vector position."""
 
-    x: float = state(0.0, vector=True)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class CounterElement(Element):
     """Element whose state grows by one every step."""
 
-    k: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update of the count."""
         return [UpdateLaw(s.k, s.k + 1)]
 
 
-class GrowthInteraction(BaseInteraction):
+class GrowthInteraction(Interaction):
     """Exponential growth of the state of its target."""
 
-    target: str = role()
-    r: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate of growth."""
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class DriftInteraction(BaseInteraction):
+class DriftInteraction(Interaction):
     """Rate law on a categorical state, which no rate law may target."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate of the opinion."""
         return [RateLaw(s.target.view, 1)]
 
@@ -83,9 +136,17 @@ class DriftInteraction(BaseInteraction):
 class AntElement(Element):
     """Agent that counts its steps."""
 
-    steps: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        steps: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.steps = steps
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rule of the step."""
         return [RuleLaw(self.walk)]
 
@@ -211,10 +272,19 @@ def test_report_raises_every_error():
 class PlantElement(Element):
     """Element steered by a bounded control input."""
 
-    x: float = state(1.0)
-    u: float = parameter(0.5, adaptive=True, bounds=(0, 1))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.u = u
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate of the state."""
         return [RateLaw(s.x, s.u - s.x)]
 
@@ -222,7 +292,7 @@ class PlantElement(Element):
 class NoisyPlantElement(PlantElement):
     """Plant whose state is driven by noise."""
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the plant with noise."""
         return [*super().laws(s), NoiseLaw(s.x, 0.1)]
 
@@ -251,9 +321,17 @@ def test_validate_noise_with_an_optimal_control_solver():
 class GroupSpinElement(Element):
     """Spin on a group space sampled with the default checkerboard schedule."""
 
-    spin: float = state(1, domain=NumericDomain.INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.spin = spin
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the Glauber sampling of a ferromagnetic energy on the generators."""
         memory = MemoryNeighborhood(('a', 'a^-1', 'b', 'b^-1'))
         energy = EnergySpec(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
@@ -336,36 +414,61 @@ def test_validate_fractional_state_without_its_formalism_names_the_formalism():
     assert 'skcomplex.formalisms.fractional' in output
 
 
-class MisuseInteraction(BaseInteraction):
+class MisuseInteraction(Interaction):
     """Rate law that uses the handle of a Wiener process as a value."""
 
-    target: str = role()
-    noise: WienerProcessSpec = role(noise=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.noise = noise
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate."""
         return [RateLaw(s.target.n, s.noise.dW)]
 
 
-class CoupledInteraction(BaseInteraction):
+class CoupledInteraction(Interaction):
     """Stratonovich noise on a state, through a Wiener process another component also draws."""
 
-    target: str = role()
-    other: str = role()
-    noise: WienerProcessSpec = role(noise=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        other: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.other = other
+        self.noise = noise
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the noise of the target, whose amplitude reads the other state."""
         return [NoiseLaw(s.target.n, s.other.n, convention='stratonovich', process=s.noise.dW)]
 
 
-class SingleInteraction(BaseInteraction):
+class SingleInteraction(Interaction):
     """Itô noise on one element from a Wiener process."""
 
-    target: str = role()
-    noise: WienerProcessSpec = role(noise=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.noise = noise
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the noise."""
         return [NoiseLaw(s.target.n, 1.0, process=s.noise.dW)]
 
@@ -429,9 +532,17 @@ def test_validate_reports_wiener_under_discrete_time():
     class CounterElement(Element):
         """Counter element."""
 
-        n = state(0.0, domain=NumericDomain.REAL)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            n: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.n = n
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the counter element."""
             return [UpdateLaw(s.n, 1)]
 
@@ -474,9 +585,17 @@ def test_observable_among_the_laws_is_rejected():
     class MixedElement(Element):
         """Mixed element."""
 
-        a = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            a: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.a = a
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the mixed element."""
             return [RateLaw(s.a, -s.a), ObservableSpec('level', s.a)]
 

@@ -1,17 +1,18 @@
 """Test the exact Jacobian of drifts that read reductions, and its sparsity pattern."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 import skfem
 from sage.all__sagemath_symbolics import sin, tanh
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, state
 
-from skcomplex.core.base import ValidationError
-from skcomplex.core.elements import FieldElement, GroupElement
-from skcomplex.core.laws import RateLaw, count, maximum, mean, minimum, total, variance, where
-from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.elements import Element, FieldElement, GroupElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import count, laplacian, maximum, mean, minimum, total, variance, where
 from skcomplex.core.spaces import LatticeSpace, MeshSpace
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, mesh_laplacian
 from skcomplex.engine.solvers import SplitOperator
@@ -59,10 +60,19 @@ def test_jacobian_against_finite_differences(laws):
     class MemberElement(Element):
         """Member element."""
 
-        x = state(0.0)
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the member element."""
             return laws(s)
 
@@ -98,9 +108,17 @@ def test_pattern_is_omitted_above_the_limit():
     class WideElement(Element):
         """Wide element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the wide element."""
             return [RateLaw(s.x, total(s.x))]
 
@@ -112,11 +130,21 @@ def test_pattern_is_omitted_above_the_limit():
 class ReactiveHeatElement(Element):
     """Reactive heat element."""
 
-    u = state(0.0)
-    D = parameter(1.0)
-    r = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the reactive heat element."""
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u**2))]
 
@@ -227,9 +255,17 @@ def test_exact_jacobian_of_callable_law_raises():
     class DecayElement(Element):
         """Decay element."""
 
-        u = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            u: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.u = u
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 

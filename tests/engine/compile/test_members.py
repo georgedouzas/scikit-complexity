@@ -1,18 +1,19 @@
 """Test the lowering of member offset reads along the order of a group."""
 
 import time
-from typing import Any
+from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
-from skcomplex.core.base import BaseInteraction, ValidationError, role
-from skcomplex.core.elements import GroupElement, LatticeElement
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, shift_member
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import shift_member
 from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -28,41 +29,56 @@ from skcomplex.models.physics.statistical_mechanics import (
 class CarElement(Element):
     """Car element."""
 
-    x = state(0.0)
-    ahead = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        ahead: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.ahead = ahead
 
 
-class LookAheadInteraction(BaseInteraction):
+class LookAheadInteraction(Interaction):
     """Update of every car to the position of the car a number of places ahead."""
-
-    cars: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        cars: Annotated[str, RoleSpec()],
         offset: int = 1,
         boundary: str = 'periodic',
         fill: float = 0.0,
-        **values: Any,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.cars = cars
         self.offset = offset
         self.boundary = boundary
         self.fill = fill
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the update of the read position."""
         value = shift_member(s.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
         return [UpdateLaw(s.cars.ahead, value)]
 
 
-class RingInteraction(BaseInteraction):
+class RingInteraction(Interaction):
     """Coupling of every member of a ring to the members on either side."""
 
-    cars: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate of a member from its neighbours on the ring."""
         x = s.cars.x
         return [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
@@ -122,22 +138,21 @@ def test_shift_member_rejects_unknown_boundary():
         shift_member(GroupElement('cars', element=CarElement, size=2).size, 1, boundary='open')
 
 
-class HopInteraction(BaseInteraction):
+class HopInteraction(Interaction):
     """Hop of one particle from every site to the next one along the group order, at a rate equal to the occupation."""
-
-    sites: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        sites: Annotated[str, RoleSpec()],
         boundary: str = 'periodic',
-        **values: Any,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.sites = sites
         self.boundary = boundary
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the hop to the next site."""
         n = s.sites.n
         return [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
@@ -146,7 +161,15 @@ class HopInteraction(BaseInteraction):
 class SiteElement(Element):
     """Site element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
 def _hopping(occupations, boundary='periodic'):

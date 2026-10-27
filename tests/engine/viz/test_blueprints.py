@@ -1,12 +1,14 @@
 """Test the views of the visuals and the blueprints built from them."""
 
+from typing import Annotated
+
 import pytest
 import rerun.blueprint as rrb
-from skcomplex.core.components import Element
 
-from skcomplex.core.base import ValidationError, VisualSpec, state
-from skcomplex.core.elements import FieldElement, GroupElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -88,8 +90,18 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
         """Walker element."""
 
         visual = VisualSpec('points', {'position': 'x'})
-        x = state(0.0, vector=True)
-        energy = state(0.0)
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(vector=True)] = 0.0,
+            energy: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.energy = energy
 
     blueprint = default_blueprint(
         System(elements=[GroupElement('walkers', element=WalkerElement, size=3)], space=ContinuousSpace(n_dim=2)),

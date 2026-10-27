@@ -2,17 +2,19 @@
 
 import dataclasses
 import pickle  # nosec B403: the tests pickle and load only objects they create
+from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import I, exp
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import role
+from sage.all__sagemath_symbolics import I, exp, pi
 
-from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, parameter, state, symbol
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import RateLaw, RuleLaw, distributed_delay, mean, total
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.base import symbol
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import RoleError, ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw, RuleLaw
+from skcomplex.core.laws.utils import distributed_delay, mean, total
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -22,10 +24,19 @@ from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, Popul
 class OscillatorElement(Element):
     """Oscillator element."""
 
-    theta = state(0.0, domain=NumericDomain.ANGLE)
-    omega = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the oscillator element."""
         return [RateLaw(s.theta, s.omega)]
 
@@ -33,9 +44,17 @@ class OscillatorElement(Element):
 class SaverElement(Element):
     """Agent whose wealth grows by one every step."""
 
-    wealth: float = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the saving rule."""
         return [RuleLaw(self.save)]
 
@@ -45,13 +64,21 @@ class SaverElement(Element):
         agent.wealth += 1
 
 
-class InflowInteraction(BaseInteraction):
+class InflowInteraction(Interaction):
     """Inflow interaction."""
 
-    target = role()
-    source = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        source: Annotated[object, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the inflow interaction."""
         return [RateLaw(s.target.n, s.source.value)]
 
@@ -252,9 +279,17 @@ FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
 class DecayingElement(Element):
     """Decaying element."""
 
-    x = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the decaying element."""
         return [RateLaw(s.x, -s.x)]
 
@@ -335,10 +370,19 @@ def _smoothed_population(s):
 class SmoothedElement(Element):
     """Smoothed element."""
 
-    n = state(1.0)
-    perception_time = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 1.0,
+        perception_time: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.perception_time = perception_time
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the smoothed element."""
         return [RateLaw(s.n, 2.0 - _perceived(s))]
 

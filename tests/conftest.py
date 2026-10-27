@@ -2,17 +2,17 @@
 
 import importlib
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
-from skcomplex.core.base import BaseInteraction, BaseLaw, parameter, role
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import NoiseLaw, RateLaw, Symbols, UpdateLaw
-from skcomplex.core.specs import WienerProcessSpec
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 from skcomplex.core.system import System
 
 
@@ -49,13 +49,29 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 class NodeElement(Element):
     """Node element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class HoldingElement(Element):
     """Holding element."""
 
-    n = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
 def _summed(inputs: str | Sequence[str], weights: float | Sequence[float] = 1.0) -> System:
@@ -89,37 +105,63 @@ def _correlated(covariance: npt.ArrayLike | None) -> System:
     )
 
 
-class CallableGrowthInteraction(BaseInteraction):
+class CallableGrowthInteraction(Interaction):
     """Growth whose rate is a Python callable."""
 
-    target: str = role()
-    r: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return a callable rate law."""
         name = f'{self.target}.n'
         return [RateLaw(s.target.n, lambda t, values: values[f'{self.label}.r'] * values[name])]
 
 
-class DriveInteraction(BaseInteraction):
+class DriveInteraction(Interaction):
     """Unit noise on two elements from the two processes of a `WienerProcessSpec`."""
 
-    first: str = role()
-    second: str = role()
-    noise: WienerProcessSpec = role(noise=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.noise = noise
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the noise of both elements."""
         return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
 
 
-class WeightedSumInteraction(BaseInteraction):
+class WeightedSumInteraction(Interaction):
     """Update of a target to the weighted sum of the states of a variable number of inputs."""
 
-    target: str = role()
-    inputs: list[str] = role(variadic=True)
-    weights: list[float] = parameter(1.0, per='inputs')
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        weights: Annotated[list[float], ParameterSpec(per='inputs')] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.inputs = inputs
+        self.weights = weights
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the target."""
         return [UpdateLaw(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]

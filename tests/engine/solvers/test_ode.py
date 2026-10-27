@@ -4,20 +4,22 @@ import dataclasses
 import time
 import warnings
 from dataclasses import replace
+from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import ceil, sin
+from sage.all__sagemath_symbolics import ceil, oo, sin
+from sage.sets.real_set import RealSet
 from scipy.integrate import solve_ivp
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
-from skcomplex.core.base import BaseInteraction, NumericDomain, SolverError, ValidationError, parameter, role
-from skcomplex.core.elements import FieldElement, GroupElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
-from skcomplex.core.laws import EventLaw, RateLaw, delayed, mean, step, total, where
-from skcomplex.core.laws.utils import laplacian
+from skcomplex.core.base import SolverError
+from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.laws import CrossingLaw, RateLaw
+from skcomplex.core.laws.utils import delayed, laplacian, mean, step, total, where
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
@@ -59,12 +61,19 @@ def test_scipy_ode_matches_exponential(method):
     assert state[0] == pytest.approx(np.exp(2.0), rel=1e-6)
 
 
-class ExplosionInteraction(BaseInteraction):
+class ExplosionInteraction(Interaction):
     """Growth `dn/dt = n**2`, which blows up in finite time."""
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the rate `n**2`."""
         return [RateLaw(s.target.n, s.target.n**2)]
 
@@ -101,9 +110,17 @@ def _relaxing_group(size):
     class RelaxElement(Element):
         """Relax element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the relax element."""
             return [RateLaw(s.x, -(s.x - mean(s.x)))]
 
@@ -129,9 +146,17 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
 class TubElement(Element):
     """Tub element."""
 
-    water = state(20.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec()] = 20.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the tub element."""
         return [RateLaw(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))]
 
@@ -153,10 +178,19 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     class ForcedElement(Element):
         """Forced element."""
 
-        x = state(0.0)
-        v = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+            v: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.v = v
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the forced element."""
             return [RateLaw(s.x, s.v), RateLaw(s.v, -4 * s.x + sin(s.t))]
 
@@ -205,9 +239,17 @@ def test_scipy_ode_restarts_on_parameter_change():
 class ChatterElement(Element):
     """Chatter element."""
 
-    w = state(20.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        w: Annotated[object, StateSpec()] = 20.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.w = w
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the chatter element."""
         return [RateLaw(s.w, 5 - 10 * ceil(s.w / 100))]
 
@@ -243,9 +285,21 @@ def test_fixed_step_integrators_step_over_switches_of_the_drift():
 class SoftSphereInteraction(PairPotentialInteraction):
     """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
 
-    k: float = parameter(100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.k = k
 
-    def pair_energy(self, s, r):
+    def _get_pair_energy(self, s, r):
         """Return the soft repulsion energy."""
         return s.k * (s.cutoff - r) ** 2 / 2
 
@@ -280,15 +334,23 @@ def _timed_scipy(problem, method, jacobian, until=10.0):
     return time.perf_counter() - start, state, calls[0], stepper
 
 
-class StiffThresholdInteraction(BaseInteraction):
+class StiffThresholdInteraction(Interaction):
     """Stiff threshold interaction."""
 
-    line = role()
-    level = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        line: Annotated[object, RoleSpec()],
+        level: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.line = line
+        self.level = level
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the stiff threshold interaction."""
-        return [EventLaw(total(s.line.u) - s.level, terminal=True)]
+        return [CrossingLaw(total(s.line.u) - s.level, terminal=True)]
 
 
 def _event_run(jacobian):
@@ -305,11 +367,21 @@ def _event_run(jacobian):
 class DiffusiveHutchinsonElement(Element):
     """Diffusive hutchinson element."""
 
-    u = state(0.0)
-    D = parameter(1.0)
-    r = parameter(1.2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the diffusive hutchinson element."""
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))]
 
@@ -338,25 +410,43 @@ def _hutchinson_run(jacobian):
 SIZE = 400
 
 
-class ThresholdInteraction(BaseInteraction):
+class ThresholdInteraction(Interaction):
     """Threshold interaction."""
 
-    line = role()
-    level = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        line: Annotated[object, RoleSpec()],
+        level: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.line = line
+        self.level = level
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the threshold interaction."""
-        return [EventLaw(total(s.line.u) - s.level, terminal=True)]
+        return [CrossingLaw(total(s.line.u) - s.level, terminal=True)]
 
 
 class UnitRateHutchinsonElement(Element):
     """Unit rate hutchinson element."""
 
-    u = state(0.0)
-    D = parameter(1.0)
-    r = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the unit rate hutchinson element."""
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - delayed(s.u, 1.0)))]
 
@@ -560,9 +650,17 @@ def test_dense_pattern_is_not_passed():
     class MixedElement(Element):
         """Mixed element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the mixed element."""
             return [RateLaw(s.x, -s.x + 0.1 * total(s.x))]
 
@@ -601,9 +699,17 @@ def test_exact_option_with_callable_law_raises_on_initialize():
     class DecayElement(Element):
         """Decay element."""
 
-        u = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            u: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.u = u
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 

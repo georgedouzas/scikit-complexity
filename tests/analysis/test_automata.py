@@ -20,7 +20,7 @@ from skcomplex.analysis import (
     spatial_entropy_rates,
 )
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.laws import OuterTotalistic, Table, Totalistic
+from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
     BoxNeighborhood,
     CayleySpace,

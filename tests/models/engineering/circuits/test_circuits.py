@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ParameterError
+from skcomplex.core.errors import ParameterError
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver

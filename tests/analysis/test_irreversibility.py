@@ -1,11 +1,10 @@
 """Test entropy production of jump and Langevin dynamics and the fluctuation theorem."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
 from skcomplex.analysis import (
     count_entropy_production,
@@ -16,7 +15,9 @@ from skcomplex.analysis import (
     uncertainty_relation,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element
 from skcomplex.core.laws import JumpLaw
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -78,10 +79,19 @@ def _walker_currents(forward, backward, duration, paths, seed):
     class WalkerElement(Element):
         """Walker element."""
 
-        ahead = state(0.0)
-        behind = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            ahead: Annotated[object, StateSpec()] = 0.0,
+            behind: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.ahead = ahead
+            self.behind = behind
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the walker element."""
             return [JumpLaw(forward, {s.ahead: 1}), JumpLaw(backward, {s.behind: 1})]
 

@@ -1,13 +1,16 @@
 """Test the `_conservation` module of `skcomplex.engine.runtime`."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
 
-from skcomplex.core.base import ConservationError, ValidationError, state
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import RateLaw, RuleLaw, transfer
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.base import ConservationError
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import RateLaw, RuleLaw
+from skcomplex.core.laws.utils import transfer
+from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import InvariantObserver, Simulation
 
@@ -17,9 +20,17 @@ TOTAL_WEALTH = ObservableSpec('total_wealth', group='traders', variable='wealth'
 class TraderElement(Element):
     """Agent who holds wealth and hands one unit to the next agent at every step, which keeps the total."""
 
-    wealth: float = state(10.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec()] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the gift rule."""
         return [RuleLaw(self.give)]
 
@@ -77,9 +88,17 @@ def test_invariant_observer_checks_continuous_runs():
     class TankElement(Element):
         """Tank element."""
 
-        a = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            a: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.a = a
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the tank element."""
             return [RateLaw(s.a, 1.0)]
 

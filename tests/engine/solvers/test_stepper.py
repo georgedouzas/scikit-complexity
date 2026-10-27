@@ -1,13 +1,14 @@
 """Test the stepper contract, the count of fixed steps, the solver registry, and the parity of backends."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import NoiseLaw, RateLaw
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.solvers import (
@@ -29,10 +30,19 @@ from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 class BeadElement(Element):
     """Bead element."""
 
-    x = state(1.0)
-    v = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the bead element."""
         return [RateLaw(s.x, s.v), RateLaw(s.v, -s.x**3)]
 
@@ -40,9 +50,17 @@ class BeadElement(Element):
 class WalkerElement(Element):
     """Walker element."""
 
-    x = state(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the walker element."""
         return [RateLaw(s.x, -s.x**3), NoiseLaw(s.x, 0.5 * s.x)]
 

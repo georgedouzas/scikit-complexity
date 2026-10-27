@@ -2,18 +2,19 @@
 
 import math
 import time
+from typing import Annotated
 
 import numpy as np
 import pytest
 import scipy.sparse
-from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, role
+from sage.all__sagemath_symbolics import cos, heaviside, pi, sin, tanh
 
-from skcomplex.core.base import BaseInteraction, NumericDomain, RoleError, ValidationError, state
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw, count, maximum, mean, minimum, total, variance
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import RoleError, ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import count, maximum, mean, minimum, total, variance
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -34,16 +35,33 @@ def _sine(member):
 class UnitElement(Element):
     """Unit element."""
 
-    x = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class PhaseElement(Element):
     """Phase element."""
 
-    theta = state(0.0, domain=NumericDomain.ANGLE)
-    omega = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the phase element."""
         return [RateLaw(s.theta, s.omega)]
 
@@ -51,31 +69,57 @@ class PhaseElement(Element):
 class InhibitorElement(Element):
     """Inhibitor element."""
 
-    z = state(0.0)
-    phi = parameter(3.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[object, StateSpec()] = 0.0,
+        phi: Annotated[object, ParameterSpec()] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.phi = phi
 
 
-class DriveInteraction(BaseInteraction):
+class DriveInteraction(Interaction):
     """Drive interaction."""
 
-    inhibitor = role()
-    oscillators = role()
-    theta_z = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        *,
+        inhibitor: Annotated[object, RoleSpec()],
+        oscillators: Annotated[object, RoleSpec()],
+        theta_z: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.inhibitor = inhibitor
+        self.oscillators = oscillators
+        self.theta_z = theta_z
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the drive interaction."""
         return [
             RateLaw(s.inhibitor.z, s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z)),
         ]
 
 
-class MeanPulseInteraction(BaseInteraction):
+class MeanPulseInteraction(Interaction):
     """Mean pulse interaction."""
 
-    neurons = role()
-    kappa = parameter(1.5)
+    def __init__(
+        self,
+        label: str,
+        *,
+        neurons: Annotated[object, RoleSpec()],
+        kappa: Annotated[object, ParameterSpec()] = 1.5,
+    ) -> None:
+        super().__init__(label)
+        self.neurons = neurons
+        self.kappa = kappa
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the mean pulse interaction."""
         return [
             RateLaw(
@@ -85,28 +129,46 @@ class MeanPulseInteraction(BaseInteraction):
         ]
 
 
-class MeanFieldCouplingInteraction(BaseInteraction):
+class MeanFieldCouplingInteraction(Interaction):
     """Mean field coupling interaction."""
 
-    target = role()
-    X = role()
-    Y = role()
-    K = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        X: Annotated[object, RoleSpec()],
+        Y: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.X = X
+        self.Y = Y
+        self.K = K
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the mean field coupling interaction."""
         return [
             RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
         ]
 
 
-class ReaderInteraction(BaseInteraction):
+class ReaderInteraction(Interaction):
     """Reader interaction."""
 
-    target = role()
-    source = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        source: Annotated[object, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the reader interaction."""
         return [RateLaw(s.target.x, s.source.value)]
 
@@ -117,9 +179,17 @@ def _group_of(laws, size=10, values=None):
     class ReducingElement(Element):
         """Reducing element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the reducing element."""
             return laws(s)
 
@@ -148,13 +218,21 @@ def _kuramoto(size, *, observables=False):
             omega,
         )
 
-    class CouplingInteraction(BaseInteraction):
+    class CouplingInteraction(Interaction):
         """Coupling interaction."""
 
-        target = role()
-        K = parameter(1.0)
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+            K: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label)
+            self.target = target
+            self.K = K
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the coupling interaction."""
             return [
                 RateLaw(
@@ -194,7 +272,15 @@ def test_instantaneous_mean_in_interaction():
     class NeuronElement(Element):
         """Neuron element."""
 
-        theta = state(0.0, domain=NumericDomain.ANGLE)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.theta = theta
 
     system = System(
         elements=[GroupElement('neurons', element=NeuronElement, size=40, values={'theta': theta})],
@@ -294,14 +380,23 @@ def test_mean_fitness(backend):
 def test_two_groups_in_one_reduction():
     """Test that a reduction reading two groups names both and asks for one reduction per group."""
 
-    class PredationInteraction(BaseInteraction):
+    class PredationInteraction(Interaction):
         """Predation interaction."""
 
-        prey = role()
-        predators = role()
-        target = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            prey: Annotated[object, RoleSpec()],
+            predators: Annotated[object, RoleSpec()],
+            target: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.prey = prey
+            self.predators = predators
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the predation interaction."""
             return [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
 
@@ -320,13 +415,21 @@ def test_two_groups_in_one_reduction():
 def test_interaction_reads_second_group_through_reductions():
     """Test that an interaction acts on one group and reads another group through a mean."""
 
-    class CouplingInteraction(BaseInteraction):
+    class CouplingInteraction(Interaction):
         """Coupling interaction."""
 
-        target = role()
-        source = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+            source: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
+            self.source = source
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the coupling interaction."""
             return [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
 
@@ -372,10 +475,19 @@ def test_observable_read_in_its_own_partition():
     class SaverElement(Element):
         """Saver element."""
 
-        W = state(1.0)
-        r = parameter(0.1)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            W: Annotated[object, StateSpec()] = 1.0,
+            r: Annotated[object, ParameterSpec()] = 0.1,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.W = W
+            self.r = r
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the saver element."""
             return [RateLaw(s.W, s.r * s.W)]
 
@@ -466,12 +578,19 @@ def test_linear_cost():
 def test_element_set_reduction():
     """Test that a role bound to an element set applies to each element and reduces over the set."""
 
-    class TotalInteraction(BaseInteraction):
+    class TotalInteraction(Interaction):
         """Total interaction."""
 
-        units = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            units: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.units = units
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the total interaction."""
             return [RateLaw(s.units.x, total(s.units.x))]
 
@@ -488,12 +607,19 @@ def test_element_set_reduction():
 def _shared(share, values):
     """Return a system of one group whose interaction gives every member a share of a reduction."""
 
-    class ShareInteraction(BaseInteraction):
+    class ShareInteraction(Interaction):
         """Share interaction."""
 
-        cells = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            cells: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.cells = cells
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the share interaction."""
             return [RateLaw(s.cells.x, share(s))]
 
@@ -523,14 +649,29 @@ def test_element_set_of_mixed_types():
     class OtherElement(Element):
         """Other element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-    class TotalInteraction(BaseInteraction):
+    class TotalInteraction(Interaction):
         """Total interaction."""
 
-        units = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            units: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.units = units
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the total interaction."""
             return [RateLaw(s.units.x, total(s.units.x))]
 

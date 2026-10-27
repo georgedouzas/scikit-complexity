@@ -1,16 +1,19 @@
 """Test the symbolic analysis of systems."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter
 
 from skcomplex.analysis import equations_of, solve_symbolically
-from skcomplex.core.base import AnalysisError, BaseInteraction, role, state
-from skcomplex.core.elements import ParticleElement
-from skcomplex.core.laws import RateLaw, UpdateLaw, derivative, lag
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element, ParticleElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import derivative, lag
 from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -130,12 +133,19 @@ def test_sage_expression_compiles_like_number():
         space=ContinuousSpace(n_dim=1),
     )
 
-    class SageForceInteraction(BaseInteraction):
+    class SageForceInteraction(Interaction):
         """Force written as a Sage expression."""
 
-        target: str = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[str, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return a rate with a Sage value."""
             return [RateLaw(s.target.v, [force])]
 
@@ -152,11 +162,23 @@ def test_sage_expression_compiles_like_number():
 class PendulumElement(Element):
     """Pendulum element."""
 
-    theta = state(default=0.1, order=2)
-    g = parameter(9.81)
-    l = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.1,
+        theta_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        l: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the pendulum element."""
         return [RateLaw(s.theta, -(s.g / s.l) * sin(s.theta))]
 
@@ -164,11 +186,23 @@ class PendulumElement(Element):
 class SmallAngleElement(Element):
     """Small angle element."""
 
-    theta = state(default=0.1, order=2)
-    g = parameter(9.81)
-    l = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.1,
+        theta_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        l: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the small angle element."""
         return [RateLaw(s.theta, -(s.g / s.l) * s.theta)]
 
@@ -176,9 +210,21 @@ class SmallAngleElement(Element):
 class ThirdOrderElement(Element):
     """Third order element."""
 
-    x = state(default=0.0, order=3, initial=(1.0, 0.0))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=3, initial=(1.0, 0.0))] = 0.0,
+        x_d2: float = 0.0,
+        x_d1: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d2 = x_d2
+        self.x_d1 = x_d1
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the third order element."""
         return [RateLaw(s.x, -derivative(s.x, 1))]
 
@@ -186,12 +232,23 @@ class ThirdOrderElement(Element):
 class FirstOrderPendulumElement(Element):
     """First order pendulum element."""
 
-    theta = state(0.1)
-    omega = state(0.0)
-    g = parameter(9.81)
-    l = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.1,
+        omega: Annotated[object, StateSpec()] = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        l: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
+        self.g = g
+        self.l = l
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the first order pendulum element."""
         return [RateLaw(s.theta, s.omega), RateLaw(s.omega, -(s.g / s.l) * sin(s.theta))]
 
@@ -199,9 +256,19 @@ class FirstOrderPendulumElement(Element):
 class FibonacciElement(Element):
     """Fibonacci element."""
 
-    x = state(default=1.0, lags=1, initial=(1.0,))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(lags=1, initial=(1.0,))] = 1.0,
+        x_lag1: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_lag1 = x_lag1
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the fibonacci element."""
         return [UpdateLaw(s.x, s.x + lag(s.x, 1))]
 
@@ -260,10 +327,21 @@ def test_remaining_sign_question_names_parameter():
     class SpringElement(Element):
         """Spring element."""
 
-        x = state(default=0.1, order=2)
-        k = parameter(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(order=2)] = 0.1,
+            x_d1: float = 0.0,
+            k: Annotated[object, ParameterSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.x_d1 = x_d1
+            self.k = k
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the spring element."""
             return [RateLaw(s.x, -s.k * s.x)]
 

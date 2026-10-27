@@ -28,7 +28,7 @@ from sage.all__sagemath_symbolics import (
 )
 
 from skcomplex.core.base import symbol
-from skcomplex.core.laws import both, either, mod, where
+from skcomplex.core.laws.utils import both, either, mod, where
 from skcomplex.engine.backends import LeptonPrinter
 from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
 

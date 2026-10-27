@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.experiments._ensembles import replicate
 from skcomplex.models.biology.ecology import lotka_volterra

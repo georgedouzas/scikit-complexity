@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.solvers import EulerMaruyamaSolver

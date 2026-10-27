@@ -1,13 +1,13 @@
 """Test the `_learning` module of `skcomplex.models.social.realizations`."""
 
-import numpy as np
-from skcomplex.core.components import Element
+from typing import Annotated
 
-from skcomplex.core.base import state
-from skcomplex.core.elements import GroupElement
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.social.realizations import imitate
@@ -16,10 +16,19 @@ from skcomplex.models.social.realizations import imitate
 class ImitatorElement(Element):
     """Test helper Imitator."""
 
-    strategy: float = state(0.0)
-    payoff: float = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        strategy: Annotated[float, StateSpec()] = 0.0,
+        payoff: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
+        self.payoff = payoff
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Test helper laws."""
         return [RuleLaw(self.copy, phase='imitation')]
 

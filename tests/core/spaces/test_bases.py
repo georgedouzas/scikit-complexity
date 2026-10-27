@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SpaceError, SpaceKind, TimeKind
+from skcomplex.core.base import SpaceKind, TimeKind
+from skcomplex.core.errors import SpaceError
 from skcomplex.core.spaces import BaseSpace, BaseTime
 
 

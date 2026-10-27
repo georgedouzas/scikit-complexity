@@ -1,13 +1,13 @@
 """Test the `_shops` module of `skcomplex.models.economics.markets`."""
 
-import numpy as np
-from skcomplex.core.components import Element
+from typing import Annotated
 
-from skcomplex.core.base import parameter, state
-from skcomplex.core.elements import GroupElement
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
@@ -19,10 +19,19 @@ from skcomplex.models.economics.realizations import (
 class ShopElement(Element):
     """Shop whose price grows by a drift and noise, slowed by the interest rate."""
 
-    price: float = state(1.0)
-    drift: float = parameter(0.03)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        price: Annotated[float, StateSpec()] = 1.0,
+        drift: Annotated[float, ParameterSpec()] = 0.03,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.price = price
+        self.drift = drift
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the pricing rule."""
         return [RuleLaw(self.inflate)]
 

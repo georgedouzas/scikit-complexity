@@ -2,30 +2,22 @@
 
 import copy
 import pickle  # nosec B403: the test loads only the pickles it makes
+from typing import Annotated
 
 import numpy as np
 import pytest
-from skcomplex.core.components import Element
+from sage.all__sagemath_symbolics import NN, RR, ZZ, oo, pi
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import (
-    BaseInteraction,
-    Form,
-    LawKind,
-    NoiseKind,
-    NumericDomain,
-    RegistryError,
-    SpaceKind,
-    Term,
-    Trait,
-    ValidationError,
-    VariableKind,
-    declarations_of,
-    parameter,
-    role,
-    state,
-)
+from skcomplex.core.base import Form, LawKind, NoiseKind, SpaceKind, Term, Trait
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import RegistryError, ValidationError
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.problems import VariableKind, declarations_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 
@@ -85,16 +77,32 @@ def test_declared_noise_support():
 class RotorElement(Element):
     """Rotor element."""
 
-    theta = state(0.0, domain=NumericDomain.ANGLE)
-    omega = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
 
-class SpinInteraction(BaseInteraction):
+class SpinInteraction(Interaction):
     """Spin interaction."""
 
-    target = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the spin interaction."""
         return [RateLaw(s.target.theta, s.target.omega)]
 
@@ -102,19 +110,27 @@ class SpinInteraction(BaseInteraction):
 class SwitchElement(Element):
     """Switch element."""
 
-    on = state(False, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        on: Annotated[object, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = False,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.on = on
 
 
 @pytest.mark.parametrize(
     ('domain', 'value', 'expected'),
     [
-        (NumericDomain.REAL, -1.5, True),
-        (NumericDomain.POSITIVE, 0.0, False),
-        (NumericDomain.NONNEGATIVE, 0.0, True),
-        (NumericDomain.INTEGER, 2.5, False),
-        (NumericDomain.NONNEGATIVE_INTEGER, [0, 3], True),
-        (NumericDomain.REAL, float('nan'), False),
-        (NumericDomain.REAL, 'm', False),
+        (RR, -1.5, True),
+        (RealSet.open(0, oo), 0.0, False),
+        (RealSet.closed_open(0, oo), 0.0, True),
+        (ZZ, 2.5, False),
+        (NN, [0, 3], True),
+        (RR, float('nan'), False),
+        (RR, 'm', False),
     ],
 )
 def test_domain_contains_checks_values(domain, value, expected):
@@ -124,7 +140,7 @@ def test_domain_contains_checks_values(domain, value, expected):
 
 def test_domain_maps_to_sage_domain():
     """Test that domains give the Sage domains of their symbols, which have no nonnegative domains."""
-    assert NumericDomain.NONNEGATIVE_INTEGER.sage_domain == 'integer'
+    assert NN.sage_domain == 'integer'
 
 
 def test_categorical_values_round_trip_as_labels():
@@ -167,7 +183,7 @@ def test_angle_swings_around_zero_without_jumping():
 
 def test_angle_encode_wraps_into_half_open_turn():
     """Test that encoding an angle wraps it into (-π, π], keeping π and moving -π to π."""
-    encoded = NumericDomain.ANGLE.encode([3 * np.pi / 2, -np.pi, np.pi])
+    encoded = RR.encode([3 * np.pi / 2, -np.pi, np.pi])
     np.testing.assert_allclose(encoded, [-np.pi / 2, np.pi, np.pi])
 
 
@@ -182,7 +198,15 @@ def test_boolean_values_return_as_booleans():
 class ValveElement(Element):
     """Element with a bounded control input."""
 
-    opening: float = parameter(0.5, adaptive=True, bounds=(0, 1))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        opening: Annotated[float, ParameterSpec(adaptive=True, bounds=(0, 1))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opening = opening
 
 
 def test_parameter_bounds_declare_a_bounded_adaptive_parameter():
@@ -209,16 +233,34 @@ def test_parameter_bounds_reject_invalid_declarations(arguments, message):
 class BodyElement(Element):
     """Element with one scalar state, one vector state, and one parameter."""
 
-    n: float = state(1.0, domain=NumericDomain.NONNEGATIVE)
-    x: list[float] = state([0.0, 0.0], vector=True)
-    m: float = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[list[float], StateSpec(vector=True)] = [0.0, 0.0],
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.x = x
+        self.m = m
 
 
-class LinkInteraction(BaseInteraction):
+class LinkInteraction(Interaction):
     """Interaction with two roles."""
 
-    first: str = role()
-    second: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
 
 
 def test_declarations_of_returns_fields_by_kind():
@@ -241,7 +283,15 @@ def test_state_accepts_fractional_order_without_companions():
     class RelaxingElement(Element):
         """Relaxing element."""
 
-        x = state(1.0, order=0.6)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(order=0.6)] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
     declaration = declarations_of(RelaxingElement, VariableKind.STATE)['x']
     assert declaration.order == 0.6

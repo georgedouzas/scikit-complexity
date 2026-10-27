@@ -3,11 +3,12 @@
 import dataclasses
 
 from skcomplex.core import base
-from skcomplex.core.base import BaseLaw, LawClass, LawKind, Trait, has_trait, law_classes, symbol
+from skcomplex.core.base import LawClass, LawKind, Trait, has_trait, law_classes, symbol
 from skcomplex.core.laws import (
+    BaseLaw,
     BoundaryLaw,
+    CrossingLaw,
     DissipatorLaw,
-    EventLaw,
     GeneratorLaw,
     GraphProductionLaw,
     LocalRuleLaw,
@@ -15,9 +16,9 @@ from skcomplex.core.laws import (
     ProductionLaw,
     RateLaw,
     SubstitutionLaw,
-    Totalistic,
     TransferLaw,
 )
+from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import BoxNeighborhood
 
 
@@ -60,7 +61,7 @@ def test_targets_are_a_tuple_once_checked():
     assert isinstance(checked.targets, tuple)
     assert checked.targets[0] is x
     assert LocalRuleLaw([x, y], BoxNeighborhood(), Totalistic({2: 1})).check().targets == (x, y)
-    assert EventLaw(x - 1).check().targets == ()
+    assert CrossingLaw(x - 1).check().targets == ()
 
 
 def test_law_is_importable_at_run_time():

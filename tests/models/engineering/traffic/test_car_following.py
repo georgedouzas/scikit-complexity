@@ -1,15 +1,16 @@
 """Test the `_car_following` module of `skcomplex.models.engineering.traffic`."""
 
 import math
+from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sqrt, tanh
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, role, state
 
-from skcomplex.core.base import BaseInteraction
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
@@ -28,25 +29,46 @@ def _cars(trajectory, n_cars, variable):
 class CarElement(Element):
     """Car element."""
 
-    x = state(0.0)
-    v = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the car element."""
         return [RateLaw(s.x, s.v)]
 
 
-class PerCarVelocityInteraction(BaseInteraction):
+class PerCarVelocityInteraction(Interaction):
     """Per car velocity interaction."""
 
-    leader = role()
-    follower = role()
-    a = parameter(1.0)
-    V0 = parameter(1.0)
-    hc = parameter(2.0)
-    offset = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        leader: Annotated[object, RoleSpec()],
+        follower: Annotated[object, RoleSpec()],
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        V0: Annotated[object, ParameterSpec()] = 1.0,
+        hc: Annotated[object, ParameterSpec()] = 2.0,
+        offset: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.leader = leader
+        self.follower = follower
+        self.a = a
+        self.V0 = V0
+        self.hc = hc
+        self.offset = offset
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the per car velocity interaction."""
         return [
             RateLaw(
@@ -56,21 +78,37 @@ class PerCarVelocityInteraction(BaseInteraction):
         ]
 
 
-class PerCarDriverInteraction(BaseInteraction):
+class PerCarDriverInteraction(Interaction):
     """Per car driver interaction."""
 
-    leader = role()
-    follower = role()
-    v0 = parameter(30.0)
-    T = parameter(1.5)
-    a = parameter(1.0)
-    b = parameter(1.5)
-    s0 = parameter(2.0)
-    delta = parameter(4.0)
-    length = parameter(5.0)
-    offset = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        leader: Annotated[object, RoleSpec()],
+        follower: Annotated[object, RoleSpec()],
+        v0: Annotated[object, ParameterSpec()] = 30.0,
+        T: Annotated[object, ParameterSpec()] = 1.5,
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        b: Annotated[object, ParameterSpec()] = 1.5,
+        s0: Annotated[object, ParameterSpec()] = 2.0,
+        delta: Annotated[object, ParameterSpec()] = 4.0,
+        length: Annotated[object, ParameterSpec()] = 5.0,
+        offset: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.leader = leader
+        self.follower = follower
+        self.v0 = v0
+        self.T = T
+        self.a = a
+        self.b = b
+        self.s0 = s0
+        self.delta = delta
+        self.length = length
+        self.offset = offset
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the per car driver interaction."""
         return [
             RateLaw(

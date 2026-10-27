@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import as_graph
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.mathematics.networks import (
     network_attack,

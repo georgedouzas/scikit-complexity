@@ -1,14 +1,15 @@
 """Test the visual of the traits of agents and of the states of groups without a space."""
 
+from typing import Annotated
+
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import state
 
-from skcomplex.core.base import VisualSpec
-from skcomplex.core.elements import GroupElement
-from skcomplex.core.laws import UpdateLaw, uniform
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.laws.utils import uniform
+from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
@@ -155,9 +156,17 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
     class WalkerElement(Element):
         """Walker element."""
 
-        x = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the walker element."""
             return [UpdateLaw(s.x, s.x + uniform('step', -1, 1))]
 

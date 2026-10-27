@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, NumericDomain, SolverError, symbol
+from skcomplex.core.base import Form, SolverError, symbol
 from skcomplex.engine.problems import BaseProblem, Entry, Layout
 from skcomplex.engine.solvers import BaseSolver
 
@@ -18,6 +18,7 @@ from skcomplex.core.base import Form, NumericDomain, SupportSpec, symbol
 from skcomplex.engine.problems import Entry, Layout
 from skcomplex.engine.problems import BaseProblem
 from skcomplex.engine.solvers import BaseSolver
+from sage.all__sagemath_symbolics import RR
 
 
 class HalvingSolver(BaseSolver[BaseProblem]):
@@ -33,7 +34,7 @@ class HalvingSolver(BaseSolver[BaseProblem]):
 
 problem = BaseProblem(
     Form.DISCRETE,
-    Layout([Entry('a.x', 0, (), NumericDomain.REAL)]),
+    Layout([Entry('a.x', 0, (), RR)]),
     Layout([]),
     np.array([8.0]),
     np.zeros(0),
@@ -89,7 +90,7 @@ def _discrete_problem():
     """Return a discrete problem of one state with the initial value 1."""
     return BaseProblem(
         Form.DISCRETE,
-        Layout([Entry('a.x', 0, (), NumericDomain.REAL)]),
+        Layout([Entry('a.x', 0, (), RR)]),
         Layout([]),
         np.array([1.0]),
         np.zeros(0),

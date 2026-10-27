@@ -1,33 +1,20 @@
 """Test the `_interactions` module of `skcomplex.core.base`."""
 
-from typing import ClassVar
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
-from skcomplex.core.components import Element, GroupElement
-from skcomplex.core.declarations import state
 
-from skcomplex.core.base import (
-    BaseDomain,
-    BaseElement,
-    BaseInteraction,
-    BaseLaw,
-    RoleError,
-    ValidationError,
-    parameter,
-    role,
-)
-from skcomplex.core.elements import LatticeElement
-from skcomplex.core.laws import (
-    JumpLaw,
-    RateLaw,
-    UpdateLaw,
-    neighbors,
-)
+from skcomplex.core.base import BaseDomain
+from skcomplex.core.elements import BaseElement, Element, GroupElement, LatticeElement
+from skcomplex.core.errors import RoleError, ValidationError
+from skcomplex.core.interactions import Interaction, NeighborInteraction
+from skcomplex.core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import BaseSpace, BaseTime, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend
 from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
@@ -42,27 +29,61 @@ BACKENDS = ('numpy', 'numba')
 class NeuronElement(Element):
     """Neuron element."""
 
-    a = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
 
 
 class SynapseElement(Element):
     """Synapse element."""
 
-    w = state(0.1)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        w: Annotated[object, StateSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.w = w
 
 
 class PersonElement(Element):
     """Person element."""
 
-    infected = state(0.0)
-    wage = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        infected: Annotated[object, StateSpec()] = 0.0,
+        wage: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.infected = infected
+        self.wage = wage
 
 
 class OscillatorElement(Element):
     """Oscillator element."""
 
-    theta = state(0.0)
-    omega = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
 
 def test_interaction_rejects_a_layer_when_checked():
@@ -73,38 +94,59 @@ def test_interaction_rejects_a_layer_when_checked():
         interaction.check()
 
 
-class HebbianInteraction(BaseInteraction):
+class HebbianInteraction(NeighborInteraction):
     """Weights that grow with the product of the activities at both ends of an edge."""
 
-    over: ClassVar[str] = 'neighbors'
-    nodes: str = role()
-    synapses: str = role()
-    eta: float = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        synapses: Annotated[str, RoleSpec()],
+        eta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.synapses = synapses
+        self.eta = eta
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the growth of the weight of one edge."""
         return [RateLaw(s.edge.w, s.eta * s.source.a * s.target.a)]
 
 
-class InfectionInteraction(BaseInteraction):
+class InfectionInteraction(NeighborInteraction):
     """Contacts recorded on edges, with an update of an end that edges cannot set."""
 
-    over: ClassVar[str] = 'neighbors'
-    people: str = role()
-    contacts: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        people: Annotated[str, RoleSpec()],
+        contacts: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.people = people
+        self.contacts = contacts
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the record of a contact and the infection of the source."""
         return [UpdateLaw(s.edge.contacted, 1.0), UpdateLaw(s.source.infected, s.target.infected)]
 
 
-class ContagionInteraction(BaseInteraction):
+class ContagionInteraction(NeighborInteraction):
     """Infection along the edges of a layer, without an edge group."""
 
-    over: ClassVar[str] = 'neighbors'
-    people: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        people: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.people = people
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the infection of both ends by the other."""
         return [
             RateLaw(s.source.infected, s.target.infected * (1 - s.source.infected)),
@@ -112,26 +154,40 @@ class ContagionInteraction(BaseInteraction):
         ]
 
 
-class WagesInteraction(BaseInteraction):
+class WagesInteraction(NeighborInteraction):
     """Wages that flow from the source of a work edge to its target."""
 
-    over: ClassVar[str] = 'neighbors'
-    people: str = role()
-    jobs: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        people: Annotated[str, RoleSpec()],
+        jobs: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.people = people
+        self.jobs = jobs
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the transfer of wages along one work edge."""
         return [RateLaw(s.target.wage, s.edge.salary), RateLaw(s.source.wage, -s.edge.salary)]
 
 
-class CouplingInteraction(BaseInteraction):
+class CouplingInteraction(NeighborInteraction):
     """Kuramoto coupling along the weighted edges of a network."""
 
-    over: ClassVar[str] = 'neighbors'
-    oscillators: str = role()
-    links: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        oscillators: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.oscillators = oscillators
+        self.links = links
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the pull of both ends towards each other."""
         return [
             RateLaw(s.source.theta, s.edge.w * sin(s.target.theta - s.source.theta)),
@@ -177,7 +233,15 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     class JobElement(Element):
         """Job element."""
 
-        salary = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            salary: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.salary = salary
 
     graph = nx.DiGraph([(0, 1), (2, 1), (1, 3)])
     space = NetworkSpace(graph)
@@ -207,7 +271,15 @@ def test_two_layers_carry_infection_and_wages_apart():
     class JobElement(Element):
         """Job element."""
 
-        salary = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            salary: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.salary = salary
 
     space = NetworkSpace(contact, layers=[LayerSpec('work', work)])
     system = System(
@@ -250,13 +322,21 @@ def test_edge_states_weigh_neighbourhood_reductions(backend):
     """Test that a reduction over a network weighs every neighbour with the state of the edge that joins them."""
     space = NetworkSpace(nx.path_graph(4))
 
-    class WeightedInteraction(BaseInteraction):
+    class WeightedInteraction(Interaction):
         """Weighted interaction."""
 
-        nodes = role()
-        links = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            nodes: Annotated[object, RoleSpec()],
+            links: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.nodes = nodes
+            self.links = links
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the weighted interaction."""
             return [RateLaw(s.nodes.theta, neighbors(s.nodes.other.theta, weight=s.links.w))]
 
@@ -309,17 +389,35 @@ def test_edge_jumps_change_the_ends_of_their_edge():
     class SISElement(Element):
         """S i s element."""
 
-        s = state(1.0)
-        i = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            s: Annotated[object, StateSpec()] = 1.0,
+            i: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.s = s
+            self.i = i
 
-    class SpreadInteraction(BaseInteraction):
+    class SpreadInteraction(Interaction):
         """Spread interaction."""
 
         over = 'neighbors'
-        nodes = role()
-        beta = parameter(1.0)
 
-        def laws(self, s):
+        def __init__(
+            self,
+            label: str,
+            *,
+            nodes: Annotated[object, RoleSpec()],
+            beta: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label)
+            self.nodes = nodes
+            self.beta = beta
+
+        def _get_laws(self, s):
             """Return the laws of the spread interaction."""
             return [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})]
 
@@ -343,13 +441,21 @@ def test_edge_jumps_change_the_ends_of_their_edge():
 def test_edge_interactions_run_on_lattice_bonds():
     """Test that an interaction over neighbours on a lattice runs once per bond of neighbouring sites."""
 
-    class DiffusionInteraction(BaseInteraction):
+    class DiffusionInteraction(Interaction):
         """Diffusion interaction."""
 
         over = 'neighbors'
-        cells = role()
 
-        def laws(self, s):
+        def __init__(
+            self,
+            label: str,
+            *,
+            cells: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.cells = cells
+
+        def _get_laws(self, s):
             """Return the laws of the diffusion interaction."""
             return [
                 RateLaw(s.source.theta, s.target.theta - s.source.theta),
@@ -378,7 +484,15 @@ def test_update_laws_set_the_edge_member_only():
     class ContactElement(Element):
         """Contact element."""
 
-        contacted = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            contacted: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.contacted = contacted
 
     space = NetworkSpace(nx.path_graph(3))
     system = System(
@@ -399,7 +513,15 @@ def test_edge_group_of_another_layer_is_rejected():
     class JobElement(Element):
         """Job element."""
 
-        salary = state(1.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            salary: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.salary = salary
 
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
     system = System(

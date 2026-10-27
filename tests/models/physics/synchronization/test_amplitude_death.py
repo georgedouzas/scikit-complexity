@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.errors import ValidationError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.physics.synchronization import heterogeneous_global_coupling, oscillator_death

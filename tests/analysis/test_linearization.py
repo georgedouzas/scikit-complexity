@@ -1,25 +1,41 @@
 """Test the linearisation of systems and the analysis of their controllability, observability, and regulators."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
-from skcomplex.core.components import Element
 
 from skcomplex.analysis import controllability, linearize, lqr, observability
-from skcomplex.core.base import AnalysisError, ValidationError, parameter, state
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 
 
 class DrivenElement(Element):
     """Driven element."""
 
-    x = state(0.0, order=2)
-    force = parameter(0.0, adaptive=True, bounds=(-1, 1))
-    w = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        force: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
+        w: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.force = force
+        self.w = w
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the driven element."""
         return [RateLaw(s.x, -(s.w**2) * s.x + s.force)]
 
@@ -27,10 +43,21 @@ class DrivenElement(Element):
 class FreeElement(Element):
     """Free element."""
 
-    x = state(0.0, order=2)
-    w = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        w: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.w = w
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the free element."""
         return [RateLaw(s.x, -(s.w**2) * s.x)]
 
@@ -38,10 +65,21 @@ class FreeElement(Element):
 class PendulumElement(Element):
     """Pendulum element."""
 
-    theta = state(0.0, order=2)
-    torque = parameter(0.0, adaptive=True, bounds=(-1, 1))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.0,
+        theta_d1: float = 0.0,
+        torque: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.torque = torque
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the pendulum element."""
         return [RateLaw(s.theta, -sin(s.theta) + s.torque)]
 
@@ -49,9 +87,17 @@ class PendulumElement(Element):
 class CounterElement(Element):
     """Counter element."""
 
-    k = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the counter element."""
         return [UpdateLaw(s.k, s.k + 1)]
 

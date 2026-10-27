@@ -1,25 +1,24 @@
 """Test the `_reductions` module of `skcomplex.core.laws`."""
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 import scipy.sparse
-from sage.all__sagemath_symbolics import atan2, cos, sin, tanh
-from skcomplex.core.components import Element
-from skcomplex.core.declarations import parameter, role
+from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh
 
-from skcomplex.core.base import BaseInteraction, NumericDomain, ValidationError, state, symbol, vector
-from skcomplex.core.elements import GroupElement, LatticeElement
-from skcomplex.core.laws import (
+from skcomplex.core.base import symbol, vector
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw, UpdateLaw, has_reductions
+from skcomplex.core.laws.utils import (
     NEIGHBOR_REDUCTIONS,
-    RateLaw,
-    Symbols,
-    UpdateLaw,
     both,
     count,
-    has_reductions,
     maximum,
     mean,
     minimum,
@@ -40,6 +39,7 @@ from skcomplex.core.spaces import (
     RadiusNeighborhood,
     VonNeumannNeighborhood,
 )
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.problems._reductions import reduce_values
@@ -76,7 +76,7 @@ def test_reductions_record_condition_weights_and_group():
     """Test that a reduction holds its condition, its weights, and the group it names."""
     x, y = symbol('x'), symbol('y')
     weights = scipy.sparse.csr_matrix(np.eye(2))
-    (found,) = reductions_in(mean(x, over=Symbols(t=symbol('t'), y=y), where=x > 0, weights=weights))
+    (found,) = reductions_in(mean(x, over=SimpleNamespace(t=symbol('t'), y=y), where=x > 0, weights=weights))
     assert str(found.condition) == 'x > 0'
     assert str(found.over) == str(y)
     assert (found.weights != weights).nnz == 0
@@ -201,10 +201,19 @@ def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     class WeightedElement(Element):
         """Weighted element."""
 
-        out = state(0.0)
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            out: Annotated[object, StateSpec()] = 0.0,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.out = out
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the weighted element."""
             return [UpdateLaw(s.out, neighbors(s.other.y, reduce='normalized-mean', weight=s.y + s.other.y))]
 
@@ -303,7 +312,7 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
         ConeNeighborhood(radius, angle, heading='phi'),
         'count',
         x=state(vector=True, position=True),
-        phi=state(0.0, domain=NumericDomain.ANGLE),
+        phi=state(0.0, domain=RR),
     )
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
     system = System(
@@ -328,10 +337,19 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
     class ReadingElement(Element):
         """Reading element."""
 
-        out = state(0.0)
-        x = state(vector=True, position=True)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            out: Annotated[object, StateSpec()] = 0.0,
+            x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.out = out
+            self.x = x
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the reading element."""
             return [UpdateLaw(s.out, neighbors(s.other.x[0] - s.x[0], over=RadiusNeighborhood(1.0)))]
 
@@ -345,12 +363,19 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
 def test_interaction_reduces_over_the_neighbours_of_its_group():
     """Test that an interaction reads the neighbours of the group bound to its role through `s.target.other`."""
 
-    class DiffusionInteraction(BaseInteraction):
+    class DiffusionInteraction(Interaction):
         """Diffusion interaction."""
 
-        target = role()
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the diffusion interaction."""
             return [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
 
@@ -359,7 +384,15 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
     class PlainElement(Element):
         """Plain element."""
 
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
 
     plain = PlainElement
     system = System(
@@ -377,9 +410,17 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
     class StrayElement(Element):
         """Stray element."""
 
-        y = state(0.0)
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            y: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.y = y
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the stray element."""
             return [RateLaw(s.y, s.other.y)]
 
@@ -432,12 +473,23 @@ def test_validate_accepts_a_cone_along_the_velocity():
     class MovingElement(Element):
         """Moving element."""
 
-        out = state(0.0)
-        y = state(0.0)
-        x = state(vector=True, position=True)
-        v = state(vector=True, velocity_of='x')
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            out: Annotated[object, StateSpec()] = 0.0,
+            y: Annotated[object, StateSpec()] = 0.0,
+            x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+            v: Annotated[object, StateSpec(vector=True, velocity_of='x')] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.out = out
+            self.y = y
+            self.x = x
+            self.v = v
 
-        def laws(self, s):
+        def _get_laws(self, s):
             """Return the laws of the moving element."""
             return [RateLaw(s.out, neighbors(s.other.y, over=ConeNeighborhood(1.0, 1.0)))]
 
@@ -449,11 +501,21 @@ def test_validate_accepts_a_cone_along_the_velocity():
 class OscillatorElement(Element):
     """Oscillator element."""
 
-    theta = state(0.0)
-    omega = parameter(0.0)
-    K = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 0.0,
+        K: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
+        self.K = K
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the oscillator element."""
         return [RateLaw(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))]
 
@@ -505,12 +567,23 @@ RADIUS = 1.0
 class MoverElement(Element):
     """Mover element."""
 
-    x = state(vector=True, position=True)
-    theta = state(0.0, domain=NumericDomain.ANGLE)
-    v0 = parameter(0.03)
-    eta = parameter(0.1)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        v0: Annotated[object, ParameterSpec()] = 0.03,
+        eta: Annotated[object, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.v0 = v0
+        self.eta = eta
 
-    def laws(self, s):
+    def _get_laws(self, s):
         """Return the laws of the mover element."""
         return [
             UpdateLaw(
