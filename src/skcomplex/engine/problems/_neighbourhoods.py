@@ -101,7 +101,8 @@ def network_rows(space: NetworkSpace, neighborhood: AdjacencyNeighborhood) -> tu
         >>> import networkx as nx
         >>> from skcomplex.engine.problems._neighbourhoods import network_rows
         >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-        >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)).prepare(), AdjacencyNeighborhood())]
+        >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
+        >>> [item.tolist() for item in network_rows(space, AdjacencyNeighborhood())]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
     """
     indptr, others, edges = space.adjacency_[neighborhood.layer]
@@ -135,7 +136,7 @@ def lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNei
     Examples:
         >>> from skcomplex.engine.problems._neighbourhoods import lattice_rows
         >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').prepare(), LatticeNeighborhood(((-1,), (1,))))
+        >>> rows = lattice_rows(LatticeSpace(3, boundary='fixed').check().prepare(), LatticeNeighborhood(((-1,), (1,))))
         >>> [item.tolist() for item in rows]
         [[0, 1, 3, 4], [1, 0, 2, 1]]
     """
@@ -212,15 +213,22 @@ def cone_heading(cone: ConeNeighborhood, states: Mapping[str, Variable], n_dim: 
             The members have no such state.
 
     Examples:
-        >>> from skcomplex.core.declarations import state
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.engine.problems._neighbourhoods import cone_heading
-        >>> from skcomplex.core.base import VariableKind, declarations_of
+        >>> from skcomplex.engine.problems import VariableKind, declarations_of
         >>> from skcomplex.core.spaces import ConeNeighborhood
         >>> class BoidElement(Element):
-        ...     x = state(vector=True, position=True)
-        ...     theta = state(0.0)
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        ...         theta: Annotated[float, StateSpec()] = 0.0,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.theta = theta
         >>> states = declarations_of(BoidElement, VariableKind.STATE)
         >>> cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), states, 2)
         'theta'

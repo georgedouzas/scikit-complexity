@@ -692,6 +692,7 @@ class ObservableEvaluator:
             The compiled problem.
 
     Examples:
+        >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.system import System

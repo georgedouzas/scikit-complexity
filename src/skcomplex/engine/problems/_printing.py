@@ -136,7 +136,7 @@ class Dialect:
 
     Examples:
         >>> from skcomplex.engine.problems import Dialect, print_expressions
-        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.engine.problems import symbol
         >>> x = symbol('x')
         >>> dialect = Dialect('plain', {'exp': 'exp({0})'}, {})
         >>> print_expressions([2 * x**2], dialect)
@@ -203,7 +203,7 @@ def print_expressions(
 
     Examples:
         >>> from skcomplex.engine.problems import NUMPY_DIALECT, print_expressions
-        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.engine.problems import symbol
         >>> x = symbol('x')
         >>> print_expressions([(x + 1) ** 2, 3 * (x + 1) ** 2], NUMPY_DIALECT)
         ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
@@ -336,7 +336,7 @@ def numpy_function(
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.problems import numpy_function
-        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.engine.problems import symbol
         >>> t, x = symbol('t'), symbol('x')
         >>> numpy_function(t, [x], [t * x, x**2])(2.0, np.array([1.0, 3.0]))
         [array([2., 6.]), array([1., 9.])]

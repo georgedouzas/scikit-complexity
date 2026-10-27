@@ -233,7 +233,7 @@ def partition_system(system: System, backend: BaseBackend | None = None) -> Prob
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
-        ...     elements=[
+        ...     systems=[
         ...         System(
         ...             'a',
         ...             elements=[PopulationElement('x')],

@@ -138,18 +138,22 @@ class RenewalSolver(Solver):
     Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
 
     Examples:
-        >>> from skcomplex.core.elements import GroupElement
-        >>> from skcomplex.core.declarations import state
+        >>> from typing import Annotated
         >>> import numpy as np
+        >>> from skcomplex.core.elements import GroupElement
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import JumpLaw, draw
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import JumpLaw
+        >>> from skcomplex.core.laws.utils import draw
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.solvers import RenewalSolver
         >>> class CounterElement(Element):
-        ...     n = state(0.0)
+        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.n = n
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
         >>> problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
         >>> stepper = RenewalSolver().prepare(problem, np.random.default_rng(0))

@@ -616,7 +616,7 @@ class BaseProblem:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.base import Form, symbol
+        >>> from skcomplex.engine.problems import Form, symbol
         >>> from skcomplex.engine.problems import Layout
         >>> from skcomplex.engine.problems import BaseProblem
         >>> problem = BaseProblem(Form.ODE, Layout([]), Layout([]), np.zeros(0), np.zeros(0), symbol('t'))
@@ -1056,7 +1056,7 @@ def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
 
     Examples:
         >>> from sage.all__sagemath_symbolics import I
-        >>> from skcomplex.core.base import symbol, vector
+        >>> from skcomplex.engine.problems import symbol, vector
         >>> from skcomplex.engine.problems._problem import real_components_of
         >>> x, y = symbol('x'), symbol('y')
         >>> real_components_of(vector([x + I * y, 2 * x]))
