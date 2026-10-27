@@ -1,0 +1,330 @@
+"""Test the `_transfer` module of `skcomplex.core.laws`."""
+
+from typing import Annotated
+
+import numpy as np
+import pytest
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.analysis import conservation, loop_dominance, loops
+from skcomplex.core.elements import Element
+from skcomplex.core.errors import ConservationError, LabelError, ValidationError
+from skcomplex.core.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
+from skcomplex.core.laws.utils import where
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import ConservationObserver, Simulation
+
+
+class TanksElement(Element):
+    """Two stocks with a transfer between them."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[float, StateSpec()] = 3.0,
+        b: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+
+    def _get_laws(self, s):
+        """Return the transfer."""
+        return [TransferLaw(s.a, s.b, s.a / 4, label='flow')]
+
+
+def _tub_laws(s):
+    """Return a faucet of 5 and a drain proportional to the level."""
+    return [
+        TransferLaw(Source(), s.water, 5.0, label='faucet'),
+        TransferLaw(s.water, Sink(), s.k * s.water, label='drain'),
+    ]
+
+
+def _population_laws(s):
+    """Return births and deaths proportional to the population."""
+    return [
+        TransferLaw(Source(), s.n, s.b * s.n, label='births'),
+        TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
+    ]
+
+
+def _clipped_laws(s):
+    """Return an inflow and a boundary law that clips the stock, which destroys the quantity."""
+    return [TransferLaw(Source(), s.water, 1.0, label='faucet'), BoundaryLaw(s.water, where(s.water > 2, 2, s.water))]
+
+
+def _ledger_laws(s):
+    """Return a per-step payment between two holders and an untagged counter updated every step."""
+    return [
+        TransferLaw(s.a, s.b, 0.1 * s.a, label='pay'),
+        TransferLaw(Source(), s.a, 1.0, label='lend'),
+        UpdateLaw(s.c, s.c + 1),
+    ]
+
+
+class TubElement(Element):
+    """Tub element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec(quantity='water')] = 0.0,
+        k: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
+        self.k = k
+
+    def _get_laws(self, s):
+        """Return the laws of the tub element."""
+        return _tub_laws(s)
+
+
+class PopulationElement(Element):
+    """Population element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(quantity='people')] = 10.0,
+        b: Annotated[object, ParameterSpec()] = 0.03,
+        d: Annotated[object, ParameterSpec()] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.b = b
+        self.d = d
+
+    def _get_laws(self, s):
+        """Return the laws of the population element."""
+        return _population_laws(s)
+
+
+class ClippedElement(Element):
+    """Clipped element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec(quantity='water')] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
+
+    def _get_laws(self, s):
+        """Return the laws of the clipped element."""
+        return _clipped_laws(s)
+
+
+class LedgerElement(Element):
+    """Ledger element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(quantity='money')] = 10.0,
+        b: Annotated[object, StateSpec(quantity='money')] = 0.0,
+        c: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.c = c
+
+    def _get_laws(self, s):
+        """Return the laws of the ledger element."""
+        return _ledger_laws(s)
+
+
+@pytest.mark.parametrize('time', [None, DiscreteTime()])
+def test_transfer_conserves_across_time_classes(time):
+    """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
+    trajectory = Simulation(System(elements=[TanksElement('t')], time=time), dt=1.0).run(until=5).trajectory_
+    np.testing.assert_allclose(trajectory.values('t.a') + trajectory.values('t.b'), 4.0, atol=1e-12)
+    assert trajectory.values('t.a')[-1] < 3.0
+
+
+def test_transfer_from_the_environment_takes_a_source():
+    """Test that a transfer from `Source()` draws the quantity from the environment, and `None` is rejected."""
+
+    class FilledElement(Element):
+        """Filled element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            n: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.n = n
+
+        def _get_laws(self, s):
+            """Return the laws of the filled element."""
+            return [TransferLaw(Source(), s.n, 1.0, label='inflow')]
+
+    trajectory = Simulation(System(elements=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
+    assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
+    with pytest.raises(ValidationError, match='or `Source\\(\\)`, but got None'):
+        TransferLaw(None, var('n'), 1.0).check()
+
+
+def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
+    """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
+    trajectory = Simulation(System(elements=[TubElement('tub')]), dt=1).run(30).trajectory_
+    assert trajectory.values('tub.water')[-1] == pytest.approx(10.0, rel=1e-3)
+    assert trajectory.values('tub.faucet')[-1] == pytest.approx(5.0)
+    assert trajectory.values('tub.drain')[-1] == pytest.approx(5.0, rel=1e-3)
+    assert trajectory.values('__boundary.water')[-1] == pytest.approx(trajectory.values('tub.water')[-1], rel=1e-6)
+
+
+def test_flow_between_quantities_is_rejected():
+    """Test that a flow between holders of different quantities raises a conservation error."""
+
+    class MixedElement(Element):
+        """Mixed element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec(quantity='mass')] = 1.0,
+            y: Annotated[object, StateSpec(quantity='energy')] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
+
+        def _get_laws(self, s):
+            """Return the laws of the mixed element."""
+            return [TransferLaw(s.x, s.y, s.x)]
+
+    mixed = MixedElement
+    with pytest.raises(ConservationError, match='different quantities'):
+        compile_system(System(elements=[mixed('m')]))
+
+
+def test_flow_holders_and_labels_are_checked():
+    """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
+    with pytest.raises(ValidationError, match='both of its holders'):
+        TransferLaw(Source(), Sink(), 1.0).check()
+
+    class TwiceElement(Element):
+        """Twice element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+
+        def _get_laws(self, s):
+            """Return the laws of the twice element."""
+            return [TransferLaw(Source(), s.x, 1.0, label='f'), TransferLaw(s.x, Sink(), 1.0, label='f')]
+
+    twice = TwiceElement
+    with pytest.raises(LabelError, match="'f'"):
+        compile_system(System(elements=[twice('twice')]))
+
+    class ReadsElement(Element):
+        """Reads element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[object, StateSpec()] = 1.0,
+            k: Annotated[object, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.k = k
+
+        def _get_laws(self, s):
+            """Return the laws of the reads element."""
+            return [TransferLaw(s.k, s.x, 1)]
+
+    reads = ReadsElement
+    with pytest.raises(ValidationError, match='not a state'):
+        compile_system(System(elements=[reads('reads')]))
+
+
+def test_discrete_flows_are_per_step_and_join_the_updates():
+    """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
+    trajectory = Simulation(System(elements=[LedgerElement('ledger')]), dt=1).run(5).trajectory_
+    assert trajectory.values('ledger.a').tolist() == pytest.approx([10.0] * 6)
+    assert trajectory.values('ledger.b').tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    assert trajectory.values('__boundary.money')[-1] == pytest.approx(5.0)
+    assert trajectory.values('ledger.c')[-1] == pytest.approx(5.0)
+
+
+def test_jump_flows_move_their_size_at_random_times():
+    """Test that a flow with a rate becomes a jump that conserves the total of its holders."""
+
+    class JumpingElement(Element):
+        """Jumping element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            a: Annotated[object, StateSpec(quantity='coins')] = 50.0,
+            b: Annotated[object, StateSpec(quantity='coins')] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.a = a
+            self.b = b
+
+        def _get_laws(self, s):
+            """Return the laws of the jumping element."""
+            return [TransferLaw(s.a, s.b, 1, rate=0.1 * s.a, label='move')]
+
+    jumping = JumpingElement
+    trajectory = Simulation(System(elements=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
+    assert np.all(trajectory.values('j.a') + trajectory.values('j.b') == 50.0)
+    assert trajectory.values('j.b')[-1] > 0
+
+
+def test_population_has_one_reinforcing_and_one_balancing_loop():
+    """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
+    system = System(elements=[PopulationElement('pop')])
+    found = {loop.nodes: loop.polarity for loop in loops(system).loops}
+    assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.births'): 'reinforcing'}
+    trajectory = Simulation(system, dt=1).run(5).trajectory_
+    dominance = loop_dominance(trajectory)
+    assert dominance.gains[-1] == pytest.approx([0.03, -0.01])
+    assert dominance.loops[int(dominance.dominant[-1])].polarity == 'reinforcing'
+
+
+def test_conservation_returns_the_boundary_flows():
+    """Test that the net inflow of people is births minus deaths."""
+    boundary = conservation(System(elements=[PopulationElement('pop')]))
+    assert str(boundary['people']) == 'b_pop*n_pop - d_pop*n_pop'
+
+
+def test_monitor_detects_drift_beyond_the_flows():
+    """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
+    with pytest.raises(ConservationError, match="'water' drifted"):
+        Simulation(System(elements=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)

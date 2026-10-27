@@ -1,10 +1,10 @@
-"""Test the moments of distributions held by site groups over grids of activity values."""
+"""Test the `_moments` module of `skcomplex.core.laws.utils`."""
 
 from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
@@ -15,8 +15,8 @@ from skcomplex.core.laws.utils import moment
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import symbol
 from skcomplex.engine.runtime import Simulation
 
 CLASSES = 9
@@ -128,7 +128,7 @@ def _system():
 
 def test_moment_of_order_zero_is_the_total():
     """Test that the order-0 moment is the total and higher orders weight the members by their coordinates."""
-    f = symbol('f')
+    f = var('f')
     assert str(moment(f, 0, ACTIVITIES)) == 'total(f)'
     assert 'weights' in str(moment(f, 2, ACTIVITIES))
 
@@ -137,7 +137,7 @@ def test_moment_of_order_zero_is_the_total():
 def test_moment_rejects_bad_orders_and_coordinates(order, coordinates):
     """Test that a moment rejects orders that are not nonnegative integers and coordinates that are not a vector."""
     with pytest.raises(ValidationError):
-        moment(symbol('f'), order, coordinates)
+        moment(var('f'), order, coordinates)
 
 
 def test_normalised_start_holds_the_profile():
@@ -169,7 +169,7 @@ def test_law_reads_a_moment():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = float(PROFILE @ ACTIVITIES / PROFILE.sum())
     assert rates[problem.states.entry('recorder.y').start] == pytest.approx(expected)
@@ -200,6 +200,6 @@ def test_moment_inside_a_group_law_is_shared():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, np.full(CLASSES, PROFILE @ ACTIVITIES))
