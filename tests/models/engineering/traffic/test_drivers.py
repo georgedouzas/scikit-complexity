@@ -30,7 +30,7 @@ def test_ring_road_drivers_jam_with_errors(n_cars, eps, free):
 def test_ring_road_drivers_read_the_road_length_from_the_space():
     """Test that drivers keep no road length of their own and stay on the ring of the space's width."""
     system = ring_road_drivers(10, length=500.0)
-    assert 'road_length' not in system.elements[0].element.get_argument_names()
+    assert 'road_length' not in system.elements[0].element._get_param_names()
     trajectory = Simulation(system, random_state=0).run(until=100).trajectory_
     positions = np.concatenate([trajectory.agents('drivers', frame).locations[:, 0] for frame in range(101)])
     assert positions.min() >= 0.0

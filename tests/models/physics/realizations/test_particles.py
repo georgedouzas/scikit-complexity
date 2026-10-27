@@ -10,6 +10,8 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, LammpsSolver, ScipyODESolver, VelocityVerletSolver
 from skcomplex.models.physics.realizations.particles import (
+    LAMMPS_FIXES,
+    LAMMPS_PAIRS,
     ConstantForceInteraction,
     GravityInteraction,
     LangevinThermostatInteraction,
@@ -83,7 +85,11 @@ def test_linear_drag_slows_particle():
     assert velocity == pytest.approx(np.exp(-1.0), rel=1e-4)
 
 
-@pytest.mark.parametrize('solver', [VelocityVerletSolver(dt=0.01), LammpsSolver(dt=0.01)], ids=['native', 'lammps'])
+@pytest.mark.parametrize(
+    'solver',
+    [VelocityVerletSolver(dt=0.01), LammpsSolver(dt=0.01, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES)],
+    ids=['native', 'lammps'],
+)
 def test_lennard_jones_force_vanishes_at_minimum(solver):
     """Test that two particles at `2 ** (1 / 6)` stay at rest."""
     system = _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6))
@@ -99,7 +105,11 @@ def test_lennard_jones_drift_vanishes_at_minimum():
     assert np.allclose(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 0.0, atol=1e-12)
 
 
-@pytest.mark.parametrize('solver', [VelocityVerletSolver(dt=0.001), LammpsSolver(dt=0.001)], ids=['native', 'lammps'])
+@pytest.mark.parametrize(
+    'solver',
+    [VelocityVerletSolver(dt=0.001), LammpsSolver(dt=0.001, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES)],
+    ids=['native', 'lammps'],
+)
 def test_soft_spheres_repel_inside_contact(solver):
     """Test that overlapping soft spheres move apart and stop interacting beyond contact."""
     system = _pair(SoftSphereInteraction('soft', first='pair', second='pair', cutoff=1.0, k=50.0), 0.8)
@@ -111,7 +121,7 @@ def test_soft_spheres_repel_inside_contact(solver):
 
 @pytest.mark.parametrize(
     ('solver', 'dt'),
-    [(EulerMaruyamaSolver(dt=0.005), 1.0), (LammpsSolver(dt=0.01), 1.0)],
+    [(EulerMaruyamaSolver(dt=0.005), 1.0), (LammpsSolver(dt=0.01, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES), 1.0)],
     ids=['native', 'lammps'],
 )
 def test_langevin_thermostat_reaches_its_temperature(solver, dt):

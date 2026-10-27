@@ -16,7 +16,9 @@ def _bubble_areas(zeta):
     rows, columns = np.indices((24, 48))
     bubbles = (np.hypot(rows - 12, columns - 12) < 4) | (np.hypot(rows - 12, columns - 36) < 7)
     values = {'phi': np.where(bubbles, -1.0, 1.0), 'zeta': zeta, 'D': 0.0}
-    system = System(elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)])
+    system = System(
+        elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
+    )
     trajectory = Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02)).run(until=300).trajectory_
     phi = fields_of(trajectory, 'fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
