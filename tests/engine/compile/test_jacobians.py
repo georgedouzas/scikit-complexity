@@ -14,6 +14,7 @@ from skcomplex.core.laws.utils import count, laplacian, maximum, mean, minimum, 
 from skcomplex.core.spaces import LatticeSpace, MeshSpace
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system, mesh_laplacian
 from skcomplex.engine.solvers import SplitOperator
 from skcomplex.models.biology.ecology import FisherKPPElement
@@ -154,8 +155,8 @@ def _reactive_mesh(refine=2):
     grid = skfem.MeshTri.init_lshaped().refined(refine)
     plate = FieldElement(
         'plate',
-        ReactiveHeatElement,
-        MeshSpace(grid.p, grid.t),
+        element=ReactiveHeatElement,
+        space=MeshSpace(grid.p, grid.t),
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
@@ -165,7 +166,7 @@ def _reactive_mesh(refine=2):
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(elements=[FieldElement('line', FisherKPPElement, space, boundary={'u': boundary})])
+    return System(elements=[FieldElement('line', element=FisherKPPElement, space=space, boundary={'u': boundary})])
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -221,7 +222,7 @@ def _relative_error(problem, rng):
 
 def test_exact_jacobian_of_gray_scott():
     """Test that the exact Jacobian of Gray-Scott on a 64 by 64 lattice agrees with central finite differences."""
-    problem = compile_system(gray_scott((64, 64)), backend='numpy')
+    problem = compile_system(gray_scott((64, 64)), backend=NumpyBackend())
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
 
 
@@ -269,7 +270,7 @@ def test_exact_jacobian_of_callable_law_raises():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    problem = compile_system(System(elements=[FieldElement('line', DecayElement, LatticeSpace(10))]))
+    problem = compile_system(System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.validate()
     assert problem.jacobian.pattern().toarray().all()

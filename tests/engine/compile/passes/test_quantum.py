@@ -7,14 +7,15 @@ from typing import Annotated
 import numpy as np
 import pytest
 import qutip
+from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.base import LawKind
 from skcomplex.core.elements import GroupElement, LatticeElement
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, RateLaw
+from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
     BasePass,
@@ -28,7 +29,14 @@ from skcomplex.engine.compile.passes._quantum import hamiltonian_at, state_of
 from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.models.biology.ecology import PopulationElement
-from skcomplex.models.physics.realizations.quantum import ModeElement, QubitElement, SpinElement
+from skcomplex.models.physics.realizations.quantum import (
+    QUBIT,
+    ModeElement,
+    QubitElement,
+    SpinElement,
+    mode_space,
+    spin_space,
+)
 
 
 class HeisenbergInteraction(NeighborInteraction):
@@ -47,55 +55,74 @@ class HeisenbergInteraction(NeighborInteraction):
 
     def _get_laws(self, s):
         """Return the exchange of one bond."""
-        a, b = s.first, s.second
-        return [GeneratorLaw(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
+        a, b = s.source.psi, s.target.psi
+        exchange = sum(local_operator(a, axis) * local_operator(b, axis) for axis in 'xyz')
+        return [GeneratorLaw(s.J * exchange)]
+
+
+class FixedElement(QubitElement):
+    """Qubit with a constant Hamiltonian."""
+
+    def _get_laws(self, s):
+        """Return the constant Hamiltonian."""
+        return [GeneratorLaw(0.5 * local_operator(s.psi, 'z') + local_operator(s.psi, 'x'))]
 
 
 class PlusElement(QubitElement):
-    """Plus element."""
+    """Qubit whose Hamiltonian is a ladder operator without its adjoint."""
 
-    def laws(self, s):
-        """Return the laws of the plus element."""
-        return [GeneratorLaw(s.plus)]
+    def _get_laws(self, s):
+        """Return the non-Hermitian Hamiltonian."""
+        return [GeneratorLaw(local_operator(s.psi, 'plus'))]
 
 
 class ForeignElement(QubitElement):
-    """Foreign element."""
+    """Qubit whose Hamiltonian reads a classical symbol."""
 
-    def laws(self, s):
-        """Return the laws of the foreign element."""
-        return [GeneratorLaw(symbol('n_rabbits') * s.z)]
+    def _get_laws(self, s):
+        """Return the Hamiltonian with a classical coefficient."""
+        return [GeneratorLaw(symbol('n_rabbits') * local_operator(s.psi, 'z'))]
 
 
 class ClassicalElement(QubitElement):
-    """Classical element."""
+    """Qubit with a classical rate law."""
 
-    def laws(self, s):
-        """Return the laws of the classical element."""
+    def _get_laws(self, s):
+        """Return the classical rate law."""
         return [RateLaw(symbol('x'), 1)]
 
 
 class DecayingElement(QubitElement):
-    """Decaying element."""
+    """Qubit that decays at a rate."""
 
-    gamma = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = QUBIT,
+        visual: VisualSpec | None = VisualSpec('expectations'),
+        gamma: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        self.gamma = gamma
 
-    def laws(self, s):
-        """Return the laws of the decaying element."""
-        return [DissipatorLaw(s.minus, s.gamma)]
+    def _get_laws(self, s):
+        """Return the decay."""
+        return [DissipatorLaw(local_operator(s.psi, 'minus'), s.gamma)]
 
 
 class NegativeElement(QubitElement):
-    """Negative element."""
+    """Qubit with a negative decay rate."""
 
-    def laws(self, s):
-        """Return the laws of the negative element."""
-        return [DissipatorLaw(s.minus, -1.0)]
+    def _get_laws(self, s):
+        """Return the decay at a negative rate."""
+        return [DissipatorLaw(local_operator(s.psi, 'minus'), -1.0)]
 
 
 def local_z(member):
     """Return the local z operator of a member."""
-    return member.z
+    return local_operator(member.psi, 'z')
 
 
 def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
@@ -103,7 +130,7 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
     system = System(
         elements=[
             LatticeElement('chain', element=SpinElement, space=LatticeSpace(10)),
-            ModeElement('cavity', quanta=4),
+            ModeElement('cavity', hilbert=mode_space(4)),
         ],
     )
     problem = compile_system(system)
@@ -123,7 +150,9 @@ def test_compile_system_rejects_too_large_spaces():
 def test_compile_system_counts_one_exchange_term_per_bond():
     """Test that an exchange on a periodic lattice of 8 spins equals the sum of the 8 bond terms."""
     system = System(
-        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(8))],
+        elements=[
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'hilbert': spin_space()}),
+        ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system)
@@ -143,7 +172,7 @@ def test_compile_system_folds_constant_hamiltonians():
     """Test that a Hamiltonian with numeric coefficients folds to one constant matrix."""
     system = System(
         elements=[
-            type('FixedElement', (QubitElement,), {'laws': lambda self, s: [GeneratorLaw(0.5 * s.z + s.x)]})('q'),
+            FixedElement('q'),
         ],
     )
     problem = compile_system(system)
@@ -183,7 +212,7 @@ def test_compile_system_stores_neel_states():
     problem = compile_system(
         System(
             elements=[
-                LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'initial': labels}),
+                LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}),
             ],
         ),
     )
@@ -211,7 +240,9 @@ def test_compile_system_stores_density_matrices_of_open_systems():
 def test_compile_system_starts_from_the_ground_state():
     """Test that the initial state 'ground' is the lowest eigenstate."""
     system = System(
-        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(4))],
+        elements=[
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(4), values={'hilbert': spin_space()}),
+        ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system, initial_state={'system.state': 'ground'})
@@ -224,14 +255,21 @@ def test_compile_system_starts_from_the_ground_state():
 
 
 def test_observable_evaluator_reads_local_magnetization():
-    """Test that a group observable gives one expectation of the local z per site."""
+    """Test that a group observable gives one expectation of the local z per site, and their sum."""
     labels = ['up', 'down'] * 4
     system = System(
-        elements=[LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'initial': labels})],
+        elements=[
+            LatticeElement(
+                'chain',
+                element=SpinElement,
+                space=LatticeSpace(8),
+                values={'psi': labels, 'hilbert': spin_space()},
+            ),
+        ],
     )
     observables = [
-        expectation('sz', local_z, group='chain'),
-        expectation('total', local_z, group='chain', reduce='sum'),
+        ObservableSpec('sz', local_z, group='chain', reduce=np.asarray),
+        ObservableSpec('total', local_z, group='chain', reduce='sum'),
     ]
     problem = compile_system(system, observables=observables)
     values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
@@ -243,7 +281,7 @@ def test_observable_evaluator_rejects_non_operators():
     """Test that a quantum observable must give an operator."""
     system = System(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
-        ObservableEvaluator(compile_system(system, observables=[expectation('label', attrgetter('t'))])).prepare()
+        ObservableEvaluator(compile_system(system, observables=[ObservableSpec('label', attrgetter('t'))])).prepare()
 
 
 def test_quantum_pass_claims_quantum_systems():
@@ -253,14 +291,6 @@ def test_quantum_pass_claims_quantum_systems():
         QuantumCompiler,
     )
     assert claiming_compiler(System(elements=[PopulationElement('rabbits', n=10)])) is None
-
-
-def test_registered_formalisms_list_quantum():
-    """Test that the quantum formalism is listed with its law kinds, its form, and its solvers."""
-    quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
-    assert {law.law_kind for law in quantum.laws} == {LawKind.GENERATOR, LawKind.DISSIPATOR}
-    assert quantum.forms == (Form.QUANTUM,)
-    assert quantum.defaults == (LindbladSolver,)
 
 
 def test_quantum_compiler_is_a_system_compiler_and_not_a_pass():

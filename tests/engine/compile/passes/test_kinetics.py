@@ -14,9 +14,10 @@ from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import KineticSolver, RK4Solver
+from skcomplex.engine.solvers import RK4Solver
 
 CLASSES = 9
 
@@ -46,28 +47,25 @@ def _exchange_table(size, share=0.5):
     return table
 
 
-def _exchange(table):
-    """Return an interaction of conservative encounters of a population with itself, with a transition table."""
+class ExchangeInteraction(Interaction):
+    """Conservative encounters of a population with itself, with a transition table."""
 
-    class ExchangeInteraction(Interaction):
-        """Conservative encounters of a population with itself."""
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        eta: Annotated[float, ParameterSpec()] = 1.0,
+        table: np.ndarray | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.eta = eta
+        self.table = table
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            population: Annotated[str, RoleSpec()],
-            eta: Annotated[float, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.population = population
-            self.eta = eta
-
-        def _get_laws(self, s):
-            """Return the encounter."""
-            return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
-
-    return ExchangeInteraction
+    def _get_laws(self, s):
+        """Return the encounter."""
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, self.table)]
 
 
 class GrowthInteraction(Interaction):
@@ -108,7 +106,11 @@ def _wealth_system(table=None, time=None, space=None):
     return System(
         elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
         interactions=[
-            _exchange(table if table is not None else _exchange_table(CLASSES))('exchange', population='wealth'),
+            ExchangeInteraction(
+                'exchange',
+                population='wealth',
+                table=table if table is not None else _exchange_table(CLASSES),
+            ),
         ],
         space=space if space is not None else LatticeSpace(CLASSES, boundary='fixed'),
         time=time if time is not None else ContinuousTime(),
@@ -125,7 +127,7 @@ def test_conservative_encounters_keep_the_density():
 
 def test_encounter_rates_follow_gain_and_loss():
     """Test that the drift of an encounter is the gain minus the loss of Bellomo's equations."""
-    problem = compile_system(_wealth_system(), backend='numpy')
+    problem = compile_system(_wealth_system(), backend=NumpyBackend())
     f = _profile()
     table = _exchange_table(CLASSES)
     expected = np.einsum('hki,h,k->i', table, f, f) - f * f.sum()
@@ -136,8 +138,8 @@ def test_encounter_rates_follow_gain_and_loss():
 
 def test_numba_backend_fuses_the_gain():
     """Test that the Numba backend runs the gain in a fused loop that agrees with NumPy."""
-    numpy_problem = compile_system(_wealth_system(), backend='numpy')
-    numba_problem = compile_system(_wealth_system(), backend='numba')
+    numpy_problem = compile_system(_wealth_system(), backend=NumpyBackend())
+    numba_problem = compile_system(_wealth_system(), backend=NumbaBackend())
     assert numba_problem.encounters[0].fused
     x, p = numpy_problem.initial_state, numpy_problem.initial_parameters
     np.testing.assert_allclose(numba_problem.drift(0.0, x, p), numpy_problem.drift(0.0, x, p), rtol=1e-12)
@@ -145,7 +147,7 @@ def test_numba_backend_fuses_the_gain():
 
 def test_encounter_rate_reads_its_parameter():
     """Test that a parameter in the encounter rate scales the rates at its current value."""
-    problem = compile_system(_wealth_system(), backend='numpy')
+    problem = compile_system(_wealth_system(), backend=NumpyBackend())
     x, p = problem.initial_state, problem.initial_parameters.copy()
     base = problem.drift(0.0, x, p)
     p[problem.parameters.entry('exchange.eta').start] = 3.0
@@ -183,7 +185,7 @@ def test_parameter_in_transition_table_is_evaluated():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     f = _profile()
     expected = np.zeros(CLASSES)
@@ -204,7 +206,7 @@ def test_proliferation_and_destruction_change_the_density():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     x, p = problem.initial_state, problem.initial_parameters
     rates = problem.drift(0.0, x, p)
     cells = problem.states.entry('cells.f')
@@ -231,7 +233,7 @@ def test_encounter_reads_a_field_on_a_grid_of_another_size():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     assert problem.encounters[0].test.size == 3
 
 
@@ -251,7 +253,7 @@ def test_encounter_in_discrete_time_is_reported():
     """Test that an encounter in discrete time is reported with the fix of declaring continuous time."""
     report = validate(_wealth_system(time=DiscreteTime()))
     issue = next(item for item in report.errors if item.code == 'law-time')
-    assert 'continuous' in issue.message
+    assert 'ContinuousTime' in issue.message
     assert '`ContinuousTime()`' in issue.fix
 
 
@@ -268,16 +270,8 @@ def test_encounter_without_a_lattice_is_reported():
     """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
     system = System(
         elements=[GroupElement('wealth', element=DensityElement, size=CLASSES, values={'f': _profile()})],
-        interactions=[_exchange(_exchange_table(CLASSES))('exchange', population='wealth')],
+        interactions=[ExchangeInteraction('exchange', population='wealth', table=_exchange_table(CLASSES))],
         time=ContinuousTime(),
     )
     issue = next(item for item in validate(system).errors if item.code == 'law-space')
-    assert 'lattice' in issue.message
-
-
-def test_kinetics_formalism_lists_encounter_laws_and_solver():
-    """Test that the kinetics formalism registers the encounter laws, their passes, their check, and DSMC."""
-    (kinetics,) = [item for item in registered_formalisms() if item.name == 'kinetics']
-    assert kinetics.laws == (EncounterLaw, ProliferationLaw, DestructionLaw)
-    assert kinetics.solvers == {'particles': KineticSolver}
-    assert (len(kinetics.passes), len(kinetics.checks)) == (4, 1)
+    assert 'LatticeSpace' in issue.message

@@ -1,6 +1,8 @@
 """Test rewriting systems: words, word geometries, patches, host graphs, and their measures."""
 
 import time
+from collections.abc import Mapping, Sequence
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
@@ -8,17 +10,18 @@ import pytest
 import shapely
 
 from skcomplex.analysis import box_counting_dimension
-from skcomplex.core.base import LawKind
 from skcomplex.core.elements import HostGraphElement, PatchElement, WordElement
 from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, SubstitutionLaw
-from skcomplex.core.specs import AffineSpec, ModuleSpec, PrototileSpec
+from skcomplex.core.specs import AffineSpec, GeometrySpec, ModuleSpec, ParameterSpec, PrototileSpec, StateSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PatchStructure, WordGeometry, WordStructure, claiming_compiler, compile_system
+from skcomplex.core.types import Letters
+from skcomplex.engine.compile import PatchStructure, WordStructure, claiming_compiler, compile_system
 from skcomplex.engine.compile.passes import RewritingCompiler, RewritingProblem
 from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RewritingSolver, StructureState
+from skcomplex.engine.solvers import StructureState
 from skcomplex.models.biology.ecology import PopulationElement
 
 X = symbol('x')
@@ -27,39 +30,99 @@ X = symbol('x')
 class GrowthElement(WordElement):
     """Word with the parametric production `A(x) → F(x) A(x·R)` while `x > 0.1`."""
 
-    R: float = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        axiom: Annotated[Letters, StateSpec(domain=None)] = '',
+        *,
+        alphabet: str | Mapping[str, int] | None = None,
+        R: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, axiom, alphabet=alphabet)
+        self.R = R
 
-    def laws(self, s):
-        """Return the rewriting law of the production."""
+    def _get_laws(self, s):
+        """Return the production."""
         production = ProductionLaw(
             ModuleSpec('A', (X,)),
             [ModuleSpec('F', (X,)), ModuleSpec('A', (X * s.R,))],
             condition=X > 0.1,
         )
-        return [RewriteLaw([production])]
+        return [production]
 
 
 class AlgaeElement(WordElement):
     """Word with the productions `A → AB` and `B → A` of the algae of Lindenmayer."""
 
-    def laws(self, s):
-        """Return the rewriting law of the productions."""
-        return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
+    def _get_laws(self, s):
+        """Return the productions."""
+        return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
 
 
-def _system(element, *rules):
-    """Return a system of one element of a type that returns a rewriting law of fixed rules from its laws."""
-    kind = type(
-        f'Rewritten{type(element).__name__}',
-        (type(element),),
-        {'laws': lambda self, s: [RewriteLaw(list(rules))]},
-    )
-    return System(elements=[kind(**element.get_params(deep=False))])
+class RuledWordElement(WordElement):
+    """Word rewritten by the rules it takes."""
+
+    def __init__(
+        self,
+        label: str,
+        axiom: Annotated[Letters, StateSpec(domain=None)] = '',
+        *,
+        alphabet: str | Mapping[str, int] | None = None,
+        ignore: str | Sequence[str] = '',
+        geometry: GeometrySpec | None = None,
+        max_size: int = 10_000_000,
+        rules: Sequence[BaseLaw] = (),
+    ) -> None:
+        super().__init__(label, axiom, alphabet=alphabet, ignore=ignore, geometry=geometry, max_size=max_size)
+        self.rules = rules
+
+    def _get_laws(self, s):
+        """Return the rules."""
+        return list(self.rules)
+
+
+class RuledPatchElement(PatchElement):
+    """Patch rewritten by the rules it takes."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        prototiles: Sequence[PrototileSpec] = (),
+        rules: Sequence[BaseLaw] = (),
+    ) -> None:
+        super().__init__(label, prototiles=prototiles)
+        self.rules = rules
+
+    def _get_laws(self, s):
+        """Return the rules."""
+        return list(self.rules)
+
+
+class RuledHostGraphElement(HostGraphElement):
+    """Host graph rewritten by the rules it takes."""
+
+    def __init__(
+        self,
+        label: str,
+        graph: Annotated[nx.Graph | None, StateSpec(domain=None)] = None,
+        *,
+        max_size: int = 1_000_000,
+        rules: Sequence[BaseLaw] = (),
+    ) -> None:
+        super().__init__(label, graph, max_size=max_size)
+        self.rules = rules
+
+    def _get_laws(self, s):
+        """Return the rules."""
+        return list(self.rules)
 
 
 def _fibonacci():
     """Return the L-system of the algae of Lindenmayer."""
-    return _system(WordElement('word', axiom='A'), ProductionLaw('A', 'AB'), ProductionLaw('B', 'A'))
+    return System(
+        elements=[RuledWordElement('word', axiom='A', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
+    )
 
 
 def _subdivision():
@@ -95,10 +158,15 @@ def test_parikh_vector():
 
 def test_stochastic_choice():
     """Test that stochastic productions are chosen by their probabilities and reproduced by the seed."""
-    system = _system(
-        WordElement('word', axiom='F' * 10000, alphabet='F+'),
-        ProductionLaw('F', 'F+F', probability=0.3),
-        ProductionLaw('F', 'F', probability=0.7),
+    system = System(
+        elements=[
+            RuledWordElement(
+                'word',
+                axiom='F' * 10000,
+                alphabet='F+',
+                rules=[ProductionLaw('F', 'F+F', probability=0.3), ProductionLaw('F', 'F', probability=0.7)],
+            ),
+        ],
     )
     first = Simulation(system, random_state=3).run(until=1).trajectory_
     second = Simulation(system, random_state=3).run(until=1).trajectory_
@@ -109,10 +177,14 @@ def test_stochastic_choice():
 
 def test_probabilities_that_do_not_sum_to_one():
     """Test that stochastic probabilities that sum to 0.9 are refused with the symbol and the sum."""
-    system = _system(
-        WordElement('word', axiom='F'),
-        ProductionLaw('F', 'FF', probability=0.4),
-        ProductionLaw('F', 'F', probability=0.5),
+    system = System(
+        elements=[
+            RuledWordElement(
+                'word',
+                axiom='F',
+                rules=[ProductionLaw('F', 'FF', probability=0.4), ProductionLaw('F', 'F', probability=0.5)],
+            ),
+        ],
     )
     with pytest.raises(RewritingError, match=r"of 'F' in word 'word' have probabilities that sum to 0\.9"):
         compile_system(system)
@@ -120,19 +192,28 @@ def test_probabilities_that_do_not_sum_to_one():
 
 def test_context_with_ignored_symbols():
     """Test a left context that skips an ignored symbol."""
-    system = _system(WordElement('word', axiom='BAA+A', ignore='+'), ProductionLaw('A', 'B', left='B'))
+    system = System(
+        elements=[RuledWordElement('word', axiom='BAA+A', ignore='+', rules=[ProductionLaw('A', 'B', left='B')])],
+    )
     trajectory = Simulation(system).run(until=3).trajectory_
     assert [trajectory.structure('word', frame).text for frame in range(1, 4)] == ['BBA+A', 'BBB+A', 'BBB+B']
 
 
 def test_bracketed_contexts():
     """Test that contexts follow branches: a branch sees its parent on the left, and the right skips branches."""
-    system = _system(
-        WordElement('word', axiom='AB[C]D[E]'),
-        ProductionLaw('C', 'X', left='B'),
-        ProductionLaw('B', 'Y', right='D'),
-        ProductionLaw('D', 'Z', left='B'),
-        ProductionLaw('E', 'W', right='F'),
+    system = System(
+        elements=[
+            RuledWordElement(
+                'word',
+                axiom='AB[C]D[E]',
+                rules=[
+                    ProductionLaw('C', 'X', left='B'),
+                    ProductionLaw('B', 'Y', right='D'),
+                    ProductionLaw('D', 'Z', left='B'),
+                    ProductionLaw('E', 'W', right='F'),
+                ],
+            ),
+        ],
     )
     trajectory = Simulation(system).run(until=1).trajectory_
     assert trajectory.structure('word', 1).text == 'AY[X]Z[E]'
@@ -140,7 +221,11 @@ def test_bracketed_contexts():
 
 def test_context_takes_precedence():
     """Test that a context-sensitive production wins over a context-free one of the same symbol."""
-    system = _system(WordElement('word', axiom='BAA'), ProductionLaw('A', 'C'), ProductionLaw('A', 'B', left='B'))
+    system = System(
+        elements=[
+            RuledWordElement('word', axiom='BAA', rules=[ProductionLaw('A', 'C'), ProductionLaw('A', 'B', left='B')]),
+        ],
+    )
     assert Simulation(system).run(until=1).trajectory_.structure('word', 1).text == 'BBC'
 
 
@@ -165,7 +250,9 @@ def test_parameter_change_between_generations():
 
 def test_exponential_growth_stopped():
     """Test that the size guard raises before the generation that exceeds it and keeps the earlier frames."""
-    system = _system(WordElement('koch', axiom='F', max_size=10**5), ProductionLaw('F', 'F+F--F+F'))
+    system = System(
+        elements=[RuledWordElement('koch', axiom='F', max_size=10**5, rules=[ProductionLaw('F', 'F+F--F+F')])],
+    )
     simulation = Simulation(system)
     with pytest.raises(RewritingError, match="Word 'koch' would reach 152916 symbols at generation 8"):
         simulation.run(until=10)
@@ -175,7 +262,9 @@ def test_exponential_growth_stopped():
 @pytest.mark.benchmark
 def test_benchmark_of_a_large_word():
     """Test that one generation of a word of a million symbols takes under 0.1 s."""
-    problem = compile_system(_system(WordElement('koch', axiom='F', alphabet='F+-'), ProductionLaw('F', 'F+F--F+F')))
+    problem = compile_system(
+        System(elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])]),
+    )
     compiled = problem.rewriting[0]
     word = WordStructure(compiled.names, np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
@@ -187,39 +276,52 @@ def test_benchmark_of_a_large_word():
 def test_malformed_systems():
     """Test the errors of unknown symbols, non-symbol predecessor parameters, mixed laws, and wrong targets."""
     with pytest.raises(RewritingError, match='not in its alphabet'):
-        compile_system(_system(WordElement('word', axiom='A', alphabet='A'), ProductionLaw('A', 'AB')))
+        compile_system(
+            System(elements=[RuledWordElement('word', axiom='A', alphabet='A', rules=[ProductionLaw('A', 'AB')])]),
+        )
     with pytest.raises(RewritingError, match='distinct symbols'):
         compile_system(
-            _system(WordElement('word', axiom=[ModuleSpec('A', (1.0,))]), ProductionLaw(ModuleSpec('A', (1.0,)), 'A')),
+            System(
+                elements=[
+                    RuledWordElement(
+                        'word',
+                        axiom=[ModuleSpec('A', (1.0,))],
+                        rules=[ProductionLaw(ModuleSpec('A', (1.0,)), 'A')],
+                    ),
+                ],
+            ),
         )
     with pytest.raises(RewritingError, match='neither a parameter'):
         compile_system(
-            _system(
-                WordElement('word', axiom=[ModuleSpec('A', (1.0,))]),
-                ProductionLaw(ModuleSpec('A', (X,)), [ModuleSpec('A', (X * symbol('q'),))]),
+            System(
+                elements=[
+                    RuledWordElement(
+                        'word',
+                        axiom=[ModuleSpec('A', (1.0,))],
+                        rules=[ProductionLaw(ModuleSpec('A', (X,)), [ModuleSpec('A', (X * symbol('q'),))])],
+                    ),
+                ],
             ),
         )
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
         compile_system(System(elements=[WordElement('word', axiom='A'), PopulationElement('rabbits')]))
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
-        compile_system(System(elements=[WordElement('word', axiom='A')], interactions=[BaseInteraction('rules')]))
-    with pytest.raises(RewritingError, match='returns ProductionLaw from `laws`'):
-        compile_system(
-            System(
-                elements=[
-                    type('BareElement', (WordElement,), {'laws': lambda self, s: [ProductionLaw('A', 'B')]})('w'),
-                ],
-            ),
-        )
+        compile_system(System(elements=[WordElement('word', axiom='A')], interactions=[Interaction('rules')]))
     with pytest.raises(RewritingError, match='rewritten by ProductionLaws'):
-        compile_system(_system(WordElement('word', axiom='A'), SubstitutionLaw('A', [])))
+        compile_system(System(elements=[RuledWordElement('word', axiom='A', rules=[SubstitutionLaw('A', [])])]))
 
 
 def test_koch_curve_length():
     """Test the word geometry of the Koch L-system at generation 4."""
-    system = _system(
-        WordElement('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3)),
-        ProductionLaw('F', 'F+F--F+F'),
+    system = System(
+        elements=[
+            RuledWordElement(
+                'koch',
+                axiom='F',
+                geometry=GeometrySpec(angle=60.0, contraction=1 / 3),
+                rules=[ProductionLaw('F', 'F+F--F+F')],
+            ),
+        ],
     )
     trajectory = Simulation(system).run(until=4).trajectory_
     curve = trajectory.structure('koch', 4)
@@ -234,7 +336,7 @@ def test_koch_curve_length():
 def test_branches_return():
     """Test that a popped branch returns the cursor to where the branch began."""
     curve = (
-        Simulation(System(elements=[WordElement('plant', axiom='F[+F]F', geometry=WordGeometry())])).run(0).trajectory_
+        Simulation(System(elements=[WordElement('plant', axiom='F[+F]F', geometry=GeometrySpec())])).run(0).trajectory_
     )
     segments = curve.structure('plant', 0).segments()
     assert len(segments) == 3
@@ -245,7 +347,7 @@ def test_branches_return():
 
 def test_three_dimensional_word_geometry():
     """Test that pitching up and rolling move the cursor out of the plane."""
-    geometry = WordGeometry(angle=90.0, dimension=3)
+    geometry = GeometrySpec(angle=90.0, dimension=3)
     curve = Simulation(System(elements=[WordElement('plant', axiom='F&F/+F', geometry=geometry)])).run(0).trajectory_
     segments = curve.structure('plant', 0).segments()
     assert segments.shape == (3, 2, 3)
@@ -258,7 +360,7 @@ def test_module_parameters_override_the_word_geometry():
     word = WordElement(
         'plant',
         axiom=[ModuleSpec('F', (2.0,)), ModuleSpec('+', (90.0,)), ModuleSpec('F', (1.0,))],
-        geometry=WordGeometry(angle=10.0),
+        geometry=GeometrySpec(angle=10.0),
     )
     segments = Simulation(System(elements=[word])).run(0).trajectory_.structure('plant', 0).segments()
     assert np.allclose(segments[1], [[2, 0], [2, 1]])
@@ -267,9 +369,9 @@ def test_module_parameters_override_the_word_geometry():
 def test_word_geometry_errors():
     """Test that unknown actions and dimensions are refused."""
     with pytest.raises(RewritingError, match='has no action'):
-        WordGeometry(symbols={'G': 'jump'}).meanings()
+        GeometrySpec(symbols={'G': 'jump'}).check()
     with pytest.raises(RewritingError, match='dimension 4'):
-        WordGeometry(dimension=4).meanings()
+        GeometrySpec(dimension=4).check()
 
 
 def _cantor(generations):
@@ -279,7 +381,11 @@ def _cantor(generations):
         'interval',
         [('interval', AffineSpec(scale=1 / 3)), ('interval', AffineSpec(scale=1 / 3, translation=(2 / 3, 0)))],
     )
-    return Simulation(_system(PatchElement('cantor', prototiles=[interval]), rule)).run(until=generations).trajectory_
+    return (
+        Simulation(System(elements=[RuledPatchElement('cantor', prototiles=[interval], rules=[rule])]))
+        .run(until=generations)
+        .trajectory_
+    )
 
 
 def test_cantor_intervals():
@@ -316,7 +422,11 @@ def _sierpinski(generations):
     triangle = PrototileSpec('triangle', [(0, 0), (1, 0), (0.5, height)])
     corners = [(0, 0), (0.5, 0), (0.25, height / 2)]
     rule = SubstitutionLaw('triangle', [('triangle', AffineSpec(scale=0.5, translation=corner)) for corner in corners])
-    return Simulation(_system(PatchElement('gasket', prototiles=[triangle]), rule)).run(until=generations).trajectory_
+    return (
+        Simulation(System(elements=[RuledPatchElement('gasket', prototiles=[triangle], rules=[rule])]))
+        .run(until=generations)
+        .trajectory_
+    )
 
 
 def test_sierpinski_triangle_area():
@@ -353,7 +463,11 @@ def test_chair_tiling_covers_its_chair():
         ('chair', AffineSpec(scale=0.5, rotation=-90, translation=(0, 2))),
     ]
     trajectory = (
-        Simulation(_system(PatchElement('chairs', prototiles=[chair]), SubstitutionLaw('chair', pieces)))
+        Simulation(
+            System(
+                elements=[RuledPatchElement('chairs', prototiles=[chair], rules=[SubstitutionLaw('chair', pieces)])],
+            ),
+        )
         .run(3)
         .trajectory_
     )
@@ -369,20 +483,24 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
     square = PrototileSpec('square', [(0, 0), (1, 0), (1, 1), (0, 1)])
     dot = PrototileSpec('dot', [(0, 0), (0.1, 0)])
     rule = SubstitutionLaw('square', [('square', AffineSpec(scale=0.5)), ('dot', AffineSpec())])
-    patch = PatchElement('patch', prototiles=[square, dot])
-    trajectory = Simulation(_system(patch, rule)).run(until=2).trajectory_
+    patch = RuledPatchElement('patch', prototiles=[square, dot], rules=[rule])
+    trajectory = Simulation(System(elements=[patch])).run(until=2).trajectory_
     assert trajectory.values('patch.dot').tolist() == [0, 1, 2]
     with pytest.raises(RewritingError, match='not one of'):
-        compile_system(_system(patch, SubstitutionLaw('circle', [])))
+        compile_system(
+            System(
+                elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[SubstitutionLaw('circle', [])])],
+            ),
+        )
     with pytest.raises(RewritingError, match='two substitutions'):
-        compile_system(_system(patch, rule, rule))
-    with pytest.raises(RewritingError, match='no prototiles'):
-        compile_system(_system(PatchElement('empty')))
+        compile_system(System(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])]))
+    with pytest.raises(RewritingError, match='at least one prototile'):
+        compile_system(System(elements=[RuledPatchElement('empty')]))
 
 
 def test_edge_subdivision():
     """Test that subdividing every edge of a 4-cycle three times gives a 32-cycle."""
-    system = _system(HostGraphElement('graph', graph=nx.cycle_graph(4)), _subdivision())
+    system = System(elements=[RuledHostGraphElement('graph', graph=nx.cycle_graph(4), rules=[_subdivision()])])
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
     assert trajectory.values('graph.size').tolist() == [4, 8, 16, 32]
     assert nx.is_isomorphic(trajectory.structure('graph', 3).graph, nx.cycle_graph(32))
@@ -398,7 +516,11 @@ def test_dangling_edge():
     left = nx.Graph()
     left.add_node('v', label='X')
     production = GraphProductionLaw(left, nx.Graph(), nx.Graph())
-    trajectory = Simulation(_system(HostGraphElement('graph', graph=host), production)).run(until=1).trajectory_
+    trajectory = (
+        Simulation(System(elements=[RuledHostGraphElement('graph', graph=host, rules=[production])]))
+        .run(until=1)
+        .trajectory_
+    )
     assert sorted(trajectory.structure('graph', 1).graph.nodes) == ['hub', 'other']
     assert trajectory.values('graph.X').tolist() == [2, 1]
 
@@ -414,34 +536,28 @@ def test_graph_rewriting_is_reproducible():
     right = nx.DiGraph()
     right.add_node('c', label='new')
     right.add_edges_from([('a', 'c'), ('c', 'b')], label='f')
-    system = _system(HostGraphElement('graph', graph=host), GraphProductionLaw(left, interface, right))
+    system = System(
+        elements=[RuledHostGraphElement('graph', graph=host, rules=[GraphProductionLaw(left, interface, right)])],
+    )
     first = Simulation(system, random_state=1).run(until=2).trajectory_
     second = Simulation(system, random_state=1).run(until=2).trajectory_
     assert first.values('graph.new').tolist() == [0, 3, 3]
     assert nx.utils.graphs_equal(first.structure('graph', 2).graph, second.structure('graph', 2).graph)
     with pytest.raises(RewritingError, match='not nodes of both'):
-        compile_system(_system(HostGraphElement('graph', graph=host), GraphProductionLaw(left, right, right)))
+        compile_system(
+            System(
+                elements=[RuledHostGraphElement('graph', graph=host, rules=[GraphProductionLaw(left, right, right)])],
+            ),
+        )
 
 
 def test_graph_size_guard():
     """Test that a host graph that would exceed its maximum size raises the rewriting error."""
-    system = _system(HostGraphElement('graph', graph=nx.cycle_graph(4), max_size=10), _subdivision())
+    system = System(
+        elements=[RuledHostGraphElement('graph', graph=nx.cycle_graph(4), max_size=10, rules=[_subdivision()])],
+    )
     with pytest.raises(RewritingError, match='would reach 16 nodes at generation 2'):
         Simulation(system).run(until=3)
-
-
-def test_productions_are_written():
-    """Test the written form of productions, substitutions, and graph productions."""
-    production = ProductionLaw(
-        ModuleSpec('A', (X,)),
-        [ModuleSpec('F', (X,)), ModuleSpec('A', (X / 2,))],
-        left='B',
-        condition=X > 0.1,
-    )
-    assert production.text == 'B < A(x) → F(x) A(1/2*x) : x > 0.1'
-    assert ProductionLaw('F', 'F+F', right='G', probability=0.5).text == 'F > G → F+F (0.5)'
-    assert SubstitutionLaw('a', [('a', AffineSpec()), ('b', AffineSpec())]).text == 'a → a, b'
-    assert WordStructure(('A',), [0], np.zeros((1, 0)), 0).parts == 1
 
 
 def test_rewriting_pass_claims_rewriting_systems():
@@ -456,16 +572,8 @@ def test_rewriting_compiler_prepares_its_claim_and_runs_the_problem():
     compiler = RewritingCompiler()
     assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).claims_
     assert compiler.prepare(words).claims_
-    problem = compiler.run(words, backend='auto', solver='auto', initial_state={})
+    problem = compiler.run(words, backend=None, solver=None, initial_state={})
     assert problem.form == Form.REWRITING
-
-
-def test_registered_formalisms_list_rewriting():
-    """Test that the rewriting formalism is listed with its law kind, its form, and its solver."""
-    rewriting = next(item for item in registered_formalisms() if item.name == 'rewriting')
-    assert {law.law_kind for law in rewriting.laws} == {LawKind.REWRITE}
-    assert rewriting.forms == (Form.REWRITING,)
-    assert rewriting.defaults == (RewritingSolver,)
 
 
 def test_snapshot_is_a_structure_state():
@@ -482,8 +590,6 @@ def test_rewriting_problem_is_a_base_problem_and_not_the_compilers():
 
 
 def test_rule_of_a_word():
-    """Test that a word rewrites itself by the rewriting law it returns, which is a law and not an interaction."""
+    """Test that a word rewrites itself by the productions it returns."""
     trajectory = Simulation(System(elements=[AlgaeElement('algae', axiom='A')])).run(until=5).trajectory_
     assert trajectory.structure('algae', 5).text == 'ABAABABAABAAB'
-    assert issubclass(RewriteLaw, BaseLaw)
-    assert not issubclass(RewriteLaw, BaseInteraction)

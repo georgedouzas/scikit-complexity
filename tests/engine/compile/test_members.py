@@ -15,6 +15,7 @@ from skcomplex.core.laws.utils import shift_member
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -84,7 +85,7 @@ class RingInteraction(Interaction):
         return [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
 
 
-def _ahead(backend='numpy', **settings):
+def _ahead(backend, **settings):
     """Return the read positions of a group of four cars after one update."""
     system = System(
         elements=[GroupElement('cars', element=CarElement, size=4, values={'x': [10.0, 11.0, 12.0, 13.0]})],
@@ -95,7 +96,7 @@ def _ahead(backend='numpy', **settings):
     return problem.states.read(state, 'cars.ahead').tolist()
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 @pytest.mark.parametrize(
     ('settings', 'expected'),
     [
@@ -107,20 +108,20 @@ def _ahead(backend='numpy', **settings):
 )
 def test_shift_member_reads_the_member_along_the_group_order(backend, settings, expected):
     """Test that member `i` reads member `i + offset`, wrapped, mirrored, or filled past the ends."""
-    assert _ahead(backend, **settings) == expected
+    assert _ahead(backend(), **settings) == expected
 
 
 def test_shift_member_runs_the_same_on_both_backends():
     """Test that a ring of 1000 members with offset reads has the same trajectory on NumPy and Numba."""
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
-    for backend in ('numpy', 'numba'):
+    for backend in (NumpyBackend(), NumbaBackend()):
         system = System(
             elements=[GroupElement('cars', element=CarElement, size=1000, values={'x': x})],
             interactions=[RingInteraction('ring', cars='cars')],
         )
         simulation = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend).run(until=2.0)
-        assert simulation.problem_.backend == backend
+        assert simulation.problem_.backend == backend.name
         trajectories.append(simulation.trajectory_.values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
 
@@ -183,10 +184,10 @@ def _hopping(occupations, boundary='periodic'):
     return System(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     """Test that a hop to the next member of a ring keeps every particle and moves one per event."""
-    problem = compile_system(_hopping(np.full(50, 3.0)), backend=backend)
+    problem = compile_system(_hopping(np.full(50, 3.0)), backend=backend())
     assert problem.jumps[0].size == 50
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
@@ -195,16 +196,16 @@ def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
         assert (totals == 150).all()
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     """Test that the hop of the last member past a fixed end removes the particle and changes no other member."""
-    problem = compile_system(_hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed'), backend=backend)
+    problem = compile_system(_hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed'), backend=backend())
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
     trajectory = Simulation(problem, dt=10.0, random_state=0).run(until=100).trajectory_
     assert np.asarray(trajectory.values('sites.n'))[-1].tolist() == [0.0] * 5
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_matches_per_link_interactions(backend):
     """Test that a zero-range process of offset jumps and one of per-link interactions have one mean profile."""
     occupations = np.zeros(20)
@@ -220,7 +221,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     ]
     profiles = []
     for system in systems:
-        problem = compile_system(system, backend=backend)
+        problem = compile_system(system, backend=backend())
         finals = [
             np.asarray(Simulation(problem, dt=2.0, random_state=seed).run(until=2).trajectory_.values('sites.n'))[-1]
             for seed in range(200)
@@ -233,7 +234,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
-    simulation = Simulation(zero_range_process(1000), backend='numba', random_state=0).run(until=5)
+    simulation = Simulation(zero_range_process(1000), backend=NumbaBackend(), random_state=0).run(until=5)
     assert time.perf_counter() - start < 10
     assert len(simulation.problem_.interactions) == 1
     assert [channels.size for channels in simulation.problem_.jumps] == [1000, 1000]

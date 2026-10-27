@@ -17,7 +17,7 @@ from skcomplex.core.laws.utils import Call, derivative, laplacian, mod, total, w
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumbaBackend
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Entry, Layout
 from skcomplex.engine.runtime import Simulation
@@ -188,12 +188,24 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
     values = {'A': u + 1j * v}
     joined = System(
         elements=[
-            FieldElement('m', ComplexGinzburgLandauElement, space, values=values, discretization=discretization),
+            FieldElement(
+                'm',
+                element=ComplexGinzburgLandauElement,
+                space=space,
+                values=values,
+                discretization=discretization,
+            ),
         ],
     )
     split = System(
         elements=[
-            FieldElement('m', GinzburgLandauElement, space, values={'u': u, 'v': v}, discretization=discretization),
+            FieldElement(
+                'm',
+                element=GinzburgLandauElement,
+                space=space,
+                values={'u': u, 'v': v},
+                discretization=discretization,
+            ),
         ],
     )
     return joined, split
@@ -208,7 +220,7 @@ def test_complex_state_reads_back_its_initial_value():
 
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
-    with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*real domain.*Domain\.COMPLEX'):
+    with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*domain=CC'):
         compile_system(System(elements=[PhaseElement('osc', omega=1j)]))
 
 
@@ -221,7 +233,9 @@ def test_real_state_accepts_complex_value_with_zero_imaginary_part():
 def test_complex_parameter_per_site_is_read_and_updated():
     """Test that every site reads its own complex parameter, and that an update changes the next step."""
     c = np.arange(16).reshape(4, 4) * (1 + 1j)
-    system = System(elements=[FieldElement('grid', QuadraticElement, LatticeSpace((4, 4)), values={'c': c})])
+    system = System(
+        elements=[FieldElement('grid', element=QuadraticElement, space=LatticeSpace((4, 4)), values={'c': c})],
+    )
     simulation = Simulation(system, dt=1).run(until=1)
     assert np.allclose(simulation.trajectory_.lattice('grid.z')[1], c)
     simulation.update_parameters({'grid.c': 2j})
@@ -264,10 +278,10 @@ def test_harmonic_phase_turns_on_the_unit_circle():
     assert np.max(np.abs(np.abs(values) - 1)) < 1e-8
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
-    trajectory = Simulation(System(elements=[ReadoutElement('a')]), backend=backend, dt=1).run(until=5).trajectory_
+    trajectory = Simulation(System(elements=[ReadoutElement('a')]), backend=backend(), dt=1).run(until=5).trajectory_
     assert trajectory.values('a.r').dtype == np.float64
     assert np.allclose(trajectory.values('a.r')[1:], 2.0)
     assert np.allclose(trajectory.values('a.z')[-1], 2 * np.exp(1.5j))
@@ -290,7 +304,7 @@ def test_complex_value_for_real_state_is_rejected():
         def _get_laws(self, s):
             return [RateLaw(s.x, I * s.x)]
 
-    with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*COMPLEX'):
+    with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*domain=CC'):
         compile_system(System(elements=[WrongElement('a')]))
 
 
@@ -366,7 +380,7 @@ def test_backends_agree_on_complex_map():
     z = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     c = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     system = System(elements=[GroupElement('points', element=QuadraticElement, size=10_000, values={'z': z, 'c': c})])
-    reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=NumbaBackend())
+    reference, compiled = compile_system(system, backend=NumpyBackend()), compile_system(system, backend=NumbaBackend())
     x, p = reference.initial_state, reference.initial_parameters
     expected, result = reference.update(0.0, x, p), compiled.update(0.0, x, p)
     assert compiled.backend == 'numba'
@@ -450,7 +464,13 @@ def test_free_schrodinger_equation_keeps_the_norm():
     space = LatticeSpace((256,), spacing=0.25)
     system = System(
         elements=[
-            FieldElement('wave', SchrodingerElement, space, values={'psi': packet}, discretization='spectral'),
+            FieldElement(
+                'wave',
+                element=SchrodingerElement,
+                space=space,
+                values={'psi': packet},
+                discretization='spectral',
+            ),
         ],
     )
     trajectory = Simulation(system, solver=ETDRK4Solver(dt=0.01), dt=0.5).run(until=5).trajectory_
@@ -541,7 +561,7 @@ def test_complex_equation_and_event_split_into_parts():
         (lambda s: [RateLaw(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
         (
             lambda s: [LocalRuleLaw(s.z, LatticeNeighborhood(((-1,),)), lambda left: left)],
-            'LocalRuleLaw of a needs a lattice',
+            'LocalRuleLaw of a needs a LatticeSpace',
         ),
     ],
 )

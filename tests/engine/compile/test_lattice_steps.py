@@ -23,6 +23,7 @@ from skcomplex.core.spaces import (
 )
 from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import CompiledExtremal, ExtremalRecord, compile_system
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver, SiteVisual
@@ -49,18 +50,30 @@ class BurnElement(Element):
         return [LocalRuleLaw(s.fire, TriangularNeighborhood(center=True), lambda *values: np.max(values, axis=0))]
 
 
-def _life(neighborhood):
-    """Return a Game of Life element type on a neighbourhood."""
-    return type(
-        'LifeElement',
-        (Element,),
-        {
-            'alive': state(0.0),
-            'laws': lambda self, s: [
-                LocalRuleLaw(s.alive, neighborhood, OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})),
-            ],
-        },
-    )
+class LifeElement(Element):
+    """Cell of the Game of Life on a square lattice."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        alive: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.alive = alive
+
+    def _get_laws(self, s):
+        """Return the Game of Life rule on the Moore neighbourhood."""
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+
+
+class GraphLifeElement(LifeElement):
+    """Cell of the Game of Life on a graph."""
+
+    def _get_laws(self, s):
+        """Return the Game of Life rule on the adjacent nodes."""
+        return [LocalRuleLaw(s.alive, AdjacencyNeighborhood(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
 
 
 def _renew(value, random):
@@ -104,8 +117,10 @@ class Recording:
 
 def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
     """Test that the six triangular neighbours of the corner of a periodic 10 x 10 lattice lie at distance 1."""
-    space = LatticeSpace((10, 10), geometry='triangular').prepare()
-    neighbours = [tuple(np.unravel_index(site, space.shape_)) for site in space.run(0, TriangularNeighborhood())]
+    space = LatticeSpace((10, 10), geometry='triangular').check().prepare()
+    neighbours = [
+        tuple(np.unravel_index(site, space.shape_)) for site in space._get_neighbors(0, TriangularNeighborhood())
+    ]
     assert len(set(neighbours)) == 6
     assert {(0, 9), (9, 0), (9, 1)} <= set(neighbours)
     positions = space.positions_.reshape(10, 10, 2)
@@ -118,7 +133,7 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
-    space = LatticeSpace((7, 9), geometry='triangular').prepare()
+    space = LatticeSpace((7, 9), geometry='triangular').check().prepare()
     table = space._index_table(TriangularNeighborhood())
     for site in range(space.size_):
         for k in range(6):
@@ -131,7 +146,7 @@ def test_triangular_geometry_needs_two_dimensions():
         LatticeSpace((5, 5, 5), geometry='triangular').check()
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_triangular_rule_spreads_as_hexagons(backend):
     """Test that a fire on a periodic 40 x 40 triangular lattice covers the 3k(k + 1) + 1 sites within k steps."""
     fire = np.zeros((40, 40))
@@ -146,22 +161,22 @@ def test_triangular_rule_spreads_as_hexagons(backend):
             ),
         ],
     )
-    burning = Simulation(system, dt=1, backend=backend).run(until=10).trajectory_.lattice('forest.fire')
+    burning = Simulation(system, dt=1, backend=backend()).run(until=10).trajectory_.lattice('forest.fire')
     assert [int(item.sum()) for item in burning] == [3 * k * (k + 1) + 1 for k in range(11)]
 
 
 def test_network_index_table_pads_with_size():
     """Test that the adjacency table of a star graph pads the leaves with the number of nodes."""
-    space = NetworkSpace(nx.star_graph(3)).prepare()
+    space = NetworkSpace(nx.star_graph(3)).check().prepare()
     table = space._index_table(AdjacencyNeighborhood(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
-    with pytest.raises(ValidationError, match='AdjacencyNeighborhood'):
-        space.run(0, MooreNeighborhood())
+    with pytest.raises(ValidationError, match='adjacency neighbourhood'):
+        space._get_neighbors(0, MooreNeighborhood())
 
 
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
-    lattice = LatticeSpace((20, 20)).prepare()
+    lattice = LatticeSpace((20, 20)).check().prepare()
     table = lattice._index_table(MooreNeighborhood())
     graph = nx.Graph()
     graph.add_nodes_from(range(lattice.size_))
@@ -170,14 +185,14 @@ def test_grid_graph_matches_square_lattice():
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
     on_lattice = System(
         elements=[
-            LatticeElement('cells', element=_life(MooreNeighborhood()), space=lattice, values={'alive': glider}),
+            LatticeElement('cells', element=LifeElement, space=lattice, values={'alive': glider}),
         ],
     )
     on_graph = System(
         elements=[
             LatticeElement(
                 'cells',
-                element=_life(AdjacencyNeighborhood()),
+                element=GraphLifeElement,
                 space=NetworkSpace(graph),
                 values={'alive': glider.ravel()},
             ),
@@ -306,7 +321,7 @@ def test_neighbor_sum_ignores_padding():
             return [
                 SampleLaw(
                     EnergySpec(-s.J * neighbors(cos(s.theta - s.other.theta), reduce='sum'), AdjacencyNeighborhood()),
-                    MoveSpec.rotate(s.theta, 1.0),
+                    MoveSpec(s.theta, 'rotate', width=1.0),
                     SamplerSpec('metropolis', s.temperature, schedule='colored'),
                 ),
             ]
@@ -375,7 +390,7 @@ def test_colored_schedule_partitions_triangular_lattice():
                         -s.spin * sum(neighbors(s.spin, TriangularNeighborhood(), reduce='each')),
                         TriangularNeighborhood(),
                     ),
-                    MoveSpec.flip(s.spin),
+                    MoveSpec(s.spin),
                     SamplerSpec('metropolis', s.temperature, schedule='colored'),
                 ),
             ]
@@ -411,7 +426,7 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
             """Return the laws of the flip element."""
             return [LocalRuleLaw(s.spin, neighborhood, lambda *values: -values[0], schedule='checkerboard')]
 
-    with pytest.raises(ValidationError, match=r"local rule of spins.*'colored'"):
+    with pytest.raises(ValidationError, match=r"LocalRuleLaw of spins.*'colored'"):
         compile_system(System(elements=[LatticeElement('spins', element=FlipElement, space=space)]))
 
 
@@ -483,7 +498,7 @@ def test_extremal_maximum_and_ties():
     events = Simulation(system, dt=1, random_state=0).run(until=1).trajectory_.events
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
-    with pytest.raises(ValueError, match='extremum'):
+    with pytest.raises(ValidationError, match='extremum'):
         ExtremalLaw(None, AdjacencyNeighborhood(), _renew, extremum='median').check()
 
 
@@ -491,18 +506,18 @@ def test_extremal_runs_are_reproducible_across_backends():
     """Test that two runs on the NumPy and two on the Numba backend give identical lattices and events."""
     values = np.random.default_rng(1).random(50)
     runs = []
-    for backend in ('numpy', 'numpy', 'numba', 'numba'):
+    for backend in (NumpyBackend, NumpyBackend, NumbaBackend, NumbaBackend):
         system = System(
             elements=[
                 LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values}),
             ],
         )
-        simulation = Simulation(system, dt=1, backend=backend, random_state=7).run(until=20)
+        simulation = Simulation(system, dt=1, backend=backend(), random_state=7).run(until=20)
         runs.append((simulation.trajectory_.values('ring.value'), simulation.trajectory_.events))
     system = System(
         elements=[LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values})],
     )
-    compiled = compile_system(system, backend='numba')
+    compiled = compile_system(system, backend=NumbaBackend())
     assert isinstance(compiled.lattice[0], CompiledExtremal)
     assert compiled.lattice[0].loop is not None
     for states, events in runs[1:]:
@@ -521,7 +536,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
     positions = np.asarray(points.positions.as_arrow_array().to_numpy(zero_copy_only=False).tolist())
-    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').prepare().positions_)
+    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').check().prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
     Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).run(until=3)

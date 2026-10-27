@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import RR, Expression, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
@@ -18,6 +18,7 @@ from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Form, domain_of, symbol
 from skcomplex.models.biology.ecology import (
@@ -154,7 +155,7 @@ def _compile_time(n_links):
     durations = []
     for _ in range(2):
         start = time.perf_counter()
-        compile_system(system, backend='numpy')
+        compile_system(system, backend=NumpyBackend())
         durations.append(time.perf_counter() - start)
     return min(durations)
 
@@ -366,7 +367,7 @@ def test_compile_system_mixed_kinds_raises_error():
         elements=[MarketElement('m'), PopulationElement('a')],
         interactions=[CobwebInteraction('c', target='m'), ExponentialGrowthInteraction('g', target='a')],
     )
-    with pytest.raises(IncompatibleLawsError, match='rate: a; update: m'):
+    with pytest.raises(IncompatibleLawsError, match='RateLaw: a; UpdateLaw: m'):
         compile_system(system)
 
 
@@ -509,19 +510,19 @@ def test_compile_system_jump_stoichiometry():
     assert problem.propensities(0.0, problem.initial_state, problem.initial_parameters).tolist() == [4.5]
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_compile_variadic_role_sums_any_number_of_inputs(backend):
     """Test that a variadic role binds a sequence of elements that laws read as a tuple of namespaces."""
-    problem = compile_system(_summed(['a', 'b', 'c']), backend=backend)
+    problem = compile_system(_summed(['a', 'b', 'c']), backend=backend())
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(state, 'target.x') == 7.0
     assert problem.interactions[0].roles['inputs'] == ('a', 'b', 'c')
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_compile_variadic_member_reference_reads_one_member(backend):
     """Test that a member reference of a variadic role reads the states of that member of a group."""
-    problem = compile_system(_summed(['hub', 'nodes[3]'], weights=[0.0, 1.0]), backend=backend)
+    problem = compile_system(_summed(['hub', 'nodes[3]'], weights=[0.0, 1.0]), backend=backend())
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(state, 'target.x') == 3.0
 
@@ -859,7 +860,7 @@ def test_components_receive_sage_symbols_and_vectors():
     assert len(RECEIVED['x']) == 3
     assert all(isinstance(component, Expression) and component.is_symbol() for component in RECEIVED['x'])
     assert RECEIVED['m'].is_real()
-    assert domain_of(RECEIVED['m']) is RealSet.open(0, oo)
+    assert domain_of(RECEIVED['m']) is RR
 
 
 def test_sympy_rate_is_rejected():
@@ -879,7 +880,7 @@ def test_small_system_drift_is_fast():
         elements=[PopulationElement(f'p{index}', n=1.0 + index) for index in range(20)],
         interactions=[LogisticGrowthInteraction(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
     )
-    problem = compile_system(system, backend='numpy')
+    problem = compile_system(system, backend=NumpyBackend())
     x, p = problem.initial_state, problem.initial_parameters
     expected = x * (1 - x / 100)
     assert problem.drift(0.0, x, p) == pytest.approx(expected)

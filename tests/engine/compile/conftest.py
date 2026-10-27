@@ -1,9 +1,10 @@
 """Share the helpers of the compilation tests."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 from skcomplex.core.elements import Element
-from skcomplex.core.laws import NoiseLaw
+from skcomplex.core.laws import BaseLaw, NoiseLaw
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
@@ -28,7 +29,7 @@ class PairElement(Element):
         self.process = process
         self.conventions = conventions
 
-    def _get_laws(self, s):
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the noise of both states on the shared process."""
         first, second = self.conventions
         return [

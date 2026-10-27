@@ -16,6 +16,7 @@ from skcomplex.core.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.laws.utils import bernoulli, categorical, normal, total, uniform, where
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 
@@ -178,21 +179,32 @@ class BrokenElement(Element):
         return [TransitionLaw(s.x, [[0.8, 0.1], [0.4, 0.6]])]
 
 
-def _hidden(emission, order=1):
-    """Return a hidden Markov source element type with laws in one of two orders."""
+class HiddenElement(Element):
+    """Hidden Markov source whose laws come in one of two orders."""
 
-    def laws(s):
-        found = [TransitionLaw(s.h, CHAIN), EmissionLaw(s.o, s.h, emission)]
-        return found if order == 1 else found[::-1]
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[object, StateSpec(domain=BINARY)] = 0,
+        o: Annotated[object, StateSpec(domain=BINARY)] = 0,
+        emission: list[list[float]] | None = None,
+        order: int = 1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.o = o
+        self.emission = emission
+        self.order = order
 
-    return type(
-        'HiddenElement',
-        (Element,),
-        {'h': state(default=0, domain=BINARY), 'o': state(default=0, domain=BINARY), 'laws': lambda self, s: laws(s)},
-    )
+    def _get_laws(self, s):
+        """Return the transition of the hidden state and the emission of the observed one."""
+        laws = [TransitionLaw(s.h, CHAIN), EmissionLaw(s.o, s.h, EMISSION if self.emission is None else self.emission)]
+        return laws if self.order == 1 else laws[::-1]
 
 
-def _run(system, until, backend='numpy', random_state=0):
+def _run(system, until, backend=None, random_state=0):
     """Return the trajectory of a system run with frames at every step."""
     return Simulation(system, dt=1.0, random_state=random_state, backend=backend).run(until).trajectory_
 
@@ -307,13 +319,13 @@ def test_transition_rejects_a_live_change_that_breaks_a_row():
 
 def test_emission_aligns_with_the_hidden_state():
     """Test that an identity emission matrix copies the hidden sequence frame by frame."""
-    trajectory = _run(System(elements=[_hidden([[1, 0], [0, 1]])('s')]), 2000)
+    trajectory = _run(System(elements=[HiddenElement('s', emission=[[1, 0], [0, 1]])]), 2000)
     assert np.array_equal(_codes(trajectory.values('s.h')), _codes(trajectory.values('s.o')))
 
 
 def test_emission_draws_from_the_selected_row():
     """Test that the observed frequencies given each hidden state match the emission rows."""
-    trajectory = _run(System(elements=[_hidden(EMISSION)('s')]), 100000)
+    trajectory = _run(System(elements=[HiddenElement('s')]), 100000)
     hidden, observed = _codes(trajectory.values('s.h'))[1:], _codes(trajectory.values('s.o'))[1:]
     for row in (0, 1):
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
@@ -321,15 +333,15 @@ def test_emission_draws_from_the_selected_row():
 
 def test_compile_system_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
-    first = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
-    second = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
+    first = _run(System(elements=[HiddenElement('s')]), 500)
+    second = _run(System(elements=[HiddenElement('s')]), 500)
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
 
 def test_compile_system_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
-    first = _run(System(elements=[_hidden(EMISSION, order=1)('s')]), 500)
-    second = _run(System(elements=[_hidden(EMISSION, order=2)('s')]), 500)
+    first = _run(System(elements=[HiddenElement('s', order=1)]), 500)
+    second = _run(System(elements=[HiddenElement('s', order=2)]), 500)
     assert np.array_equal(_codes(first.values('s.h')), _codes(second.values('s.h')))
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
@@ -395,7 +407,7 @@ def test_compile_system_agrees_across_backends():
 
     mixed = MixedElement
     system = System(elements=[GroupElement('m', element=mixed, size=50)])
-    numpy, numba = _run(system, 300, 'numpy'), _run(system, 300, 'numba')
+    numpy, numba = _run(system, 300, NumpyBackend()), _run(system, 300, NumbaBackend())
     for name in ('m.x', 'm.k', 'm.b'):
         assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
 
@@ -484,7 +496,7 @@ def test_compile_system_runs_compiled_chains_fast():
             return [UpdateLaw(s.x, 1 - s.x)]
 
     flip = FlipperElement
-    chains = compile_system(System(elements=[GroupElement('c', element=two, size=100000)]), backend='numba')
-    flips = compile_system(System(elements=[GroupElement('c', element=flip, size=100000)]), backend='numba')
+    chains = compile_system(System(elements=[GroupElement('c', element=two, size=100000)]), backend=NumbaBackend())
+    flips = compile_system(System(elements=[GroupElement('c', element=flip, size=100000)]), backend=NumbaBackend())
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)
