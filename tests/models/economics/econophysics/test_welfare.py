@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.engine.compile import validate
+from skcomplex.engine.solvers import KineticSolver
 from skcomplex.models import create
 
 from ...conftest import _trajectory
@@ -32,4 +33,4 @@ def test_wealth_gini_matches_its_definition():
 @pytest.mark.parametrize('name', ['kinetic_wealth_welfare', 'immune_competition', 'kinetic_opinion', 'evacuation'])
 def test_kinetic_models_run_with_the_particle_solver(name):
     """Test that the kinetic models of encounters alone validate with the particle solver."""
-    assert validate(create(name), solver='particles').ok
+    assert validate(create(name), solver=KineticSolver()).ok

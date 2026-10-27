@@ -1,6 +1,6 @@
 """Test the `_shops` module of `skcomplex.models.economics.markets`."""
 
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 
@@ -43,9 +43,19 @@ class ShopElement(Element):
 class CentralBankInteraction(InstitutionInteraction):
     """Central bank that raises its rate whenever inflation of the price level exceeds the target."""
 
-    reports = ('inflation',)
-    rate: float = parameter(0.0)
-    target: float = parameter(0.02)
+    reports: ClassVar[tuple[str, ...]] = ('inflation',)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        phase: str | None = None,
+        rate: Annotated[float, ParameterSpec()] = 0.0,
+        target: Annotated[float, ParameterSpec()] = 0.02,
+    ) -> None:
+        super().__init__(label, phase=phase)
+        self.rate = rate
+        self.target = target
 
     def act(self, model):
         """Measure inflation and raise the rate above the target."""
