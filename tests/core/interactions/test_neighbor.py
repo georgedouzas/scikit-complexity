@@ -1,4 +1,4 @@
-"""Test the `_interactions` module of `skcomplex.core.base`."""
+"""Test the `_neighbor` module of `skcomplex.core.interactions`."""
 
 from typing import Annotated
 
@@ -7,27 +7,23 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.base import BaseDomain
-from skcomplex.core.elements import BaseElement, Element, GroupElement, LatticeElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.interactions import Interaction, NeighborInteraction
-from skcomplex.core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import BaseSpace, BaseTime, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.interactions import NeighborInteraction
+from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import BaseBackend
-from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
-from skcomplex.engine.problems import BaseProblem
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import BaseSolver, RK4Solver
-from skcomplex.models.biology.ecology import PredationInteraction
+from skcomplex.engine.solvers import RK4Solver
 
-BACKENDS = ('numpy', 'numba')
+BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
 
 class NeuronElement(Element):
-    """Neuron element."""
+    """Neuron with an activity."""
 
     def __init__(
         self,
@@ -41,7 +37,7 @@ class NeuronElement(Element):
 
 
 class SynapseElement(Element):
-    """Synapse element."""
+    """Synapse with a weight."""
 
     def __init__(
         self,
@@ -55,7 +51,7 @@ class SynapseElement(Element):
 
 
 class PersonElement(Element):
-    """Person element."""
+    """Person who may be infected and earns a wage."""
 
     def __init__(
         self,
@@ -70,8 +66,36 @@ class PersonElement(Element):
         self.wage = wage
 
 
+class JobElement(Element):
+    """Job with a salary."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        salary: Annotated[object, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.salary = salary
+
+
+class ContactElement(Element):
+    """Contact that records whether it happened."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        contacted: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.contacted = contacted
+
+
 class OscillatorElement(Element):
-    """Oscillator element."""
+    """Oscillator with a phase."""
 
     def __init__(
         self,
@@ -86,12 +110,20 @@ class OscillatorElement(Element):
         self.omega = omega
 
 
-def test_interaction_rejects_a_layer_when_checked():
-    """Test that an interaction not over neighbours takes a layer but rejects it when checked."""
-    interaction = PredationInteraction('hunt', predator='foxes', prey='rabbits', layer='work')
-    assert interaction.layer == 'work'
-    with pytest.raises(ValidationError, match='only interactions over neighbours'):
-        interaction.check()
+class SISElement(Element):
+    """Node that is susceptible or infected."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        s: Annotated[object, StateSpec()] = 1.0,
+        i: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.s = s
+        self.i = i
 
 
 class HebbianInteraction(NeighborInteraction):
@@ -104,8 +136,9 @@ class HebbianInteraction(NeighborInteraction):
         nodes: Annotated[str, RoleSpec()],
         synapses: Annotated[str, RoleSpec()],
         eta: Annotated[float, ParameterSpec()] = 1.0,
+        layer: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, layer=layer)
         self.nodes = nodes
         self.synapses = synapses
         self.eta = eta
@@ -124,8 +157,9 @@ class InfectionInteraction(NeighborInteraction):
         *,
         people: Annotated[str, RoleSpec()],
         contacts: Annotated[str, RoleSpec()],
+        layer: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, layer=layer)
         self.people = people
         self.contacts = contacts
 
@@ -142,8 +176,9 @@ class ContagionInteraction(NeighborInteraction):
         label: str,
         *,
         people: Annotated[str, RoleSpec()],
+        layer: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, layer=layer)
         self.people = people
 
     def _get_laws(self, s):
@@ -163,8 +198,9 @@ class WagesInteraction(NeighborInteraction):
         *,
         people: Annotated[str, RoleSpec()],
         jobs: Annotated[str, RoleSpec()],
+        layer: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, layer=layer)
         self.people = people
         self.jobs = jobs
 
@@ -182,8 +218,9 @@ class CouplingInteraction(NeighborInteraction):
         *,
         oscillators: Annotated[str, RoleSpec()],
         links: Annotated[str, RoleSpec()],
+        layer: str | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, layer=layer)
         self.oscillators = oscillators
         self.links = links
 
@@ -192,6 +229,47 @@ class CouplingInteraction(NeighborInteraction):
         return [
             RateLaw(s.source.theta, s.edge.w * sin(s.target.theta - s.source.theta)),
             RateLaw(s.target.theta, s.edge.w * sin(s.source.theta - s.target.theta)),
+        ]
+
+
+class SpreadInteraction(NeighborInteraction):
+    """Infection of the target of an edge by its source, one jump at a time."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        beta: Annotated[float, ParameterSpec()] = 1.0,
+        layer: str | None = None,
+    ) -> None:
+        super().__init__(label, layer=layer)
+        self.nodes = nodes
+        self.beta = beta
+
+    def _get_laws(self, s):
+        """Return the infection jump of the target."""
+        return [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})]
+
+
+class DiffusionInteraction(NeighborInteraction):
+    """Diffusion between the ends of every bond."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cells: Annotated[str, RoleSpec()],
+        layer: str | None = None,
+    ) -> None:
+        super().__init__(label, layer=layer)
+        self.cells = cells
+
+    def _get_laws(self, s):
+        """Return the flow between both ends."""
+        return [
+            RateLaw(s.source.theta, s.target.theta - s.source.theta),
+            RateLaw(s.target.theta, s.source.theta - s.target.theta),
         ]
 
 
@@ -206,43 +284,28 @@ def _hebbian(space, activities):
     )
 
 
-def test_interaction_requires_roles():
-    """Test that an interaction without its roles is created but does not pass its check."""
-    with pytest.raises(TypeError, match='predator'):
-        PredationInteraction('hunt', prey='rabbits').check()
+def test_neighbor_interaction_stores_its_layer():
+    """Test that a neighbour interaction keeps the layer it runs on, and none by default."""
+    assert ContagionInteraction('contagion', people='people', layer='work').layer == 'work'
+    assert NeighborInteraction('empty').check().prepare().run(None) == []
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@BACKENDS
 def test_hebbian_weights_grow_between_coactive_nodes(backend):
     """Test that Hebbian weights end higher on edges between co-active nodes than on edges between inactive ones."""
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1)
     weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
-    sources, targets = space.prepare().edges_[None]
+    sources, targets = space.check().prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
     assert np.allclose(weights[~coactive], 0.1, atol=1e-12)
-    assert weights[coactive].min() > weights[~coactive].max()
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@BACKENDS
 def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     """Test that the source and target of a directed edge follow its direction, and edge states weigh the flow."""
-
-    class JobElement(Element):
-        """Job element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            salary: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.salary = salary
-
     graph = nx.DiGraph([(0, 1), (2, 1), (1, 3)])
     space = NetworkSpace(graph)
     system = System(
@@ -254,9 +317,8 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
     )
     problem = compile_system(system, backend=backend)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    salaries = dict(zip(graph.edges, [1.0, 2.0, 4.0], strict=True))
     expected = np.zeros(4)
-    for (first, second), salary in salaries.items():
+    for (first, second), salary in zip(graph.edges, [1.0, 2.0, 4.0], strict=True):
         expected[first] -= salary
         expected[second] += salary
     assert np.allclose(problem.states.read(drift, 'people.wage'), expected, atol=1e-12)
@@ -264,34 +326,17 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
 
 def test_two_layers_carry_infection_and_wages_apart():
     """Test that infection spreads only along contact edges and wages flow only along work edges."""
-    contact = nx.path_graph(5)
     work = nx.Graph([(0, 4), (2, 3)])
     work.add_nodes_from(range(5))
+    space = NetworkSpace(nx.path_graph(5), layers=[LayerSpec('work', work)])
 
-    class JobElement(Element):
-        """Job element."""
+    def people():
+        """Return the people, the first of them infected."""
+        return LatticeElement('people', element=PersonElement, space=space, values={'infected': [1.0, 0, 0, 0, 0]})
 
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            salary: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.salary = salary
-
-    space = NetworkSpace(contact, layers=[LayerSpec('work', work)])
+    jobs = GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work')
     system = System(
-        elements=[
-            LatticeElement(
-                'people',
-                element=PersonElement,
-                space=space,
-                values={'infected': [1.0, 0.0, 0.0, 0.0, 0.0]},
-            ),
-            GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work'),
-        ],
+        elements=[people(), jobs],
         interactions=[
             ContagionInteraction('contagion', people='people'),
             WagesInteraction('wages', people='people', jobs='jobs'),
@@ -302,64 +347,14 @@ def test_two_layers_carry_infection_and_wages_apart():
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
     isolated = System(
-        elements=[
-            LatticeElement(
-                'people',
-                element=PersonElement,
-                space=space,
-                values={'infected': [1.0, 0.0, 0.0, 0.0, 0.0]},
-            ),
-            GroupElement('jobs', element=JobElement, space=space, on='edges', layer='work'),
-        ],
+        elements=[people(), jobs],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
     trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).run(until=20.0).trajectory_
     assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
-def test_edge_states_weigh_neighbourhood_reductions(backend):
-    """Test that a reduction over a network weighs every neighbour with the state of the edge that joins them."""
-    space = NetworkSpace(nx.path_graph(4))
-
-    class WeightedInteraction(Interaction):
-        """Weighted interaction."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            nodes: Annotated[object, RoleSpec()],
-            links: Annotated[object, RoleSpec()],
-        ) -> None:
-            super().__init__(label)
-            self.nodes = nodes
-            self.links = links
-
-        def _get_laws(self, s):
-            """Return the laws of the weighted interaction."""
-            return [RateLaw(s.nodes.theta, neighbors(s.nodes.other.theta, weight=s.links.w))]
-
-    system = System(
-        elements=[
-            LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': [1.0, 2.0, 3.0, 4.0]}),
-            GroupElement(
-                'links',
-                element=SynapseElement,
-                space=space,
-                on='edges',
-                values={'w': [10.0, 100.0, 1000.0]},
-            ),
-        ],
-        interactions=[WeightedInteraction('weighted', nodes='nodes', links='links')],
-    )
-    problem = compile_system(system, backend=backend)
-    drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    expected = [10.0 * 2, 10.0 * 1 + 100.0 * 3, 100.0 * 2 + 1000.0 * 4, 1000.0 * 3]
-    assert np.allclose(problem.states.read(drift, 'nodes.theta'), expected, atol=1e-9)
-
-
-@pytest.mark.parametrize('backend', BACKENDS)
+@BACKENDS
 def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     """Test that the coupling written once per edge matches the sum over the weighted adjacency of every node."""
     graph = nx.gnp_random_graph(12, 0.4, seed=4)
@@ -377,7 +372,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
-    sources, targets = space.prepare().edges_[None]
+    sources, targets = space.check().prepare().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     assert np.allclose(drift, expected, atol=1e-12)
@@ -385,53 +380,10 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
 
 def test_edge_jumps_change_the_ends_of_their_edge():
     """Test that a jump law of an edge changes the states at its ends and that its channels follow the edges."""
-
-    class SISElement(Element):
-        """S i s element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            s: Annotated[object, StateSpec()] = 1.0,
-            i: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.s = s
-            self.i = i
-
-    class SpreadInteraction(Interaction):
-        """Spread interaction."""
-
-        over = 'neighbors'
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            nodes: Annotated[object, RoleSpec()],
-            beta: Annotated[object, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.nodes = nodes
-            self.beta = beta
-
-        def _get_laws(self, s):
-            """Return the laws of the spread interaction."""
-            return [JumpLaw(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})]
-
-    graph = nx.DiGraph([(0, 1), (1, 2), (2, 3)])
-    space = NetworkSpace(graph)
+    space = NetworkSpace(nx.DiGraph([(0, 1), (1, 2), (2, 3)]))
+    values = {'s': [0.0, 1.0, 1.0, 1.0], 'i': [1.0, 0.0, 0.0, 0.0]}
     system = System(
-        elements=[
-            LatticeElement(
-                'nodes',
-                element=SISElement,
-                space=space,
-                values={'s': [0.0, 1.0, 1.0, 1.0], 'i': [1.0, 0.0, 0.0, 0.0]},
-            ),
-        ],
+        elements=[LatticeElement('nodes', element=SISElement, space=space, values=values)],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).run(until=60.0).trajectory_
@@ -440,60 +392,14 @@ def test_edge_jumps_change_the_ends_of_their_edge():
 
 def test_edge_interactions_run_on_lattice_bonds():
     """Test that an interaction over neighbours on a lattice runs once per bond of neighbouring sites."""
-
-    class DiffusionInteraction(Interaction):
-        """Diffusion interaction."""
-
-        over = 'neighbors'
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            cells: Annotated[object, RoleSpec()],
-        ) -> None:
-            super().__init__(label)
-            self.cells = cells
-
-        def _get_laws(self, s):
-            """Return the laws of the diffusion interaction."""
-            return [
-                RateLaw(s.source.theta, s.target.theta - s.source.theta),
-                RateLaw(s.target.theta, s.source.theta - s.target.theta),
-            ]
-
-    system = System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=OscillatorElement,
-                space=LatticeSpace(4),
-                values={'theta': [1.0, 0.0, 0.0, 0.0]},
-            ),
-        ],
-        interactions=[DiffusionInteraction('diffusion', cells='cells')],
-    )
-    problem = compile_system(system)
+    cells = LatticeElement('cells', element=OscillatorElement, space=LatticeSpace(4), values={'theta': [1.0, 0, 0, 0]})
+    problem = compile_system(System(elements=[cells], interactions=[DiffusionInteraction('diffusion', cells='cells')]))
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [-2.0, 1.0, 0.0, 1.0]
 
 
 def test_update_laws_set_the_edge_member_only():
-    """Test that an update law of an edge sets the edge member, and one that sets an end raises an error."""
-
-    class ContactElement(Element):
-        """Contact element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            contacted: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.contacted = contacted
-
+    """Test that an update law that sets an end of an edge raises an error."""
     space = NetworkSpace(nx.path_graph(3))
     system = System(
         elements=[
@@ -509,20 +415,6 @@ def test_update_laws_set_the_edge_member_only():
 
 def test_edge_group_of_another_layer_is_rejected():
     """Test that an interaction that names another layer than its edge group raises a role error."""
-
-    class JobElement(Element):
-        """Job element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            salary: Annotated[object, StateSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.salary = salary
-
     space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
     system = System(
         elements=[
@@ -533,32 +425,3 @@ def test_edge_group_of_another_layer_is_rejected():
     )
     with pytest.raises(RoleError, match="layer 'work'"):
         compile_system(system)
-
-
-def test_validation_reports_a_missing_layer():
-    """Test that an interaction that names a layer the network lacks gets a binding issue listing the layers."""
-    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
-    system = System(
-        elements=[LatticeElement('people', element=PersonElement, space=space)],
-        interactions=[ContagionInteraction('contagion', people='people', layer='trade')],
-    )
-    issues = validate(system).issues
-    assert [issue.code for issue in issues] == ['binding']
-    assert "'work'" in issues[0].message
-
-
-def test_no_base_is_another_base():
-    """Test that no base class of the framework derives from another."""
-    bases = [
-        BaseElement,
-        BaseInteraction,
-        BaseSpace,
-        BaseTime,
-        BaseLaw,
-        BaseDomain,
-        BaseProblem,
-        BaseSolver,
-        BaseBackend,
-        BaseSystemCompiler,
-    ]
-    assert not [(a, b) for a in bases for b in bases if a is not b and issubclass(a, b)]

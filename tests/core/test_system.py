@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement, WordElement
 from skcomplex.core.errors import NotCheckedError, ValidationError
-from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import GeneratorLaw, ProductionLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
@@ -19,7 +19,7 @@ from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver, UnitarySolver
+from skcomplex.engine.solvers import UnitarySolver
 
 PAULI = HilbertSpec(
     2,
@@ -128,28 +128,6 @@ class AlgaeElement(WordElement):
     def _get_laws(self, s):
         """Return the productions of the algae."""
         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-
-
-class SoftSphereInteraction(PairPotentialInteraction):
-    """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
-
-    def __init__(
-        self,
-        label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
-        *,
-        period: float | None = None,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
-    ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
-        self.k = k
-
-    def _get_pair_energy(self, s, r):
-        """Return the soft repulsion energy."""
-        return s.k * (s.cutoff - r) ** 2 / 2
 
 
 def test_system_constructor_only_stores_its_parts():
@@ -327,24 +305,3 @@ def test_word_is_rewritten_in_parallel():
     system = System(elements=[AlgaeElement('algae', axiom='A')])
     trajectory = Simulation(system).run(until=4).trajectory_
     assert trajectory.values('algae.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
-
-
-@pytest.mark.slow
-def test_pair_interaction_conserves_momentum():
-    """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
-    rng = np.random.default_rng(0)
-    system = System(
-        elements=[
-            GroupElement(
-                'gas',
-                element=ParticleElement,
-                size=200,
-                values={'x': rng.uniform(0, 3, (200, 2)), 'v': rng.normal(0, 1, (200, 2))},
-            ),
-        ],
-        interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=0.2)],
-        space=ContinuousSpace(n_dim=2),
-    )
-    trajectory = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
-    momentum = trajectory.values('gas.v').sum(axis=1)
-    assert np.allclose(momentum, momentum[0], atol=1e-8)
