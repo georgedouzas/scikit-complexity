@@ -43,8 +43,6 @@ class GillespieSolver(Solver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={JumpLaw, BoundaryLaw, TransferLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
@@ -164,8 +162,6 @@ class RenewalSolver(Solver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
-        
-        
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )

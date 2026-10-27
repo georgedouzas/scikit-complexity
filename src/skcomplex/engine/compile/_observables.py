@@ -17,7 +17,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...core.elements import Element, GroupElement
+from ...core.elements import Element
 from ...core.errors import RoleError, ValidationError
 from ...core.laws.utils import Reduction, count, maximum, mean, minimum, reductions_in, total, variance
 from ...core.specs import ObservableSpec, StateSpec
@@ -144,8 +144,6 @@ def _system_paths(system: System, scope: str = '') -> Iterator[str]:
         yield from _system_paths(child, path)
 
 
-
-
 def _attached(system: System, by_scope: dict[str, list[ObservableSpec]], scope: str) -> System:
     """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
     copied = copy.copy(system)
@@ -166,7 +164,9 @@ def _tree(items: Mapping[str, Any], **root: Any) -> SimpleNamespace:  # noqa: AN
         node.setdefault(element, {})[variable] = value
 
     def build(node: dict[str, Any]) -> SimpleNamespace:
-        return SimpleNamespace(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
+        return SimpleNamespace(
+            **{key: build(value) if isinstance(value, dict) else value for key, value in node.items()},
+        )
 
     return SimpleNamespace(**{key: build(value) for key, value in nested.items()}, **root)
 

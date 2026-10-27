@@ -120,7 +120,10 @@ def _layer_issues(node: Any, space: BaseSpace | None) -> list[Issue]:  # noqa: A
         return []
     known = ', '.join(repr(label) for label in labels)
     message = f'The interaction runs on the layer {layer!r}, which the network does not have. Its layers are {known}.'
-    fix = f'Name one of the layers {known}, or add the layer with `NetworkSpace(graph, layers=[LayerSpec({layer!r}, ...)])`.'
+    fix = (
+        f'Name one of the layers {known}, or add the layer with '
+        f'`NetworkSpace(graph, layers=[LayerSpec({layer!r}, ...)])`.'
+    )
     return [Issue('binding', node.path, message, fix)]
 
 
@@ -250,7 +253,8 @@ def _space_fix(spaces: tuple[type, ...]) -> str:
     if ContinuousSpace in spaces:
         return (
             'Give the group a continuous space, such as `ContinuousSpace(extent=(10.0, 10.0))`, or reduce over the '
-            'neighbours of its network or lattice with `over=None`, or over a layer with `AdjacencyNeighborhood(layer)`.'
+            'neighbours of its network or lattice with `over=None`, or over a layer with '
+            '`AdjacencyNeighborhood(layer)`.'
         )
     return (
         'Give the group a network or lattice space, or reduce over a `RadiusNeighborhood`, a `NearestNeighborhood`, or '

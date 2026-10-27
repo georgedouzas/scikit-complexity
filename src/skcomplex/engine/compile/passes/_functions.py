@@ -80,11 +80,7 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
     """Return a boundary function that also wraps every angle state into `(-pi, pi]`."""
     indices = np.concatenate(
         [np.zeros(0, dtype=np.intp)]
-        + [
-            np.arange(entry.start, entry.start + entry.size)
-            for entry in states.entries
-            if entry.period is not None
-        ],
+        + [np.arange(entry.start, entry.start + entry.size) for entry in states.entries if entry.period is not None],
     )
     if not indices.size:
         return boundary

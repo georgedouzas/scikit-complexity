@@ -350,7 +350,8 @@ class NoiseProcess:
             The process within a `WienerProcessSpec`.
 
         dimension:
-            The number of processes of a `WienerProcessSpec`, or 0 for a local label, which takes one process per member.
+            The number of processes of a `WienerProcessSpec`, or 0 for a local label, which takes one process per
+            member.
 
         factor:
             The factor `L` with `L L^T = C` of the covariance of a `WienerProcessSpec`, or `None` for the identity.

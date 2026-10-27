@@ -24,7 +24,10 @@ def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
     """Return an update law that keeps the value of its target on the free rows of a capacity layout."""
     value, kept = masked_value(law.value, mask), masked_value(law._get_targets()[0], 1 - mask)
     if isinstance(value, FreeModuleElement):
-        return UpdateLaw(law._get_targets()[0], vector(a + b for a, b in zip(value, cast('FreeModuleElement', kept), strict=True)))
+        return UpdateLaw(
+            law._get_targets()[0],
+            vector(a + b for a, b in zip(value, cast('FreeModuleElement', kept), strict=True)),
+        )
     return UpdateLaw(law._get_targets()[0], SR(value) + SR(kept))
 
 

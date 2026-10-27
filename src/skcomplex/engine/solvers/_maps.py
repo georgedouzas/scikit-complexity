@@ -42,8 +42,6 @@ class IterationSolver(Solver):
         time={DiscreteTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 

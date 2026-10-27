@@ -1,4 +1,4 @@
-"""Declare what a solver or a backend supports: the classes of time, space, and laws, and the kinds of noise and orders."""
+"""Declare what a solver or a backend supports: classes of time, space, and laws, and kinds of noise and orders."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

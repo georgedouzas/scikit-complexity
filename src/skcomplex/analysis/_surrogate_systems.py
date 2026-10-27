@@ -225,14 +225,14 @@ def surrogate_system(
         for name, value in initial.items()
     ]
 
-    def __init__(self: Element, label: str, **values: float) -> None:
+    def initialize(self: Element, label: str, **values: float) -> None:
         Element.__init__(self, label)
         for name, value in {**initial, **values}.items():
             setattr(self, name, value)
 
     first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-    __init__.__signature__ = inspect.Signature([*first, *states])  # type: ignore[attr-defined]
-    element_type = type(kind, (Element,), {'__init__': __init__, '_get_laws': lambda self, s: laws(s)})
+    initialize.__signature__ = inspect.Signature([*first, *states])  # type: ignore[attr-defined]
+    element_type = type(kind, (Element,), {'__init__': initialize, '_get_laws': lambda self, s: laws(s)})
     return System(elements=[element_type(label)], time=time)
 
 

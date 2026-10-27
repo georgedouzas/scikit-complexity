@@ -93,9 +93,11 @@ class UnpackRenewalsPass(BasePass):
             (
                 spec,
                 [
-                    RenewalLaw(law.waiting, law.reset, label=law.label).check().prepare(law.owner_)
-                    if isinstance(law, JumpLaw) and law.waiting is not None
-                    else law
+                    (
+                        RenewalLaw(law.waiting, law.reset, label=law.label).check().prepare(law.owner_)
+                        if isinstance(law, JumpLaw) and law.waiting is not None
+                        else law
+                    )
                     for law in laws
                 ],
                 block,

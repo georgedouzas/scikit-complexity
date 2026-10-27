@@ -158,15 +158,14 @@ class EulerMaruyamaSolver(SDESolver):
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={
             JumpLaw,
-            RateLaw, FluxLaw,
+            RateLaw,
+            FluxLaw,
             EquationLaw,
             CrossingLaw,
             BoundaryLaw,
             TransferLaw,
             NoiseLaw,
         },
-        
-        
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )
@@ -292,8 +291,6 @@ class MilsteinSolver(SDESolver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-        
-        
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )
@@ -370,8 +367,6 @@ class HeunSolver(SDESolver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-        
-        
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )

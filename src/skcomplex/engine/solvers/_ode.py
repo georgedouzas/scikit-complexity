@@ -236,9 +236,17 @@ class ScipyODESolver(Solver):
     supports: ClassVar[SupportSpec] = SupportSpec(
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, EncounterLaw, ProliferationLaw, DestructionLaw},
-        
-        
+        laws={
+            RateLaw,
+            FluxLaw,
+            EquationLaw,
+            CrossingLaw,
+            BoundaryLaw,
+            TransferLaw,
+            EncounterLaw,
+            ProliferationLaw,
+            DestructionLaw,
+        },
         orders={OrderKind.INTEGER},
     )
 
@@ -652,15 +660,16 @@ class RK4Solver(Solver):
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={
             JumpLaw,
-            RateLaw, FluxLaw,
+            RateLaw,
+            FluxLaw,
             EquationLaw,
             CrossingLaw,
             BoundaryLaw,
             TransferLaw,
-            EncounterLaw, ProliferationLaw, DestructionLaw,
+            EncounterLaw,
+            ProliferationLaw,
+            DestructionLaw,
         },
-        
-        
         orders={OrderKind.INTEGER},
     )
 

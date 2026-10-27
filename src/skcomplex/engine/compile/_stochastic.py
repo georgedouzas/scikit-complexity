@@ -145,7 +145,10 @@ def _transition(owner: str, law: TransitionLaw, references: dict[Expression, Ref
     size = _alphabet_size(description, references.get(law._get_targets()[0]))
     _check_shape(description, law.matrix, size, size)
     _check_shape(description, law.matrix, len(law.matrix), len(law.matrix))
-    value = categorical(_draw_name('transition', law._get_targets()[0]), _selected_row(law._get_targets()[0], law.matrix))
+    value = categorical(
+        _draw_name('transition', law._get_targets()[0]),
+        _selected_row(law._get_targets()[0], law.matrix),
+    )
     return UpdateLaw(law._get_targets()[0], value), MatrixLaw(owner, description, law.matrix)
 
 

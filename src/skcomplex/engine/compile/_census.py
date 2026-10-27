@@ -81,7 +81,9 @@ def _noise_census(spec: KernelSpec, law: object, declarations: Declarations) -> 
         return {}
     targets = components_of(law._get_targets()[0])
     values = (
-        components_of(law.value) if isinstance(law.value, FreeModuleElement | list | tuple) else [law.value] * len(targets)
+        components_of(law.value)
+        if isinstance(law.value, FreeModuleElement | list | tuple)
+        else [law.value] * len(targets)
     )
     references = [spec.references.get(item) for item in targets]
     return {
@@ -329,7 +331,8 @@ class CensusRecord:
 
         processes:
             For a noise law, the Wiener process of every target component: `None` for an independent process,
-            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a `WienerProcessSpec`.
+            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a
+            `WienerProcessSpec`.
 
         driven:
             For a noise law, the state entry name and column of every target component.

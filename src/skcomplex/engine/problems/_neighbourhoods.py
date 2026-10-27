@@ -32,6 +32,7 @@ from ...core.types import Indices, Vector
 from ._layouts import Entry
 from ._printing import numpy_function
 from ._reads import Read
+from ._variables import Variable
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
@@ -60,8 +61,6 @@ def spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
     """
     return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))
 
-
-from ._variables import Variable
 
 type Rows = tuple[Indices, Indices]
 type Found = tuple[Indices, Indices, Indices | None]
@@ -222,7 +221,8 @@ def cone_heading(cone: ConeNeighborhood, states: Mapping[str, Variable], n_dim: 
         >>> class BoidElement(Element):
         ...     x = state(vector=True, position=True)
         ...     theta = state(0.0)
-        >>> cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), declarations_of(BoidElement, VariableKind.STATE), 2)
+        >>> states = declarations_of(BoidElement, VariableKind.STATE)
+        >>> cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), states, 2)
         'theta'
     """
     if cone.heading is not None:
