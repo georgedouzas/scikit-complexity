@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.base import Form, SolverError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import JumpLaw, RateLaw
 from skcomplex.core.laws.utils import bernoulli, draw, mean, normal
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import RenewalRecord
+from skcomplex.engine.problems import Form, RenewalRecord
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
 from skcomplex.engine.viz import RerunObserver

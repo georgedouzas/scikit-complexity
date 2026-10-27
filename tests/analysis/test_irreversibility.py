@@ -14,8 +14,8 @@ from skcomplex.analysis import (
     langevin_entropy_production,
     uncertainty_relation,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System

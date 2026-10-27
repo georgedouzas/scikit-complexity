@@ -27,10 +27,9 @@ from sage.all__sagemath_symbolics import (
     tanh,
 )
 
-from skcomplex.core.base import symbol
 from skcomplex.core.laws.utils import both, either, mod, where
-from skcomplex.engine.backends import LeptonPrinter
-from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
+from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions, symbol
+from skcomplex.engine.solvers import LeptonPrinter
 
 X, Y = symbol('x'), symbol('y')
 VALUES = {X: 0.3, Y: 1.7}

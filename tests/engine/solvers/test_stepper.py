@@ -5,12 +5,13 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import step_count
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,
     GillespieSolver,
@@ -21,7 +22,6 @@ from skcomplex.engine.solvers import (
     ScipyODESolver,
     VelocityVerletSolver,
     resolve_solver,
-    step_count,
 )
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement

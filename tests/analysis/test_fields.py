@@ -17,8 +17,8 @@ from skcomplex.analysis import (
     pattern_wavelength,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import FieldElement
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

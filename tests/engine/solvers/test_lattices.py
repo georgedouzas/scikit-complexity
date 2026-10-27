@@ -6,9 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.spaces import (

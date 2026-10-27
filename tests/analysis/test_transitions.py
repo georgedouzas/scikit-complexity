@@ -14,7 +14,7 @@ from skcomplex.analysis import (
     transition_counts,
     transition_matrix,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:

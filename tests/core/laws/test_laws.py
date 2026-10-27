@@ -7,15 +7,15 @@ import pytest
 from sage.all__sagemath_symbolics import oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import ConservationError, symbol
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, draw, lag, step, where
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import VelocityVerletSolver
 

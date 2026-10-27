@@ -16,7 +16,7 @@ from skcomplex.analysis import (
     symbolize,
     transfer_entropy,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def test_periodic_sequence():

@@ -8,27 +8,14 @@ import pytest
 import skcomplex.formalisms.fractional  # noqa: F401  # registers the fractional solvers whose orders the tests read
 
 import skcomplex.engine.compile._validation as validation
-from skcomplex.core.base import (
-    Binding,
-    DomainKind,
-    ElementKind,
-    Form,
-    LawClass,
-    LawKind,
-    OrderKind,
-    Registry,
-    RequirementSpec,
-    SpaceKind,
-    SupportSpec,
-    TimeKind,
-    law_classes,
-)
+from skcomplex.core.base import Binding, LawClass, LawKind, Registry, SpaceKind, TimeKind, law_classes
 from skcomplex.core.elements import FieldElement
 from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
-from skcomplex.core.specs import SamplerSpec
+from skcomplex.core.specs import RequirementSpec, SamplerSpec
 from skcomplex.engine.backends import BACKENDS
 from skcomplex.engine.compile import SOLVERS, missing_declarations
+from skcomplex.engine.problems import DomainKind, ElementKind, Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import Solver
 
 TEST_TERMS = {str(outside.DECAY), str(outside.DECAYING)}

@@ -3,7 +3,7 @@
 import dataclasses
 
 from skcomplex.core import base
-from skcomplex.core.base import LawClass, LawKind, Trait, has_trait, law_classes, symbol
+from skcomplex.core.base import LawClass, LawKind, Trait, has_trait, law_classes
 from skcomplex.core.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -20,6 +20,7 @@ from skcomplex.core.laws import (
 )
 from skcomplex.core.laws.utils import Totalistic
 from skcomplex.core.spaces import BoxNeighborhood
+from skcomplex.engine.problems import symbol
 
 
 def test_law_classes_share_the_base():

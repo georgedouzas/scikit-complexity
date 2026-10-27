@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp, pi
 
-from skcomplex.core.base import symbol
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.interactions import Interaction
@@ -16,6 +15,7 @@ from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import distributed_delay, mean, total
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.problems import symbol
 from skcomplex.engine.runtime import Frame, Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement

@@ -8,8 +8,8 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import memory
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import memory
 
 
 class SaverElement(Element):

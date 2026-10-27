@@ -23,8 +23,8 @@ from skcomplex.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import JumpLaw
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System

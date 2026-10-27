@@ -12,7 +12,6 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import Form, NoiseKind
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
@@ -32,6 +31,7 @@ from skcomplex.core.specs import (
 )
 from skcomplex.core.system import System
 from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
+from skcomplex.engine.problems import Form, NoiseKind
 
 from ...conftest import HoldingElement, _correlated
 from .conftest import _pair

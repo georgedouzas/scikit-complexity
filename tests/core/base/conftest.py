@@ -40,6 +40,6 @@ class ProgressionInteraction(Interaction):
         self.target = target
         self.step = step
 
-    def _get_laws(self, s):  # noqa: ANN001, ANN201
+    def _get_laws(self, s):  # noqa: ANN001
         """Return the laws of the progression interaction."""
         return [UpdateLaw(s.target.health, s.target.health + s.step)]

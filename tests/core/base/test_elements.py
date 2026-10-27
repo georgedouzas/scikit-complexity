@@ -7,12 +7,13 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import ArgumentError, symbol
 from skcomplex.core.elements import BaseElement, Element, GroupElement
+from skcomplex.core.errors import ArgumentError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.problems import symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
 

@@ -10,9 +10,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import IncompatibleLawsError
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ParameterError, ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
 from skcomplex.core.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.laws.utils import bernoulli, categorical, normal, total, uniform, where
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec

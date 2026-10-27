@@ -8,7 +8,7 @@ from skcomplex.analysis import (
     correlation_function,
     label_clusters,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 PERCOLATION_THRESHOLD = 0.5927
 

@@ -2,10 +2,10 @@
 
 import pytest
 
-from skcomplex.core.base import symbol
 from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
 from skcomplex.core.spaces import VonNeumannNeighborhood
 from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
+from skcomplex.engine.problems import symbol
 
 
 def test_relaxation_targets_the_states_of_its_relaxation_laws():
@@ -24,7 +24,9 @@ def test_sample_targets_the_state_of_its_move():
     """Test that a Monte Carlo sample checks its move and sampler and targets the moved state."""
     spin = symbol('spin')
     law = SampleLaw(
-        EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec.flip(spin), SamplerSpec('glauber', 2.0)
+        EnergySpec(-spin, VonNeumannNeighborhood()),
+        MoveSpec.flip(spin),
+        SamplerSpec('glauber', 2.0),
     ).check()
     assert law.targets == (spin,)
     assert law.move.targets == (spin,)

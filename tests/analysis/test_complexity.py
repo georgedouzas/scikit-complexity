@@ -25,7 +25,7 @@ from skcomplex.analysis import (
     transfer_entropy,
     tsallis_entropy,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 

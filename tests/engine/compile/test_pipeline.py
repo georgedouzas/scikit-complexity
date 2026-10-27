@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from skcomplex.core.base import PipelineError
+from skcomplex.core.errors import PipelineError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import BasePass, Compilation, compile_system, order_passes, run_passes
 from skcomplex.models import create

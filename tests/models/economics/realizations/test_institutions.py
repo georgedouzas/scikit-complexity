@@ -2,8 +2,8 @@
 
 import pytest
 
-from skcomplex.core.base import SimulationError
 from skcomplex.core.elements import GroupElement
+from skcomplex.core.errors import SimulationError
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

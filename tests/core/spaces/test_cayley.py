@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from skcomplex.core.base import SpaceKind, SpaceTooLargeError
+from skcomplex.core.base import SpaceKind
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SpaceTooLargeError, ValidationError
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.laws.utils import Table, Totalistic
 from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, GeneratorNeighborhood, LatticeSpace, MemoryNeighborhood

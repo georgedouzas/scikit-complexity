@@ -4,10 +4,10 @@ import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import pytest
 
-from skcomplex.core.base import symbol
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import is_draw
 from skcomplex.core.laws.utils import Draw, bernoulli, categorical, draws_in, normal, uniform
+from skcomplex.engine.problems import symbol
 
 
 def test_uniform_merges_uses_of_one_name():

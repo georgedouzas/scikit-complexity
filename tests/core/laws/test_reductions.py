@@ -10,7 +10,6 @@ import pytest
 import scipy.sparse
 from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh
 
-from skcomplex.core.base import symbol, vector
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
@@ -42,6 +41,7 @@ from skcomplex.core.spaces import (
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.problems import symbol, vector
 from skcomplex.engine.problems._reductions import reduce_values
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import o_information, surrogate_test, total_correlation
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def test_surrogate_test_independent_variables_are_not_significant():

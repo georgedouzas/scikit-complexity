@@ -10,7 +10,7 @@ from skcomplex.analysis import (
     partial_information,
     total_correlation,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 SAMPLES = 20_000
 

@@ -11,7 +11,7 @@ from skcomplex.analysis import (
     like_neighbor_share,
     snapshots_of,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 

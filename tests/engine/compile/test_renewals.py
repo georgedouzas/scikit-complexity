@@ -4,7 +4,6 @@ from typing import Annotated
 
 import pytest
 
-from skcomplex.core.base import Form
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
@@ -12,6 +11,7 @@ from skcomplex.core.laws.utils import draw, mean, normal
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form
 
 
 class CounterElement(Element):

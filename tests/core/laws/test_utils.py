@@ -5,9 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from skcomplex.core.base import symbol, vector
-from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, values_of
+from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import Call
+from skcomplex.engine.compile import values_of
+from skcomplex.engine.problems import symbol, vector
 
 
 def test_symbols_unknown_name_raises_attribute_error():

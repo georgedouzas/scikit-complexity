@@ -19,7 +19,7 @@ from skcomplex.analysis import (
     is_surjective,
     spatial_entropy_rates,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws.utils import OuterTotalistic, Table, Totalistic
 from skcomplex.core.spaces import (
     BoxNeighborhood,

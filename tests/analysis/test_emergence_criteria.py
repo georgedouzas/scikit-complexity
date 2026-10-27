@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import closure, emergence_criteria
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 LUMPABLE = np.array(
     [

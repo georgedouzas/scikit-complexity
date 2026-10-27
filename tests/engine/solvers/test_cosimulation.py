@@ -6,15 +6,15 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, IncompatibleLawsError, SolverError
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, SolverError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, maximum, mean, total
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, held_reductions_of, partition_system
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.models.biology.ecology import (

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import compare_with_law, fit_extreme_values, fit_stable, record_counts, snapshots_of
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
 

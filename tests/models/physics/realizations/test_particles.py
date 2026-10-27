@@ -6,10 +6,9 @@ import pytest
 from skcomplex.core.elements import GroupElement, ParticleElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
-from skcomplex.engine.backends import LammpsSolver
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver, ScipyODESolver, VelocityVerletSolver
+from skcomplex.engine.solvers import EulerMaruyamaSolver, LammpsSolver, ScipyODESolver, VelocityVerletSolver
 from skcomplex.models.physics.realizations.particles import (
     ConstantForceInteraction,
     GravityInteraction,

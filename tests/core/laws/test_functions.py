@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
-from skcomplex.core.base import symbol
 from skcomplex.core.elements import Element, ParticleElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
@@ -17,7 +16,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
+from skcomplex.engine.problems import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions, symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
 

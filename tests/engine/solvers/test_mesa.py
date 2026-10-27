@@ -6,18 +6,19 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, IncompatibleLawsError, SimulationError, TimeKind
+from skcomplex.core.base import TimeKind
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import LabelError, SpaceError, ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import AgentView, MesaSolver
 from skcomplex.engine.compile import compile_system, runs_rules, validate
 from skcomplex.engine.compile.passes._agents import AGENT_RESERVED_NAMES
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentView, MesaSolver
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 
 

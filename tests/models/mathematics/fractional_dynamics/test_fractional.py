@@ -5,8 +5,8 @@ import pickle  # nosec B403: the tests pickle and load only objects they create
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.mathematics.fractional_dynamics import (

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import fields_of
-from skcomplex.core.base import SolverError
+from skcomplex.core.errors import SolverError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.active_matter import keller_segel
 

@@ -20,7 +20,7 @@ from skcomplex.analysis import (
     mean_squared_displacement,
     power_spectrum,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import NetworkSpace
 
 

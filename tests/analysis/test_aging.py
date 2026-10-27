@@ -11,7 +11,7 @@ from skcomplex.analysis import (
     response,
     two_time_correlation,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 

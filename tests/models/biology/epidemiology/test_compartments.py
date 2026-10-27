@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from skcomplex.core.base import Form
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 

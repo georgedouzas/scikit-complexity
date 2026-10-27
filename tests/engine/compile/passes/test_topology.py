@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import as_graph, fit_power_law
-from skcomplex.core.base import CapacityError, ElementKind, SpaceKind
+from skcomplex.core.base import SpaceKind
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.errors import CapacityError
 from skcomplex.core.interactions import Interaction, NeighborInteraction
 from skcomplex.core.laws import JumpLaw, UpdateLaw
 from skcomplex.core.laws.utils import neighbors, total
@@ -16,6 +17,7 @@ from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSp
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, missing_declarations, validate
+from skcomplex.engine.problems import ElementKind
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import GillespieSolver, IterationSolver, RK4Solver
 

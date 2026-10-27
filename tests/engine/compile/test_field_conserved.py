@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import NoiseKind, symbol
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import NoiseLaw
@@ -14,6 +13,7 @@ from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.problems import NoiseKind, symbol
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 
 

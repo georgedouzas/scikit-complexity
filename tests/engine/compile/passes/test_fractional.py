@@ -5,7 +5,6 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, OrderKind, SupportSpec
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
@@ -14,6 +13,7 @@ from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.problems import Form, OrderKind, SupportSpec
 from skcomplex.engine.solvers import GrunwaldLetnikovSolver
 
 

@@ -7,9 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.analysis import controllability, linearize, lqr, observability
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec

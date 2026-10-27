@@ -12,9 +12,8 @@ from sage.all__sagemath_symbolics import ceil, oo, sin
 from sage.sets.real_set import RealSet
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import CrossingLaw, RateLaw
 from skcomplex.core.laws.utils import delayed, laplacian, mean, step, total, where

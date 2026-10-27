@@ -11,8 +11,8 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import BackendError, BackendWarning, Form, SolverError, vector
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.errors import BackendError, BackendWarning, SolverError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import Call
@@ -21,6 +21,7 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, Lowering, NumbaBackend, NumpyBackend, _numba
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form, vector
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     EulerMaruyamaSolver,

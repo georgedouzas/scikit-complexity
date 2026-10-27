@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import equations_of, mittag_leffler, solve_symbolically
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System

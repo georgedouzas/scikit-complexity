@@ -7,9 +7,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import flow_matrix
-from skcomplex.core.base import SimulationError, SolverError
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import ParameterError, ValidationError
+from skcomplex.core.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec

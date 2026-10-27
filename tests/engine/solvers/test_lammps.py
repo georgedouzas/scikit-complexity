@@ -10,17 +10,17 @@ import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import BackendError, Form, SolverError
 from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import LammpsSolver
 from skcomplex.engine.compile import SOLVERS, compile_system
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.solvers import BaseSolver, ExternalSolver, VelocityVerletSolver
+from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.models.biology.ecology import (
     LogisticGrowthInteraction,
     MortalityInteraction,

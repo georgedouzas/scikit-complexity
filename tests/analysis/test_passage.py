@@ -10,7 +10,7 @@ from skcomplex.analysis import (
     laminar_durations,
     return_times,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 RUNS = 2000
 

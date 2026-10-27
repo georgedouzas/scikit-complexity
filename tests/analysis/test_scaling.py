@@ -12,7 +12,7 @@ from skcomplex.analysis import (
     scaling_collapse,
     spanning_probability,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 from .conftest import ISING_SIZES, ISING_TEMPERATURES
 

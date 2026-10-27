@@ -7,12 +7,13 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import mittag_leffler
-from skcomplex.core.base import Form, SolverError
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import (
     CoSimulationSolver,

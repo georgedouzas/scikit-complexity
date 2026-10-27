@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import epsilon_machine
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def _golden_mean(steps: int, seed: int) -> np.ndarray:

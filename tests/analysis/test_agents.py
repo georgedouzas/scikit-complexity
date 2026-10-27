@@ -24,14 +24,14 @@ from skcomplex.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import BaseLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import AgentView, ModelView
 from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.models import run
 
 

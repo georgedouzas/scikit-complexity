@@ -8,15 +8,15 @@ import pytest
 import shapely
 
 from skcomplex.analysis import box_counting_dimension
-from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, symbol
+from skcomplex.core.base import LawKind
 from skcomplex.core.elements import HostGraphElement, PatchElement, WordElement
-from skcomplex.core.errors import RewritingError, ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.core.laws import BaseLaw, GraphProductionLaw, ProductionLaw, SubstitutionLaw
 from skcomplex.core.specs import AffineSpec, ModuleSpec, PrototileSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PatchStructure, WordGeometry, WordStructure, claiming_compiler, compile_system
 from skcomplex.engine.compile.passes import RewritingCompiler, RewritingProblem
-from skcomplex.engine.problems import BaseProblem, Problem
+from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RewritingSolver, StructureState
 from skcomplex.models.biology.ecology import PopulationElement
@@ -32,7 +32,9 @@ class GrowthElement(WordElement):
     def laws(self, s):
         """Return the rewriting law of the production."""
         production = ProductionLaw(
-            ModuleSpec('A', (X,)), [ModuleSpec('F', (X,)), ModuleSpec('A', (X * s.R,))], condition=X > 0.1
+            ModuleSpec('A', (X,)),
+            [ModuleSpec('F', (X,)), ModuleSpec('A', (X * s.R,))],
+            condition=X > 0.1,
         )
         return [RewriteLaw([production])]
 

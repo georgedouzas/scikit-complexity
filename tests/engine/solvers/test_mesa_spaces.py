@@ -5,9 +5,8 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SimulationError
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SimulationError, ValidationError
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec, StateSpec, VisualSpec

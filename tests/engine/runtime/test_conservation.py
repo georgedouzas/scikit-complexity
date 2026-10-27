@@ -5,9 +5,8 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ConservationError
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import ConservationError, ValidationError
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import transfer
 from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec

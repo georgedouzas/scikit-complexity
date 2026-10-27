@@ -4,9 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import entanglement_entropy, equations_of, ground_state, hamiltonian_of, purity, spectrum
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.errors import ParameterError
+from skcomplex.core.errors import AnalysisError, ParameterError
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation

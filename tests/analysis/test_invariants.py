@@ -20,7 +20,7 @@ from skcomplex.analysis import (
     recurrence_quantification,
     ulam_chain,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.models.mathematics.dynamical_systems import henon_map, logistic_map, lorenz
 
 

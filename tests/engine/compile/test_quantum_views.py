@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.base import symbol
 from skcomplex.core.elements import LatticeElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.engine.compile import LocalOperator, Operator, QuantumView
+from skcomplex.engine.problems import symbol
 from skcomplex.models.physics.realizations.quantum import ModeElement, QubitElement, SiteElement, SpinElement
 
 

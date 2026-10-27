@@ -7,8 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.analysis import equations_of, solve_symbolically
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element, ParticleElement
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag

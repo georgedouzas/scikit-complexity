@@ -7,8 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import SolverError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, RateLaw
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace

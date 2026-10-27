@@ -9,7 +9,7 @@ from skcomplex.analysis import (
     partition_coarse_grain,
     transition_matrix,
 )
-from skcomplex.core.base import AnalysisError, UnobservedStatesWarning
+from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
 NOISY_STATES = 7

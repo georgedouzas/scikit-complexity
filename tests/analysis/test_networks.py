@@ -18,7 +18,7 @@ from skcomplex.analysis import (
     snapshots_of,
     summarize_network,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
 

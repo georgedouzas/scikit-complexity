@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, symbol
+from skcomplex.core.base import LawKind
 from skcomplex.core.elements import GroupElement, LatticeElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw, RateLaw
 from skcomplex.core.spaces import LatticeSpace
@@ -25,7 +25,7 @@ from skcomplex.engine.compile import (
 )
 from skcomplex.engine.compile.passes import HilbertSpaceError, QuantumCompiler, QuantumProblem
 from skcomplex.engine.compile.passes._quantum import hamiltonian_at, state_of
-from skcomplex.engine.problems import BaseProblem, Problem
+from skcomplex.engine.problems import BaseProblem, Form, Problem, symbol
 from skcomplex.engine.solvers import LindbladSolver
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.physics.realizations.quantum import ModeElement, QubitElement, SpinElement

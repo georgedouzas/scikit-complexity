@@ -3,9 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import LawClass, LawKind, SpaceKind, TimeKind, symbol
+from skcomplex.core.base import LawClass, LawKind, SpaceKind, TimeKind
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from skcomplex.engine.problems import symbol
 
 
 @pytest.mark.parametrize('law', [EncounterLaw, ProliferationLaw, DestructionLaw])

@@ -7,8 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.analysis import divergence, fixed_points, jacobian, nullclines, stability
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total

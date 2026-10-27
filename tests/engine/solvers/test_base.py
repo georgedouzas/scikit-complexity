@@ -7,8 +7,8 @@ import sys
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, SolverError, symbol
-from skcomplex.engine.problems import BaseProblem, Entry, Layout
+from skcomplex.core.errors import SolverError
+from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout, symbol
 from skcomplex.engine.solvers import BaseSolver
 
 SCRIPT = '''

@@ -8,9 +8,8 @@ import numpy as np
 import pytest
 import skfem
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, FieldElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import FluxLaw, RateLaw
 from skcomplex.core.laws.utils import inverse_laplacian, laplacian
 from skcomplex.core.spaces import LatticeSpace

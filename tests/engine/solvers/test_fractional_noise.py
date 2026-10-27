@@ -5,8 +5,8 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System

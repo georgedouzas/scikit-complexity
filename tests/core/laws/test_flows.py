@@ -8,9 +8,8 @@ import pytest
 from scipy import stats
 
 from skcomplex.analysis import conservation, loop_dominance, loops
-from skcomplex.core.base import ConservationError
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.errors import LabelError, ValidationError
+from skcomplex.core.errors import ConservationError, LabelError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BoundaryLaw, RateLaw, RuleLaw, Sink, Source, TransferLaw, UpdateLaw
 from skcomplex.core.laws.utils import distributed_delay, lookup, step, transfer, where

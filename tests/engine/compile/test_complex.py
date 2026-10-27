@@ -10,15 +10,14 @@ import pytest
 from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.analysis import power_spectrum
-from skcomplex.core.base import BackendError
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import BackendError, ValidationError
 from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import Call, derivative, laplacian, mod, total, where
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import LammpsSolver, NumbaBackend
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Entry, Layout
 from skcomplex.engine.runtime import Simulation
@@ -27,6 +26,7 @@ from skcomplex.engine.solvers import (
     ETDRK4Solver,
     IMEX2Solver,
     IMEXEulerSolver,
+    LammpsSolver,
     RK4Solver,
     ScipyODESolver,
 )

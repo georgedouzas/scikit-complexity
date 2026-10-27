@@ -12,7 +12,7 @@ from skcomplex.analysis import (
     total_correlation,
     transfer_entropy,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def test_local_mutual_information_gaussian_mean_is_global():

@@ -7,7 +7,6 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import symbol
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
@@ -17,6 +16,7 @@ from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import symbol
 from skcomplex.engine.runtime import Simulation
 
 CLASSES = 9

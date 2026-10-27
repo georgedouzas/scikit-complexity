@@ -19,7 +19,7 @@ from skcomplex.analysis import (
     permutation_entropy,
     symbolize,
 )
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 
 
 def _truncated_power_law(size: int, rng: np.random.Generator) -> np.ndarray:

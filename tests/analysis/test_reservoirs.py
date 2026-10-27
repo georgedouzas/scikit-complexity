@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import BaseSurrogate, ReservoirSurrogate, Series
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.engine.compile import validate
 from skcomplex.engine.runtime import Simulation

@@ -8,8 +8,8 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.analysis import BaseSurrogate, DMDSurrogate, Series
-from skcomplex.core.base import AnalysisError
 from skcomplex.core.elements import Element
+from skcomplex.core.errors import AnalysisError
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.specs import StateSpec, VisualSpec

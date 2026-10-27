@@ -6,10 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from skcomplex.core.base import BasePart, symbol
+from skcomplex.core.base import BasePart
 from skcomplex.core.elements import BaseElement
 from skcomplex.core.laws import BaseLaw
 from skcomplex.core.system import System
+from skcomplex.engine.problems import symbol
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 
 

@@ -10,14 +10,14 @@ from sage.all__sagemath_symbolics import NN, RR, ZZ, oo, pi
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import Form, LawKind, NoiseKind, SpaceKind, Term, Trait
+from skcomplex.core.base import LawKind, SpaceKind, Term, Trait
 from skcomplex.core.elements import Element
 from skcomplex.core.errors import RegistryError, ValidationError
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.problems import VariableKind, declarations_of
+from skcomplex.engine.problems import Form, NoiseKind, VariableKind, declarations_of
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 

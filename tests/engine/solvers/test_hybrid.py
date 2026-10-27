@@ -8,9 +8,8 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import Element
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.laws import CrossingLaw, NoiseLaw, RateLaw
 from skcomplex.core.laws.utils import delayed, pulse_train, series, step
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec

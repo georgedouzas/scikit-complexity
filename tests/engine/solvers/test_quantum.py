@@ -6,8 +6,8 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError
 from skcomplex.core.elements import LatticeElement
+from skcomplex.core.errors import SolverError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.spaces import LatticeSpace

@@ -10,9 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.base import Form, IncompatibleLawsError, domain_of, symbol
 from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
-from skcomplex.core.errors import LabelError, RoleError, SpaceError, ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
@@ -20,6 +19,7 @@ from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.problems import Form, domain_of, symbol
 from skcomplex.models.biology.ecology import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,

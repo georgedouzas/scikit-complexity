@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import event_counts, fano_factor, kramers_moyal, relative_fluctuations
-from skcomplex.core.base import AnalysisError
+from skcomplex.core.errors import AnalysisError
 from skcomplex.models import run
 
 
