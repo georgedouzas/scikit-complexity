@@ -1,8 +1,8 @@
 """Define views of quantum elements, whose states lie in Hilbert spaces, as the quantum compiler reads them.
 
 An element is a quantum subsystem when it takes a `HilbertSpec` as an argument of its constructor and declares a complex
-state, over `CC` or over `CC^dimension`, such as `psi: Annotated[object, StateSpec(domain=CC)] = 'up'`. A group of such elements takes
-the spec of its members, which `values` may replace like any other argument.
+state, over `CC` or over `CC^dimension`, such as `psi: Annotated[object, StateSpec(domain=CC)] = 'up'`. A group of
+such elements takes the spec of its members, which `values` may replace like any other argument.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

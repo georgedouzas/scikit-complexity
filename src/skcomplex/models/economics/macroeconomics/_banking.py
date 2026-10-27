@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated, Any
 
@@ -273,8 +274,8 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: object,
-        phase: object,
+        rule: Callable[[object], None] | None = None,
+        phase: str | None = None,
         ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         new_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         change_at: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,

@@ -129,7 +129,7 @@ class BondSpinElement(Element):
         return [
             SampleLaw(
                 EnergySpec(-s.spin * (field + s.h), NEAREST),
-                MoveSpec.flip(s.spin),
+                MoveSpec(s.spin, 'flip'),
                 SamplerSpec('metropolis', s.temperature),
             ),
         ]

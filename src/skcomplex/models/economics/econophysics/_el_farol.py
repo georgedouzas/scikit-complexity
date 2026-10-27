@@ -207,15 +207,14 @@ class BarInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: object,
-        phase: object,
+        rule: Callable[[object], None] | None = None,
+        phase: str | None = 'count',
         capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
         patrons: str = 'patrons',
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.capacity = capacity
         self.patrons = patrons
-        self.phase = phase
 
     def act(self, model: ModelView) -> None:
         """Count the patrons in the bar and report the attendance.

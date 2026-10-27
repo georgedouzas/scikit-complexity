@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated, Any, ClassVar
 
@@ -269,8 +270,8 @@ class CensusInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: object,
-        phase: object,
+        rule: Callable[[object], None] | None = None,
+        phase: str | None = None,
         foragers: Annotated[str, RoleSpec()],
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)

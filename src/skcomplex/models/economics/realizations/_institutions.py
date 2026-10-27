@@ -43,7 +43,7 @@ class InstitutionInteraction(Interaction):
         self,
         label: str,
         *,
-        rule: Callable[[Any], None] | None = None,
+        rule: Callable[[object], None] | None = None,
         phase: str | None = None,
     ) -> None:
         super().__init__(label)

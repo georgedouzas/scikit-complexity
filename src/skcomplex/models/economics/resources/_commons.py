@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, Any
 
@@ -407,8 +407,8 @@ class RegulatorInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: object,
-        phase: object,
+        rule: Callable[[object], None] | None = None,
+        phase: str | None = None,
         regulated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated, Any, ClassVar
 
@@ -149,8 +150,8 @@ class HeuristicPricingInteraction(InstitutionInteraction):
         self,
         label: str,
         *,
-        rule: object,
-        phase: object,
+        rule: Callable[[object], None] | None = None,
+        phase: str | None = None,
         traders: Annotated[str, RoleSpec()],
         rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
         strength: Annotated[float, ParameterSpec()] = 1.2,

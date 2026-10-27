@@ -83,7 +83,8 @@ class IsingSpinElement(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST, reduce='each')) - s.h * s.spin
-        return [SampleLaw(EnergySpec(energy, NEAREST), MoveSpec.flip(s.spin), SamplerSpec(self.sampler, s.temperature))]
+        sampler = SamplerSpec(self.sampler, s.temperature)
+        return [SampleLaw(EnergySpec(energy, NEAREST), MoveSpec(s.spin, 'flip'), sampler)]
 
 
 class PottsSpinElement(Element):
@@ -150,7 +151,7 @@ class PottsSpinElement(Element):
         return [
             SampleLaw(
                 EnergySpec(energy, NEAREST),
-                MoveSpec.random_value(s.color, range(self.q)),
+                MoveSpec(s.color, 'random-value', values=tuple(float(value) for value in range(self.q))),
                 SamplerSpec(self.sampler, s.temperature),
             ),
         ]
@@ -215,7 +216,7 @@ class XYSpinElement(Element):
         return [
             SampleLaw(
                 EnergySpec(energy, NEAREST),
-                MoveSpec.rotate(s.theta, self.width),
+                MoveSpec(s.theta, 'rotate', width=self.width),
                 SamplerSpec('metropolis', s.temperature),
             ),
         ]

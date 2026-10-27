@@ -90,7 +90,7 @@ class GraphIsingSpinElement(Element):
         return [
             SampleLaw(
                 EnergySpec(energy, AdjacencyNeighborhood()),
-                MoveSpec.flip(s.spin),
+                MoveSpec(s.spin, 'flip'),
                 SamplerSpec(self.sampler, s.temperature, 'colored'),
             ),
         ]
