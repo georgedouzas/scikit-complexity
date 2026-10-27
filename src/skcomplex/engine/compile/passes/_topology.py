@@ -18,7 +18,7 @@ from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Block, Declarations
 from .._pipeline import BasePass
 from .._specs import KernelSpec, group_space, mask_of, masked_value, member_spec
-from .._topology import CompiledRequest, NetworkRows, Topology, request_of
+from .._topology import CompiledRequest, NetworkRows, Topology, changes_edges, request_of
 
 
 def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
@@ -120,7 +120,7 @@ def _compiled_request(
     if network is None:
         error_msg = f'{spec.owner} requests {request!r} on a network without variable groups on its nodes.'
         raise ValidationError(error_msg)
-    if (request.on_edges or request.edges) and request.layer not in network.edges:
+    if changes_edges(request) and request.layer not in network.edges:
         error_msg = (
             f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
             'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
@@ -146,7 +146,8 @@ def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: Declar
     if mask is None:
         return laws
     return [
-        UpdateLaw(law._get_targets()[0], masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law for law in laws
+        UpdateLaw(law._get_targets()[0], masked_value(law.value, mask)) if isinstance(law, UpdateLaw) else law
+        for law in laws
     ]
 
 

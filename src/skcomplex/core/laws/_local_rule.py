@@ -8,7 +8,7 @@ from typing import Self
 from sage.all__sagemath_symbolics import Expression
 
 from ..errors import ValidationError
-from ..spaces import BaseNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
+from ..spaces import BaseNeighborhood, CayleySpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ..specs import RequirementSpec
 from ._base import BaseLaw
 
@@ -83,8 +83,8 @@ class LocalRuleLaw(BaseLaw):
         return self.targets if isinstance(self.targets, tuple) else (self.targets,)
 
     def _get_requirements(self) -> RequirementSpec:
-        """Return what the rule requires of a system: discrete time on a lattice or a network."""
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+        """Return what the rule requires of a system: discrete time on a lattice, a network, or a Cayley graph."""
+        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
 
     def _check(self) -> Self:
         """Raise an error for an unknown schedule.

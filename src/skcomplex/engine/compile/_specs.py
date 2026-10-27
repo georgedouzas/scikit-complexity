@@ -19,7 +19,7 @@ from ...core.errors import LabelError, RoleError, ValidationError
 from ...core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
 from ...core.laws import BaseLaw, JumpLaw
 from ...core.laws.utils import neighborhoods_in, reductions_in
-from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.specs import WienerProcessSpec
 from ..problems import EdgeSearch, Reference, Source, VariableKind, components_of, declarations_of, symbol, vector
 from ..problems._kernels import PairSearch, Search
@@ -342,7 +342,7 @@ def _edge_search(
             raise RoleError(error_msg)
         sources, targets = space.edges_[layer]
         size = space.size_
-    elif space is not None and space.space_kind == LatticeSpace and edges is None and layer is None:
+    elif isinstance(space, LatticeSpace | CayleySpace) and edges is None and layer is None:
         size = int(space.size_ or 0)
         pairs = np.array(space.check().prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()

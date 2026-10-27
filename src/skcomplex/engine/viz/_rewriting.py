@@ -11,7 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...core.elements import PatchElement, WordElement
-from ..compile._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ..compile._structures import GraphStructure, PatchStructure, Structure, WordStructure, affine_matrix, is_segment
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import colors_of
@@ -36,7 +36,7 @@ def _bounds_of(element: CompiledElement) -> tuple[float, float, float, float] | 
     tiles = component.tiles if component.tiles is not None else [(component.prototiles[0].name, None)]
     names = [prototile.name for prototile in component.prototiles]
     try:
-        matrices = [np.eye(3) if placement is None else placement.matrix_of({}) for _, placement in tiles]
+        matrices = [np.eye(3) if placement is None else affine_matrix(placement, {}) for _, placement in tiles]
         codes = [names.index(name) for name, _ in tiles]
     except (TypeError, ValueError):
         return None
@@ -51,7 +51,7 @@ def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.ND
     if isinstance(structure, WordStructure):
         values = np.zeros(len(segments)) if structure.depths is None else structure.depths.astype(float)
     elif isinstance(structure, PatchStructure):
-        codes = [code for code, prototile in enumerate(structure.prototiles) if prototile.is_segment]
+        codes = [code for code, prototile in enumerate(structure.prototiles) if is_segment(prototile)]
         values = np.concatenate(
             [np.zeros(0), *(np.full(np.count_nonzero(structure.codes == code), float(code)) for code in codes)],
         )
@@ -147,10 +147,18 @@ class GeometryVisual(BaseVisual):
                 otherwise, followed by the time series view.
 
         Examples:
+            >>> from skcomplex.core.elements import WordElement
+            >>> from skcomplex.core.laws import ProductionLaw
+            >>> from skcomplex.core.spaces import DiscreteTime
+            >>> from skcomplex.core.specs import GeometrySpec
+            >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import GeometryVisual
-            >>> from skcomplex.models import create
-            >>> problem = compile_system(create('koch_curve'))
+            >>> class KochElement(WordElement):
+            ...     def _get_laws(self, namespace):
+            ...         return [ProductionLaw('F', 'F+F--F+F')]
+            >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
+            >>> problem = compile_system(System(elements=[koch], time=DiscreteTime()))
             >>> [type(view).__name__ for view in GeometryVisual().prepare(problem.elements[0], problem).views_]
             ['Spatial2DView', 'TimeSeriesView']
         """

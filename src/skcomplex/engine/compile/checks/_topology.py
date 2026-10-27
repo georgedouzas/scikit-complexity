@@ -12,7 +12,7 @@ from ....core.specs import TopologyRequestSpec
 from .._census import Census, CensusRecord
 from .._compilation import Compilation
 from .._issues import Issue
-from .._topology import request_of
+from .._topology import changes_edges, request_of
 from .._tree import Node
 
 
@@ -25,14 +25,14 @@ def _fixed_groups(
     edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
     sites = [node for node in groups if node.component.on == 'sites']
     changed = []
-    if request.on_edges or request.edges:
+    if changes_edges(request):
         changed += edges
     if request.kind in {'add-node', 'remove-node'}:
         changed += sites
     if owner is not None:
         changed.append(owner)
     fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-    return fixed, (request.on_edges or bool(request.edges)) and not edges
+    return fixed, changes_edges(request) and not edges
 
 
 def _request_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
