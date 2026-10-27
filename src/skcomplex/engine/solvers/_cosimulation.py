@@ -88,7 +88,7 @@ class CoSimulationSolver(Solver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(
-        ...     elements=[
+        ...     systems=[
         ...         System(
         ...             'a',
         ...             elements=[PopulationElement('x', n=1)],
