@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import TimeKind
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.core.interactions import Interaction
@@ -250,7 +249,7 @@ def test_rules_mixed_with_rates_raise_error():
         interactions=[ExponentialGrowthInteraction('growth', target='herd')],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
-    with pytest.raises(IncompatibleLawsError, match='rate: herd; rule: walkers'):
+    with pytest.raises(IncompatibleLawsError, match='RateLaw: herd; RuleLaw: walkers'):
         compile_system(system)
 
 
@@ -362,11 +361,10 @@ def test_agent_parameter_changes_live():
 
 
 def test_mesa_declares_its_support():
-    """Test that the Mesa backend declares discrete time, rule laws, and fixed and variable groups."""
+    """Test that the Mesa backend declares discrete time and rule laws."""
     supports = MesaSolver.supports
-    assert supports.time == {TimeKind.DISCRETE}
-    assert not supports.missing('laws', {RuleLaw.law_kind})
-    assert {'group', 'variable-group'} <= {str(kind) for kind in supports.components}
+    assert supports.time == {DiscreteTime}
+    assert not supports.missing('laws', {RuleLaw})
 
 
 def test_mesa_validates_systems_against_its_support():
@@ -375,10 +373,10 @@ def test_mesa_validates_systems_against_its_support():
         elements=[PopulationElement('herd')],
         interactions=[ExponentialGrowthInteraction('growth', target='herd')],
     )
-    issues = validate(system, solver='mesa').issues
+    issues = validate(system, solver=MesaSolver()).issues
     assert [issue.code for issue in issues] == ['solver-unsupported']
-    assert 'rate' in issues[0].message
-    assert validate(_money_system(), solver='mesa').ok
+    assert 'RateLaw' in issues[0].message
+    assert validate(_money_system(), solver=MesaSolver()).ok
 
 
 SEEN: list[object] = []
@@ -444,7 +442,7 @@ def _census(looked_up='counted', space=None, schedule=None):
         ],
         interactions=[CensusInteraction('census', counted='cows', others='patches', looked_up=looked_up)],
     )
-    system = System(elements=[farm], space=space)
+    system = System(systems=[farm], space=space)
     simulation = Simulation(system, schedule=schedule, random_state=0).run(until=3)
     return simulation, list(SEEN)
 

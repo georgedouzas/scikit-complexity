@@ -12,6 +12,7 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import Form
 from skcomplex.engine.runtime import Simulation
@@ -127,10 +128,10 @@ def test_compile_system_order_one_gives_ode_form():
 
 
 @pytest.mark.parametrize('scheme', SCHEMES)
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
 def test_scheme_converges_to_mittag_leffler_relaxation(scheme, backend):
     """Test that a scheme matches E_0.6(-t^0.6) at time 5, with a smaller error for the smaller step."""
-    problem = compile_system(System(elements=[RelaxingElement('a')]), backend=backend)
+    problem = compile_system(System(elements=[RelaxingElement('a')]), backend=backend())
     exact = float(mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     errors = [abs(_advance(scheme(dt=dt), problem, 5.0)[0] - exact) for dt in (0.01, 0.005)]
     assert errors[0] < 1e-3

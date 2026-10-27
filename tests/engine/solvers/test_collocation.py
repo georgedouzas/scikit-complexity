@@ -5,7 +5,7 @@ import pytest
 from scipy.optimize import brentq
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.engine.compile import missing_declarations
+from skcomplex.core.laws import RateLaw
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CollocationSolver
 
@@ -71,7 +71,6 @@ def test_collocation_rejects_unknown_scheme(linear_quadratic, quadratic_cost):
         Simulation(linear_quadratic, solver=CollocationSolver(quadratic_cost, scheme='euler')).run(until=1.0)
 
 
-def test_optimal_control_solvers_declare_support():
-    """Test that the optimal control solvers are registered with their declarations."""
-    assert missing_declarations() == []
-    assert 'rate' in {str(kind) for kind in CollocationSolver.supports.laws}
+def test_collocation_declares_rate_laws():
+    """Test that the collocation solver declares that it supports rate laws."""
+    assert not CollocationSolver.supports.missing('laws', [RateLaw])

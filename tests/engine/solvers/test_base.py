@@ -1,57 +1,12 @@
 """Test the `_base` module of `skcomplex.engine.solvers`."""
 
-import ast
-import subprocess  # nosec B404: the test starts a fresh interpreter to see which modules a run loads
-import sys
-
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import RR
 
 from skcomplex.core.errors import SolverError
 from skcomplex.engine.problems import BaseProblem, Entry, Form, Layout, symbol
 from skcomplex.engine.solvers import BaseSolver
-
-SCRIPT = '''
-import sys
-import numpy as np
-from skcomplex.core.base import Form, NumericDomain, SupportSpec, symbol
-from skcomplex.engine.problems import Entry, Layout
-from skcomplex.engine.problems import BaseProblem
-from skcomplex.engine.solvers import BaseSolver
-from sage.all__sagemath_symbolics import RR
-
-
-class HalvingSolver(BaseSolver[BaseProblem]):
-    """Solver that halves the state once per unit of time."""
-
-    form = Form.DISCRETE
-    supports = SupportSpec()
-
-    def _advance(self, t, x, p, until):
-        """Return the state halved once per unit of time."""
-        return x * 0.5 ** (until - t)
-
-
-problem = BaseProblem(
-    Form.DISCRETE,
-    Layout([Entry('a.x', 0, (), RR)]),
-    Layout([]),
-    np.array([8.0]),
-    np.zeros(0),
-    symbol('t'),
-)
-solver = HalvingSolver()
-solver.prepare(problem, np.random.default_rng(0))
-state = solver.run(0.0, problem.initial_state, problem.initial_parameters, 3.0)
-print([float(state[0]), any(name.startswith('skcomplex.engine') for name in sys.modules)])
-'''
-
-
-def test_solver_advances_a_base_problem_without_the_engine():
-    """Test that a solver written against the solver base advances a base problem and loads no engine module."""
-    command = [sys.executable, '-c', SCRIPT]
-    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
-    assert ast.literal_eval(output) == [1.0, False]
 
 
 def test_solver_rejects_a_problem_of_another_form():

@@ -13,6 +13,7 @@ from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTimeClock, Simulation
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
 from skcomplex.models import create, describe
@@ -283,7 +284,7 @@ def test_simulation_update_invalid_value_raises_error():
     """Test that parameter values are checked against their domain."""
     system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     simulation = Simulation(system).run(until=1)
-    with pytest.raises(ValidationError, match='positive'):
+    with pytest.raises(ValidationError, match=r'c\.b = -1\.0 is not a value .* in the domain \(0, \+oo\)'):
         simulation.update_parameters({'c.b': -1.0})
 
 
@@ -444,7 +445,8 @@ def test_correlated_noise_repeats_with_same_seed():
     """Test that two runs of a correlated `WienerProcessSpec` with random state 0 on the Numba backend are equal."""
     system = _correlated([[1.0, 0.5], [0.5, 1.0]])
     runs = [
-        Simulation(system, backend='numba', random_state=0, dt=0.1).run(until=2).trajectory_.states for _ in range(2)
+        Simulation(system, backend=NumbaBackend(), random_state=0, dt=0.1).run(until=2).trajectory_.states
+        for _ in range(2)
     ]
     np.testing.assert_array_equal(*runs)
 
@@ -455,10 +457,10 @@ def test_perfect_correlation_keeps_states_equal():
     np.testing.assert_allclose(trajectory.values('a.n'), trajectory.values('b.n'), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_unnamed_noise_reproduces_stored_trajectory(backend):
     """Test that geometric Brownian motion with random state 0 repeats the stored trajectory on both backends."""
-    simulation = Simulation(geometric_brownian_motion(), backend=backend, random_state=0, dt=0.05)
+    simulation = Simulation(geometric_brownian_motion(), backend=backend(), random_state=0, dt=0.05)
     trajectory = simulation.run(until=0.5).trajectory_
     np.testing.assert_array_equal(trajectory.values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
 

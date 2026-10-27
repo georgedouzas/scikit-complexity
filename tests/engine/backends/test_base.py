@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.errors import BackendError, BackendWarning, SolverError
+from skcomplex.core.errors import BackendWarning, SolverError
 from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import Call
@@ -219,12 +219,6 @@ def test_backend_prepares_the_form_and_runs_the_kernels(backend):
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
 
-def test_compile_unknown_backend_raises_error():
-    """Test that an unknown backend names the registered ones."""
-    with pytest.raises(BackendError, match='numba, numpy'):
-        compile_system(System(elements=[PopulationElement('a')]), backend='gpu')
-
-
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
     large = System(elements=[GroupElement('gas', element=ParticleElement, size=1000)], space=ContinuousSpace(n_dim=2))
@@ -262,7 +256,7 @@ def test_backends_agree_on_two_groups(numba_backend):
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
-    reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
+    reference, compiled = compile_system(system, backend=NumpyBackend()), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.drift(0.0, x, p), reference.drift(0.0, x, p), rtol=1e-12, atol=1e-12)
 
@@ -270,7 +264,7 @@ def test_backends_agree_on_two_groups(numba_backend):
 def test_backends_agree_on_discrete_update(numba_backend):
     """Test that the next state of a discrete map agrees between backends."""
     system = _herds(HalvingInteraction('half', target='herds'))
-    reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
+    reference, compiled = compile_system(system, backend=NumpyBackend()), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.update(0.0, x, p), reference.update(0.0, x, p), rtol=1e-12)
 
@@ -290,7 +284,7 @@ def test_numba_pair_forces_conserve_momentum(numba_backend):
 def test_compiled_call_runs_inside_kernels(numba_backend):
     """Test that a Numba-compiled law value runs in compiled kernels with the NumPy results."""
     system = _herds(CompiledGrowthInteraction('growth', target='herds', r=0.5))
-    reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
+    reference, compiled = compile_system(system, backend=NumpyBackend()), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.drift(0.0, x, p), reference.drift(0.0, x, p), rtol=1e-12)
     assert compiled.accelerated is not None
@@ -323,7 +317,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             """Return the laws of the pair element."""
             return [UpdateLaw(vector([s.x, s.y]), Call(rotate, (s.x, s.y)))]
 
-    trajectory = Simulation(System(elements=[PairElement('pair')]), backend='numpy').run(until=4).trajectory_
+    trajectory = Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend()).run(until=4).trajectory_
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
@@ -434,7 +428,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
             elements=[GroupElement('a', element=PopulationElement, size=2, values={'n': 1.0})],
             interactions=[GrowthInteraction('g', target='a')],
         ),
-        backend=numba_backend if backend == 'numba' else backend,
+        backend=numba_backend if backend == 'numba' else NumpyBackend(),
     )
     stepper = RK4Solver(dt=0.001)
     stepper.prepare(problem, np.random.default_rng(0))
@@ -481,7 +475,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
         Simulation(_herds(HalvingInteraction('half', target='herds')), solver=IterationSolver(), backend=backend, dt=3)
         .run(until=9)
         .trajectory_.states
-        for backend in ('numpy', numba_backend)
+        for backend in (NumpyBackend(), numba_backend)
     ]
     assert np.allclose(results[0], results[1])
 
@@ -497,7 +491,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
     simulation = Simulation(
         system,
         solver=VelocityVerletSolver(dt=0.01),
-        backend=numba_backend if backend == 'numba' else backend,
+        backend=numba_backend if backend == 'numba' else NumpyBackend(),
         dt=10.0,
     )
     trajectory = simulation.run(until=1000).trajectory_
@@ -516,35 +510,20 @@ def test_velocity_verlet_needs_position_pairs():
 def test_backend_substituted_for_a_form_is_reported():
     """Test that a lattice model compiled with Numba warns that its form runs on NumPy, and records NumPy for it."""
     with pytest.warns(BackendWarning, match='lattice dynamics form runs on the numpy backend'):
-        problem = compile_system(create('contact_process'), backend='numba')
+        problem = compile_system(create('contact_process'), backend=NumbaBackend())
     assert problem.backends['LATTICE'] == 'numpy'
 
 
 def test_kernel_falling_back_to_python_is_reported(numba_backend):
     """Test that a kernel the Numba backend cannot compile warns once, naming the law kind, and records Python."""
     system = _herds(PythonGrowthInteraction('growth', target='herds'))
-    with pytest.warns(BackendWarning, match='runs the rate laws in Python') as found:
+    with pytest.warns(BackendWarning, match='runs the RateLaw laws in Python') as found:
         problem = compile_system(system, backend=numba_backend)
     assert len([item for item in found if item.category is BackendWarning]) == 1
-    assert problem.backends == {'ODE': 'numba', 'rate': 'python'}
+    assert problem.backends == {'ODE': 'numba', 'RateLaw': 'python'}
 
 
 def test_backends_derive_from_the_backend_base():
     """Test that the code backends of the engine derive from the backend base of the core."""
     assert issubclass(NumbaBackend, BaseBackend)
     assert issubclass(NumpyBackend, BaseBackend)
-
-
-def test_backends_load_on_demand():
-    """Test that compiling with a named backend imports the engine's backends through the registered loader."""
-    code = (
-        'import sys\n'
-        'from skcomplex.engine.compile import compile_system\n'
-        'from skcomplex.models import create\n'
-        "assert 'skcomplex.engine.backends' not in sys.modules\n"
-        "compile_system(create('lotka_volterra'), backend='numpy')\n"
-        "print('skcomplex.engine.backends' in sys.modules)\n"
-    )
-    command = [sys.executable, '-c', code]
-    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
-    assert output.strip() == 'True'

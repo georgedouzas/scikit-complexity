@@ -253,7 +253,7 @@ def test_mixed_leaf_subsystem_names_itself():
             ),
         ],
     )
-    with pytest.raises(IncompatibleLawsError, match=r'economy: No solver runs.*nested system'):
+    with pytest.raises(IncompatibleLawsError, match=r'economy: No form takes the laws.*nested system'):
         compile_system(system)
 
 

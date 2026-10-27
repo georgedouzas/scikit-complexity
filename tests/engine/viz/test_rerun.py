@@ -13,8 +13,9 @@ from sage.all__sagemath_symbolics import CC, I
 from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Frame, RealTimeClock, Simulation
 from skcomplex.engine.viz import (
@@ -307,7 +308,9 @@ def _logged(monkeypatch, tmp_path, system):
 def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
     """Test that a complex field at `medium` logs a modulus and a phase image for every logged frame."""
     values = {'z': np.exp(1j * np.linspace(-np.pi, np.pi, 64)).reshape(8, 8)}
-    system = System(elements=[FieldElement('medium', TurningElement, LatticeSpace((8, 8)), values=values)])
+    system = System(
+        elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((8, 8)), values=values)],
+    )
     logged = _logged(monkeypatch, tmp_path, system)
     assert logged.count(('medium/z/modulus', 'Image')) == 3
     assert logged.count(('medium/z/phase', 'Image')) == 3
@@ -323,7 +326,9 @@ def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
 
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
-    problem = compile_system(System(elements=[FieldElement('medium', TurningElement, LatticeSpace((4, 4)))]))
+    problem = compile_system(
+        System(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))]),
+    )
     views = ImageVisual().prepare(problem.elements[0], problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 
@@ -399,7 +404,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
 
         def _get_laws(self, s):
             """Return the laws of the growth element."""
-            return [UpdateLaw(add_node(edges=1), 1)]
+            return [UpdateLaw(TopologyRequestSpec('add-node', edges=1), 1)]
 
     space = NetworkSpace(nx.complete_graph(2))
     system = System(
@@ -428,7 +433,13 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
 def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
-    simulation = Simulation(game_of_life((1000, 1000)), dt=1, backend='numba', record=False, observers=[observer])
+    simulation = Simulation(
+        game_of_life((1000, 1000)),
+        dt=1,
+        backend=NumbaBackend(),
+        record=False,
+        observers=[observer],
+    )
     simulation.run(until=2)
     simulation.observers = [RerunObserver('life', save_path=tmp_path / 'paced.rrd')]
     simulation.clock = RealTimeClock(30.0)

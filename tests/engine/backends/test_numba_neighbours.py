@@ -12,7 +12,7 @@ from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumbaBackend
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 
 CUTOFF = 2.5
@@ -51,7 +51,7 @@ def numba_backend(tmp_path_factory):
 def _accelerations(system, numba_backend):
     """Return the accelerations of a system at its initial state on the NumPy and the Numba backends."""
     accelerations = []
-    for backend in ('numpy', numba_backend):
+    for backend in (NumpyBackend(), numba_backend):
         problem = compile_system(system, backend=backend)
         drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
         accelerations.append(problem.states.read(drift, 'gas.v'))

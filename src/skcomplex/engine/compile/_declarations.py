@@ -219,7 +219,16 @@ class Declarations:
             block.per.add(variable)
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
-        values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
+        values.append(
+            coerce_value(
+                name,
+                node.value_of(variable),
+                member_shape,
+                declaration.domain,
+                members,
+                period=declaration.period,
+            ),
+        )
         is_complex = declaration.domain is CC
         entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex, declaration.period)
         entries.append(entry)
