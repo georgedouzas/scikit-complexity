@@ -59,6 +59,7 @@ dependencies = [
     "pydmd>=2025.8.1",
     "reservoirpy>=0.4.2",
     "python-sat>=1.8.dev16",
+    "passagemath-groups>=10.8.13",
 ]
 
 [project.urls]
@@ -213,12 +214,13 @@ SALib = "SALib"
 scikit-fem = "skfem"
 
 [tool.deptry.per_rule_ignores]
-# Maxima and cysignals are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
+# Maxima, cysignals, and the Sage groups that pickle GAP groups are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
 # libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
 # group space that needs it, by name.
 DEP002 = [
     "passagemath-maxima",
     "passagemath-gap",
+    "passagemath-groups",
     "cysignals",
     "mpich",
     "antropy",
