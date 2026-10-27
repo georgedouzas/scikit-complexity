@@ -20,6 +20,7 @@ from skcomplex.core.laws.utils import delayed, laplacian, mean, step, total, whe
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import (
@@ -308,7 +309,7 @@ STIFF_SIZE = 4000
 
 def _stiff_fisher_problem():
     """Return Fisher-KPP on 4000 points whose diffusion makes the largest eigenvalue about 1600."""
-    return compile_system(fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05), backend='numpy')
+    return compile_system(fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05), backend=NumpyBackend())
 
 
 def _counted(problem):
@@ -357,7 +358,9 @@ def _event_run(jacobian):
     line = fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05).elements[0]
     level = 1.5 * line.values['u'].sum()
     system = System(elements=[line], interactions=[StiffThresholdInteraction('threshold', line='line', level=level)])
-    simulation = Simulation(system, solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0, backend='numpy')
+    simulation = Simulation(
+        system, solver=ScipyODESolver(method='BDF', jacobian=jacobian), dt=1.0, backend=NumpyBackend(),
+    )
     start = time.perf_counter()
     times = simulation.run(until=10.0).trajectory_.times
     return time.perf_counter() - start, times[-1]
@@ -391,15 +394,15 @@ def _hutchinson_run(jacobian):
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
     field = FieldElement(
         'line',
-        DiffusiveHutchinsonElement,
-        LatticeSpace(size, spacing=0.05),
+        element=DiffusiveHutchinsonElement,
+        space=LatticeSpace(size, spacing=0.05),
         values={'u': initial},
     )
     simulation = Simulation(
         System(elements=[field]),
         solver=ScipyODESolver(method='BDF', jacobian=jacobian),
         dt=1.0,
-        backend='numpy',
+        backend=NumpyBackend(),
     )
     start = time.perf_counter()
     state = simulation.run(until=5.0).trajectory_.states[-1]
@@ -477,7 +480,9 @@ def _event_time(size, jacobian):
     """Return the time of the terminal event of Fisher-KPP when its total grows by half."""
     initial = (np.arange(size) < 0.05 * size).astype(float)
     space = LatticeSpace(size, spacing=0.05)
-    field = FieldElement('line', FisherKPPElement, space, boundary={'u': 'zero-flux'}, values={'u': initial})
+    field = FieldElement(
+        'line', element=FisherKPPElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial},
+    )
     simulation = Simulation(
         System(
             elements=[field],
@@ -494,8 +499,8 @@ def _hutchinson(size, jacobian):
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
     field = FieldElement(
         'line',
-        UnitRateHutchinsonElement,
-        LatticeSpace(size, spacing=0.05),
+        element=UnitRateHutchinsonElement,
+        space=LatticeSpace(size, spacing=0.05),
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
     )
@@ -631,8 +636,8 @@ def test_lsoda_without_narrow_band_receives_nothing():
         elements=[
             FieldElement(
                 'line',
-                FisherKPPElement,
-                LatticeSpace(50, spacing=0.25),
+                element=FisherKPPElement,
+                space=LatticeSpace(50, spacing=0.25),
                 boundary={'u': 'periodic'},
                 values={'u': np.linspace(0, 1, 50)},
             ),
@@ -712,7 +717,7 @@ def test_exact_option_with_callable_law_raises_on_initialize():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    problem = compile_system(System(elements=[FieldElement('line', DecayElement, LatticeSpace(10))]))
+    problem = compile_system(System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))]))
     with pytest.raises(ValidationError, match="jacobian='auto'"):
         ScipyODESolver(method='BDF', jacobian='exact').prepare(problem, np.random.default_rng(0))
 

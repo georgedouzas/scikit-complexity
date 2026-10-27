@@ -16,13 +16,17 @@ from skcomplex.engine.runtime import Simulation
 
 def test_ordered_phases_are_a_schedule():
     """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = DiscreteTime(
-        schedule=PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')]),
-    ).prepare()
+    time = (
+        DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')]),
+        )
+        .check()
+        .prepare()
+    )
     assert isinstance(time.schedule_, ScheduleSpec)
     assert [phase.name for phase in time.schedule_.phases] == ['produce', 'trade', 'consume']
     with pytest.raises(ValidationError, match='repeat a name'):
-        DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])).prepare()
+        DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])).check().prepare()
 
 
 def test_phase_rejects_unknown_activation():

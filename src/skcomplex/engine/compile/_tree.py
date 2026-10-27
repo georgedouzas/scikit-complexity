@@ -510,6 +510,8 @@ def coerce_value(
     shape: tuple[int, ...],
     domain: object,
     members: int | None = None,
+    *,
+    period: object = None,
 ) -> npt.NDArray[np.float64]:
     """Return a value as a flat float array of the given shape after validating it.
 
@@ -530,6 +532,9 @@ def coerce_value(
             The size of the group that holds the variable, or `None` for a single element or an interaction. A group
             value is a per-member array with this first dimension, or one value shared by every member.
 
+        period:
+            The period the values wrap around, or `None`.
+
     Returns:
         array:
             The flat components of the value, member after member for a group, with the real and imaginary part of
@@ -547,5 +552,5 @@ def coerce_value(
                 f'Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex values.'
             )
         raise ValidationError(error_msg)
-    flat = _flat_value(name, value, encode(domain, value), shape, members)
+    flat = _flat_value(name, value, encode(domain, value, period), shape, members)
     return np.ascontiguousarray(flat).view(float) if domain is CC else flat

@@ -5,10 +5,31 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.elements import HostGraphElement, WordElement
 from skcomplex.core.laws import GraphProductionLaw, ProductionLaw
+from skcomplex.core.specs import GeometrySpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Simulation, WordGeometry
+from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import GeometryVisual, RerunObserver
+
+INTERFACE = nx.Graph()
+INTERFACE.add_nodes_from('ab')
+SUBDIVISION = GraphProductionLaw(nx.Graph([('a', 'b')]), INTERFACE, nx.Graph([('a', 'c'), ('c', 'b')]))
+
+
+class SubdividedElement(HostGraphElement):
+    """Graph whose edges are subdivided at every generation."""
+
+    def _get_laws(self, s):
+        """Return the subdivision of an edge."""
+        return [SUBDIVISION]
+
+
+class TreeElement(WordElement):
+    """Word of a branching tree."""
+
+    def _get_laws(self, s):
+        """Return the branching of a segment."""
+        return [ProductionLaw('F', 'F[&F][/^F]')]
 
 
 def _views(system):
@@ -19,27 +40,9 @@ def _views(system):
 
 def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):
     """Test the views of a host graph, a 3D word geometry, and an unbounded word, and that each is logged."""
-    interface = nx.Graph()
-    interface.add_nodes_from('ab')
-    production = GraphProductionLaw(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
-
-    class SubdividedElement(HostGraphElement):
-        """Subdivided element."""
-
-        def laws(self, s):
-            """Return the laws of the subdivided element."""
-            return [RewriteLaw([production])]
-
-    class TreeElement(WordElement):
-        """Tree element."""
-
-        def laws(self, s):
-            """Return the laws of the tree element."""
-            return [RewriteLaw([ProductionLaw('F', 'F[&F][/^F]')])]
-
     graph = System(elements=[SubdividedElement('graph', graph=nx.cycle_graph(3))])
-    tree = System(elements=[TreeElement('tree', axiom='F', geometry=WordGeometry(angle=30.0, dimension=3))])
-    plain = System(elements=[WordElement('word', axiom='F', geometry=WordGeometry())])
+    tree = System(elements=[TreeElement('tree', axiom='F', geometry=GeometrySpec(angle=30.0, dimension=3))])
+    plain = System(elements=[WordElement('word', axiom='F', geometry=GeometrySpec())])
     assert _views(graph) == [rrb.GraphView, rrb.TimeSeriesView]
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]

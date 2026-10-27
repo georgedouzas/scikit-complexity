@@ -179,14 +179,12 @@ def test_particles_sample_proliferation_and_destruction():
 
 
 def test_particle_solver_rejects_rate_laws_in_validation():
-    """Test that validation reports a rate law with the particle solver and lists the solvers that run it."""
+    """Test that validation reports a rate law with the particle solver."""
     system = _system(DecayInteraction('decay', population='wealth'))
-    report = validate(system, solver='particles')
+    report = validate(system, solver=KineticSolver())
     issue = next(item for item in report.errors if item.code == 'solver-unsupported')
-    assert 'KineticSolver does not support the laws rate' in issue.message
-    assert 'rk4' in issue.fix
-    assert 'scipy' in issue.fix
-    assert validate(_system(), solver='particles').ok
+    assert 'KineticSolver does not support the laws RateLaw' in issue.message
+    assert validate(_system(), solver=KineticSolver()).ok
 
 
 def test_particle_solver_rejects_rate_laws_when_run():

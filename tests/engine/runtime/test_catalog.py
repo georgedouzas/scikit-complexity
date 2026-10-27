@@ -8,6 +8,7 @@ from sklearn.base import clone
 
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system, observables_of, validate
 from skcomplex.engine.problems import Problem
 from skcomplex.engine.runtime import Simulation
@@ -158,7 +159,7 @@ def test_model_conforms(entry, tmp_path):
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
 def test_jacobian_pattern_holds_finite_differences(entry):
     """Test that the Jacobian pattern of every model with an ODE form holds its finite differences at random states."""
-    problem = compile_system(create(entry.name), backend='numpy')
+    problem = compile_system(create(entry.name), backend=NumpyBackend())
     if not isinstance(problem, Problem) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The model has no ODE form without delays.')
     rng = np.random.default_rng(0)

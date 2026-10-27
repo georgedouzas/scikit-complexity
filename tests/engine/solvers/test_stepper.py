@@ -1,4 +1,4 @@
-"""Test the stepper contract, the count of fixed steps, the solver registry, and the parity of backends."""
+"""Test the stepper contract, the count of fixed steps, and the parity of backends."""
 
 from typing import Annotated
 
@@ -10,6 +10,7 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import NoiseLaw, RateLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import step_count
 from skcomplex.engine.solvers import (
@@ -19,9 +20,7 @@ from skcomplex.engine.solvers import (
     IterationSolver,
     MilsteinSolver,
     RK4Solver,
-    ScipyODESolver,
     VelocityVerletSolver,
-    resolve_solver,
 )
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
@@ -80,17 +79,6 @@ def test_stepper_wrong_form_raises_error():
         GillespieSolver().prepare(_growth_problem(), np.random.default_rng(0))
 
 
-def test_resolve_solver_by_name_and_instance():
-    """Test that solvers resolve from names, the default, and instances."""
-    problem = _growth_problem()
-    assert isinstance(resolve_solver(problem, 'auto'), ScipyODESolver)
-    assert isinstance(resolve_solver(problem, 'scipy'), ScipyODESolver)
-    stepper = ScipyODESolver()
-    assert resolve_solver(problem, stepper) is stepper
-    with pytest.raises(SolverError, match='Available names are'):
-        resolve_solver(problem, 'gillespie')
-
-
 @pytest.mark.parametrize(
     ('t', 'until', 'dt', 'count'),
     [(0.1, 0.4, 0.1, 3), (0.0, 1.0, 0.3, 4), (0.0, 1e-20, 0.1, 1), (0.0, 1.0, 1.0, 1), (0.0, 1.0 + 1e-12, 0.1, 10)],
@@ -128,7 +116,7 @@ def _system(kind):
 def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
     """Test that every fixed-step stepper takes the same steps and draws on the NumPy and Numba backends."""
     states, generators = [], []
-    for backend in ('numpy', 'numba'):
+    for backend in (NumpyBackend(), NumbaBackend()):
         problem = compile_system(_system(kind), backend=backend)
         rng = np.random.default_rng(0)
         stepper.prepare(problem, rng)

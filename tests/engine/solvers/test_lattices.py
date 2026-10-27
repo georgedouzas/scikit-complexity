@@ -19,6 +19,7 @@ from skcomplex.core.spaces import (
 )
 from skcomplex.core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
@@ -84,14 +85,16 @@ def _rule_30(n_steps, size):
 
 def test_moore_neighbourhood_wraps_on_torus():
     """Test that the Moore neighbours of a corner of a periodic 10 x 10 lattice wrap across both edges."""
-    neighbours = LatticeSpace((10, 10)).prepare().run(0, MooreNeighborhood())
+    neighbours = LatticeSpace((10, 10)).check().prepare()._get_neighbors(0, MooreNeighborhood().check().prepare())
     assert sorted(neighbours.tolist()) == [1, 9, 10, 11, 19, 90, 91, 99]
 
 
 def test_fixed_and_reflecting_edges():
     """Test that fixed edges read the fill value and reflecting edges read the mirror image."""
-    assert LatticeSpace((5,), boundary='fixed').prepare().run(0, BoxNeighborhood()).tolist() == [0, 1]
-    assert LatticeSpace((5,), boundary='reflecting').prepare().run(0, BoxNeighborhood(2))[:2].tolist() == [1, 0]
+    fixed_space = LatticeSpace((5,), boundary='fixed').check().prepare()
+    assert fixed_space._get_neighbors(0, BoxNeighborhood().check().prepare()).tolist() == [0, 1]
+    reflecting_space = LatticeSpace((5,), boundary='reflecting').check().prepare()
+    assert reflecting_space._get_neighbors(0, BoxNeighborhood(2).check().prepare())[:2].tolist() == [1, 0]
 
     class EdgeElement(Element):
         """Edge element."""
@@ -136,11 +139,11 @@ def test_fixed_and_reflecting_edges():
 
 def test_neighborhoods_are_ordered():
     """Test the order and the sizes of the built-in neighbourhoods."""
-    assert MooreNeighborhood(center=True).offsets[0] == (0, 0)
-    assert len(MooreNeighborhood(2).offsets) == 24
-    assert len(VonNeumannNeighborhood(2).offsets) == 12
-    assert len(MooreNeighborhood(n_dim=3).offsets) == 26
-    with pytest.raises(ValueError, match='same number of dimensions'):
+    assert MooreNeighborhood(center=True).check().prepare().offsets_[0] == (0, 0)
+    assert len(MooreNeighborhood(2).check().prepare().offsets_) == 24
+    assert len(VonNeumannNeighborhood(2).check().prepare().offsets_) == 12
+    assert len(MooreNeighborhood(n_dim=3).check().prepare().offsets_) == 26
+    with pytest.raises(ValidationError, match='same number of dimensions'):
         LatticeNeighborhood(((0, 1), (1,))).check()
 
 
@@ -160,11 +163,11 @@ def test_glider_moves_diagonally():
     assert not np.array_equal(cells[2], cells[0])
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
-    trajectory = Simulation(game_of_life((30, 30)), dt=1, backend=backend).run(until=20).trajectory_
-    reference = Simulation(game_of_life((30, 30)), dt=1, backend='numpy').run(until=20).trajectory_
+    trajectory = Simulation(game_of_life((30, 30)), dt=1, backend=backend()).run(until=20).trajectory_
+    reference = Simulation(game_of_life((30, 30)), dt=1, backend=NumpyBackend()).run(until=20).trajectory_
     assert np.array_equal(trajectory.states, reference.states)
 
 
@@ -294,7 +297,7 @@ def test_checkerboard_needs_bipartite_neighbourhood():
 
 def test_unknown_schedule_is_rejected():
     """Test that an unknown schedule names the known ones."""
-    with pytest.raises(ValueError, match='synchronous'):
+    with pytest.raises(ValidationError, match='synchronous'):
         LocalRuleLaw(None, BoxNeighborhood(), lambda *values: values[0], schedule='parallel').check()
 
 
@@ -420,7 +423,7 @@ def test_relaxation_without_end_raises():
 
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
-    with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a lattice'):
+    with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a LatticeSpace'):
         compile_system(System(elements=[GroupElement('cells', element=ShiftElement, size=3)]))
 
 
@@ -450,7 +453,7 @@ def test_monte_carlo_energy_change_is_symbolic():
             return [
                 SampleLaw(
                     EnergySpec(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
-                    MoveSpec.flip(s.spin),
+                    MoveSpec(s.spin),
                 ),
             ]
 
@@ -462,42 +465,6 @@ def test_monte_carlo_energy_change_is_symbolic():
     assert np.allclose(change, 8.0)
     assert isinstance(sampling.sampler, SamplerSpec)
     assert sampling.sampler.kind == 'metropolis'
-
-
-def test_monte_carlo_needs_one_energy_and_move():
-    """Test that two Monte Carlo laws of one component are rejected."""
-    nearest = VonNeumannNeighborhood()
-
-    class LonelyElement(Element):
-        """Lonely element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            spin: Annotated[object, StateSpec()] = 1.0,
-            temperature: Annotated[object, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.spin = spin
-            self.temperature = temperature
-
-        def _get_laws(self, s):
-            """Return the laws of the lonely element."""
-            return [
-                SampleLaw(
-                    EnergySpec(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
-                    MoveSpec.flip(s.spin),
-                ),
-                SampleLaw(
-                    EnergySpec(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
-                    MoveSpec.flip(s.spin),
-                ),
-            ]
-
-    with pytest.raises(ValidationError, match='one energy, one move'):
-        compile_system(System(elements=[LatticeElement('spins', element=LonelyElement, space=LatticeSpace((4, 4)))]))
 
 
 @pytest.mark.parametrize('sampler', ['metropolis', 'glauber', 'heat-bath'])

@@ -1,4 +1,4 @@
-"""Test the `_components` module of `skcomplex.formalisms.agents`."""
+"""Test the `_memory` module of `skcomplex.engine.solvers`."""
 
 from typing import Annotated
 
@@ -15,14 +15,12 @@ from skcomplex.engine.solvers import memory
 class SaverElement(Element):
     """Test helper Saver."""
 
-    remembers = {'money': 3}  # noqa: RUF012
-
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        money: Annotated[float, StateSpec()] = 0.0,
+        money: Annotated[float, StateSpec(lags=3)] = 0.0,
         seen: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)

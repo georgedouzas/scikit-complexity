@@ -42,6 +42,7 @@ from ...core.spaces import (
     NetworkSpace,
 )
 from ...core.types import Vector
+from ..backends import NumbaBackend, NumpyBackend
 from ..compile import held_reductions_of, partition_system
 from ..problems import Form, NoiseKind, OrderKind, Partition, Problem, SupportSpec, contains
 from ._base import BaseSolver
@@ -87,7 +88,7 @@ class CoSimulationSolver(Solver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(
-        ...     systems=[
+        ...     elements=[
         ...         System(
         ...             'a',
         ...             elements=[PopulationElement('x', n=1)],
@@ -174,7 +175,8 @@ class CoSimulationSolver(Solver):
                     '`split=True` to split it into one partition per subsystem.'
                 )
                 raise SolverError(error_msg)
-            problem = partition_system(problem.system)
+            backend = NumbaBackend() if problem.backend == NumbaBackend.name else NumpyBackend()
+            problem = partition_system(problem.system, backend)
         self.problem_, self.rng_ = problem, rng
         generators = rng.spawn(len(problem.partitions))
         given = dict(self.solvers or {})

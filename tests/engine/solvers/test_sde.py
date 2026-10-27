@@ -11,6 +11,7 @@ from skcomplex.core.errors import SolverError
 from skcomplex.core.laws import NoiseLaw
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyamaSolver, HeunSolver
@@ -50,7 +51,7 @@ def test_euler_maruyama_nonpositive_dt_raises_error():
 def test_euler_maruyama_same_seed_on_both_backends():
     """Test that geometric Brownian motion from 0.1 to 0.4 takes three steps on both backends and ends equal."""
     states = []
-    for backend in ('numpy', 'numba'):
+    for backend in (NumpyBackend(), NumbaBackend()):
         problem = compile_system(geometric_brownian_motion(), backend=backend)
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
@@ -83,14 +84,14 @@ class PairElement(Element):
         return [NoiseLaw(s.x, 1.0, process='common'), NoiseLaw(s.y, 1.0, process='common')]
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, HeunSolver])
 def test_shared_process_keeps_difference(backend, stepper):
     """Test that one process driving two states keeps their difference at every frame, with correlation 1."""
     trajectory = (
         Simulation(
             System(elements=[PairElement('pair')]),
-            backend=backend,
+            backend=backend(),
             solver=stepper(dt=0.01),
             random_state=0,
             dt=0.1,
@@ -102,12 +103,14 @@ def test_shared_process_keeps_difference(backend, stepper):
     assert np.corrcoef(trajectory.values('pair.x'), trajectory.values('pair.y'))[0, 1] == pytest.approx(1.0)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
 def test_correlated_increments_reproduce_covariance(backend):
     """Test that the frame increments of two states driven by a `WienerProcessSpec` have its covariance within 0.1."""
     covariance = [[1.0, 0.6], [0.6, 2.0]]
     trajectory = (
-        Simulation(_correlated(covariance), backend=backend, solver=EulerMaruyamaSolver(dt=1.0), random_state=0, dt=1.0)
+        Simulation(
+            _correlated(covariance), backend=backend(), solver=EulerMaruyamaSolver(dt=1.0), random_state=0, dt=1.0,
+        )
         .run(until=10_000)
         .trajectory_
     )

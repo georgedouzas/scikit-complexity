@@ -17,8 +17,7 @@ from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.specs import ParameterSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import SOLVERS, compile_system
-from skcomplex.engine.problems import Form
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.models.biology.ecology import (
@@ -28,6 +27,7 @@ from skcomplex.models.biology.ecology import (
     PredationInteraction,
 )
 from skcomplex.models.physics.realizations.particles import (
+    LAMMPS_FIXES,
     ConstantForceInteraction,
     HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
@@ -266,7 +266,7 @@ def test_lammps_thermostat_temperature_changes_live():
     )
     simulation = Simulation(
         system,
-        solver=LammpsSolver(dt=0.01),
+        solver=LammpsSolver(dt=0.01, fixes=LAMMPS_FIXES),
         dt=0.5,
         clock=RealTimeClock(speed=10.0),
         random_state=0,
@@ -280,12 +280,6 @@ def test_lammps_thermostat_temperature_changes_live():
     changed = int(np.argmax(trajectory.values('bath.temperature') == 3.0))
     assert temperature[:changed].mean() == pytest.approx(1.0, rel=0.1)
     assert temperature[-10:].mean() == pytest.approx(3.0, rel=0.1)
-
-
-def test_lammps_solver_name_resolves():
-    """Test that the solver name `lammps` resolves once the backends are imported."""
-    simulation = Simulation(_lennard_jones_gas(), solver='lammps', dt=0.05).run(until=0.1)
-    assert isinstance(simulation.stepper_, LammpsSolver)
 
 
 @pytest.mark.benchmark
@@ -315,14 +309,6 @@ def test_lammps_runs_10000_atoms_in_real_time():
     )
     simulation.run(until=5)
     assert simulation.clock_.max_lag_ <= 0.2
-
-
-def test_lammps_backend_is_registered_from_particles():
-    """Test that the particles formalism defines the LAMMPS backend and registers it as the solver `'lammps'`."""
-    (particles,) = [item for item in registered_formalisms() if item.name == 'particles']
-    assert LammpsSolver.__module__ == 'skcomplex.formalisms.particles._backends'
-    assert particles.solvers['lammps'] is LammpsSolver
-    assert SOLVERS.resolve((Form.SDE, 'lammps')) is LammpsSolver
 
 
 def test_lammps_solver_is_an_external_solver():

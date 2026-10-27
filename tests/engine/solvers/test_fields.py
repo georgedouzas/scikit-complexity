@@ -65,8 +65,8 @@ def _diffused(discretization):
     exact = np.exp(-9 * 0.1) * np.sin(3 * positions) + 0.5 * np.exp(-25 * 0.1) * np.cos(5 * positions)
     rod = FieldElement(
         'rod',
-        HeatElement,
-        LatticeSpace(n, spacing=spacing),
+        element=HeatElement,
+        space=LatticeSpace(n, spacing=spacing),
         values={'u': initial},
         discretization=discretization,
     )
@@ -133,7 +133,7 @@ def test_steppers_need_linear_terms():
         Simulation(logistic_growth(), solver=IMEXEulerSolver()).run(until=1)
     with pytest.raises(SolverError, match='spectral'):
         Simulation(
-            System(elements=[FieldElement('rod', HeatElement, LatticeSpace(8))]),
+            System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),
             dt=1,
             solver=ETDRK4Solver(),
         ).run(until=1)
@@ -175,8 +175,8 @@ def test_numerical_fluxes_conserve(riemann):
     initial = 1.5 + np.sin((np.arange(100) + 0.5) * 2 * math.pi / 100)
     line = FieldElement(
         'line',
-        ShockElement,
-        LatticeSpace(100, spacing=2 * math.pi / 100),
+        element=ShockElement,
+        space=LatticeSpace(100, spacing=2 * math.pi / 100),
         values={'u': initial},
         discretization='finite-volume',
     )
@@ -214,7 +214,7 @@ def test_fluxes_need_finite_volume_field():
             return [FluxLaw(s.u, s.u**2 / 2)]
 
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(elements=[FieldElement('line', ShockElement, LatticeSpace(10))]))
+        compile_system(System(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))]))
 
 
 def test_l_shaped_steady_state_converges_at_second_order():
@@ -276,7 +276,7 @@ def test_convection_onset():
 
 def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
-    rod = FieldElement('rod', HeatElement, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
+    rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
         compile_system(System(elements=[rod]))
 
@@ -302,7 +302,7 @@ def test_poisson_needs_spectral_field():
             return [RateLaw(s.u, inverse_laplacian(s.u))]
 
     with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(elements=[FieldElement('rod', PotentialElement, LatticeSpace(8))]))
+        compile_system(System(elements=[FieldElement('rod', element=PotentialElement, space=LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
@@ -362,7 +362,13 @@ def test_viscous_burgers_respects_diffusive_limit():
             return _viscous_burgers_laws(s)
 
     space = LatticeSpace(n, spacing=spacing)
-    field = FieldElement('line', ViscousElement, space, values={'u': initial}, discretization='finite-volume')
+    field = FieldElement(
+        'line',
+        element=ViscousElement,
+        space=space,
+        values={'u': initial},
+        discretization='finite-volume',
+    )
     with warnings.catch_warnings():
         warnings.simplefilter('error')
         values = (

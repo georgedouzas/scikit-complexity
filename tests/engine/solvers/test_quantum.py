@@ -1,53 +1,74 @@
 """Test the QuTiP solvers of quantum systems."""
 
-from operator import attrgetter
 from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import CC
 
 from skcomplex.core.elements import LatticeElement
 from skcomplex.core.errors import SolverError
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.specs import ParameterSpec, RoleSpec
+from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LindbladSolver, QuantumTrajectoriesSolver, UnitarySolver
-from skcomplex.models.physics.realizations.quantum import QubitElement, SpinElement
+from skcomplex.models.physics.realizations.quantum import QUBIT, QubitElement, SpinElement
 
 OMEGA = 2.0
 GAMMA = 0.5
 
 
 class RabiElement(QubitElement):
-    """Rabi element."""
+    """Qubit driven at the Rabi frequency `omega`."""
 
-    omega = parameter(OMEGA)
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = QUBIT,
+        visual: VisualSpec | None = None,
+        omega: Annotated[float, ParameterSpec()] = OMEGA,
+    ) -> None:
+        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        self.omega = omega
 
-    def laws(self, s):
-        """Return the laws of the rabi element."""
-        return [GeneratorLaw(s.omega / 2 * s.x)]
+    def _get_laws(self, s):
+        """Return the drive of the qubit."""
+        return [GeneratorLaw(s.omega / 2 * local_operator(s.psi, 'x'))]
 
 
 class DecayingElement(QubitElement):
-    """Decaying element."""
+    """Qubit that decays to its ground state at the rate `gamma`."""
 
-    gamma = parameter(GAMMA)
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = QUBIT,
+        visual: VisualSpec | None = None,
+        gamma: Annotated[float, ParameterSpec()] = GAMMA,
+    ) -> None:
+        super().__init__(label, psi, hilbert=hilbert, visual=visual)
+        self.gamma = gamma
 
-    def laws(self, s):
-        """Return the laws of the decaying element."""
-        return [DissipatorLaw(s.minus, s.gamma)]
+    def _get_laws(self, s):
+        """Return the decay of the qubit."""
+        return [DissipatorLaw(local_operator(s.psi, 'minus'), s.gamma)]
 
 
 class DephasedElement(QubitElement):
-    """Dephased element."""
+    """Driven qubit that loses its coherence."""
 
-    def laws(self, s):
-        """Return the laws of the dephased element."""
-        return [GeneratorLaw(s.x), DissipatorLaw(s.z, 0.3)]
+    def _get_laws(self, s):
+        """Return the drive and the dephasing of the qubit."""
+        return [GeneratorLaw(local_operator(s.psi, 'x')), DissipatorLaw(local_operator(s.psi, 'z'), 0.3)]
 
 
 class XXZInteraction(NeighborInteraction):
@@ -66,17 +87,28 @@ class XXZInteraction(NeighborInteraction):
 
     def _get_laws(self, s):
         """Return the exchange of one bond."""
-        a, b = s.first, s.second
-        return [GeneratorLaw(a.x * b.x + a.y * b.y + s.delta * a.z * b.z)]
+        a, b = s.source.psi, s.target.psi
+        return [
+            GeneratorLaw(
+                local_operator(a, 'x') * local_operator(b, 'x')
+                + local_operator(a, 'y') * local_operator(b, 'y')
+                + s.delta * local_operator(a, 'z') * local_operator(b, 'z'),
+            ),
+        ]
+
+
+def qubit_z(s):
+    """Return the `z` operator of the qubit."""
+    return local_operator(s.q.psi, 'z')
 
 
 def total_z(s):
     """Return the total magnetisation of the chain."""
-    return sum((member.z for member in s.chain), start=0 * s.chain[0].z)
+    return sum(local_operator(member.psi, 'z') for member in s.chain)
 
 
-Z = [expectation('z', attrgetter('q.z'))]
-MAGNETIZATION = [expectation('magnetization', total_z)]
+Z = [ObservableSpec('z', qubit_z)]
+MAGNETIZATION = [ObservableSpec('magnetization', total_z)]
 
 
 def _chain(n_sites, **values):
@@ -84,7 +116,7 @@ def _chain(n_sites, **values):
     labels = ['up', 'down'] * (n_sites // 2)
     return System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'initial': labels}),
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(n_sites), values={'psi': labels}),
         ],
         interactions=[XXZInteraction('xxz', target='chain', **values)],
     )
@@ -93,7 +125,7 @@ def _chain(n_sites, **values):
 def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
     system = System(elements=[RabiElement('q')])
-    simulation = Simulation(system, solver='unitary', dt=0.05, observables=Z).run(until=np.pi / OMEGA)
+    simulation = Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z).run(until=np.pi / OMEGA)
     trajectory = simulation.trajectory_
     assert np.allclose(trajectory.values('z'), np.cos(OMEGA * trajectory.times), atol=1e-6)
     assert np.allclose(np.linalg.norm(trajectory.values('system.state'), axis=1), 1, atol=1e-8)
@@ -102,7 +134,9 @@ def test_unitary_evolution_follows_rabi_oscillations():
 def test_unitary_evolution_conserves_magnetization_and_energy():
     """Test that an isotropic chain of 10 spins conserves its magnetisation and energy."""
     trajectory = (
-        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(), dt=1.0).run(until=10.0).trajectory_
+        Simulation(_chain(10), observables=MAGNETIZATION, solver=UnitarySolver(atol=1e-14, rtol=1e-13), dt=1.0)
+        .run(until=10.0)
+        .trajectory_
     )
     assert np.ptp(trajectory.values('magnetization')) < 1e-8
     assert np.ptp(trajectory.values('energy')) < 1e-8
@@ -111,7 +145,7 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
 def test_unitary_evolution_rejects_open_systems():
     """Test that unitary evolution refuses dissipators."""
     with pytest.raises(SolverError, match='dissipators'):
-        Simulation(System(elements=[DecayingElement('q')]), solver='unitary').run(until=1.0)
+        Simulation(System(elements=[DecayingElement('q')]), solver=UnitarySolver()).run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
@@ -151,7 +185,7 @@ def test_quantum_trajectories_average_to_the_master_equation():
     rng = np.random.default_rng(0)
     values = np.array(
         [
-            Simulation(problem, solver='quantum_trajectories', dt=0.5, random_state=rng)
+            Simulation(problem, solver=QuantumTrajectoriesSolver(), dt=0.5, random_state=rng)
             .run(until=4.0)
             .trajectory_.values('z')
             for _ in range(500)

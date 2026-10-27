@@ -3,6 +3,7 @@
 from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_gap import libgap
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
@@ -46,7 +47,7 @@ class Logs:
 
 def _simulation():
     """Return a simulation of the parity rule on a ball of radius 3 of the free group of rank 2."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=3).prepare()
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).check().prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
     return Simulation(
@@ -77,5 +78,5 @@ def test_cayley_visual_views_are_graph_views():
     problem = simulation.problem_
     views = CayleyVisual().prepare(problem.elements[0], problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
-    assert simulation.system.elements[0].visual.kind == 'cayley'
+    assert problem.elements[0].visual.kind == 'cayley'
     assert default_blueprint(simulation.system) is not None

@@ -69,18 +69,28 @@ class FirstOrderElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-def _geometric(convention):
-    """Return the type of a geometric Brownian motion whose noise follows a convention."""
-    return type(
-        'GeometricElement',
-        (Element,),
-        {
-            'x': state(1.0),
-            'mu': parameter(0.5),
-            'sigma': parameter(0.8),
-            'laws': lambda self, s: [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention=convention)],
-        },
-    )
+class GeometricElement(Element):
+    """Geometric Brownian motion whose noise follows a convention."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        convention: str = 'ito',
+        x: Annotated[object, StateSpec()] = 1.0,
+        mu: Annotated[object, ParameterSpec()] = 0.5,
+        sigma: Annotated[object, ParameterSpec()] = 0.8,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.convention = convention
+        self.x = x
+        self.mu = mu
+        self.sigma = sigma
+
+    def _get_laws(self, s):
+        """Return the drift and the noise of the motion."""
+        return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention=self.convention)]
 
 
 class DelayedElement(Element):
@@ -154,10 +164,10 @@ def test_hutchinson_settles_below_threshold():
     assert values[-1] == pytest.approx(100, abs=1e-3)
 
 
-@pytest.mark.parametrize('solver', ['auto', 'rk4'])
+@pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
-    trajectory = Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver).run(until=2).trajectory_
+    trajectory = Simulation(System(elements=[DelayedElement('d')]), dt=0.1, solver=solver()).run(until=2).trajectory_
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
     assert trajectory.values('d.x') == pytest.approx(exact, abs=1e-6)
@@ -215,10 +225,10 @@ def test_history_is_keyed_by_state():
     assert compile_system(System(elements=[RememberedElement('d')])).history == {'d.x': 2.0}
 
 
-@pytest.mark.parametrize('solver', ['auto', 'rk4'])
+@pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_bouncing_ball_impact_times(solver):
     """Test that the impact times of a ball with restitution 0.8 match the analytic times within 1e-6."""
-    trajectory = Simulation(bouncing_ball(), dt=0.01, solver=solver).run(until=3.3).trajectory_
+    trajectory = Simulation(bouncing_ball(), dt=0.01, solver=solver()).run(until=3.3).trajectory_
     times = np.asarray([event.time for event in trajectory.events])
     assert times.size == 7
     assert times == pytest.approx(_impact_times(times.size), abs=1e-6)
@@ -260,7 +270,7 @@ def test_event_without_reset_fires_once():
     assert trajectory.values('m.x')[-1] == pytest.approx(-1.0)
 
 
-@pytest.mark.parametrize('solver', ['auto', 'rk4'])
+@pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_chattering_event_raises(solver):
     """Test that an event whose reset puts the state back just before the guard, so it fires again, raises an error."""
 
@@ -282,13 +292,15 @@ def test_chattering_event_raises(solver):
             return [RateLaw(s.x, -1), CrossingLaw(s.x, {s.x: 1e-12}, direction=-1)]
 
     with pytest.raises(SolverError, match='chattering'):
-        Simulation(System(elements=[StickyElement('c')]), dt=0.5, solver=solver).run(until=2)
+        Simulation(System(elements=[StickyElement('c')]), dt=0.5, solver=solver()).run(until=2)
 
 
-@pytest.mark.parametrize('solver', ['auto', 'rk4'])
+@pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_step_response(solver):
     """Test that a first-order system is unforced before a step at 5 and follows the step response after it."""
-    trajectory = Simulation(System(elements=[FirstOrderElement('f')]), dt=0.25, solver=solver).run(until=10).trajectory_
+    trajectory = (
+        Simulation(System(elements=[FirstOrderElement('f')]), dt=0.25, solver=solver()).run(until=10).trajectory_
+    )
     times, values = trajectory.times, trajectory.values('f.y')
     assert np.all(values[times < 5] == 0.0)
     assert values == pytest.approx(np.where(times >= 5, 1 - np.exp(-(times - 5)), 0.0), abs=1e-6)
@@ -335,7 +347,7 @@ def test_schedule_ramps_a_parameter():
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, MilsteinSolver, HeunSolver])
 def test_stratonovich_geometric_brownian_motion(stepper):
     """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 2 SE."""
-    system = compile_system(System(elements=[_geometric('stratonovich')('g')]))
+    system = compile_system(System(elements=[GeometricElement('g', convention='stratonovich')]))
     values = np.asarray(
         [
             Simulation(system, dt=1.0, solver=stepper(dt=0.01), random_state=seed, record=False).run(until=1).state_[0]
@@ -349,7 +361,7 @@ def test_stratonovich_geometric_brownian_motion(stepper):
 def test_noise_convention_adds_drift_correction():
     """Test that the Stratonovich and anti-Itô corrections add half and all of `g dg/dx` to the drift."""
     for noise, alpha in [('ito', 0.0), ('stratonovich', 0.5), ('anti-ito', 1.0)]:
-        problem = compile_system(System(elements=[_geometric(noise)('g')]))
+        problem = compile_system(System(elements=[GeometricElement('g', convention=noise)]))
         drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
         assert drift[0] == pytest.approx(0.5 * 2 + alpha * 0.8**2 * 2)
 
@@ -357,7 +369,7 @@ def test_noise_convention_adds_drift_correction():
 def test_unknown_noise_convention_is_rejected():
     """Test that a noise convention other than the three is rejected."""
     with pytest.raises(ValidationError, match='noise convention'):
-        compile_system(System(elements=[_geometric('marcus')('g')]))
+        compile_system(System(elements=[GeometricElement('g', convention='marcus')]))
 
 
 @pytest.mark.slow

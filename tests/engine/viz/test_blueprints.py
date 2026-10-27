@@ -89,12 +89,10 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
     class WalkerElement(Element):
         """Walker element."""
 
-        visual = VisualSpec('points', {'position': 'x'})
-
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
+            visual: VisualSpec | None = VisualSpec('points', {'position': 'x'}),
             *,
             x: Annotated[object, StateSpec(vector=True)] = 0.0,
             energy: Annotated[object, StateSpec()] = 0.0,
@@ -253,5 +251,5 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
-    field = FieldElement('plate', HeatElement, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
+    field = FieldElement('plate', element=HeatElement, space=LatticeSpace((4, 4)), visual=VisualSpec('sites'))
     assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'

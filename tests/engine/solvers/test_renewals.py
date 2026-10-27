@@ -246,7 +246,7 @@ def test_renewal_stepper_streams_renewals_to_rerun(monkeypatch, tmp_path):
 )
 def test_rk4_renews_members_on_their_own_clocks(system):
     """Test that members renew at their own times, with independent and interacting members."""
-    trajectory = _trajectory(System(systems=[system]), 10, 1, solver=RK4Solver(dt=0.1))
+    trajectory = _trajectory(System(elements=[system]), 10, 1, solver=RK4Solver(dt=0.1))
     clocks = [tuple(_member_times(trajectory, 'f', member)) for member in range(1000)]
     renewing = [clock for clock in clocks if clock]
     assert len(renewing) > 950
