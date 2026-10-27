@@ -149,7 +149,7 @@ def bonabeau_hierarchies(
 
     Examples:
         >>> from skcomplex.models.social.organizations import bonabeau_hierarchies
-        >>> bonabeau_hierarchies(10, 10, density=0.2).elements[0].size
+        >>> bonabeau_hierarchies(10, 10, density=0.2).elements[0].check().prepare().size_
         20
     """
     size = int(width * height * density)

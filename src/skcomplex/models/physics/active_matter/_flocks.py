@@ -252,7 +252,7 @@ def vicsek(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import vicsek
-        >>> vicsek(10).components[0].size
+        >>> vicsek(10).elements[0].size
         10
     """
     return _flock(VicsekParticleElement, n_particles, size, seed, v0=v0, eta=eta)
@@ -313,7 +313,7 @@ def gregoire_chate(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import gregoire_chate
-        >>> gregoire_chate(10, beta=2.0).components[0].values['beta']
+        >>> gregoire_chate(10, beta=2.0).elements[0].values['beta']
         2.0
     """
     return _flock(CohesiveParticleElement, n_particles, size, seed, v0=v0, eta=eta, alpha=alpha, beta=beta)
@@ -365,7 +365,7 @@ def ginelli_nematics(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import ginelli_nematics
-        >>> ginelli_nematics(10).components[0].values['eta']
+        >>> ginelli_nematics(10).elements[0].values['eta']
         0.08
     """
     return _flock(NematicParticleElement, n_particles, size, seed, v0=v0, eta=eta)

@@ -5,6 +5,8 @@
 from types import SimpleNamespace
 from typing import Annotated, Any
 
+import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
@@ -30,6 +32,11 @@ def _initial_labels(n_sites: int, initial: str) -> list[str]:
     if initial == 'flip':
         return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
     return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
+
+
+def _sites(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Return the values of every site, without reducing them."""
+    return values
 
 
 def local_magnetization(member: SimpleNamespace) -> Expression:
@@ -210,7 +217,7 @@ class DephasingInteraction(Interaction):
     defaults={'until': 8.0, 'dt': 0.05},
     initial_state=lambda initial, **_: {'quantum_heisenberg.state': 'ground'} if initial == 'ground' else None,
     observables=lambda system: [
-        ObservableSpec('sz', local_magnetization, group='chain'),
+        ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),
         ObservableSpec('magnetization', total_magnetization),
     ],
 )
@@ -266,7 +273,7 @@ def quantum_heisenberg(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import quantum_heisenberg
-        >>> quantum_heisenberg(6).elements[0].size
+        >>> quantum_heisenberg(6).elements[0].check().prepare().size_
         6
     """
     if boundary not in BOUNDARIES or initial not in INITIAL_STATES:

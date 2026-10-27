@@ -275,7 +275,7 @@ def create(name: str, **parameters: Any) -> System:  # noqa: ANN401
 
     Examples:
         >>> from skcomplex.models import create
-        >>> len(create('lotka_volterra').components)
+        >>> len(create('lotka_volterra').elements)
         2
     """
     return create_registered(_imported(name), **parameters)

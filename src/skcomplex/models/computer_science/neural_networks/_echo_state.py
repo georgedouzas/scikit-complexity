@@ -164,7 +164,7 @@ def echo_state_network(
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import echo_state_network
-        >>> echo_state_network(50).elements[0].size
+        >>> echo_state_network(50).elements[0].check().prepare().size_
         50
     """
     rng = np.random.default_rng(random_state)

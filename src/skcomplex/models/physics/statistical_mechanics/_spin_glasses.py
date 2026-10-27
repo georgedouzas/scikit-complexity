@@ -258,7 +258,7 @@ def edwards_anderson(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import edwards_anderson
-        >>> sorted(set(edwards_anderson(8).elements[0].values['J_right'].tolist()))
+        >>> sorted(set(edwards_anderson(8).elements[0].values['J_right'].ravel().tolist()))
         [-1.0, 1.0]
     """
     shape = _square(size)

@@ -158,7 +158,7 @@ def deffuant(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import deffuant
-        >>> deffuant(20, random_state=0).elements[0].size
+        >>> deffuant(20, random_state=0).elements[0].check().prepare().size_
         20
     """
     opinions = np.random.default_rng(random_state).random(n_agents)

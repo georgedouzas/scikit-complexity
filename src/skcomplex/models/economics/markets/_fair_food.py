@@ -186,7 +186,7 @@ def fair_food(
 
     Examples:
         >>> from skcomplex.models.economics.markets import fair_food
-        >>> fair_food(5, 4).elements[0].size
+        >>> fair_food(5, 4).elements[0].check().prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)

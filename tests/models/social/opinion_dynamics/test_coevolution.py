@@ -56,4 +56,4 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
 @pytest.mark.parametrize('name', ['hegselmann_krause', 'coevolving_voter', 'join_a_club'])
 def test_opinion_network_models_are_created_by_name(name):
     """Test that the models are registered under their names."""
-    assert create(name).components
+    assert create(name).elements

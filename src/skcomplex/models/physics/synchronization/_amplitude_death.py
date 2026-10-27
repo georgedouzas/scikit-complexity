@@ -185,7 +185,7 @@ def oscillator_death(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import oscillator_death
-        >>> oscillator_death(4, distribution='quartic').elements[0].size
+        >>> oscillator_death(4, distribution='quartic').elements[0].check().prepare().size_
         4
     """
     omegas = _frequency_quantiles(n_oscillators, width, distribution)

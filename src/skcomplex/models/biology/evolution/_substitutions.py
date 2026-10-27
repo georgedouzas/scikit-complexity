@@ -161,7 +161,7 @@ class SubstitutionInteraction(Interaction):
 def _walk_observables(system: System) -> list[ObservableSpec]:
     """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
     couplings = system.interactions[0].couplings
-    loci = int(system.elements[0].size or 0)
+    loci = system.elements[0].check().prepare().size_
     matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
     return [
         ObservableSpec('field_share', _field_share, group='genome', reduce='sum'),
@@ -230,7 +230,7 @@ def origin_fixation_walk(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import origin_fixation_walk
-        >>> origin_fixation_walk(8).elements[0].size
+        >>> origin_fixation_walk(8).elements[0].check().prepare().size_
         8
     """
     rng = np.random.default_rng(random_state)

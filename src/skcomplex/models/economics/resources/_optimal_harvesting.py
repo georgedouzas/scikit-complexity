@@ -170,7 +170,7 @@ def optimal_harvesting(
 
     Examples:
         >>> from skcomplex.models.economics.resources import optimal_harvesting
-        >>> optimal_harvesting(delta=0.05).components[0].delta
+        >>> optimal_harvesting(delta=0.05).elements[0].delta
         0.05
     """
     resource = HarvestedResourceElement('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)

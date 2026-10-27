@@ -196,7 +196,7 @@ def kuramoto_on_networks(
     Examples:
         >>> from skcomplex.models.physics.synchronization import kuramoto_on_networks
         >>> system = kuramoto_on_networks(20, degree=4)
-        >>> system.components[1].prepare().size_
+        >>> system.elements[1].check().prepare().size_
         40
     """
     space = _network(network, n_oscillators, degree, rewiring, seed)
@@ -270,7 +270,7 @@ def coupled_map_lattices_on_networks(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import coupled_map_lattices_on_networks
-        >>> coupled_map_lattices_on_networks(20).components[0].prepare().size_
+        >>> coupled_map_lattices_on_networks(20).elements[0].check().prepare().size_
         20
     """
     space = _network(network, n_nodes, degree, rewiring, seed)

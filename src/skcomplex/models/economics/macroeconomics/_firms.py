@@ -172,7 +172,7 @@ def toy_firm_investment(
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import toy_firm_investment
-        >>> toy_firm_investment(20).elements[0].size
+        >>> toy_firm_investment(20).elements[0].check().prepare().size_
         20
     """
     profits = pbar + 2.0 * np.random.default_rng(random_state).random(n_firms)

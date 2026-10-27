@@ -9,7 +9,7 @@ from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.system import System
 from skcomplex.engine.problems import BaseProblem
 from skcomplex.engine.runtime import BaseObserver, ConservationObserver, Frame, Simulation, Trajectory
-from skcomplex.engine.solvers import Solver
+from skcomplex.engine.solvers import BaseSolver
 from skcomplex.models import create, describe
 
 
@@ -22,7 +22,7 @@ def _trajectory(
     name: str,
     until: float,
     dt: float,
-    solver: str | Solver = 'auto',
+    solver: BaseSolver | None = None,
     **options: Any,  # noqa: ANN401
 ) -> Trajectory:
     """Return the trajectory of a model run with its standard observables."""

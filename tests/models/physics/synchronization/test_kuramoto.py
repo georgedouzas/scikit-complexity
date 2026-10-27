@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.interactions import PairInteraction
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import describe
@@ -47,7 +48,7 @@ def test_kuramoto_in_linear_time():
     """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
     system = kuramoto(50)
     assert system.space is None
-    assert not any(type(interaction).over == 'pairs' for interaction in system.interactions)
+    assert not any(isinstance(interaction, PairInteraction) for interaction in system.interactions)
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     expected = omega + 4.0 / 50 * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)

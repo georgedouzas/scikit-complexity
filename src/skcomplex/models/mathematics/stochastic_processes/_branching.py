@@ -103,7 +103,7 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import galton_watson
-        >>> galton_watson(5, m=1.2).elements[0].size
+        >>> galton_watson(5, m=1.2).elements[0].check().prepare().size_
         5
     """
     return System(

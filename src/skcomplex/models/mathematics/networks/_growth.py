@@ -387,7 +387,7 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import holme_kim
-        >>> holme_kim(20).components[0].element.__name__
+        >>> holme_kim(20).elements[0].element.__name__
         'TriadVertexElement'
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))
@@ -426,7 +426,7 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import vertex_copying
-        >>> vertex_copying(20).components[2].randomness
+        >>> vertex_copying(20).elements[2].randomness
         0.2
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))

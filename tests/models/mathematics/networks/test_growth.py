@@ -47,5 +47,5 @@ def test_vertex_copying_makes_hubs_that_random_attachment_lacks():
 def test_growth_models_are_created_by_name(name):
     """Test that the growth models are registered and start with their seed network."""
     system = create(name)
-    assert system.components[0].variable
-    assert system.components[1].on == 'edges'
+    assert system.elements[0].variable
+    assert system.elements[1].on == 'edges'

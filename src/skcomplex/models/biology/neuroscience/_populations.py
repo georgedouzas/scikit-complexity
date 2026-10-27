@@ -571,7 +571,7 @@ def theta_neurons(
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import theta_neurons
-        >>> theta_neurons(20).elements[0].size
+        >>> theta_neurons(20).elements[0].check().prepare().size_
         20
     """
     phases = np.random.default_rng(random_state).uniform(0.0, 2 * math.pi, n_neurons)

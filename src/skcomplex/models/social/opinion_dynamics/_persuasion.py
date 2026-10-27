@@ -334,7 +334,7 @@ def sznajd(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.social.opinion_dynamics import sznajd
-        >>> sznajd(nx.cycle_graph(8), random_state=0).elements[0].size
+        >>> sznajd(nx.cycle_graph(8), random_state=0).elements[0].check().prepare().size_
         8
     """
     graph = nx.cycle_graph(50) if graph is None else graph
@@ -382,7 +382,7 @@ def galam_majority(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import galam_majority
-        >>> galam_majority(30, random_state=0).elements[0].size
+        >>> galam_majority(30, random_state=0).elements[0].check().prepare().size_
         30
     """
     citizens = GroupElement(
@@ -436,7 +436,7 @@ def social_impact(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import social_impact
-        >>> social_impact(4, 5, random_state=0).elements[0].size
+        >>> social_impact(4, 5, random_state=0).elements[0].check().prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)

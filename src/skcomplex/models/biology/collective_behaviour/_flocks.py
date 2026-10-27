@@ -333,7 +333,7 @@ def boids(
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import boids
-        >>> boids(10).elements[0].size
+        >>> boids(10).elements[0].check().prepare().size_
         10
     """
     rng = np.random.default_rng(random_state)
@@ -410,7 +410,7 @@ def bird_swarm(
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import bird_swarm
-        >>> bird_swarm(5).elements[0].size
+        >>> bird_swarm(5).elements[0].check().prepare().size_
         5
     """
     rng = np.random.default_rng(random_state)

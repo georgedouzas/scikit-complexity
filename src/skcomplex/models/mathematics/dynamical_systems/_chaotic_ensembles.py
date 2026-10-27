@@ -135,7 +135,7 @@ def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.dynamical_systems import cubic_chaotic_map
-        >>> cubic_chaotic_map(4, lam=10.0).elements[0].size
+        >>> cubic_chaotic_map(4, lam=10.0).elements[0].check().prepare().size_
         4
     """
     start = (np.arange(n_walkers) + 1 / 4) / n_walkers

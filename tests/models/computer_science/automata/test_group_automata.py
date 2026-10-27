@@ -29,7 +29,7 @@ def _majority_holds(space, memory, before, after):
     """Check that every interior cell takes the majority value of its memory set."""
     table = space._index_table(memory)
     interior = (table < space.size_).all(axis=1)
-    expected = before[table[interior]].sum(axis=1) > len(memory.elements) / 2
+    expected = before[table[interior]].sum(axis=1) > table.shape[1] / 2
     return bool(np.array_equal(after[interior], expected))
 
 
@@ -90,7 +90,7 @@ def test_majority_automata_on_balls(factory, size):
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_.values('cells.alive')
     assert space.size_ == size
-    assert _majority_holds(space, GeneratorNeighborhood(space.group.generators), alive[0], alive[1])
+    assert _majority_holds(space, GeneratorNeighborhood(space.generators_), alive[0], alive[1])
 
 
 def test_lamplighter_automaton_is_linear():

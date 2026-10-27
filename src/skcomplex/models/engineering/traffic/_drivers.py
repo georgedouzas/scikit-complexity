@@ -334,7 +334,7 @@ def charbonneau_traffic(
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import charbonneau_traffic
-        >>> charbonneau_traffic(5).elements[0].size
+        >>> charbonneau_traffic(5).elements[0].check().prepare().size_
         5
     """
     rng = np.random.default_rng(random_state)

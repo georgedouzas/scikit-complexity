@@ -215,7 +215,7 @@ def elementary_automaton(rule: int = 30, *, size: int = 101, initial: Sequence[f
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> elementary_automaton(90, size=11).elements[0].size
+        >>> elementary_automaton(90, size=11).elements[0].check().prepare().size_
         11
     """
     values = np.zeros(size) if initial is None else np.asarray(initial, dtype=float)
@@ -275,7 +275,7 @@ def game_of_life(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import game_of_life
-        >>> game_of_life((20, 30)).elements[0].size
+        >>> game_of_life((20, 30)).elements[0].check().prepare().size_
         600
     """
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)

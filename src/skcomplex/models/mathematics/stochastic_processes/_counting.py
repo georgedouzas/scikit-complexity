@@ -125,7 +125,7 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import bernoulli_process
-        >>> bernoulli_process(3).elements[0].size
+        >>> bernoulli_process(3).elements[0].check().prepare().size_
         3
     """
     return System(elements=[GroupElement('trials', element=BernoulliTrialElement, size=n_sequences, values={'p': p})])
@@ -153,7 +153,7 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import poisson_process
-        >>> poisson_process(5).elements[0].size
+        >>> poisson_process(5).elements[0].check().prepare().size_
         5
     """
     return System(

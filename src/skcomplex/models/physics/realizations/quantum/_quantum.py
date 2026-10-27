@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from typing import Annotated
 
 import numpy as np
@@ -104,12 +105,30 @@ def mode_space(quanta: int = 4) -> HilbertSpec:
     return HilbertSpec(size, operators, display='number')
 
 
+def _lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
+    """Return the Laplacian of a prepared lattice, spectral when it is periodic and of finite differences otherwise."""
+    size = int(lattice.size_)
+    laplacian = np.zeros((size, size))
+    for axis, (length, spacing) in enumerate(zip(lattice.shape_, lattice.spacings_, strict=True)):
+        if lattice.periodic_:
+            waves = 2 * np.pi * np.fft.fftfreq(length, d=spacing)
+            line = np.fft.ifft(-(waves[:, None] ** 2) * np.fft.fft(np.eye(length), axis=0), axis=0).real
+        else:
+            line = (np.eye(length, k=-1) - 2 * np.eye(length) + np.eye(length, k=1)) / spacing**2
+        factors = [np.eye(item) for item in lattice.shape_]
+        factors[axis] = line
+        laplacian += functools.reduce(np.kron, factors)
+    return laplacian
+
+
 def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, projectors: bool = False) -> HilbertSpec:
     """Return the Hilbert space of a particle on the sites of a lattice or a network, whose basis state `k` is site `k`.
 
-    Its operators are the graph Laplacian of the neighbouring sites, `laplacian`, their adjacency, `adjacency`, with a
+    Its operators are the Laplacian, `laplacian`, the adjacency of the neighbouring sites, `adjacency`, with a
     potential the operator `potential` with the potential of every site on its diagonal, and with projectors the
-    projector `site_<k>` on every site `k`, as sparse matrices.
+    projector `site_<k>` on every site `k`. The Laplacian of a lattice is spectral when the lattice is periodic and
+    of finite differences otherwise, with the spacing of the lattice, and the Laplacian of a network is its graph
+    Laplacian.
 
     Args:
         space:
@@ -132,8 +151,8 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
     Examples:
         >>> from skcomplex.core.spaces import LatticeSpace
         >>> from skcomplex.models.physics.realizations.quantum import site_space
-        >>> site_space(LatticeSpace(16)).operators['laplacian'][0].trace()
-        np.float64(-30.0)
+        >>> site_space(LatticeSpace(16, boundary='fixed')).operators['laplacian'][0].trace()
+        np.float64(-32.0)
     """
     if not isinstance(space, LatticeSpace | NetworkSpace):
         error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
@@ -143,7 +162,11 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
     adjacency = np.zeros((size, size))
     for first, second in prepared._neighbor_pairs():
         adjacency[first, second] = adjacency[second, first] = 1.0
-    laplacian = adjacency - np.diag(adjacency.sum(axis=1))
+    laplacian = (
+        _lattice_laplacian(prepared)
+        if isinstance(prepared, LatticeSpace)
+        else adjacency - np.diag(adjacency.sum(axis=1))
+    )
     operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency, True)}
     if potential is not None:
         operators['potential'] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)

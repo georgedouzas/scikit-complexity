@@ -169,7 +169,7 @@ def heterogeneous_mean_field_sir(
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import heterogeneous_mean_field_sir
-        >>> heterogeneous_mean_field_sir(k_min=2, k_max=5).elements[0].size
+        >>> heterogeneous_mean_field_sir(k_min=2, k_max=5).elements[0].check().prepare().size_
         4
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)

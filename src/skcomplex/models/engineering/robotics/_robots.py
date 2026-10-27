@@ -355,7 +355,7 @@ def light_seeking_robots(
 
     Examples:
         >>> from skcomplex.models.engineering.robotics import light_seeking_robots
-        >>> light_seeking_robots(4).elements[0].size
+        >>> light_seeking_robots(4).elements[0].check().prepare().size_
         4
     """
     headings = np.linspace(0.0, 2 * np.pi, n_robots, endpoint=False)
@@ -434,7 +434,7 @@ def swarmtaxis(
 
     Examples:
         >>> from skcomplex.models.engineering.robotics import swarmtaxis
-        >>> swarmtaxis(5).elements[0].size
+        >>> swarmtaxis(5).elements[0].check().prepare().size_
         5
     """
     rng = np.random.default_rng(random_state)

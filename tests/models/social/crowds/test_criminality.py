@@ -1,6 +1,7 @@
 """Test the `_criminality` module of `skcomplex.models.social.crowds`."""
 
 from skcomplex.engine.compile import validate
+from skcomplex.engine.solvers import KineticSolver
 from skcomplex.models import create
 
 from ...conftest import _trajectory
@@ -18,5 +19,5 @@ def test_security_forces_respond_to_criminality():
 
 def test_criminality_needs_an_ode_solver():
     """Test that the macro-scale recruitment, a rate law, rules out the particle solver."""
-    issues = validate(create('criminality'), solver='particles').errors
+    issues = validate(create('criminality'), solver=KineticSolver()).errors
     assert [issue.code for issue in issues] == ['solver-unsupported']

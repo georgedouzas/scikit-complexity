@@ -167,7 +167,7 @@ def optimal_consumption(
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import optimal_consumption
-        >>> optimal_consumption(rho=0.05).components[0].rho
+        >>> optimal_consumption(rho=0.05).elements[0].rho
         0.05
     """
     return System(elements=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])

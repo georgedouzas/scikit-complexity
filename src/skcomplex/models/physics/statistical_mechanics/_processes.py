@@ -385,7 +385,7 @@ def q2r(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import q2r
-        >>> q2r((8,)).elements[0].size
+        >>> q2r((8,)).elements[0].check().prepare().size_
         8
     """
     shape = tuple(shape)
@@ -433,7 +433,7 @@ def site_percolation(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import site_percolation
-        >>> site_percolation((10, 10)).elements[0].size
+        >>> site_percolation((10, 10)).elements[0].check().prepare().size_
         100
     """
     shape = tuple(shape)
@@ -601,7 +601,7 @@ def diffusion_limited_aggregation(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import diffusion_limited_aggregation
-        >>> diffusion_limited_aggregation(10, size=11).elements[0].size
+        >>> diffusion_limited_aggregation(10, size=11).elements[0].check().prepare().size_
         10
     """
     rng = np.random.default_rng(random_state)

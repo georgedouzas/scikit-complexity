@@ -178,7 +178,7 @@ def phone_adoption(
 
     Examples:
         >>> from skcomplex.models.economics.innovation import phone_adoption
-        >>> phone_adoption((10, 10)).elements[0].size
+        >>> phone_adoption((10, 10)).elements[0].check().prepare().size_
         100
     """
     width, height = (int(side) for side in shape)
