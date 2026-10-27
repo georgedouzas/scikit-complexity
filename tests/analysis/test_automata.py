@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from sage.all__sagemath_gap import PermutationGroup
 from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
@@ -43,7 +44,7 @@ def _elementary(number, size):
 
 def _cycle(size):
     """Return the cyclic group of an order as a group space."""
-    return CayleySpace(permutation_group([[(point + 1) % size for point in range(size)]]))
+    return CayleySpace(PermutationGroup([[tuple(range(1, size + 1))]]))
 
 
 def test_life_is_not_surjective_with_a_garden_of_eden():

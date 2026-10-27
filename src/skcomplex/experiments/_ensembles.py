@@ -25,6 +25,7 @@ from ..core.laws import (
 )
 from ..core.system import System
 from ..engine.compile._probe import probe_laws
+from ..engine.problems import VariableKind, declared_variables
 
 PLAIN_LAWS = (
     RateLaw,
@@ -57,6 +58,15 @@ def _check_plain(system: System) -> None:
         raise ValidationError(error_msg)
 
 
+def _value_names(element: Element) -> list[str]:
+    """Return the names of the states and parameters an element holds, with the derivatives of higher order states."""
+    return [
+        name
+        for name, (variable, _) in declared_variables(element).items()
+        if variable.kind != VariableKind.ROLE and hasattr(element, name)
+    ]
+
+
 def _member_values(
     values: Mapping[str, npt.ArrayLike],
     system: System,
@@ -64,7 +74,7 @@ def _member_values(
 ) -> dict[str, dict[str, Any]]:
     """Return the per-member values of every element by its label, checked against the elements and the size."""
     by_label: dict[str, dict[str, Any]] = {element.label: {} for element in system.elements}
-    names = {element.label: set(element._get_specs()) for element in system.elements}
+    names = {element.label: set(_value_names(element)) for element in system.elements}
     for path, value in values.items():
         label, _, name = path.partition('.')
         if label not in names or name not in names[label]:
@@ -121,7 +131,7 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
             element.label,
             element=type(element),
             size=size,
-            values={**{name: getattr(element, name) for name in element._get_specs()}, **by_label[element.label]},
+            values={**{name: getattr(element, name) for name in _value_names(element)}, **by_label[element.label]},
             visual=element.visual,
         )
         for element in system.elements

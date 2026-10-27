@@ -23,7 +23,7 @@ from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMo
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 
-from ...conftest import CallableGrowthInteraction
+from ..conftest import CallableGrowthInteraction
 
 
 def test_equations_of_logistic_growth():
@@ -345,5 +345,5 @@ def test_remaining_sign_question_names_parameter():
             """Return the laws of the spring element."""
             return [RateLaw(s.x, -s.k * s.x)]
 
-    with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=Domain\.POSITIVE'):
+    with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
         solve_symbolically(System(elements=[SpringElement('a')]), use_initial_state=True)

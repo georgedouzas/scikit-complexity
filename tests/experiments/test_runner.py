@@ -3,6 +3,7 @@
 import os
 import subprocess  # nosec B404: the test runs a script it writes itself with this interpreter
 import sys
+from typing import Annotated
 
 import numpy as np
 import pytest
@@ -10,6 +11,7 @@ import pytest
 from skcomplex.core.elements import Element
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.experiments import (
     Experiment,
@@ -47,9 +49,6 @@ def last_value(trajectory):
 SCRIPT_WITHOUT_GUARD = """
 import skcomplex.models.mathematics.dynamical_systems
 from skcomplex.analysis import orbit_diagram
-from typing import Annotated
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
-from skcomplex.core.laws.utils import series
 
 orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2, dt=1, executor='process')
 """

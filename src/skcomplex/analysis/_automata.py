@@ -45,7 +45,7 @@ def _table(space: Sites, reach: Reach) -> Indices:
 
 def _count(reach: Reach) -> int:
     """Return the number of cells a neighbourhood of offsets or a memory set reads."""
-    return len(reach.offsets if isinstance(reach, LatticeNeighborhood) else reach.elements)
+    return len(reach.check().prepare().offsets_ if isinstance(reach, LatticeNeighborhood) else reach.elements)
 
 
 def _size(space: Sites) -> int:
@@ -63,8 +63,9 @@ def _with_center(neighborhood: Reach) -> Reach:
     """Return a neighbourhood with the site itself first, as outer totalistic rules read it."""
     if isinstance(neighborhood, MemoryNeighborhood):
         return MemoryNeighborhood((IDENTITY, *neighborhood.elements))
-    zero = (0,) * len(neighborhood.offsets[0])
-    return LatticeNeighborhood((zero, *neighborhood.offsets))
+    offsets = neighborhood.check().prepare().offsets_
+    zero = (0,) * len(offsets[0])
+    return LatticeNeighborhood((zero, *offsets))
 
 
 def _evaluate(rule: object, patterns: Codes) -> npt.NDArray[Any]:
@@ -184,7 +185,7 @@ class Automaton:
 
     Examples:
         >>> from skcomplex.analysis import Automaton
-        >>> from skcomplex.core.laws import Totalistic
+        >>> from skcomplex.core.laws.utils import Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> parity = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total % 2))
         >>> parity.step([0, 0, 1, 0, 0]).tolist()
@@ -390,7 +391,7 @@ def is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
 
     Examples:
         >>> from skcomplex.analysis import Automaton, is_injective
-        >>> from skcomplex.core.laws import Table
+        >>> from skcomplex.core.laws.utils import Table
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
         >>> is_injective(shift)
@@ -422,7 +423,7 @@ def is_surjective(automaton: Automaton, *, method: str = 'auto') -> bool:
 
     Examples:
         >>> from skcomplex.analysis import Automaton, is_surjective
-        >>> from skcomplex.core.laws import Totalistic
+        >>> from skcomplex.core.laws.utils import Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> majority = Automaton(LatticeSpace(8), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
         >>> is_surjective(majority)
@@ -454,7 +455,7 @@ def is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, 
 
     Examples:
         >>> from skcomplex.analysis import Automaton, is_pre_injective
-        >>> from skcomplex.core.laws import Totalistic
+        >>> from skcomplex.core.laws.utils import Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> xor = Automaton(LatticeSpace(6), LatticeNeighborhood(((0,), (1,))), Totalistic(lambda total: total % 2))
         >>> is_pre_injective(xor, [2])
@@ -500,7 +501,7 @@ def garden_of_eden(
 
     Examples:
         >>> from skcomplex.analysis import Automaton, garden_of_eden
-        >>> from skcomplex.core.laws import Totalistic
+        >>> from skcomplex.core.laws.utils import Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), Totalistic(lambda total: total >= 2))
         >>> garden_of_eden(majority).tolist()
@@ -543,7 +544,7 @@ def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
 
     Examples:
         >>> from skcomplex.analysis import Automaton, inverse
-        >>> from skcomplex.core.laws import Table
+        >>> from skcomplex.core.laws.utils import Table
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> shift = Automaton(LatticeSpace(6), LatticeNeighborhood(((1,),)), Table({(1,): 1}))
         >>> inverse(shift).step([1, 0, 0, 0, 0, 0]).tolist()
@@ -589,7 +590,7 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
 
     Examples:
         >>> from skcomplex.analysis import Automaton, compose
-        >>> from skcomplex.core.laws import Table
+        >>> from skcomplex.core.laws.utils import Table
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> space = LatticeSpace(5)
         >>> left = Automaton(space, LatticeNeighborhood(((1,),)), Table({(1,): 1}))
@@ -601,8 +602,8 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
         error_msg = 'Composed automata share their space and their number of states.'
         raise AnalysisError(error_msg)
     inner, outer = first.reads, second.reads
-    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.offsets
-    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.offsets
+    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.check().prepare().offsets_
+    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.check().prepare().offsets_
     composite: list[Any] = []
     columns = []
     for base in outer_items:
@@ -651,7 +652,7 @@ def difference_pattern(
 
     Examples:
         >>> from skcomplex.analysis import Automaton, difference_pattern
-        >>> from skcomplex.core.laws import Totalistic
+        >>> from skcomplex.core.laws.utils import Totalistic
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> parity = Automaton(LatticeSpace(7), BoxNeighborhood(), Totalistic(lambda total: total % 2))
         >>> difference_pattern(parity, [0] * 7, 3, 2).sum(axis=1).tolist()
@@ -1027,12 +1028,13 @@ class LinearAutomaton:
             error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
             raise AnalysisError(error_msg)
         field = _field_of(self.field)
-        n_dim = len(self.neighborhood.offsets[0])
+        offsets = self.neighborhood.check().prepare().offsets_
+        n_dim = len(offsets[0])
         ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(n_dim)])
         variables = ring.gens()
         terms = (
             field(QQ(coefficient)) * np.prod([variable**step for variable, step in zip(variables, offset, strict=True)])
-            for offset, coefficient in zip(self.neighborhood.offsets, self.coefficients, strict=True)
+            for offset, coefficient in zip(offsets, self.coefficients, strict=True)
         )
         return sum(terms, ring.zero())
 

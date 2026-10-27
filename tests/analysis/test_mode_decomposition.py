@@ -16,7 +16,7 @@ from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver, resolve_solver
+from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 
@@ -74,7 +74,7 @@ def test_dmd_surrogate_surrogate_validates_under_continuous_time():
     decomposition = DMDSurrogate().prepare(trajectory)
     assert validate(decomposition.system_).ok
     assert isinstance(decomposition.system_.time, ContinuousTime)
-    assert isinstance(resolve_solver(compile_system(decomposition.system_), 'auto'), ScipyODESolver)
+    assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     run = Simulation(decomposition.system_, solver=solver, dt=0.05).run(until=10.0).trajectory_
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)

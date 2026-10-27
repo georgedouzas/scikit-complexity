@@ -53,6 +53,9 @@ def spin_space(j: float = 0.5) -> HilbertSpec:
     return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
 
 
+SPIN_HALF = spin_space()
+"""Hilbert space of a spin one half, with the spin components `x`, `y`, `z` and the ladder operators."""
+
 QUBIT = HilbertSpec(
     2,
     {
@@ -163,7 +166,7 @@ class SpinElement(Element):
             The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
         hilbert:
-            The Hilbert space, `spin_space(j)`.
+            The Hilbert space, `spin_space(j)`, by default that of a spin one half.
 
         visual:
             How the spin is drawn.
@@ -179,7 +182,7 @@ class SpinElement(Element):
         label: str,
         psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
-        hilbert: HilbertSpec = QUBIT,
+        hilbert: HilbertSpec = SPIN_HALF,
         visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
         super().__init__(label, visual=visual)
