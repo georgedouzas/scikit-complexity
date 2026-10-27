@@ -29,7 +29,7 @@ from ._functions import FunctionsPass
 from ._jacobian import JacobianPass
 from ._kernels import KernelsPass
 from ._kinetics import CompileEncountersPass, EncounterFunctionsPass, EncounterJacobianPass, EncounterProblemPass
-from ._lattices import LatticeProblemPass, UnpackSamplesPass, schedule_issues
+from ._lattices import LatticeProblemPass, schedule_issues
 from ._layout import LayoutPass
 from ._markov import MarkovPass
 from ._members import MemberShiftPass
@@ -88,7 +88,6 @@ PASSES: tuple[BasePass, ...] = (
     UnpackMatchesPass(),
     SetRulesApartPass(),
     AgentsProblemPass(),
-    UnpackSamplesPass(),
     LatticeProblemPass(),
     LowerFieldsPass(),
     ConservedNoisePass(),

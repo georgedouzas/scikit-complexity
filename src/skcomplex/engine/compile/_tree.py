@@ -39,7 +39,7 @@ def _check_label(label: object, scope: str) -> None:
     raise LabelError(error_msg)
 
 
-def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
+def _check_network_lattice(space: NetworkSpace, size: int | None, where: str) -> None:
     """Raise an error for a lattice group on a network with a capacity or a size other than its number of nodes."""
     if space.capacity is not None:
         error_msg = (
@@ -47,7 +47,7 @@ def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
             'Leave the capacity as None.'
         )
         raise ValidationError(error_msg)
-    if space.graph.number_of_nodes() != size:
+    if size is not None and space.graph.number_of_nodes() != size:
         error_msg = f'{where} has size {size}, but its network has {space.graph.number_of_nodes()} nodes.'
         raise ValidationError(error_msg)
 
@@ -55,25 +55,20 @@ def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
 def _check_group(group: GroupElement, scope: str) -> None:
     """Raise an error for a group with an element type or size that is not valid."""
     where = f'Group {group.label!r} in {scope or "the root system"}'
-    if group.size is None and group.on is not None:
-        return
     space = getattr(group, 'space', None)
+    if isinstance(space, NetworkSpace) and not group.variable and group.on in {None, 'sites'}:
+        _check_network_lattice(space, group.size, where)
+    if group.size is None:
+        return
     if isinstance(space, LatticeSpace):
         try:
-            space.check()
+            space.check().prepare()
         except ValidationError as error:
             error_msg = f'{where} has a lattice that is not valid. {error}'
             raise ValidationError(error_msg) from error
         if space.size_ != group.size:
             error_msg = f'{where} has size {group.size}, but its lattice has {space.size_} sites.'
             raise ValidationError(error_msg)
-    if (
-        isinstance(space, NetworkSpace)
-        and not group.variable
-        and group.on in {None, 'sites'}
-        and group.size is not None
-    ):
-        _check_network_lattice(space, group.size, where)
 
 
 def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> None:

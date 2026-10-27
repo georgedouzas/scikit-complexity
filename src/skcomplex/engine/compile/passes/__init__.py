@@ -2,7 +2,7 @@
 
 from ._fields import ConservedNoisePass, FieldFunctionsPass, FieldJacobianPass, FieldProblemPass, LowerFieldsPass
 from ._kinetics import KineticProblem
-from ._lattices import LatticeProblemPass, UnpackSamplesPass
+from ._lattices import LatticeProblemPass
 from ._quantum import (
     DEFAULT_MAX_DIMENSION,
     HilbertSpaceError,
@@ -51,7 +51,6 @@ __all__: list[str] = [
     'TopologyFunctionsPass',
     'TopologyProblemPass',
     'TowardsPass',
-    'UnpackSamplesPass',
     'compile_rewriting',
     'contains_quantum',
     'structure_of',

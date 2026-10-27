@@ -976,7 +976,7 @@ class Problem(BaseProblem):
         owner = name.rpartition('.')[0]
         for element in self.elements:
             space = getattr(element.element, 'space', None)
-            if element.path == owner and getattr(space, 'space_kind', None) == LatticeSpace:
+            if element.path == owner and isinstance(space, LatticeSpace):
                 return space.shape_  # type: ignore[union-attr]
         return None
 

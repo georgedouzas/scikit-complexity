@@ -4,16 +4,16 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import Any, cast
+from typing import cast
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
-from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
+from ....core.specs import SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source
 from .._census import Census
-from .._compilation import BlockLaws, Compilation, Laws
+from .._compilation import Compilation, Laws
 from .._declarations import Declarations, member_count
 from .._issues import Issue
 from .._lattice_steps import (
@@ -40,7 +40,7 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            getattr(space, 'space_kind', None) in {LatticeSpace, NetworkSpace}
+            isinstance(space, LatticeSpace | NetworkSpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent
@@ -54,27 +54,30 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
     return LatticeContext(spec.owner, states, arguments, fused, others)
 
 
-def _monte_carlo_step(spec: KernelSpec, laws: list[BaseLaw], context: LatticeContext) -> LatticeStep | None:
-    """Return the Monte Carlo sampling of a component's energy, move, and sampler, or `None` without them."""
-    energies = [law for law in laws if isinstance(law, EnergySpec)]
-    moves = [law for law in laws if isinstance(law, MoveSpec)]
-    samplers = [law for law in laws if isinstance(law, SamplerSpec)]
-    if not (energies or moves or samplers):
-        return None
-    if len(energies) != 1 or len(moves) != 1 or len(samplers) > 1:
-        error_msg = (
-            f'{spec.owner} declares {len(energies)} energies, {len(moves)} moves, and {len(samplers)} samplers. '
-            'Monte Carlo sampling takes one energy, one move, and at most one sampler.'
-        )
-        raise ValidationError(error_msg)
-    if samplers:
-        sampler = samplers[0]
-    elif hasattr(spec.namespace, 'temperature'):
+def _monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContext) -> LatticeStep:
+    """Return the Monte Carlo sampling of a sample, with Metropolis acceptance at `temperature` without a sampler."""
+    sampler = law.sampler
+    if sampler is None:
+        if not hasattr(spec.namespace, 'temperature'):
+            error_msg = f'{spec.owner} declares a sample without a sampler and no parameter `temperature`.'
+            raise ValidationError(error_msg)
         sampler = SamplerSpec(temperature=spec.namespace.temperature)
-    else:
-        error_msg = f'{spec.owner} declares no sampler and no parameter `temperature` for the default sampler.'
-        raise ValidationError(error_msg)
-    return compile_monte_carlo(energies[0], moves[0], sampler, context)
+    return compile_monte_carlo(law.energy, law.move, sampler, context)
+
+
+def _lattice_step(spec: KernelSpec, law: BaseLaw, context: LatticeContext) -> LatticeStep | None:
+    """Return the step of a lattice law, or `None` for a law of another kind."""
+    if isinstance(law, LocalRuleLaw):
+        return compile_rule(law, context)
+    if isinstance(law, DriveLaw):
+        return compile_drive(law, context)
+    if isinstance(law, RelaxationLaw):
+        return compile_relaxation(law, context)
+    if isinstance(law, ExtremalLaw):
+        return compile_extremal(law, context)
+    if isinstance(law, SampleLaw):
+        return _monte_carlo_step(spec, law, context)
+    return None
 
 
 def _compile_lattice(
@@ -82,22 +85,14 @@ def _compile_lattice(
     declarations: Declarations,
     fused: bool,
 ) -> tuple[LatticeStep, ...]:
-    """Return the steps of local rules, drives, relaxations, and Monte Carlo sampling in declaration order."""
+    """Return the steps of local rules, drives, relaxations, extremal laws, and samples in declaration order."""
     steps: list[LatticeStep] = []
-    compilers: dict[type, Any] = {
-        LocalRuleLaw: compile_rule,
-        DriveLaw: compile_drive,
-        RelaxationLaw: compile_relaxation,
-        ExtremalLaw: compile_extremal,
-    }
     for spec, laws in specs:
         if not any(isinstance(law, LATTICE_LAWS) for law in laws):
             continue
         context = _lattice_context(spec, declarations, fused)
-        steps += [compilers[type(law)](law, context) for law in laws if type(law) in compilers]
-        sampling = _monte_carlo_step(spec, laws, context)
-        if sampling is not None:
-            steps.append(sampling)
+        found = [_lattice_step(spec, law, context) for law in laws]
+        steps += [step for step in found if step is not None]
     return tuple(steps)
 
 
@@ -111,15 +106,15 @@ def _schedule_of(law: object) -> str | None:
 
 
 def schedule_issues(compilation: Compilation) -> list[Issue]:
-    """Return the lattice laws whose checkerboard schedule needs a regular geometry that their space lacks."""
+    """Return the lattice laws whose checkerboard schedule needs a square lattice that their space is not."""
     records = cast('Census', compilation.census).records
     issues = []
     for record in records:
-        lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
-        if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
+        square = isinstance(record.space, LatticeSpace) and record.space.geometry == 'square'
+        if not square and _schedule_of(record.law) == 'checkerboard':
             message = (
-                f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs the '
-                f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
+                f'The {type(record.law).__name__} of {record.path} uses the checkerboard schedule, which needs a '
+                f'square lattice, but the component lives on {record.space!r}.'
             )
             fix = (
                 "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
@@ -127,25 +122,6 @@ def schedule_issues(compilation: Compilation) -> list[Issue]:
             )
             issues.append(Issue('schedule-unsupported', record.path, message, fix))
     return issues
-
-
-class UnpackSamplesPass(BasePass):
-    """Pass that replaces every Monte Carlo sample by its energy, move, and sampler."""
-
-    reads = ('collected',)
-    writes = ('collected',)
-
-    def _run(self, compilation: Compilation) -> None:
-        """Replace the samples by their parts.
-
-        Args:
-            compilation:
-                The compilation state.
-        """
-        compilation.collected = [
-            (spec, [part for law in laws for part in (law.parts if isinstance(law, SampleLaw) else (law,))], block)
-            for spec, laws, block in cast('BlockLaws', compilation.collected)
-        ]
 
 
 class LatticeProblemPass(BasePass):

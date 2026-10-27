@@ -6,7 +6,7 @@
 import math
 from typing import ClassVar, cast
 
-from ...core.laws import BoundaryLaw, LocalRuleLaw, SampleLaw, UpdateLaw
+from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, SampleLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.types import Vector
 from ..compile._lattice_steps import CompiledExtremal, CompiledRelaxation, LatticeStep
@@ -34,9 +34,7 @@ class LatticeSolver(Solver):
     supports: ClassVar[SupportSpec] = SupportSpec(
         time={DiscreteTime},
         space={LatticeSpace, NetworkSpace},
-        laws={LocalRuleLaw, UpdateLaw, BoundaryLaw},
-        
-        
+        laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
         orders={OrderKind.INTEGER},
     )
 
@@ -96,8 +94,6 @@ class MonteCarloSolver(LatticeSolver):
         time={DiscreteTime},
         space={LatticeSpace, NetworkSpace},
         laws={SampleLaw, BoundaryLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
