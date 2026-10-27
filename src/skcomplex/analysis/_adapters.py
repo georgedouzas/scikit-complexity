@@ -572,10 +572,23 @@ def ensemble_of(result: ExperimentResult, name: str) -> Ensemble:
             The common times, one row per run, the design rows, and the seeds.
 
     Examples:
+        >>> from typing import Annotated
         >>> from skcomplex.analysis import ensemble_of
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import NoiseLaw, RateLaw
+        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.experiments import Experiment
-        >>> result = Experiment('logistic_growth', replicates=3, until=5, outputs=['population.n']).run()
-        >>> ensemble_of(result, 'population.n').values.shape[0]
+        >>> class WalkerElement(Element):
+        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...
+        ...     def _get_laws(self, namespace):
+        ...         return [RateLaw(namespace.x, -namespace.x), NoiseLaw(namespace.x, 0.5)]
+        >>> system = System(elements=[WalkerElement('walker')])
+        >>> result = Experiment(system, replicates=3, until=5, dt=0.1, outputs=['walker.x']).run()
+        >>> ensemble_of(result, 'walker.x').values.shape[0]
         3
     """
     times = min((np.asarray(run.times, dtype=float) for run in result.runs), key=len)

@@ -170,16 +170,18 @@ class SiteVisual(BaseVisual):
                 One view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from skcomplex.core.elements import LatticeElement
+            >>> from typing import Annotated
             >>> import networkx as nx
-            >>> from skcomplex.core.base import state
-            >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.core.components import Element
+            >>> from skcomplex.core.elements import Element, LatticeElement
             >>> from skcomplex.core.spaces import NetworkSpace
+            >>> from skcomplex.core.specs import StateSpec
             >>> from skcomplex.core.system import System
+            >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import SiteVisual
             >>> class NodeElement(Element):
-            ...     value = state(0.0)
+            ...     def __init__(self, label, value: Annotated[float, StateSpec()] = 0.0):
+            ...         super().__init__(label)
+            ...         self.value = value
             >>> system = System(
             ...     elements=[LatticeElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)))]
             ... )

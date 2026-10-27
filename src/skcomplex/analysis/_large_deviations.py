@@ -345,16 +345,19 @@ def cloning(
             The population is smaller than 2, or the duration is not a positive multiple of the interval.
 
     Examples:
-        >>> from skcomplex.core.declarations import state
+        >>> from typing import Annotated
         >>> from skcomplex.analysis import cloning
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import JumpLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
         >>> class CounterElement(Element):
-        ...     n = state(0.0)
+        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.n = n
         ...
-        ...     def laws(self, s):
-        ...         return [JumpLaw(1.0, {s.n: 1})]
+        ...     def _get_laws(self, namespace):
+        ...         return [JumpLaw(1.0, {namespace.n: 1})]
         >>> system = System(elements=[CounterElement('counter')])
         >>> estimate = cloning(system, 'counter.n', 0.5, population=100, until=5.0, random_state=0)
         >>> bool(abs(estimate.scgf - (np.exp(0.5) - 1)) < 0.15)

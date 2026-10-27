@@ -116,7 +116,7 @@ class Simulation(BaseEstimator):
             `ConservationError` that names the observable and the first frame that breaks it.
 
         initial_state:
-            Initial values that replace those of the components, by dotted state name, such as `{'rabbits.n': 20}`.
+            Initial values that replace those of the elements, by dotted state name, such as `{'rabbits.n': 20}`.
             The whole state of a quantum system is `<system label>.state`, which takes a vector, a density matrix, or
             `'ground'` for the ground state.
 
@@ -352,8 +352,8 @@ class Simulation(BaseEstimator):
             values = np.asarray(self.problem_.states.read(self.state_, entry.name))
             if not contains(entry.domain, values):
                 error_msg = (
-                    f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
-                    f'{entry.domain.value} domain. Check the laws that change it.'
+                    f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside '
+                    f'its domain {entry.domain}. Check the laws that change it.'
                 )
                 raise ValidationError(error_msg)
 
@@ -361,7 +361,7 @@ class Simulation(BaseEstimator):
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
-            f'{entry.domain.value} domain.'
+            f'domain {entry.domain}.'
         )
         if not contains(entry.domain, value):
             raise ValidationError(error_msg)
