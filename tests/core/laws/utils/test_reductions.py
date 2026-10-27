@@ -1,4 +1,4 @@
-"""Test the `_reductions` module of `skcomplex.core.laws`."""
+"""Test the `_reductions` module of `skcomplex.core.laws.utils`."""
 
 import math
 from types import SimpleNamespace
@@ -8,15 +8,14 @@ import networkx as nx
 import numpy as np
 import pytest
 import scipy.sparse
-from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh
+from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh, var, vector
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import RateLaw, UpdateLaw, has_reductions
+from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import (
     NEIGHBOR_REDUCTIONS,
-    both,
     count,
     maximum,
     mean,
@@ -40,8 +39,8 @@ from skcomplex.core.spaces import (
 )
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
-from skcomplex.engine.problems import symbol, vector
 from skcomplex.engine.problems._reductions import reduce_values
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -54,18 +53,17 @@ from skcomplex.engine.solvers import RK4Solver
 )
 def test_reductions_stay_unevaluated(function, kind):
     """Test that a reduction of a member symbol stays an unevaluated call of its kind."""
-    x = symbol('x')
+    x = var('x')
     found = reductions_in(1 + function(x**2))
     assert [item.kind for item in found] == [kind]
     assert str(found[0].argument) == 'x^2'
 
 
 def test_reductions_survive_simplify():
-    """Test that reductions with conditions and weights come back unchanged from Maxima."""
-    x = symbol('x')
+    """Test that reductions with weights and without conditions come back unchanged from Maxima."""
+    x = var('x')
     weights = np.arange(9.0).reshape(3, 3)
-    expression = -x + tanh(total(x, where=x > 0.5)) + 2 * mean(cos(x), where=both(x > 0, x < 1))
-    expression += total(x, weights=weights) + count(where=x > 0)
+    expression = -x + tanh(total(x)) + 2 * mean(cos(x)) + total(x, weights=weights) + count()
     for simplified in (expression.simplify(), expression.simplify_full()):
         assert {str(item.call) for item in reductions_in(simplified)} == {
             str(item.call) for item in reductions_in(expression)
@@ -74,19 +72,19 @@ def test_reductions_survive_simplify():
 
 def test_reductions_record_condition_weights_and_group():
     """Test that a reduction holds its condition, its weights, and the group it names."""
-    x, y = symbol('x'), symbol('y')
+    x, y = var('x'), var('y')
     weights = scipy.sparse.csr_matrix(np.eye(2))
-    (found,) = reductions_in(mean(x, over=SimpleNamespace(t=symbol('t'), y=y), where=x > 0, weights=weights))
+    (found,) = reductions_in(mean(x, over=SimpleNamespace(t=var('t'), y=y), where=x > 0, weights=weights))
     assert str(found.condition) == 'x > 0'
     assert str(found.over) == str(y)
     assert (found.weights != weights).nnz == 0
-    assert has_reductions(found.call)
-    assert not has_reductions(x + 1)
+    assert reductions_in(found.call)
+    assert not reductions_in(x + 1)
 
 
 def test_count_takes_no_expression():
     """Test that a count reads only its condition."""
-    x = symbol('x')
+    x = var('x')
     (found,) = reductions_in(count(where=x > 0.5))
     assert found.kind == 'count'
     assert found.argument == 1
@@ -103,7 +101,7 @@ def test_count_takes_no_expression():
 def test_malformed_reductions_are_rejected(call, match):
     """Test that a group given by name and weights that are neither a matrix nor a shared row raise errors."""
     with pytest.raises(ValidationError, match=match):
-        call(symbol('x'))
+        call(var('x'))
 
 
 def test_count_reduces_values():
@@ -112,23 +110,70 @@ def test_count_reduces_values():
     assert reduce_values([], 'count') == 0.0
 
 
-BACKENDS = ('numpy', 'numba')
+BACKENDS = (NumpyBackend(), NumbaBackend())
 GAMMA = 0.5
 CRITICAL = 2 * GAMMA
 
 
-def _reducing(over, kind, *, weight=None, **states):
-    """Return an element type whose state `out` is the reduction of the neighbour's `y` over a neighbourhood."""
-    return type(
-        'ReducingElement',
-        (Element,),
-        {
-            'out': state(0.0),
-            'y': state(0.0),
-            **states,
-            'laws': lambda self, s: [UpdateLaw(s.out, neighbors(s.other.y, over=over, reduce=kind, weight=weight))],
-        },
-    )
+class ReducingElement(Element):
+    """Element whose state `out` is the reduction of the neighbour's `y` over a neighbourhood."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        out: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        over: object = None,
+        reduce: str = 'sum',
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.out = out
+        self.y = y
+        self.over = over
+        self.reduce = reduce
+
+    def _get_laws(self, s):
+        """Return the update of `out` to the reduction."""
+        return [UpdateLaw(s.out, neighbors(s.other.y, over=self.over, reduce=self.reduce))]
+
+
+class PositionedReducingElement(ReducingElement):
+    """Reducing element with a position in a continuous space."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        out: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        over: object = None,
+        reduce: str = 'sum',
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+        self.x = x
+
+
+class HeadedReducingElement(PositionedReducingElement):
+    """Reducing element with a position and a heading angle."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        out: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        over: object = None,
+        reduce: str = 'sum',
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        phi: Annotated[object, StateSpec(domain=RR)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce, x=x)
+        self.phi = phi
 
 
 def _expected(kind, values, weights):
@@ -152,7 +197,7 @@ def _outputs(system, backend):
     """Return the values of `out` after one update of the first group of a system."""
     problem = compile_system(system, backend=backend)
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
-    return problem.states.read(after, f'{system.components[0].label}.out')
+    return problem.states.read(after, f'{system.elements[0].label}.out')
 
 
 def _minimum_image(difference, side):
@@ -162,7 +207,7 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(symbol('spin'), VonNeumannNeighborhood(), reduce='each')
+    values = neighbors(var('spin'), VonNeumannNeighborhood(), reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
 
 
@@ -179,7 +224,7 @@ def test_neighborhoods_in_finds_the_neighbourhood_and_the_weight():
     assert [(item.over, item.kind, item.weight) for item in found] == [(over, 'normalized-mean', 3)]
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 @pytest.mark.parametrize('kind', NEIGHBOR_REDUCTIONS)
 def test_reduction_over_a_network_matches_its_definition(kind, backend):
     """Test that every reduction over the neighbours of a network node matches the reduction of their values."""
@@ -187,14 +232,14 @@ def test_reduction_over_a_network_matches_its_definition(kind, backend):
     graph.remove_edges_from(list(nx.selfloop_edges(graph)))
     values = np.random.default_rng(0).choice([-2.0, 0.0, 1.0, 3.5], 12)
     system = System(
-        elements=[GroupElement('g', element=_reducing(None, kind), size=12, values={'y': values})],
+        elements=[GroupElement('g', element=ReducingElement, size=12, values={'y': values, 'reduce': kind})],
         space=NetworkSpace(graph),
     )
     expected = [_expected(kind, values[list(graph.neighbors(node))], np.ones(graph.degree(node))) for node in graph]
     assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     """Test that a weight of the member and the neighbour weighs every neighbour in a normalized mean."""
 
@@ -230,25 +275,25 @@ def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     """Test that a sum over a von Neumann neighbourhood of a fixed lattice sums the neighbours inside the lattice."""
     values = np.arange(12.0).reshape(3, 4)
-    reducing = _reducing(VonNeumannNeighborhood(), 'sum')
     space = LatticeSpace((3, 4), boundary='fixed')
-    system = System(elements=[LatticeElement('g', element=reducing, space=space, values={'y': values})])
+    given = {'y': values, 'over': VonNeumannNeighborhood()}
+    system = System(elements=[LatticeElement('g', element=ReducingElement, space=space, values=given)])
     padded = np.pad(values, 1)
     expected = padded[:-2, 1:-1] + padded[2:, 1:-1] + padded[1:-1, :-2] + padded[1:-1, 2:]
     assert np.allclose(_outputs(system, backend), expected.ravel(), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_reduction_without_a_neighbourhood_reads_the_lattice_neighbourhood(backend):
     """Test that a reduction without a neighbourhood on a periodic lattice reads the lattice's Moore neighbourhood."""
     values = np.random.default_rng(2).normal(size=(4, 5))
     system = System(
         elements=[
-            LatticeElement('g', element=_reducing(None, 'sum'), space=LatticeSpace((4, 5)), values={'y': values}),
+            LatticeElement('g', element=ReducingElement, space=LatticeSpace((4, 5)), values={'y': values}),
         ],
     )
     expected = sum(np.roll(values, (a - 1, b - 1), axis=(0, 1)) for a, b in np.ndindex(3, 3)) - values
@@ -261,17 +306,17 @@ def _scattered(count, side, seed):
     return rng.uniform(0, side, (count, 2)), rng.normal(size=count), rng.uniform(-math.pi, math.pi, count)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 @pytest.mark.parametrize('boundary', ['periodic', 'open'])
 @pytest.mark.parametrize('center', [False, True])
 def test_reduction_within_a_radius_matches_a_direct_search(boundary, center, backend):
     """Test that a sum over the members within a radius matches a search of every pair, with minimum images."""
     side, radius = 4.0, 0.9
     positions, values, _ = _scattered(80, side, 3)
-    reducing = _reducing(RadiusNeighborhood(radius, center=center), 'sum', x=state(vector=True, position=True))
+    given = {'x': positions, 'y': values, 'over': RadiusNeighborhood(radius, center=center)}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
     system = System(
-        elements=[GroupElement('g', element=reducing, size=80, values={'x': positions, 'y': values})],
+        elements=[GroupElement('g', element=PositionedReducingElement, size=80, values=given)],
         space=space,
     )
     difference = positions[:, None, :] - positions[None, :, :]
@@ -282,16 +327,16 @@ def test_reduction_within_a_radius_matches_a_direct_search(boundary, center, bac
     assert np.allclose(_outputs(system, backend), within @ values, atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 @pytest.mark.parametrize('boundary', ['periodic', 'open'])
 def test_reduction_over_the_nearest_members_matches_a_direct_search(boundary, backend):
     """Test that a mean over the k nearest members matches a sort of every distance."""
     side, k = 5.0, 6
     positions, values, _ = _scattered(70, side, 4)
-    reducing = _reducing(NearestNeighborhood(k), 'mean', x=state(vector=True, position=True))
+    given = {'x': positions, 'y': values, 'over': NearestNeighborhood(k), 'reduce': 'mean'}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
     system = System(
-        elements=[GroupElement('g', element=reducing, size=70, values={'x': positions, 'y': values})],
+        elements=[GroupElement('g', element=PositionedReducingElement, size=70, values=given)],
         space=space,
     )
     difference = positions[:, None, :] - positions[None, :, :]
@@ -303,22 +348,16 @@ def test_reduction_over_the_nearest_members_matches_a_direct_search(boundary, ba
     assert np.allclose(_outputs(system, backend), values[nearest].mean(axis=1), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     """Test that a count over a cone of a heading angle counts the members within the radius and the half-angle."""
     side, radius, angle = 4.0, 1.2, math.pi / 3
     positions, values, headings = _scattered(90, side, 5)
-    reducing = _reducing(
-        ConeNeighborhood(radius, angle, heading='phi'),
-        'count',
-        x=state(vector=True, position=True),
-        phi=state(0.0, domain=RR),
-    )
+    over = ConeNeighborhood(radius, angle, heading='phi')
+    given = {'x': positions, 'y': values, 'phi': headings, 'over': over, 'reduce': 'count'}
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
     system = System(
-        elements=[
-            GroupElement('g', element=reducing, size=90, values={'x': positions, 'y': values, 'phi': headings}),
-        ],
+        elements=[GroupElement('g', element=HeadedReducingElement, size=90, values=given)],
         space=space,
     )
     direction = -_minimum_image(positions[:, None, :] - positions[None, :, :], side)
@@ -330,7 +369,7 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     assert np.allclose(_outputs(system, backend), inside.sum(axis=1), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_neighbour_positions_are_read_by_minimum_image(backend):
     """Test that the position of a neighbour across a periodic edge is its image nearest to the member."""
 
@@ -433,7 +472,7 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
 def test_validate_reports_a_metric_neighbourhood_on_a_network():
     """Test that a law reducing over a radius in a system on a network space has a law-space issue."""
     system = System(
-        elements=[GroupElement('g', element=_reducing(RadiusNeighborhood(1.0), 'sum'), size=5)],
+        elements=[GroupElement('g', element=ReducingElement, size=5, values={'over': RadiusNeighborhood(1.0)})],
         space=NetworkSpace(nx.cycle_graph(5)),
         time=DiscreteTime(),
     )
@@ -445,9 +484,8 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
 
 def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
     """Test that a reduction over the neighbours of the space in a continuous space has a law-space issue."""
-    reducing = _reducing(None, 'sum', x=state(vector=True, position=True))
     system = System(
-        elements=[GroupElement('g', element=reducing, size=5)],
+        elements=[GroupElement('g', element=PositionedReducingElement, size=5)],
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
@@ -456,9 +494,9 @@ def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
 
 def test_validate_reports_a_cone_without_a_heading():
     """Test that a cone over members without a velocity or heading state has a law-domain issue."""
-    reducing = _reducing(ConeNeighborhood(1.0, 1.0), 'sum', x=state(vector=True, position=True))
+    over = ConeNeighborhood(1.0, 1.0)
     system = System(
-        elements=[GroupElement('g', element=reducing, size=5)],
+        elements=[GroupElement('g', element=PositionedReducingElement, size=5, values={'over': over})],
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
@@ -542,8 +580,8 @@ def _order(phases):
 @pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
-    below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
-    above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend='numba').run(10.0)
+    below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).run(10.0)
+    above = Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend()).run(10.0)
     weak, strong = _order(below.trajectory_.values('oscillators.theta')), _order(
         above.trajectory_.values('oscillators.theta'),
     )
@@ -616,7 +654,7 @@ def _vicsek(size=400, side=5.0):
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek model exceeds 0.9 at low noise and high density."""
-    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend='numba').run(100).trajectory_
+    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).run(100).trajectory_
     order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9

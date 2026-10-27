@@ -1,39 +1,36 @@
-"""Test the encounter laws of kinetic models and their declarations."""
+"""Test the `_encounter` module of `skcomplex.core.laws`."""
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.base import LawClass, LawKind, SpaceKind, TimeKind
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-from skcomplex.engine.problems import symbol
+from skcomplex.core.laws import EncounterLaw
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
+
+F, G, Q = var('f g q')
 
 
-@pytest.mark.parametrize('law', [EncounterLaw, ProliferationLaw, DestructionLaw])
-def test_encounter_laws_declare_continuous_encounter_kind(law):
-    """Test that every encounter law is of the encounter kind, continuous, and needs continuous time and a lattice."""
-    assert law.law_kind == LawKind.ENCOUNTER
-    assert law.time_class is LawClass.CONTINUOUS
-    assert law.requires.time == {TimeKind.CONTINUOUS}
-    assert law.requires.space == {SpaceKind.LATTICE}
+def test_encounter_needs_continuous_time_on_activity_lattices():
+    """Test that an encounter runs in continuous time on lattices of activities."""
+    requirements = EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5))._get_requirements()
+    assert (requirements.time, requirements.space) == ((ContinuousTime,), (LatticeSpace,))
 
 
-def test_encounter_keeps_numeric_tables_as_floats():
-    """Test that an encounter keeps numeric rates and transitions as float arrays and targets the candidate."""
-    f, g = symbol('f'), symbol('g')
-    law = EncounterLaw(f, g, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check()
-    assert law.rate.dtype == float
-    assert law.transition.dtype == float
-    assert law.targets[0] is f
-    assert law.outcomes is law.transition
+def test_encounter_runs_into_its_tables():
+    """Test that an encounter runs into its rate and transition tables as nested lists of numbers."""
+    rate, transition = EncounterLaw(F, G, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check().run({})
+    assert rate == [[1.0, 2.0], [3.0, 4.0]]
+    assert np.shape(transition) == (2, 2, 2)
 
 
-def test_encounter_keeps_parameter_tables_symbolic():
-    """Test that a table with a parameter is kept as Sage expressions."""
-    f, q = symbol('f'), symbol('q')
-    law = EncounterLaw(f, f, q, [[[q, 1 - q]], [[0.5, 0.5]]]).check()
-    assert law.transition.dtype == object
-    assert str(law.transition[0, 0, 1]) == '-q + 1'
+def test_encounter_evaluates_parameter_tables():
+    """Test that a table with a parameter is evaluated at the value of the parameter, which the law reads."""
+    law = EncounterLaw(F, F, Q, [[[Q, 1 - Q]], [[0.5, 0.5]]]).check()
+    rate, transition = law.prepare().run({'q': 0.25})
+    assert rate == 0.25
+    assert transition[0][0] == [0.25, 0.75]
+    assert law.reads_ == {F, Q}
 
 
 @pytest.mark.parametrize(
@@ -46,31 +43,12 @@ def test_encounter_keeps_parameter_tables_symbolic():
 )
 def test_encounter_rejects_tables_of_wrong_shape(rate, transition, message):
     """Test that an encounter rejects tables of the wrong number of dimensions or of disagreeing activities."""
-    f = symbol('f')
     with pytest.raises(ValidationError, match=message):
-        EncounterLaw(f, f, rate, transition).check()
+        EncounterLaw(F, F, rate, transition).check()
 
 
-def test_proliferation_and_destruction_keep_their_rates():
-    """Test that proliferation and destruction keep their rates and target the candidate."""
-    f, g = symbol('f'), symbol('g')
-    assert ProliferationLaw(f, g, 0.5).outcomes is None
-    assert ProliferationLaw(f, g, 0.5, np.ones((1, 1, 1)), test=g).test is g
-    assert float(DestructionLaw(f, g, 0.2).check().rate) == 0.2
-    assert DestructionLaw(f, g, 0.2).check().targets[0] is f
-
-
-def test_encounters_target_the_candidate_and_the_test():
-    """Test that an encounter targets the candidate, whose group owns it, and a test density other than it."""
-    f, g, h = symbol('f'), symbol('g'), symbol('h')
-    assert ProliferationLaw(f, g, 0.5).check().targets == (f,)
-    assert ProliferationLaw(f, g, 0.5, np.ones((1, 1, 1)), test=h).check().targets == (f, h)
-    assert EncounterLaw(f, g, 1.0, np.full((2, 2, 2), 0.5), test=f).check().targets == (f,)
-
-
-def test_outcome_sums_add_over_outcomes():
-    """Test that the outcome sums add the probabilities over the last axis."""
-    table = np.zeros((2, 2, 3))
-    table[0, 0] = [0.2, 0.3, 0.4]
-    assert outcome_sums(table)[0, 0] == pytest.approx(0.9)
-    assert outcome_sums(table)[1, 1] == 0.0
+def test_encounter_targets_the_candidate_and_the_test():
+    """Test that an encounter targets the candidate, and a test density other than it."""
+    h = var('h')
+    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=F).check().prepare().targets_ == (F,)
+    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=h).check().prepare().targets_ == (F, h)

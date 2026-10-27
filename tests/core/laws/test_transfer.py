@@ -1,20 +1,18 @@
-"""Test the `_flows` module of `skcomplex.core.laws`."""
+"""Test the `_transfer` module of `skcomplex.core.laws`."""
 
-import functools
 from typing import Annotated
 
 import numpy as np
 import pytest
-from scipy import stats
+from sage.all__sagemath_symbolics import var
 
 from skcomplex.analysis import conservation, loop_dominance, loops
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import Element
 from skcomplex.core.errors import ConservationError, LabelError, ValidationError
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import BoundaryLaw, RateLaw, RuleLaw, Sink, Source, TransferLaw, UpdateLaw
-from skcomplex.core.laws.utils import distributed_delay, lookup, step, transfer, where
+from skcomplex.core.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
+from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
@@ -68,11 +66,6 @@ def _ledger_laws(s):
         TransferLaw(Source(), s.a, 1.0, label='lend'),
         UpdateLaw(s.c, s.c + 1),
     ]
-
-
-def _fertility(s):
-    """Return the fertility, a table of food per person."""
-    return lookup(s.food, [(0, 0.0), (1, 2.0), (2, 3.0)])
 
 
 class TubElement(Element):
@@ -157,158 +150,6 @@ class LedgerElement(Element):
         return _ledger_laws(s)
 
 
-class FertilityElement(Element):
-    """Fertility element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        food: Annotated[object, StateSpec()] = -1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.food = food
-
-    def _get_laws(self, s):
-        """Return the laws of the fertility element."""
-        return [RateLaw(s.food, 1.0)]
-
-
-def _delayed(kind):
-    """Return an element whose output stock integrates a delay of a unit step at time 1 with delay time 6."""
-    conserved, order = kind.startswith('material'), int(kind[-1])
-    function = functools.partial(distributed_delay, order=order, conserved=conserved)
-    return type(
-        f'Delayed_{kind}',
-        (Element,),
-        {
-            'out': state(0.0),
-            'T': parameter(6.0),
-            'laws': lambda self, s: [RateLaw(s.out, function(step(s.t, 1.0), s.T))],
-        },
-    )
-
-
-def _balance(agent):
-    """Return assets minus liabilities minus equity."""
-    return agent.assets - agent.liabilities - agent.equity
-
-
-class BankElement(Element):
-    """Bank whose rule lowers its assets alone, which breaks its balance sheet."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        assets: Annotated[float, StateSpec()] = 10.0,
-        liabilities: Annotated[float, StateSpec()] = 8.0,
-        equity: Annotated[float, StateSpec()] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.assets = assets
-        self.liabilities = liabilities
-        self.equity = equity
-
-    def _get_laws(self, s):
-        """Return the rule that loses assets."""
-        return [RuleLaw(self.lose)]
-
-    def lose(self, agent, model):
-        """Lower the assets by 1."""
-        agent.assets -= 1.0
-
-
-class LenderElement(Element):
-    """Lender holding claims on firms, positive loans."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
-        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.loans = loans
-        self.money = money
-
-
-class BorrowerElement(Element):
-    """Firm that owes its loans, a negative holding, and goes bankrupt when its money runs out."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        loans: Annotated[float, StateSpec(quantity='loans')] = 0.0,
-        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
-        settles: Annotated[float, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.loans = loans
-        self.money = money
-        self.settles = settles
-
-    def _get_laws(self, s):
-        """Return the rule that removes bankrupt firms."""
-        return [RuleLaw(self.default)]
-
-    def default(self, agent, model):
-        """Remove the firm when its money runs out, after writing off its debt when it settles."""
-        if agent.money > 0:
-            return
-        if agent.settles:
-            lender = model.agents('lenders')[0]
-            transfer(agent, lender, agent.loans, 'loans')
-        agent.remove()
-
-
-def _credit_system(settles):
-    """Return a lender and two bankrupt borrowers that each owe 5."""
-    return System(
-        elements=[
-            GroupElement('lenders', element=LenderElement, size=1, values={'loans': 10.0, 'money': 4.0}),
-            GroupElement(
-                'firms',
-                element=BorrowerElement,
-                size=2,
-                values={'loans': -5.0, 'money': 0.0, 'settles': float(settles)},
-                variable=True,
-            ),
-        ],
-    )
-
-
-class PaymentsInteraction(Interaction):
-    """Payments between holders, which create money when asked."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        holders: Annotated[str, RoleSpec()],
-        creates: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.holders = holders
-        self.creates = creates
-
-    def _get_laws(self, s):
-        """Return the rule that moves money."""
-        return [RuleLaw(self.move)]
-
-    def move(self, model):
-        """Move one unit from the first holder to the second, and create money when the payments create it."""
-        first, second = model.agents('holders')[:2]
-        transfer(first, second, 1.0, 'money')
-        first.money += model.parameter('creates')
-
-
 @pytest.mark.parametrize('time', [None, DiscreteTime()])
 def test_transfer_conserves_across_time_classes(time):
     """Test that a transfer keeps the total of two stocks in continuous and in discrete time."""
@@ -317,8 +158,8 @@ def test_transfer_conserves_across_time_classes(time):
     assert trajectory.values('t.a')[-1] < 3.0
 
 
-def test_transfer_with_the_environment_takes_none():
-    """Test that a transfer from `None` draws the quantity from the environment."""
+def test_transfer_from_the_environment_takes_a_source():
+    """Test that a transfer from `Source()` draws the quantity from the environment, and `None` is rejected."""
 
     class FilledElement(Element):
         """Filled element."""
@@ -335,10 +176,12 @@ def test_transfer_with_the_environment_takes_none():
 
         def _get_laws(self, s):
             """Return the laws of the filled element."""
-            return [TransferLaw(None, s.n, 1.0, label='inflow')]
+            return [TransferLaw(Source(), s.n, 1.0, label='inflow')]
 
     trajectory = Simulation(System(elements=[FilledElement('f')]), dt=1.0).run(until=3).trajectory_
     assert trajectory.values('f.n')[-1] == pytest.approx(3.0)
+    with pytest.raises(ValidationError, match='or `Source\\(\\)`, but got None'):
+        TransferLaw(None, var('n'), 1.0).check()
 
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
@@ -464,37 +307,6 @@ def test_jump_flows_move_their_size_at_random_times():
     assert trajectory.values('j.b')[-1] > 0
 
 
-def test_table_function_interpolates_and_stays_flat():
-    """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
-    fertility = ObservableSpec('fertility', _fertility, element='f')
-    trajectory = Simulation(System(elements=[FertilityElement('f')]), dt=0.5, observables=[fertility]).run(4)
-    trajectory = trajectory.trajectory_
-    food = trajectory.values('f.food')
-    expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
-    assert trajectory.values('f.fertility') == pytest.approx(expected)
-    assert trajectory.values('f.fertility')[0] == 0.0
-    assert trajectory.values('f.fertility')[-1] == 3.0
-
-
-def test_third_order_delay_follows_the_erlang_step_response():
-    """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = Simulation(System(elements=[_delayed('material_delay3')('d')]), dt=0.01).run(14).trajectory_
-    times = np.asarray(trajectory.times)
-    output = trajectory.values('d.material_delay3_0')[:, 2] / 2.0
-    assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
-    assert stats.gamma(3, scale=2).median() == pytest.approx(5.35, abs=0.01)
-
-
-@pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
-def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
-    """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
-    trajectory = Simulation(System(elements=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
-    hidden = np.atleast_2d(trajectory.values(f'd.{kind}_0').T).T
-    assert hidden.shape[1] == stages
-    level = 6.0 / stages if kind == 'material_delay1' else 1.0
-    assert hidden[-1, -1] == pytest.approx(level, rel=1e-3)
-
-
 def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
     system = System(elements=[PopulationElement('pop')])
@@ -516,56 +328,3 @@ def test_monitor_detects_drift_beyond_the_flows():
     """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
     with pytest.raises(ConservationError, match="'water' drifted"):
         Simulation(System(elements=[ClippedElement('c')]), dt=1, observers=[ConservationObserver()]).run(5)
-
-
-def test_invariant_of_agents_names_the_observable_and_the_change():
-    """Test that lowering assets alone breaks the balance sheet that an observable of the agents sums."""
-    balance = ObservableSpec('balance', _balance, group='banks', reduce='sum')
-    simulation = Simulation(
-        System(elements=[GroupElement('banks', element=BankElement, size=1)]),
-        observables=[balance],
-        invariants={'balance': 1e-9},
-    )
-    with pytest.raises(ConservationError, match='invariant balance changed from 0 to -1 at frame 1'):
-        simulation.run(2)
-
-
-def test_bankrupt_firm_writes_off_its_debt_against_its_lender():
-    """Test that removed firms settle their debt with transfers and total loans stay zero."""
-    trajectory = Simulation(_credit_system(settles=True)).run(1).trajectory_
-    assert trajectory.agents('lenders', 1).values['loans'].tolist() == [0.0]
-    assert len(trajectory.agents('firms', 1).values['loans']) == 0
-
-
-def test_removing_an_unsettled_agent_destroys_its_holdings():
-    """Test that removing a firm that still owes raises a conservation error."""
-    with pytest.raises(ConservationError, match='Settle its holdings'):
-        Simulation(_credit_system(settles=False)).run(1)
-
-
-def test_transfer_moves_between_states_and_checks_names():
-    """Test that a transfer can move between differently named states and rejects missing ones."""
-    lender, borrower = LenderElement('l'), BorrowerElement('b')
-    transfer(lender, borrower, 3.0, 'money')
-    assert (lender.money, borrower.money) == (-3.0, 3.0)
-    transfer(borrower, lender, 1.0, 'money', 'loans')
-    assert (borrower.money, lender.loans) == (2.0, 1.0)
-    with pytest.raises(ValidationError, match='cash'):
-        transfer(lender, borrower, 1.0, 'cash')
-
-
-@pytest.mark.parametrize(('creates', 'violated'), [(0.0, False), (0.5, True)])
-def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
-    """Test that the total money of the agents holds under transfers and the run names it when money appears."""
-    system = System(
-        elements=[GroupElement('holders', element=LenderElement, size=3, values={'money': 5.0}, variable=True)],
-        interactions=[PaymentsInteraction('payments', holders='holders', creates=creates)],
-    )
-    total = ObservableSpec('total_money', group='holders', variable='money', reduce='sum')
-    simulation = Simulation(system, observables=[total], invariants={'total_money': 1e-9})
-    if violated:
-        with pytest.raises(ConservationError, match='invariant total_money'):
-            simulation.run(3)
-        return
-    trajectory = simulation.run(3).trajectory_
-    assert trajectory.agents('holders', 3).values['money'].sum() == pytest.approx(15.0)
