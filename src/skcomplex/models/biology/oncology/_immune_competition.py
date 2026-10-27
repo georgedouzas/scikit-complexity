@@ -351,7 +351,7 @@ def immune_competition(
 
     Examples:
         >>> from skcomplex.models.biology.oncology import immune_competition
-        >>> [item.label for item in immune_competition().components]
+        >>> [item.label for item in immune_competition().elements]
         ['tumour', 'immune', 'host']
     """
     activities = activity_grid(classes)

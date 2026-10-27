@@ -143,7 +143,7 @@ def naming_game(n_agents: int = 50) -> System:
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import naming_game
-        >>> naming_game(10).elements[0].size
+        >>> naming_game(10).elements[0].check().prepare().size_
         10
     """
     namers = GroupElement(

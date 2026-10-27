@@ -165,7 +165,7 @@ def sir_vaccination(
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import sir_vaccination
-        >>> sir_vaccination(beta=0.3).components[0].beta
+        >>> sir_vaccination(beta=0.3).elements[0].beta
         0.3
     """
     population = VaccinatedPopulationElement(

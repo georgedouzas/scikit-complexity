@@ -316,7 +316,7 @@ def free_group_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import free_group_automaton
-        >>> free_group_automaton(radius=3).elements[0].size
+        >>> free_group_automaton(radius=3).elements[0].check().prepare().size_
         53
     """
     space = CayleySpace(free_group(rank), ball=radius)
@@ -362,7 +362,7 @@ def lamplighter_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import lamplighter_automaton
-        >>> lamplighter_automaton(radius=3).elements[0].size
+        >>> lamplighter_automaton(radius=3).elements[0].check().prepare().size_
         39
     """
     space = CayleySpace(lamplighter(), ball=radius)
@@ -412,7 +412,7 @@ def heisenberg_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import heisenberg_automaton
-        >>> heisenberg_automaton(radius=2).elements[0].size
+        >>> heisenberg_automaton(radius=2).elements[0].check().prepare().size_
         17
     """
     space = CayleySpace(heisenberg(), ball=radius)
@@ -466,7 +466,7 @@ def baumslag_solitar_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import baumslag_solitar_automaton
-        >>> baumslag_solitar_automaton(radius=2).elements[0].size
+        >>> baumslag_solitar_automaton(radius=2).elements[0].check().prepare().size_
         17
     """
     space = CayleySpace(baumslag_solitar(m, n), ball=radius)
@@ -509,7 +509,7 @@ def linear_ring_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import linear_ring_automaton
-        >>> linear_ring_automaton(11).elements[0].size
+        >>> linear_ring_automaton(11).elements[0].check().prepare().size_
         11
     """
     values = np.zeros(size)
@@ -550,7 +550,7 @@ def subshifts(size: int = 200) -> System:
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import subshifts
-        >>> subshifts(10).elements[0].size
+        >>> subshifts(10).elements[0].check().prepare().size_
         10
     """
     return System(elements=[LatticeElement('cells', element=GoldenMeanCellElement, space=LatticeSpace(size))])
@@ -591,7 +591,7 @@ def grigorchuk_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import grigorchuk_automaton
-        >>> grigorchuk_automaton(radius=3).elements[0].size
+        >>> grigorchuk_automaton(radius=3).elements[0].check().prepare().size_
         23
     """
     return _majority_system(CayleySpace(grigorchuk_group(), ball=radius), GRIGORCHUK_MEMORY, density, random_state)

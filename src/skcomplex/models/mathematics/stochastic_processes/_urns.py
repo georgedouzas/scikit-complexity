@@ -103,7 +103,7 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import polya_urn
-        >>> polya_urn(3).elements[0].size
+        >>> polya_urn(3).elements[0].check().prepare().size_
         3
     """
     return System(

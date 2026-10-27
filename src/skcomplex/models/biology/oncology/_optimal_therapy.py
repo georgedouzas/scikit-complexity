@@ -340,7 +340,7 @@ def optimal_chemotherapy(
 
     Examples:
         >>> from skcomplex.models.biology.oncology import optimal_chemotherapy
-        >>> optimal_chemotherapy(w=1.0).components[0].w
+        >>> optimal_chemotherapy(w=1.0).elements[0].w
         1.0
     """
     return System(elements=[OptimalChemotherapyElement('patient', E=E, A=A, N=N, w=w)])
@@ -393,7 +393,7 @@ def optimal_immunotherapy(
 
     Examples:
         >>> from skcomplex.models.biology.oncology import optimal_immunotherapy
-        >>> optimal_immunotherapy(w1=0.5).components[0].w1
+        >>> optimal_immunotherapy(w1=0.5).elements[0].w1
         0.5
     """
     return System(elements=[OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])

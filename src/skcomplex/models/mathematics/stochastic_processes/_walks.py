@@ -217,7 +217,7 @@ def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import random_walk
-        >>> random_walk(20).elements[0].size
+        >>> random_walk(20).elements[0].check().prepare().size_
         20
     """
     return System(
@@ -265,7 +265,7 @@ def weakening_ornstein_uhlenbeck(
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
-        >>> weakening_ornstein_uhlenbeck(10).elements[0].size
+        >>> weakening_ornstein_uhlenbeck(10).elements[0].check().prepare().size_
         10
     """
     return System(
@@ -308,7 +308,7 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import ageing_random_walk
-        >>> ageing_random_walk(5).elements[0].size
+        >>> ageing_random_walk(5).elements[0].check().prepare().size_
         5
     """
     return System(
@@ -350,7 +350,7 @@ def persistent_random_walk(
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import persistent_random_walk
-        >>> persistent_random_walk(10).elements[0].size
+        >>> persistent_random_walk(10).elements[0].check().prepare().size_
         10
     """
     directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
@@ -396,7 +396,7 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import random_walk_with_memory
-        >>> random_walk_with_memory(10).elements[0].size
+        >>> random_walk_with_memory(10).elements[0].check().prepare().size_
         10
     """
     return System(

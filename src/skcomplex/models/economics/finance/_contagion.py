@@ -220,7 +220,7 @@ def debtrank(
 
     Examples:
         >>> from skcomplex.models.economics.finance import debtrank
-        >>> debtrank([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).elements[0].size
+        >>> debtrank([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).elements[0].check().prepare().size_
         2
     """
     if liabilities is None or capital is None:

@@ -556,7 +556,7 @@ def multiplicative_noise(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import multiplicative_noise
-        >>> multiplicative_noise(10, convention='ito').components[0].values['convention']
+        >>> multiplicative_noise(10, convention='ito').elements[0].values['convention']
         'ito'
     """
     group = GroupElement(

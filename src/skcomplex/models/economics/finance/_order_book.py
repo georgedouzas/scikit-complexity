@@ -348,7 +348,7 @@ def order_book(
 
     Examples:
         >>> from skcomplex.models.economics.finance import order_book
-        >>> order_book(5, 5).elements[0].size
+        >>> order_book(5, 5).elements[0].check().prepare().size_
         25
     """
     rng = np.random.default_rng(random_state)

@@ -230,7 +230,7 @@ def stochastic_schelling(
 
     Examples:
         >>> from skcomplex.models.social.segregation import stochastic_schelling
-        >>> stochastic_schelling(8, 8, side=4, random_state=0).elements[0].size
+        >>> stochastic_schelling(8, 8, side=4, random_state=0).elements[0].check().prepare().size_
         32
     """
     rng = np.random.default_rng(random_state)

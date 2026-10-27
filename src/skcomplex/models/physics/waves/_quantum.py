@@ -212,7 +212,7 @@ def schrodinger(
 
     Examples:
         >>> from skcomplex.models.physics.waves import schrodinger
-        >>> schrodinger(64).elements[0].prepare().size_
+        >>> schrodinger(64).elements[0].check().prepare().size_
         64
     """
     spacing = length / n_sites

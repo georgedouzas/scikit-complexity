@@ -234,7 +234,7 @@ class PedestriansElement(Element):
 
     Examples:
         >>> from skcomplex.models.social.crowds import PedestriansElement
-        >>> GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}).prepare().size_
+        >>> GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}).check().prepare().size_
         1
     """
 
@@ -471,7 +471,7 @@ def evacuation(
 
     Examples:
         >>> from skcomplex.models.social.crowds import evacuation
-        >>> evacuation().components[0].prepare().size_
+        >>> evacuation().elements[0].check().prepare().size_
         24
     """
     rooms = building_of(branching, depth).number_of_nodes()

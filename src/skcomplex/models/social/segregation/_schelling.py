@@ -125,7 +125,7 @@ def schelling(
 
     Examples:
         >>> from skcomplex.models.social.segregation import schelling
-        >>> schelling(10, 10, density=0.5).elements[0].size
+        >>> schelling(10, 10, density=0.5).elements[0].check().prepare().size_
         50
     """
     rng = np.random.default_rng(random_state)

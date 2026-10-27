@@ -294,7 +294,7 @@ def wilhite_trade_networks(
     Examples:
         >>> from skcomplex.models.economics.markets import wilhite_trade_networks
         >>> system = wilhite_trade_networks(40, topology='isolated', n_groups=4)
-        >>> system.elements[0].size
+        >>> system.elements[0].check().prepare().size_
         40
     """
     rng = np.random.default_rng(random_state)

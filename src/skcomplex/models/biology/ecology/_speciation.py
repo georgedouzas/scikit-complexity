@@ -177,7 +177,7 @@ def neutral_biodiversity(
 
     Examples:
         >>> from skcomplex.models.biology.ecology import neutral_biodiversity
-        >>> neutral_biodiversity(20).elements[0].size
+        >>> neutral_biodiversity(20).elements[0].check().prepare().size_
         20
     """
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)

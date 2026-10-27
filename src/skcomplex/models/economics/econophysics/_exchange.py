@@ -93,7 +93,7 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import boltzmann_wealth
-        >>> boltzmann_wealth(10).elements[0].size
+        >>> boltzmann_wealth(10).elements[0].check().prepare().size_
         10
     """
     return System(elements=[GroupElement('traders', element=TraderElement, size=n_agents)])

@@ -191,7 +191,7 @@ def fhp_lattice_gas(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import fhp_lattice_gas
-        >>> fhp_lattice_gas((8, 8)).elements[0].size
+        >>> fhp_lattice_gas((8, 8)).elements[0].check().prepare().size_
         64
     """
     space = LatticeSpace(tuple(shape), geometry='triangular').check().prepare()

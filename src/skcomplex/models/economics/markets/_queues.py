@@ -367,7 +367,7 @@ def car_wash(
 
     Examples:
         >>> from skcomplex.models.economics.markets import car_wash
-        >>> car_wash(5).elements[0].size
+        >>> car_wash(5).elements[0].check().prepare().size_
         5
     """
     operation = CarWashOperationInteraction(

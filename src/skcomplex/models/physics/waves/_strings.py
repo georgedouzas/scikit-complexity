@@ -234,7 +234,7 @@ def standing_waves(
 
     Examples:
         >>> from skcomplex.models.physics.waves import standing_waves
-        >>> standing_waves(9).elements[0].prepare().size_
+        >>> standing_waves(9).elements[0].check().prepare().size_
         9
     """
     spacing = length / (n_sites + 1)

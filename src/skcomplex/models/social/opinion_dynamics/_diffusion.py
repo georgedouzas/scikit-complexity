@@ -299,7 +299,7 @@ def influentials(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import influentials
-        >>> influentials(5, 4, n_influentials=2, random_state=0).elements[0].size
+        >>> influentials(5, 4, n_influentials=2, random_state=0).elements[0].check().prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)
@@ -367,7 +367,7 @@ def threshold_adoption(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import threshold_adoption
-        >>> threshold_adoption(40, size=60.0, random_state=0).elements[0].size
+        >>> threshold_adoption(40, size=60.0, random_state=0).elements[0].check().prepare().size_
         40
     """
     rng = np.random.default_rng(random_state)

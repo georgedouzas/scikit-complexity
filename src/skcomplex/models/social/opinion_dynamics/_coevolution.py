@@ -379,7 +379,7 @@ def join_a_club(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import join_a_club
-        >>> join_a_club(30).components[0].element.__name__
+        >>> join_a_club(30).elements[0].element.__name__
         'ClubMemberElement'
     """
     rng = np.random.default_rng(random_state)

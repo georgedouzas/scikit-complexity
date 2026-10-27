@@ -230,7 +230,7 @@ def origin_fixation_walk(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import origin_fixation_walk
-        >>> origin_fixation_walk(8).elements[0].size
+        >>> origin_fixation_walk(8).elements[0].check().prepare().size_
         8
     """
     rng = np.random.default_rng(random_state)

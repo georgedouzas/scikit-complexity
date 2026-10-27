@@ -81,7 +81,7 @@ def on_off_intermittency(
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import on_off_intermittency
-        >>> on_off_intermittency(5).components[0].size
+        >>> on_off_intermittency(5).elements[0].size
         5
     """
     variables = GroupElement(

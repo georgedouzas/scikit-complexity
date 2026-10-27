@@ -379,7 +379,7 @@ def active_brownian_particles(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import active_brownian_particles
-        >>> active_brownian_particles(10).elements[0].size
+        >>> active_brownian_particles(10).elements[0].check().prepare().size_
         10
     """
     positions, angles = _swimmers(n_particles, size, random_state)
@@ -552,7 +552,7 @@ def run_and_tumble(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import run_and_tumble
-        >>> run_and_tumble(10).elements[0].size
+        >>> run_and_tumble(10).elements[0].check().prepare().size_
         10
     """
     positions, angles = _swimmers(n_agents, size, random_state)

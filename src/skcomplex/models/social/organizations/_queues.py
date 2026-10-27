@@ -157,7 +157,7 @@ def priority_queues(
 
     Examples:
         >>> from skcomplex.models.social.organizations import priority_queues
-        >>> priority_queues(3, random_state=0).elements[0].size
+        >>> priority_queues(3, random_state=0).elements[0].check().prepare().size_
         3
     """
     priorities = np.random.default_rng(random_state).random(n_tasks)

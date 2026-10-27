@@ -215,7 +215,7 @@ def network_structure_analysis(
         >>> import networkx as nx
         >>> from skcomplex.models.mathematics.networks import network_structure_analysis
         >>> system = network_structure_analysis(nx.karate_club_graph(), reference='club', null_samples=0)
-        >>> system.elements[0].size
+        >>> system.elements[0].check().prepare().size_
         34
     """
     network = _planted_partition(random_state) if graph is None else graph

@@ -197,7 +197,7 @@ def brownian_near_wall(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import brownian_near_wall
-        >>> brownian_near_wall(convention='ito').components[0].convention
+        >>> brownian_near_wall(convention='ito').elements[0].convention
         'ito'
     """
     particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)

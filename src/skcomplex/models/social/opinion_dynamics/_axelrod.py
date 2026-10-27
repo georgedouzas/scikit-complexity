@@ -276,7 +276,7 @@ def axelrod(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import axelrod
-        >>> axelrod(5, 4).elements[0].size
+        >>> axelrod(5, 4).elements[0].check().prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)

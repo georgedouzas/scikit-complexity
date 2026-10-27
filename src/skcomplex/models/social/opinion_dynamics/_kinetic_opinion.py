@@ -287,7 +287,7 @@ def kinetic_opinion(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import kinetic_opinion
-        >>> kinetic_opinion(levels=5).components[0].size
+        >>> kinetic_opinion(levels=5).elements[0].size
         5
     """
     initial = 1.0 + 0.1 * opinion_grid(levels)

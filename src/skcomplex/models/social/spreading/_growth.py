@@ -155,7 +155,7 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
 
     Examples:
         >>> from skcomplex.models.social.spreading import simon_yule
-        >>> simon_yule().elements[0].size
+        >>> simon_yule().elements[0].check().prepare().size_
         1
     """
     words = GroupElement(

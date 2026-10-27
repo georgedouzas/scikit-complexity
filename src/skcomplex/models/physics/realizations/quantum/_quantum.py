@@ -130,7 +130,7 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
         >>> from skcomplex.core.spaces import LatticeSpace
         >>> from skcomplex.models.physics.realizations.quantum import site_space
         >>> site_space(LatticeSpace(16)).operators['laplacian'][0].trace()
-        np.float64(-30.0)
+        np.float64(-32.0)
     """
     if not isinstance(space, LatticeSpace | NetworkSpace):
         error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'

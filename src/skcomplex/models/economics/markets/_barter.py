@@ -194,7 +194,7 @@ def barter(
 
     Examples:
         >>> from skcomplex.models.economics.markets import barter
-        >>> barter().elements[0].size
+        >>> barter().elements[0].check().prepare().size_
         2
     """
     if n_barterers < EDGEWORTH_BARTERERS:

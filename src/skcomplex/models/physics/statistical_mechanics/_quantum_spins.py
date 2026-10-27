@@ -266,7 +266,7 @@ def quantum_heisenberg(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import quantum_heisenberg
-        >>> quantum_heisenberg(6).elements[0].size
+        >>> quantum_heisenberg(6).elements[0].check().prepare().size_
         6
     """
     if boundary not in BOUNDARIES or initial not in INITIAL_STATES:

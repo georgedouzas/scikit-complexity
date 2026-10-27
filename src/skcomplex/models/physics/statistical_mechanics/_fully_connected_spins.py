@@ -158,7 +158,7 @@ def curie_weiss(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import curie_weiss
-        >>> curie_weiss(10).elements[0].size
+        >>> curie_weiss(10).elements[0].check().prepare().size_
         10
     """
     spins = _initial_spins(n_spins, initial, random_state)
