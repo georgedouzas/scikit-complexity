@@ -5,6 +5,7 @@
 
 import functools
 import math
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -20,8 +21,8 @@ from ....core.elements import GroupElement
 from ....core.errors import IncompatibleLawsError, SkcomplexError, ValidationError
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
-from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.laws.utils import has_operator, local_operator
+from ....core.specs import HilbertSpec, ObservableSpec
 from ....core.system import System
 from ....core.types import Vector
 from ...problems import (
@@ -39,9 +40,8 @@ from ...problems import (
     vector,
 )
 from ...problems._reductions import reduce_values
-from .._quantum_operators import Operator
+from .._quantum_operators import LocalOperator, Operator, operator_of
 from .._quantum_views import QuantumView, hilbert_state, is_quantum
-from .._spectral import spectral_multiplier
 from .._system_compilers import BaseSystemCompiler
 from .._tree import Node, coerce_value, flatten_system
 
@@ -56,7 +56,7 @@ DEFAULT_MAX_DIMENSION = 2**20
 
 def _is_quantum_node(node: Node) -> bool:
     """Check whether a node is a quantum element or a group of quantum elements."""
-    return not isinstance(node.component, BaseInteraction) and is_quantum(node.component_type)
+    return not isinstance(node.component, BaseInteraction) and is_quantum(node.component)
 
 
 def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
@@ -67,29 +67,9 @@ def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
     return sp.csr_array(total)
 
 
-def _laplacian_of(space: Any) -> sp.csr_array:  # noqa: ANN401
-    """Return the Laplacian of a lattice, spectral when it is periodic and of finite differences otherwise."""
-    dimensions, spacings = space.shape_, space.spacings_
-    size = math.prod(dimensions)
-    if space.boundary == 'periodic':
-        multiplier = spectral_multiplier('laplacian', 0, dimensions, spacings).real
-        basis = np.eye(size).reshape(size, *dimensions)
-        axes = tuple(range(1, len(dimensions) + 1))
-        transformed = multiplier * np.fft.rfftn(basis, axes=axes)
-        columns = np.fft.irfftn(transformed, s=dimensions, axes=axes).reshape(size, size)
-        return sp.csr_array(columns.T.astype(complex))
-    matrix = sp.csr_array((size, size), dtype=complex)
-    for axis, (length, spacing) in enumerate(zip(dimensions, spacings, strict=True)):
-        line = sp.diags_array([np.ones(length - 1), -2 * np.ones(length), np.ones(length - 1)], offsets=[-1, 0, 1])
-        identities = [sp.identity(item) for item in dimensions]
-        identities[axis] = line / spacing**2
-        matrix = matrix + functools.reduce(lambda left, right: sp.kron(left, right, format='csr'), identities)
-    return sp.csr_array(matrix.astype(complex))
-
-
-def _member_value(value: Any, member: int, size: int) -> Any:  # noqa: ANN401
+def _member_value(value: object, member: int, size: int) -> object:
     """Return the value of one member, from a per-member sequence or a value shared by every member."""
-    if isinstance(value, str) or value is None or np.ndim(value) == 0:
+    if isinstance(value, str | HilbertSpec) or value is None or np.ndim(value) == 0:
         return value
     return value[member] if len(value) == size else value
 
@@ -99,14 +79,18 @@ def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     component = node.component
     if not isinstance(component, GroupElement):
         return [(node.path, QuantumView(component))]
-    names = component.element.get_argument_names()
     size = node.members or 0
     members = []
     for member in range(size):
-        values = {name: _member_value(node.value_of(name), member, size) for name in names}
-        element = component.element(label=f'{component.label}_{member}', **values)
+        values = {name: _member_value(value, member, size) for name, value in (component.values or {}).items()}
+        element = component.element(f'{component.label}_{member}').set_params(**values).check()
         members.append((f'{node.path}[{member}]', QuantumView(element)))
     return members
+
+
+def _name_of(path: str) -> str:
+    """Return a path, such as `chain[3]`, as a valid part of a symbol name, such as `chain_3`."""
+    return '_'.join(part for part in re.split(r'\W+', path) if part)
 
 
 def _check_classical(nodes: list[Node]) -> None:
@@ -213,7 +197,7 @@ def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str,
             shape = () if members is None else (members,)
             values.append(coerce_value(name, node.value_of(variable), (), declaration.domain, members))
             entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
-            base = f'{variable}_{"".join(char if char.isalnum() else "_" for char in node.path)}'
+            base = f'{variable}_{_name_of(node.path)}'
             if members is None:
                 symbols[name] = symbol(base, declaration.domain)
             else:
@@ -248,21 +232,21 @@ def _role_namespace(
 class _Laws:
     """Hamiltonian and dissipator laws collected from the components, with the description of their owner."""
 
-    hamiltonians: list[tuple[str, Operator]] = field(default_factory=list)
-    dissipators: list[tuple[str, Operator, object]] = field(default_factory=list)
+    hamiltonians: list[tuple[str, Expression]] = field(default_factory=list)
+    dissipators: list[tuple[str, Expression, object]] = field(default_factory=list)
 
 
 def _collect_laws(laws: _Laws, owner: str, items: Iterable[Any]) -> None:
     """Add the Hamiltonian and dissipator laws of a component, rejecting every other law."""
     for law in items:
         if isinstance(law, GeneratorLaw):
-            laws.hamiltonians.append((owner, law.operator))
+            laws.hamiltonians.append((owner, law.check().operator))
         elif isinstance(law, DissipatorLaw):
-            laws.dissipators.append((owner, law.operator, law.rate))
+            laws.dissipators.append((owner, law.check().operator, law.rate))
         else:
             error_msg = (
                 f'{owner} returns the law {type(law).__name__}, which a quantum system cannot hold. Quantum systems '
-                'take Hamiltonian and Dissipator laws only.'
+                'take generator and dissipator laws only.'
             )
             raise IncompatibleLawsError(error_msg)
 
@@ -274,7 +258,7 @@ def _interaction_laws(
     groups: dict[str, Node],
     laws: _Laws,
 ) -> None:
-    """Add the laws of an interaction, once per bond of its group for an exchange interaction."""
+    """Add the laws of an interaction, once per pair of neighbours of its group for a neighbour interaction."""
     interaction = node.component
     assert isinstance(interaction, BaseInteraction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
@@ -282,18 +266,21 @@ def _interaction_laws(
         role_names = list(declarations_of(interaction, VariableKind.ROLE))
         if len(role_names) != 1:
             error_msg = (
-                f'Interaction {node.path} over neighbours declares the roles {role_names}. Declare one role, bound to '
-                'the group whose neighbours it couples.'
+                f'Neighbour interaction {node.path} declares the roles {role_names}. Declare one role, bound to the '
+                'group whose neighbours it couples.'
             )
             raise ValidationError(error_msg)
         path = f'{node.scope}{getattr(interaction, role_names[0])}'
         if path not in groups:
-            error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
+            error_msg = f'Neighbour interaction {node.path} binds {path}, which is not a quantum group.'
             raise ValidationError(error_msg)
-        group = groups[path]
-        for first, second in group.space._neighbor_pairs(getattr(interaction, "layer", None)):
-            namespace = SimpleNamespace(first=members[path][first], second=members[path][second], **parameters)
-            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.run(namespace))
+        space = groups[path].space
+        if space is None:
+            error_msg = f'Neighbour interaction {node.path} binds {path}, which lives in no space.'
+            raise ValidationError(error_msg)
+        for source, target in space.check().prepare()._neighbor_pairs(interaction.layer):
+            namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
+            _collect_laws(laws, f'{node.path} on the pair ({source}, {target})', interaction.run(namespace))
         return
     roles = {
         name: _role_namespace(node, getattr(interaction, name), members, set(groups))
@@ -304,11 +291,13 @@ def _interaction_laws(
 
 @dataclass(frozen=True)
 class _Subsystem:
-    """Quantum subsystem with its key, its element, and its index in the tensor product."""
+    """Quantum subsystem with its key, its element, its index in the tensor product, its state symbol, and operators."""
 
     key: str
     element: QuantumView
     index: int
+    symbol: Expression
+    operators: Mapping[str, LocalOperator]
 
 
 @dataclass(frozen=True)
@@ -319,18 +308,31 @@ class _Lowering:
     subsystems: Mapping[str, _Subsystem]
     dimensions: tuple[int, ...]
     arguments: Mapping[Expression, int]
-    spaces: Mapping[str, Any]
 
-    def _local(self, subsystem: _Subsystem, local: Any) -> sp.csr_array:  # noqa: ANN401
-        """Return the matrix of a local operator, building the Laplacian of a space when it has none."""
-        if local.matrix is not None:
-            return sp.csr_array(local.matrix)
-        space = self.spaces.get(subsystem.key)
-        if not isinstance(space, LatticeSpace):
-            error_msg = f'The local operator {local.name} of {subsystem.key} needs a lattice to be built.'
-            raise ValidationError(error_msg)
-        laplacian = _laplacian_of(space)
-        return laplacian if not local.name.endswith('.dag') else sp.csr_array(laplacian.conj().T)
+    def operator(self, expression: object, owner: str) -> Operator:
+        """Return the operator of a Sage expression of local operators of the subsystems.
+
+        Args:
+            expression:
+                The expression, built with `local_operator`, `operator_product`, and `dagger`.
+
+            owner:
+                The description of the law or observable, for error messages.
+
+        Returns:
+            operator:
+                The operator.
+
+        Raises:
+            ValidationError:
+                The expression is not an operator of the subsystems.
+        """
+        subsystems = {item.symbol: (item.key, item.operators) for item in self.subsystems.values()}
+        try:
+            return operator_of(expression, subsystems)
+        except ValidationError as error:
+            error_msg = f'The operator of {owner} is invalid: {error}'
+            raise ValidationError(error_msg) from error
 
     def matrix(self, key: tuple[Any, ...], owner: str) -> sp.csr_array:
         """Return the matrix of a product of local operators on the whole space.
@@ -356,7 +358,7 @@ class _Lowering:
                 error_msg = f'The operator of {owner} acts on {name}, which is not a quantum subsystem of the system.'
                 raise ValidationError(error_msg)
             subsystem = self.subsystems[name]
-            matrix = self._local(subsystem, local)
+            matrix = sp.csr_array(local.matrix)
             previous = products.get(subsystem.index)
             products[subsystem.index] = matrix if previous is None else sp.csr_array(previous @ matrix)
         blocks: list[Any] = []
@@ -407,12 +409,12 @@ class _Lowering:
 
         return evaluate
 
-    def terms(self, operator: Operator, owner: str) -> tuple[QuantumTerm, ...]:
+    def terms(self, expression: object, owner: str) -> tuple[QuantumTerm, ...]:
         """Return the terms of an operator, with constant terms folded and terms of equal coefficients summed.
 
         Args:
-            operator:
-                The operator.
+            expression:
+                The Sage expression of the operator, built with `local_operator`, `operator_product`, and `dagger`.
 
             owner:
                 The description of the law or observable, for error messages.
@@ -424,7 +426,7 @@ class _Lowering:
         size = math.prod(self.dimensions)
         constant: list[sp.csr_array] = []
         grouped: dict[Expression, list[sp.csr_array]] = {}
-        for key, value in operator.terms.items():
+        for key, value in self.operator(expression, owner).terms.items():
             coefficient = SR(value)
             matrix = self.matrix(key, owner)
             if coefficient.variables():
@@ -454,7 +456,7 @@ def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Vector) -> None:
     owners = [owner for owner, operator in laws.hamiltonians if asymmetry(lowering.terms(operator, owner))]
     error_msg = (
         f'The Hamiltonian of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
-        'term, such as `s.minus` for `s.plus`, to the law.'
+        'term, `dagger(term)`, to the law.'
     )
     raise ValidationError(error_msg)
 
@@ -507,7 +509,11 @@ def _system_initial(
     return state
 
 
-def _namespaces(system: System, members: Mapping[str, tuple[SimpleNamespace, ...]], groups: set[str]) -> dict[str, SimpleNamespace]:
+def _namespaces(
+    system: System,
+    members: Mapping[str, tuple[SimpleNamespace, ...]],
+    groups: set[str],
+) -> dict[str, SimpleNamespace]:
     """Return the namespace of every system of the tree by path, with its quantum elements and child systems."""
     namespaces: dict[str, SimpleNamespace] = {}
 
@@ -526,15 +532,14 @@ def _namespaces(system: System, members: Mapping[str, tuple[SimpleNamespace, ...
     return namespaces
 
 
-def _subsystems_of(quantum: list[Node]) -> tuple[dict[str, _Subsystem], dict[str, Any]]:
-    """Return the subsystems of the quantum elements and groups in tensor product order, with their spaces."""
+def _subsystems_of(quantum: list[Node]) -> dict[str, _Subsystem]:
+    """Return the subsystems of the quantum elements and groups in tensor product order, each with its state symbol."""
     subsystems: dict[str, _Subsystem] = {}
-    spaces: dict[str, Any] = {}
     for node in quantum:
         for key, element in _members_of(node):
-            subsystems[key] = _Subsystem(key, element, len(subsystems))
-            spaces[key] = getattr(element.element, 'space', None) or node.space
-    return subsystems, spaces
+            state = symbol(f'{element.state}_{_name_of(key)}', CC)
+            subsystems[key] = _Subsystem(key, element, len(subsystems), state, element.local_operators())
+    return subsystems
 
 
 def _arguments_of(entries: list[Entry], symbols: Mapping[str, Any]) -> dict[Expression, int]:
@@ -549,19 +554,25 @@ def _arguments_of(entries: list[Entry], symbols: Mapping[str, Any]) -> dict[Expr
 
 def _element_laws(
     quantum: list[Node],
+    subsystems: Mapping[str, _Subsystem],
     symbols: Mapping[str, Any],
     time: Expression,
     laws: _Laws,
 ) -> dict[str, tuple[SimpleNamespace, ...]]:
-    """Add the laws of every quantum element and member, and return the member namespaces by path."""
+    """Add the laws of every quantum element and member, and return the member namespaces by path.
+
+    The namespace of a member holds the symbol of its state, which names its subsystem in `local_operator`, and the
+    symbols of its parameters. The laws of the member read time too.
+    """
     members: dict[str, tuple[SimpleNamespace, ...]] = {}
     for node in quantum:
         namespaces = []
         for member, (key, element) in enumerate(_members_of(node)):
             index = member if node.members is not None else None
-            namespace = SimpleNamespace(**element.namespace(key), **_parameter_symbols(node, symbols, index), t=time)
+            state = {element.state: subsystems[key].symbol}
+            namespace = SimpleNamespace(**state, **_parameter_symbols(node, symbols, index))
             namespaces.append(namespace)
-            _collect_laws(laws, key, element.laws(namespace))
+            _collect_laws(laws, key, element.element.check().run(SimpleNamespace(**vars(namespace), t=time)))
         members[node.path] = tuple(namespaces)
     return members
 
@@ -591,9 +602,7 @@ def _stored_state(  # noqa: PLR0917
 def _compiled_element(node: Node) -> CompiledElement:
     """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
     component = node.component
-    visual = (
-        component.visual if isinstance(component, GroupElement) and component.visual else node.component_type.visual
-    )
+    visual = component.visual if component.visual is not None else component.default_visual_
     parameters = {name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)}
     return CompiledElement(node.path, component, {}, parameters, visual, node.members)
 
@@ -635,7 +644,7 @@ class QuantumProblem(BaseProblem):
             The lowering of operators to matrices and functions.
 
         hamiltonian_operator:
-            The sum of the Hamiltonian laws.
+            The sum of the operators of the generator laws, a Sage expression of local operators.
 
         cache:
             The matrices of local operators computed so far.
@@ -649,7 +658,7 @@ class QuantumProblem(BaseProblem):
     namespaces: Mapping[str, SimpleNamespace] = field(default_factory=dict, repr=False)
     members: Mapping[str, tuple[SimpleNamespace, ...]] = field(default_factory=dict, repr=False)
     lowering: Any = field(default=None, repr=False)
-    hamiltonian_operator: Operator = field(default_factory=lambda: Operator({}), repr=False)
+    hamiltonian_operator: Expression = field(default=SR(0), repr=False)
     cache: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     def observable_getters(self, observables: Iterable[tuple[str, ObservableSpec]]) -> dict[str, Getter]:
@@ -736,16 +745,35 @@ def hamiltonian_at(problem: QuantumProblem, t: float, p: Vector) -> sp.csr_array
     return _matrix_at(problem.hamiltonian, t, p, math.prod(problem.dimensions))
 
 
+def _local_terms(problem: QuantumProblem, path: str, name: str) -> list[tuple[QuantumTerm, ...]]:
+    """Return the terms of the local operator of a name of every member of a quantum element or group."""
+    subsystems = [
+        item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
+    ]
+    if not subsystems:
+        error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
+        raise ValidationError(error_msg)
+    return [problem.lowering.terms(local_operator(item.symbol, SR.symbol(name)), path) for item in subsystems]
+
+
 def _member_getter(problem: QuantumProblem, path: str, observable: ObservableSpec, group: str) -> Getter:
-    """Return the getter of a quantum observable evaluated member by member and reduced."""
+    """Return the getter of a quantum observable evaluated member by member and reduced.
+
+    The observable gives the operator of a member as a function of its namespace, or names a local operator of every
+    member with `variable`.
+    """
     if group not in problem.members:
         error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
         raise ValidationError(error_msg)
     expression = observable.expression
-    if not callable(expression):
-        error_msg = f'Observable {path} of a quantum group needs a function of a member namespace.'
+    if observable.variable is not None:
+        terms = _local_terms(problem, group, observable.variable)
+    elif callable(expression):
+        members = problem.members[group]
+        terms = [problem.lowering.terms(_operator_of(path, expression(member)), path) for member in members]
+    else:
+        error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
         raise ValidationError(error_msg)
-    terms = [problem.lowering.terms(_operator_of(path, expression(member)), path) for member in problem.members[group]]
 
     def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
         del done
@@ -755,9 +783,9 @@ def _member_getter(problem: QuantumProblem, path: str, observable: ObservableSpe
     return get
 
 
-def _operator_of(path: str, value: object) -> Operator:
+def _operator_of(path: str, value: object) -> Expression:
     """Return the operator an observable expression gives, after checking that it is one."""
-    if not isinstance(value, Operator):
+    if not has_operator(value):
         error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
         raise ValidationError(error_msg)
     return value
@@ -795,10 +823,8 @@ def contains_quantum(system: System) -> bool:
         found:
             Whether any element of the tree is quantum.
     """
-    for element in system.elements:
-        kind = element.element if isinstance(element, GroupElement) else type(element)
-        if is_quantum(kind):
-            return True
+    if any(is_quantum(element) for element in system.elements):
+        return True
     return any(contains_quantum(child) for child in system.systems)
 
 
@@ -840,20 +866,20 @@ def compile_quantum(
     nodes = flatten_system(system)
     _check_classical(nodes)
     quantum = [node for node in nodes if _is_quantum_node(node)]
-    subsystems, spaces = _subsystems_of(quantum)
+    subsystems = _subsystems_of(quantum)
     dimensions = tuple(item.element.dimension for item in subsystems.values())
     _check_dimension(nodes, list(dimensions), max_dimension)
     entries, values, symbols = _parameters(nodes)
     p = np.concatenate(values) if values else np.zeros(0)
-    lowering = _Lowering(time, subsystems, dimensions, _arguments_of(entries, symbols), spaces)
+    lowering = _Lowering(time, subsystems, dimensions, _arguments_of(entries, symbols))
     groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
     laws = _Laws()
-    members = _element_laws(quantum, symbols, time, laws)
+    members = _element_laws(quantum, subsystems, symbols, time, laws)
     for node in nodes:
         if isinstance(node.component, BaseInteraction):
             _interaction_laws(node, symbols, members, groups, laws)
     _check_hermitian(laws, lowering, p)
-    total = functools.reduce(Operator.__add__, [item for _, item in laws.hamiltonians], Operator({}))
+    total = sum((item for _, item in laws.hamiltonians), SR(0))
     hamiltonian = lowering.terms(total, 'the Hamiltonian')
     dissipators = _dissipator_terms(laws, lowering, p)
     state = _stored_state(system, initial, subsystems, hamiltonian, p, bool(dissipators))
@@ -890,6 +916,11 @@ def quantum_getters(
 ) -> dict[str, Getter]:
     """Return the getters of the observables of a quantum problem, with its energy, and its purity when it is open.
 
+    An observable gives an operator, a Sage expression of local operators, as a function of the namespace of its
+    system, of its element, or of every member of its group, or names a local operator of its element or of every
+    member of its group with `variable`, such as `ObservableSpec('z', element='q', variable='z')`. Its value is the
+    expectation of the operator, reduced over the members of a group.
+
     Args:
         problem:
             The quantum problem.
@@ -907,13 +938,18 @@ def quantum_getters(
     """
     getters: dict[str, Getter] = {}
     for scope, observable in observables:
-        path = f'{scope}/{observable.label}' if scope else observable.label
+        label = observable.label if observable.element is None else f'{observable.element}.{observable.label}'
+        path = f'{scope}/{label}' if scope else label
         if path in getters:
             error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
             raise ValidationError(error_msg)
         if observable.group is not None:
             group = f'{scope}/{observable.group}' if scope else observable.group
             getters[path] = _member_getter(problem, path, observable, group)
+            continue
+        if observable.element is not None and observable.variable is not None:
+            element = f'{scope}/{observable.element}' if scope else observable.element
+            getters[path] = _expectation_getter(problem, _local_terms(problem, element, observable.variable)[0])
             continue
         expression = observable.expression
         value = expression(problem.namespaces[scope]) if callable(expression) else expression

@@ -25,8 +25,8 @@ from ._laws import replaced, values_of
 from ._observables import ObservableEvaluator, held_reductions_of, namespace_of, observables_of
 from ._pipeline import BasePass, Check, order_passes, run_passes
 from ._probe import runs_rules
-from ._quantum_operators import LocalOperator, Operator, sparse_matrix
-from ._quantum_views import HilbertDomain, HilbertFamilyDomain, QuantumView, hilbert_state, is_quantum, view_of
+from ._quantum_operators import LocalOperator, Operator, operator_of, sparse_matrix
+from ._quantum_views import QuantumView, hilbert_of, hilbert_state, is_quantum, member_of
 from ._renewal_law import RenewalLaw
 from ._rewriting_words import CompiledWord
 from ._specs import (
@@ -74,8 +74,6 @@ __all__: list[str] = [
     'Declarations',
     'ExtremalRecord',
     'GraphStructure',
-    'HilbertDomain',
-    'HilbertFamilyDomain',
     'Issue',
     'KernelSpec',
     'LatticeState',
@@ -107,18 +105,21 @@ __all__: list[str] = [
     'flatten_system',
     'group_space',
     'held_reductions_of',
+    'hilbert_of',
     'hilbert_state',
     'is_interaction',
     'is_quantum',
     'mask_of',
     'masked_value',
     'member_count',
+    'member_of',
     'member_spec',
     'members_from',
     'mesh_laplacian',
     'names_of',
     'namespace_of',
     'observables_of',
+    'operator_of',
     'order_passes',
     'partition_system',
     'replaced',
@@ -131,6 +132,5 @@ __all__: list[str] = [
     'target_references',
     'validate',
     'values_of',
-    'view_of',
     'visual_of',
 ]
