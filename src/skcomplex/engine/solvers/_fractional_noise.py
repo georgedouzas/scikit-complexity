@@ -17,6 +17,7 @@ from ...core.laws import (
     CrossingLaw,
     EquationLaw,
     FluxLaw,
+    FractionalNoiseLaw,
     NoiseLaw,
     RateLaw,
     TransferLaw,
@@ -119,18 +120,20 @@ class FractionalEulerMaruyamaSolver(Solver):
             The Hurst index of every noise row the increments were drawn with.
 
     Examples:
-        >>> from skcomplex.core.elements import GroupElement
-        >>> from skcomplex.core.declarations import state
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import FractionalNoiseLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
         >>> class WalkerElement(Element):
-        ...     x = state(0.0)
+        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.x = x
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
         >>> problem = compile_system(System(elements=[GroupElement('walkers', element=WalkerElement, size=500)]))
         >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0).prepare(problem, np.random.default_rng(0))
@@ -142,9 +145,7 @@ class FractionalEulerMaruyamaSolver(Solver):
     supports: ClassVar[SupportSpec] = SupportSpec(
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
-        
-        
+        laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )

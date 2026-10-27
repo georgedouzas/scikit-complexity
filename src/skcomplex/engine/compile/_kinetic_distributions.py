@@ -91,11 +91,14 @@ def distribution_from(
             The activities are not an increasing vector, the group has no member, or a state is not declared.
 
     Examples:
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.engine.compile import distribution_from
         >>> class DensityElement(Element):
-        ...     f: float = state(default=0.0)
+        ...     def __init__(self, label, f: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.f = f
         >>> distribution = distribution_from([0.0, 1.0, 1.0, 2.0], 'wealth', [0.0, 1.0, 2.0], element=DensityElement)
         >>> distribution.values['f'].tolist()
         [0.25, 0.5, 0.25]
@@ -169,11 +172,14 @@ def members_from(
             The activities are not an increasing vector, the densities do not match them, or are negative or all zero.
 
     Examples:
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.engine.compile import members_from
         >>> class TraderElement(Element):
-        ...     wealth: float = state(default=0.0)
+        ...     def __init__(self, label, wealth: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.wealth = wealth
         >>> traders = members_from([0.0, 1.0, 0.0], TraderElement, 4, activities=[0.0, 1.0, 2.0], random_state=0)
         >>> traders.values['wealth'].tolist(), traders.variable
         ([1.0, 1.0, 1.0, 1.0], True)

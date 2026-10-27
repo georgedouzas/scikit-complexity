@@ -136,8 +136,6 @@ class CaputoSolver(Solver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
-        
-        
         orders=set(OrderKind),
     )
 
@@ -431,17 +429,20 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
             The order of every state component.
 
     Examples:
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import GrunwaldLetnikovSolver
         >>> class RelaxingElement(Element):
-        ...     x = state(1.0, order=0.5)
+        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
+        ...         super().__init__(label)
+        ...         self.x = x
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
         >>> stepper = GrunwaldLetnikovSolver(dt=0.001).prepare(problem, np.random.default_rng(0))
@@ -483,17 +484,20 @@ class L1Solver(ConvolutionSolver):
             The order of every state component.
 
     Examples:
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import L1Solver
         >>> class RelaxingElement(Element):
-        ...     x = state(1.0, order=0.5)
+        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
+        ...         super().__init__(label)
+        ...         self.x = x
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
         >>> stepper = L1Solver(dt=0.001).prepare(problem, np.random.default_rng(0))
@@ -530,17 +534,20 @@ class FractionalABMSolver(CaputoSolver):
             The order of every state component.
 
     Examples:
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.engine.compile import compile_system
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.solvers import FractionalABMSolver
         >>> class RelaxingElement(Element):
-        ...     x = state(1.0, order=0.5)
+        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
+        ...         super().__init__(label)
+        ...         self.x = x
         ...
-        ...     def laws(self, s):
+        ...     def _get_laws(self, s):
         ...         return [RateLaw(s.x, -s.x)]
         >>> problem = compile_system(System(elements=[RelaxingElement('a')]))
         >>> stepper = FractionalABMSolver(dt=0.001).prepare(problem, np.random.default_rng(0))
