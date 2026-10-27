@@ -12,7 +12,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbolic
 
 from ..core.errors import AnalysisError
-from ..engine.problems import Entry, Problem, components_of, domain_of, symbol, where
+from ..core.laws.utils import where
+from ..engine.problems import Entry, Problem, components_of, domain_of, symbol
 
 MEMBER_LIMIT = 64
 

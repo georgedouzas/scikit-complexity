@@ -17,18 +17,9 @@ from scipy.sparse import diags
 
 from ...core.elements import FieldElement
 from ...core.errors import ValidationError
+from ...core.laws.utils import where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
-from ..problems import (
-    LATTICE_BOUNDARIES,
-    MODES,
-    NeighborRead,
-    Reference,
-    Source,
-    domain_of,
-    numpy_function,
-    symbol,
-    where,
-)
+from ..problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, domain_of, numpy_function, symbol
 from ._spectral import spectral_multiplier
 
 type Indices = npt.NDArray[np.intp]

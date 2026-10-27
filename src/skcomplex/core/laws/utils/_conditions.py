@@ -1,13 +1,12 @@
-"""Define the symbolic conditions and remainders that the compiler lowers laws into, and that backends print."""
+"""Define the symbolic conditions and remainders that laws use, which every backend lowers."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from sage.all__sagemath_symbolics import SR, Expression, floor
 from sage.symbolic.function import BuiltinFunction
 
-from ...core.laws.utils import draws_in
+from ._draws import draws_in
 
 
 def _is_number(argument: object) -> bool:
@@ -98,13 +97,102 @@ class _Mod(BuiltinFunction):
 
 
 where = _Where()
-"""Value `then` where a condition holds and `otherwise` elsewhere, `where(condition, then, otherwise)`."""
+
+
+where.__doc__ = """Return `then` where a condition holds and `otherwise` elsewhere.
+
+The value stays symbolic while the condition has symbols, and every backend lowers it. Combine conditions with
+`either` and `both`.
+
+Args:
+    condition:
+        A relation such as `x < 0`, or a combination of relations.
+
+    then:
+        The value where the condition holds.
+
+    otherwise:
+        The value elsewhere.
+
+Returns:
+    value:
+        The symbolic choice.
+
+Examples:
+    >>> from sage.all__sagemath_symbolics import var
+    >>> from skcomplex.core.laws.utils import where
+    >>> x = var('x')
+    >>> where(x < 0, -x, x)
+    where(x < 0, -x, x)
+    >>> where(x < 0, -x, x).subs(x=-2)
+    2
+"""
+
 
 either = _Either()
-"""Disjunction of conditions, true when any of them is true."""
+
+
+either.__doc__ = """Return a condition that holds where any of the conditions holds.
+
+Args:
+    *conditions:
+        Relations or combinations of relations.
+
+Returns:
+    condition:
+        The disjunction.
+
+Examples:
+    >>> from sage.all__sagemath_symbolics import var
+    >>> from skcomplex.core.laws.utils import either, where
+    >>> x = var('x')
+    >>> where(either(x < 0, x > 1), 1, 0).subs(x=2)
+    1
+"""
+
 
 both = _Both()
-"""Conjunction of conditions, true when all of them are true."""
+
+
+both.__doc__ = """Return a condition that holds where all the conditions hold.
+
+Args:
+    *conditions:
+        Relations or combinations of relations.
+
+Returns:
+    condition:
+        The conjunction.
+
+Examples:
+    >>> from sage.all__sagemath_symbolics import var
+    >>> from skcomplex.core.laws.utils import both, where
+    >>> x = var('x')
+    >>> where(both(x > 0, x < 1), 1, 0).subs(x=0.5)
+    1
+"""
+
 
 mod = _Mod()
-"""Remainder of a division with the sign of the divisor, `mod(value, divisor)`."""
+
+
+mod.__doc__ = """Return the remainder of a division, with the sign of the divisor as Python's `%`.
+
+Args:
+    value:
+        The dividend.
+
+    divisor:
+        The divisor.
+
+Returns:
+    remainder:
+        The symbolic remainder.
+
+Examples:
+    >>> from sage.all__sagemath_symbolics import var
+    >>> from skcomplex.core.laws.utils import mod
+    >>> x = var('x')
+    >>> mod(x, 1).subs(x=-0.25)
+    0.75
+"""

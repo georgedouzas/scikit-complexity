@@ -28,7 +28,7 @@ from ...core.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ...core.laws.utils import Call, Draw, categorical, draws_in
+from ...core.laws.utils import Call, Draw, categorical, draws_in, where
 from ...core.types import Vector
 from ..problems import (
     DomainKind,
@@ -43,7 +43,6 @@ from ..problems import (
     symbol,
     symbols_of,
     vector,
-    where,
 )
 from ..problems._problem import SampledDraw, _MarkovMatrix
 from ._laws import values_of

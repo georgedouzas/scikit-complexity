@@ -16,7 +16,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.errors import RoleError, ValidationError
 from ....core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import Call, NeighborReduction, Reduction, neighborhoods_in, reductions_in
+from ....core.laws.utils import Call, NeighborReduction, Reduction, both, neighborhoods_in, reductions_in
 from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
 from ...problems import (
     Entry,
@@ -24,7 +24,6 @@ from ...problems import (
     Reference,
     Source,
     VariableKind,
-    both,
     declarations_of,
     symbol,
     symbols_of,

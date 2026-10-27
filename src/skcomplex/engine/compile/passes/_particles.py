@@ -6,8 +6,9 @@
 from typing import cast
 
 from ....core.laws import BaseLaw, BoundaryLaw
+from ....core.laws.utils import either, mod, where
 from ....core.spaces import ContinuousSpace
-from ...problems import VariableKind, components_of, declarations_of, either, mod, where
+from ...problems import VariableKind, components_of, declarations_of
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction
 from .._pipeline import BasePass

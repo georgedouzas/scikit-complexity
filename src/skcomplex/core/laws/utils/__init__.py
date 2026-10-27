@@ -5,8 +5,11 @@
 
 from ._agents import matches, random_pairing, transfer
 from ._call import Call
+from ._conditions import both, either, mod, where
 from ._delays import delay_parts, distributed_delay
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, normal, uniform
+from ._history import delayed, derivative, lag
+from ._lookups import lookup
 from ._moments import moment
 from ._operators import advection, divergence, gradient, inverse_laplacian, laplacian, partial, upwind
 from ._quantum import dagger, has_operator, local_operator, operator_product
@@ -25,6 +28,7 @@ from ._reductions import (
     total,
     variance,
 )
+from ._signals import pulse, pulse_train, ramp, series, step
 from ._tables import OuterTotalistic, Table, Totalistic
 from ._words import parse_word
 
@@ -39,23 +43,30 @@ __all__: list[str] = [
     'Totalistic',
     'advection',
     'bernoulli',
+    'both',
     'categorical',
     'count',
     'dagger',
     'delay_parts',
+    'delayed',
+    'derivative',
     'distributed_delay',
     'divergence',
     'draw',
     'draws_in',
+    'either',
     'gradient',
     'has_operator',
     'inverse_laplacian',
+    'lag',
     'laplacian',
     'local_operator',
+    'lookup',
     'matches',
     'maximum',
     'mean',
     'minimum',
+    'mod',
     'moment',
     'neighborhoods_in',
     'neighbors',
@@ -63,12 +74,18 @@ __all__: list[str] = [
     'operator_product',
     'parse_word',
     'partial',
+    'pulse',
+    'pulse_train',
+    'ramp',
     'random_pairing',
     'reductions_in',
+    'series',
     'shift_member',
+    'step',
     'total',
     'transfer',
     'uniform',
     'upwind',
     'variance',
+    'where',
 ]

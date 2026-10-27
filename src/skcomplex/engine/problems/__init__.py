@@ -1,7 +1,6 @@
 """Define what a system compiles to: the problem, and the kernels its numeric functions are written from."""
 
 from ._domains import contains, decode, domain_kind, encode, labels_of, sage_assumption, wrap_angle
-from ._functions import both, either, mod, where
 from ._hybrid import CompiledEvent, EventRecord
 from ._kernels import (
     LATTICE_BOUNDARIES,
@@ -87,7 +86,6 @@ __all__: list[str] = [
     'Variable',
     'VariableKind',
     'VectorFunction',
-    'both',
     'components_of',
     'contains',
     'declarations_of',
@@ -96,10 +94,8 @@ __all__: list[str] = [
     'default_of',
     'domain_kind',
     'domain_of',
-    'either',
     'encode',
     'labels_of',
-    'mod',
     'numpy_function',
     'print_expressions',
     'sage_assumption',
@@ -108,7 +104,6 @@ __all__: list[str] = [
     'symbol',
     'symbols_of',
     'vector',
-    'where',
     'with_initial_state',
     'wrap_angle',
 ]
