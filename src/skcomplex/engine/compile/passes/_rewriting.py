@@ -31,9 +31,10 @@ from ...problems import (
     symbol,
 )
 from .._rewriting_words import IDENTIFIER, CompiledWord, Parameters
-from .._structures import GraphStructure, PatchStructure
+from .._structures import GraphStructure, PatchStructure, affine_matrix
 from .._system_compilers import BaseSystemCompiler
 from .._tree import Node, flatten_system
+from ._problem import visual_of
 
 LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw, 'graph': GraphProductionLaw}
 type Compiled = CompiledWord | CompiledPatch | CompiledGraph
@@ -83,16 +84,16 @@ def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, 
 
 
 def _productions(node: Node, namespace: SimpleNamespace) -> list[Production]:
-    """Return the productions of the rewriting laws that a word, a patch, or a host graph returns from `laws`."""
+    """Return the checked productions, substitutions, or graph productions a word, a patch, or a host graph returns."""
     laws = node.component.run(namespace)
     wrong = [law for law in laws if not isinstance(law, PRODUCTION_LAWS)]
     if wrong:
         error_msg = (
-            f'{node.path} returns {type(wrong[0]).__name__} from `laws`, but a word, a patch, or a host graph changes '
-            'by rewriting laws only. Return a RewriteLaw of its productions.'
+            f'{node.path} returns {type(wrong[0]).__name__} from `_get_laws`, but a word, a patch, or a host graph '
+            'changes by its productions only. Return ProductionLaw, SubstitutionLaw, or GraphProductionLaw laws.'
         )
         raise RewritingError(error_msg)
-    return [production for law in laws for production in law.check().productions()]
+    return [law.check() for law in laws]
 
 
 def _compiled(
@@ -163,14 +164,15 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
             production is malformed.
 
     Examples:
+        >>> from skcomplex.core.spaces import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.laws import ProductionLaw
         >>> from skcomplex.core.elements import WordElement
         >>> class AlgaeElement(WordElement):
-        ...     def laws(self, s):
-        ...         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
-        >>> problem = compile_system(System(elements=[AlgaeElement('algae', axiom='A')]))
+        ...     def _get_laws(self, namespace):
+        ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+        >>> problem = compile_system(System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime()))
         >>> problem.form.value, problem.states.names
         ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
     """
@@ -205,7 +207,7 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
                 element=component,
                 states={name: f'{item.path}.{name}' for name in names},
                 parameters={name: f'{item.path}.{name}' for name in vars(namespaces[item.path]) if name != 't'},
-                visual=component.visual,
+                visual=visual_of(elements[item.path]),
             ),
         )
         for name in names:
@@ -256,7 +258,7 @@ class CompiledPatch:
             error_msg = f'Patch {path!r} has no prototiles. Give at least one.'
             raise RewritingError(error_msg)
         for prototile in self.prototiles:
-            prototile.points()
+            prototile.check()
         self.names = tuple(prototile.name for prototile in self.prototiles)
         self.counted = tuple(name for name in dict.fromkeys(self.names) if IDENTIFIER.match(name))
         self.parameters = parameters
@@ -265,11 +267,12 @@ class CompiledPatch:
         self.placements = [placement for _, placement in tiles]
         self.pieces: dict[int, list[tuple[int, Any]]] = {}
         for substitution in substitutions:
-            code = self._code(substitution.prototile, substitution.text)
+            where = f'The substitution of {substitution.prototile!r}'
+            code = self._code(substitution.prototile, where)
             if code in self.pieces:
                 error_msg = f'Patch {path!r} has two substitutions of {substitution.prototile!r}. Keep one.'
                 raise RewritingError(error_msg)
-            self.pieces[code] = [(self._code(name, substitution.text), affine) for name, affine in substitution.pieces]
+            self.pieces[code] = [(self._code(name, where), affine) for name, affine in substitution.pieces]
 
     def _code(self, name: str, where: str) -> int:
         """Return the code of a prototile by name."""
@@ -296,7 +299,7 @@ class CompiledPatch:
                 The initial tiles.
         """
         by_symbol = self._values(values)
-        matrices = [np.eye(3) if item is None else item.matrix_of(by_symbol) for item in self.placements]
+        matrices = [np.eye(3) if item is None else affine_matrix(item, by_symbol) for item in self.placements]
         return PatchStructure(self.prototiles, self.codes, np.reshape(matrices, (-1, 3, 3)), 0)
 
     def counts(self, patch: PatchStructure) -> list[float]:
@@ -362,7 +365,7 @@ class CompiledPatch:
             rows = np.flatnonzero(codes == code)
             if not len(rows):
                 continue
-            maps = np.stack([affine.matrix_of(by_symbol) for _, affine in pieces])
+            maps = np.stack([affine_matrix(affine, by_symbol) for _, affine in pieces])
             places = offsets[rows][:, None] + np.arange(len(pieces))
             new_matrices[places] = np.einsum('tij,pjk->tpik', matrices[rows], maps)
             new_codes[places] = [piece for piece, _ in pieces]

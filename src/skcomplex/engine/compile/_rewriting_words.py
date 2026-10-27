@@ -16,7 +16,7 @@ from ...core.elements import WordElement
 from ...core.errors import RewritingError
 from ...core.laws import ProductionLaw
 from ...core.laws.utils import parse_word
-from ...core.specs import ModuleSpec
+from ...core.specs import TURTLE_SYMBOLS, GeometrySpec, ModuleSpec
 from ..problems import numpy_function, symbols_of
 from ._rewriting_kernels import (
     ACTION_CODES,
@@ -35,7 +35,6 @@ from ._rewriting_kernels import (
     walk_word,
 )
 from ._structures import WordStructure
-from ._word_geometry import WordGeometry
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9
@@ -67,8 +66,27 @@ def _alphabet_of(word: WordElement, productions: Sequence[ProductionLaw]) -> dic
     return {name: found.get(name, 0) for name in declared}
 
 
+def _written(module: ModuleSpec) -> str:
+    """Return a module as written, such as `A(x, 2)`."""
+    if not module.parameters:
+        return module.name
+    return f'{module.name}({", ".join(str(item) for item in module.parameters)})'
+
+
+def _production_text(production: ProductionLaw) -> str:
+    """Return a production as written, such as `B < A → B`, for error messages."""
+    head = _written(parse_word(production.predecessor)[0])
+    if production.left is not None:
+        head = f'{"".join(_written(module) for module in parse_word(production.left))} < {head}'
+    if production.right is not None:
+        head = f'{head} > {"".join(_written(module) for module in parse_word(production.right))}'
+    modules = parse_word(production.successor)
+    separator = ' ' if any(module.parameters for module in modules) else ''
+    return f'{head} → {separator.join(_written(module) for module in modules)}'
+
+
 def interpret(
-    geometry: 'WordGeometry',
+    geometry: GeometrySpec,
     actions: npt.NDArray[np.int64],
     table: npt.NDArray[np.float64],
     generation: int,
@@ -185,7 +203,8 @@ class Parameters:
         if free:
             error_msg = (
                 f'{owner} uses {", ".join(sorted(map(str, free)))}, which is neither a parameter of its predecessor '
-                'nor a parameter of its component. Declare it with `parameter` on the word, patch, or host graph.'
+                'nor a parameter of its element. Declare it as a `ParameterSpec` argument of the word, patch, or host '
+                'graph.'
             )
             raise RewritingError(error_msg)
         return numpy_function(self.time, [*variables, *self.symbols], values)
@@ -235,7 +254,7 @@ class CompiledWord:
         self.closing = self.names.index(']') if ']' in self.names else -2
         self.geometry = word.geometry
         if word.geometry is not None:
-            meanings = word.geometry.meanings()
+            meanings = {**TURTLE_SYMBOLS, **(word.geometry.symbols or {})}
             self.actions = np.array(
                 [ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
@@ -261,8 +280,8 @@ class CompiledWord:
         arity = self.arities.get(module.name)
         if arity is None or len(module.parameters) > arity:
             error_msg = (
-                f'{module.text} in {where} of word {self.path!r} does not fit the alphabet, whose symbols and numbers '
-                f'of parameters are {self.arities}.'
+                f'{_written(module)} in {where} of word {self.path!r} does not fit the alphabet, whose symbols and '
+                f'numbers of parameters are {self.arities}.'
             )
             raise RewritingError(error_msg)
         return self.names.index(module.name)
@@ -270,10 +289,11 @@ class CompiledWord:
     def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
         modules = parse_word(production.successor, self.names)
-        codes = np.array([self._code(module, production.text) for module in modules], dtype=np.int64)
+        text = _production_text(production)
+        codes = np.array([self._code(module, text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
-        values = self.parameters.function(variables, expressions, production.text) if slots else None
+        values = self.parameters.function(variables, expressions, text) if slots else None
         self.successors.append(_Successor(codes, slots, values, len(variables)))
         return len(self.successors) - 1
 
@@ -281,21 +301,22 @@ class CompiledWord:
         """Return the groups of productions in the order they are tried."""
         groups: dict[tuple[str, ...] | int, _Group] = {}
         for order, production in enumerate(productions):
+            text = _production_text(production)
             predecessor = production.predecessor
             module = predecessor if isinstance(predecessor, ModuleSpec) else ModuleSpec(predecessor)
             variables = [SR(item) for item in module.parameters]
             if any(not item.is_symbol() for item in variables) or len(set(variables)) < len(variables):
-                error_msg = f'The predecessor of {production.text} must have distinct symbols as parameters.'
+                error_msg = f'The predecessor of {text} must have distinct symbols as parameters.'
                 raise RewritingError(error_msg)
-            code = self._code(module, production.text)
+            code = self._code(module, text)
             left = parse_word(production.left, self.names) if production.left is not None else []
             right = parse_word(production.right, self.names) if production.right is not None else []
             condition = production.condition
             key: tuple[str, ...] | int = (
                 (
                     module.name,
-                    ' '.join(item.text for item in left),
-                    ' '.join(item.text for item in right),
+                    ' '.join(_written(item) for item in left),
+                    ' '.join(_written(item) for item in right),
                     str(condition),
                 )
                 if production.probability is not None
@@ -304,11 +325,9 @@ class CompiledWord:
             if key not in groups:
                 groups[key] = _Group(
                     code=code,
-                    left=tuple(self._code(item, production.text) for item in left),
-                    right=tuple(self._code(item, production.text) for item in right),
-                    condition=(
-                        None if condition is None else self.parameters.function(variables, [condition], production.text)
-                    ),
+                    left=tuple(self._code(item, text) for item in left),
+                    right=tuple(self._code(item, text) for item in right),
+                    condition=(None if condition is None else self.parameters.function(variables, [condition], text)),
                     variables=len(variables),
                     rank=(0 if left or right else 1, 0 if condition is not None else 1, order),
                 )
@@ -316,7 +335,7 @@ class CompiledWord:
             group.successors.append(self._successor(production, variables))
             probability = production.probability
             group.probabilities.append(
-                None if probability is None else self.parameters.function([], [probability], production.text),
+                None if probability is None else self.parameters.function([], [probability], text),
             )
         return sorted(groups.values(), key=lambda group: group.rank)
 

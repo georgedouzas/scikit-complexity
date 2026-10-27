@@ -24,15 +24,16 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
+        >>> from skcomplex.core.spaces import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.core.laws import ProductionLaw
         >>> from skcomplex.engine.solvers import RewritingSolver
         >>> from skcomplex.core.elements import WordElement
         >>> class AlgaeElement(WordElement):
-        ...     def laws(self, s):
-        ...         return [RewriteLaw([ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])]
-        >>> system = System(elements=[AlgaeElement('algae', axiom='A')])
+        ...     def _get_laws(self, namespace):
+        ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
+        >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
         >>> trajectory = Simulation(system, solver=RewritingSolver()).run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
@@ -42,8 +43,6 @@ class RewritingSolver(BaseSolver[RewritingProblem]):
         time={DiscreteTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={ProductionLaw, SubstitutionLaw, GraphProductionLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 

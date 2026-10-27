@@ -39,12 +39,11 @@ from ._specs import (
     target_references,
 )
 from ._spectral import spectral_multiplier
-from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ._structures import GraphStructure, PatchStructure, Structure, WordStructure, affine_matrix
 from ._system_compilers import BaseSystemCompiler
 from ._topology import CompiledRequest, NetworkRows, Topology, request_of
 from ._tree import Node, coerce_value, declared_times, flatten_system
 from ._validation import ValidationReport, validate
-from ._word_geometry import WordGeometry
 from .passes._core import CHECKS, PASSES, SYSTEM_COMPILERS, claiming_compiler
 from .passes._problem import visual_of
 
@@ -96,8 +95,8 @@ __all__: list[str] = [
     'Topology',
     'ValidationReport',
     'ValidationWarning',
-    'WordGeometry',
     'WordStructure',
+    'affine_matrix',
     'capacity_rows',
     'claiming_compiler',
     'coerce_value',

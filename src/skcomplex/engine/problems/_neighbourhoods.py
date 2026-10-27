@@ -59,6 +59,8 @@ def spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
         (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)
     """
     return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))
+
+
 from ._variables import Variable
 
 type Rows = tuple[Indices, Indices]
@@ -144,8 +146,10 @@ def lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNei
     return indptr, table[inside].astype(np.intp)
 
 
-def default_neighborhood(space: object) -> AdjacencyNeighborhood | LatticeNeighborhood | None:
-    """Return the neighbourhood a reduction without one reads: the graph of a network or the lattice's own.
+def default_neighborhood(
+    space: object,
+) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
+    """Return the neighbourhood a reduction without one reads: the graph of a network, or a lattice's or group's own.
 
     Args:
         space:
@@ -157,11 +161,14 @@ def default_neighborhood(space: object) -> AdjacencyNeighborhood | LatticeNeighb
 
     Examples:
         >>> from skcomplex.engine.problems._neighbourhoods import default_neighborhood
-        >>> from skcomplex.core.spaces import LatticeSpace
-        >>> len(default_neighborhood(LatticeSpace((4, 4)).prepare()).offsets)
+        >>> from sage.all__sagemath_gap import libgap
+        >>> from skcomplex.core.spaces import CayleySpace, LatticeSpace
+        >>> len(default_neighborhood(LatticeSpace((4, 4)).check().prepare()).check().prepare().offsets_)
         8
+        >>> default_neighborhood(CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).check().prepare()).elements
+        ('a', 'a^-1', 'b', 'b^-1')
     """
-    if isinstance(space, NetworkSpace | LatticeSpace):
+    if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
         return space._default_neighborhood()
     return None
 
@@ -499,7 +506,14 @@ type Search = StaticSearch | EdgeRows | MetricSearch
 
 
 def neighbor_search(
-    over: AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood,
+    over: (
+        AdjacencyNeighborhood
+        | LatticeNeighborhood
+        | MemoryNeighborhood
+        | RadiusNeighborhood
+        | NearestNeighborhood
+        | ConeNeighborhood
+    ),
     space: object,
     rows: int,
     entries: Mapping[str, Entry],

@@ -8,7 +8,7 @@ from typing import cast
 
 from ....core.errors import ValidationError
 from ....core.laws import BaseLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
-from ....core.spaces import LatticeSpace, NetworkSpace
+from ....core.spaces import CayleySpace, LatticeSpace, NetworkSpace
 from ....core.specs import SamplerSpec
 from ...backends import resolve_backend
 from ...problems import Problem, Source
@@ -40,7 +40,7 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, LatticeSpace | NetworkSpace)
+            isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent

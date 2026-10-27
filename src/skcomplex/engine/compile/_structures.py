@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import networkx as nx
@@ -12,9 +12,60 @@ import numpy.typing as npt
 import shapely
 
 from ...core.errors import ValidationError
-from ...core.specs import ModuleSpec, PrototileSpec
+from ...core.specs import AffineSpec, ModuleSpec, PrototileSpec
 
 type Array = npt.NDArray[Any]
+
+
+def affine_matrix(affine: AffineSpec, values: Mapping[object, float]) -> npt.NDArray[np.float64]:
+    """Return the homogeneous matrix of an affine map at values of the parameters its expressions read.
+
+    The map reflects across the x axis, rotates, scales, and translates, in this order.
+
+    Args:
+        affine:
+            The affine map.
+
+        values:
+            A mapping from parameter symbol to value.
+
+    Returns:
+        matrix:
+            The 3 by 3 matrix.
+
+    Examples:
+        >>> from skcomplex.core.specs import AffineSpec
+        >>> from skcomplex.engine.compile import affine_matrix
+        >>> affine_matrix(AffineSpec(scale=0.5, translation=(1, 0)), {}).tolist()
+        [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
+    """
+    if affine.matrix is not None:
+        return np.asarray(affine.matrix, dtype=float)
+    scale, rotation, *translation = (
+        float(item.subs(values)) if hasattr(item, 'subs') else float(item)
+        for item in (affine.scale, affine.rotation, *affine.translation)
+    )
+    angle = np.deg2rad(rotation)
+    turn = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    reflection = np.diag([1.0, -1.0]) if affine.reflect else np.eye(2)
+    matrix = np.eye(3)
+    matrix[:2, :2] = scale * turn @ reflection
+    matrix[:2, 2] = translation
+    return matrix
+
+
+def is_segment(prototile: PrototileSpec) -> bool:
+    """Check whether a prototile is a segment, with two vertices, rather than a polygon.
+
+    Args:
+        prototile:
+            The prototile.
+
+    Returns:
+        is_segment:
+            Whether the prototile has two vertices.
+    """
+    return len(prototile.vertices) == 2  # noqa: PLR2004
 
 
 def _frozen(array: npt.ArrayLike, dtype: type) -> Array:
@@ -298,7 +349,7 @@ class PatchStructure(Structure):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import PatchStructure
         >>> from skcomplex.core.specs import PrototileSpec
-        >>> patch = PatchStructure([Prototile('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
+        >>> patch = PatchStructure([PrototileSpec('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
         >>> patch.length()
         1.0
     """
@@ -350,7 +401,7 @@ class PatchStructure(Structure):
             vertices:
                 The array of shape `(t, k, 2)`.
         """
-        points = self.prototiles[code].points()
+        points = np.asarray(self.prototiles[code].vertices, dtype=float)
         homogeneous = np.concatenate([points, np.ones((len(points), 1))], axis=1)
         matrices = self.matrices[self.codes == code]
         return np.einsum('tij,kj->tki', matrices, homogeneous)[..., :2]
@@ -362,7 +413,7 @@ class PatchStructure(Structure):
             segments:
                 The array of shape `(k, 2, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if item.is_segment]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if is_segment(item)]
         return np.concatenate(parts) if parts else np.zeros((0, 2, 2))
 
     def polygons(self) -> Array:
@@ -372,7 +423,7 @@ class PatchStructure(Structure):
             polygons:
                 An object array of arrays of shape `(t, k, 2)`.
         """
-        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not item.is_segment]
+        parts = [self.vertices(code) for code, item in enumerate(self.prototiles) if not is_segment(item)]
         result = np.empty(len(parts), dtype=object)
         result[:] = parts
         return result

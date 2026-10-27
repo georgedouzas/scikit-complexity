@@ -10,7 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...core.errors import ValidationError
-from ...core.specs import TopologyRequestSpec
+from ...core.laws import JumpLaw, UpdateLaw
+from ...core.specs import EDGE_KINDS, TopologyRequestSpec
 from ...core.types import Vector
 from ..backends import reads_reductions
 from ..problems import Kernel, NetworkSnapshot, ReductionSchedule
@@ -35,10 +36,9 @@ def request_of(law: object) -> TopologyRequestSpec | None:
         ValidationError:
             A jump changes states and requests a topology change at once, or fires a request more than once.
     """
-    target = next(iter(getattr(law, 'targets_', ())), None)
-    if isinstance(target, TopologyRequestSpec):
-        return target.check()
-    changes = getattr(law, 'changes', None) or {}
+    if isinstance(law, UpdateLaw):
+        return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
+    changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
     requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
     if not requests:
         return None
@@ -49,6 +49,26 @@ def request_of(law: object) -> TopologyRequestSpec | None:
         )
         raise ValidationError(error_msg)
     return requests[0].check()
+
+
+def changes_edges(request: TopologyRequestSpec) -> bool:
+    """Check whether a request changes the edges of its layer: an edge request, or a new node that joins others.
+
+    Args:
+        request:
+            The request.
+
+    Returns:
+        changes:
+            Whether the request adds, removes, or rewires edges of its layer.
+
+    Examples:
+        >>> from skcomplex.core.specs import TopologyRequestSpec
+        >>> from skcomplex.engine.compile._topology import changes_edges
+        >>> changes_edges(TopologyRequestSpec('rewire')), changes_edges(TopologyRequestSpec('remove-node'))
+        (True, False)
+    """
+    return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)
 
 
 @dataclass(frozen=True)
