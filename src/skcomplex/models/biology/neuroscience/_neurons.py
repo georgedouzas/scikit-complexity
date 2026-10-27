@@ -3,54 +3,86 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import state
 
-from ....core.base import NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import EventLaw, RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class LeakyIntegrateAndFireElement(Element):
     """Leaky integrate and fire element."""
 
-    v = state(-65.0)
-    rest = parameter(-65.0)
-    threshold = parameter(-50.0)
-    reset = parameter(-65.0)
-    resistance = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    tau = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    I = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = -65.0,
+        rest: Annotated[object, ParameterSpec()] = -65.0,
+        threshold: Annotated[object, ParameterSpec()] = -50.0,
+        reset: Annotated[object, ParameterSpec()] = -65.0,
+        resistance: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        I: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.rest = rest
+        self.threshold = threshold
+        self.reset = reset
+        self.resistance = resistance
+        self.tau = tau
+        self.I = I
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the leaky integrate and fire element."""
         return [
             RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
-            EventLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
+            CrossingLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
         ]
 
 
 class IzhikevichElement(Element):
     """Izhikevich element."""
 
-    v = state(-65.0)
-    u = state(-13.0)
-    a = parameter(0.02)
-    b = parameter(0.2)
-    c = parameter(-65.0)
-    d = parameter(8.0)
-    I = parameter(10.0)
-    peak = parameter(30.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = -65.0,
+        u: Annotated[object, StateSpec()] = -13.0,
+        a: Annotated[object, ParameterSpec()] = 0.02,
+        b: Annotated[object, ParameterSpec()] = 0.2,
+        c: Annotated[object, ParameterSpec()] = -65.0,
+        d: Annotated[object, ParameterSpec()] = 8.0,
+        I: Annotated[object, ParameterSpec()] = 10.0,
+        peak: Annotated[object, ParameterSpec()] = 30.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.u = u
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.I = I
+        self.peak = peak
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the izhikevich element."""
         return [
             RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
             RateLaw(s.u, s.a * (s.b * s.v - s.u)),
-            EventLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
+            CrossingLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
         ]
 
 

@@ -3,13 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse_train
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -17,12 +21,23 @@ from ....engine.runtime import register_model
 class CatalystPelletElement(Element):
     """Catalyst pellet element."""
 
-    c = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    h = parameter(0.1)
-    k = parameter(10.0)
-    K = parameter(20.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        c: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        h: Annotated[object, ParameterSpec()] = 0.1,
+        k: Annotated[object, ParameterSpec()] = 10.0,
+        K: Annotated[object, ParameterSpec()] = 20.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.c = c
+        self.h = h
+        self.k = k
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the catalyst pellet element."""
         return [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)]
 
@@ -74,27 +89,33 @@ class PulsedElectrodeElement(Element):
         10.0
     """
 
-    eta: float = state(default=0.0, domain=NumericDomain.REAL)
-    c: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    C: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    tau: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    kappa: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    current: float = parameter(default=5.0, domain=NumericDomain.REAL)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        eta: Annotated[float, StateSpec()] = 0.0,
+        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        C: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        current: Annotated[float, ParameterSpec()] = 5.0,
         period: float = 10.0,
         width: float = 2.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.eta = eta
+        self.c = c
+        self.C = C
+        self.alpha = alpha
+        self.tau = tau
+        self.kappa = kappa
+        self.current = current
         self.period = period
         self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the charging of the double layer and the balance of the reactant.
 
         Args:

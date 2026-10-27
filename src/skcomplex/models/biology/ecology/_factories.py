@@ -3,13 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import UpdateLaw, lag
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import lag
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 from ._populations import (
     DelayedLogisticGrowthInteraction,
     ExponentialGrowthInteraction,
@@ -251,9 +257,19 @@ def lotka_volterra(
 class RabbitsElement(Element):
     """Rabbits element."""
 
-    pairs = state(default=1.0, domain=NumericDomain.NONNEGATIVE, lags=1, initial=(0.0,))
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        pairs: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,))] = 1.0,
+        pairs_lag1: float = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.pairs = pairs
+        self.pairs_lag1 = pairs_lag1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rabbits element."""
         return [UpdateLaw(s.pairs, s.pairs + lag(s.pairs, 1))]
 

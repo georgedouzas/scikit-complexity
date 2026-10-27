@@ -4,17 +4,20 @@
 # License: MIT
 
 from functools import cache
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _published(element_type: type[Element]) -> type[Element]:
-    """Return an element type after binding it to its name in this module, so it pickles by reference."""
-    globals()[element_type.__name__] = element_type
+def _published(element_type: type[Element], name: str) -> type[Element]:
+    """Return an element type after naming it and binding it to its name in this module, so it pickles by reference."""
+    element_type.__name__ = element_type.__qualname__ = name
+    globals()[name] = element_type
     return element_type
 
 
@@ -40,13 +43,24 @@ def relaxation_type(order: float) -> type[Element]:
         >>> relaxation_type(0.5).__name__
         'FractionalRelaxation_0p5'
     """
-    return _published(
-        type(
-            _type_name('FractionalRelaxation', order),
-            (Element,),
-            {'x': state(1.0, order=order), 'lam': parameter(1.0), 'laws': lambda self, s: [RateLaw(s.x, -s.lam * s.x)]},
-        ),
-    )
+
+    class FractionalElement(Element):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            lam: Annotated[float, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.lam = lam
+
+        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+            return [RateLaw(s.x, -s.lam * s.x)]
+
+    return _published(FractionalElement, _type_name('FractionalRelaxation', order))
 
 
 @cache
@@ -66,19 +80,28 @@ def oscillator_type(order: float) -> type[Element]:
         >>> oscillator_type(0.8).__name__
         'FractionalOscillator_0p8'
     """
-    return _published(
-        type(
-            _type_name('FractionalOscillator', order),
-            (Element,),
-            {
-                'x': state(1.0, order=order),
-                'v': state(0.0, order=order),
-                'omega': parameter(1.0),
-                'gamma': parameter(0.0),
-                'laws': lambda self, s: [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)],
-            },
-        ),
-    )
+
+    class FractionalElement(Element):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            v: Annotated[float, StateSpec(order=order)] = 0.0,
+            omega: Annotated[float, ParameterSpec()] = 1.0,
+            gamma: Annotated[float, ParameterSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.v = v
+            self.omega = omega
+            self.gamma = gamma
+
+        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+            return [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)]
+
+    return _published(FractionalElement, _type_name('FractionalOscillator', order))
 
 
 @cache
@@ -98,18 +121,26 @@ def van_der_pol_type(order: float) -> type[Element]:
         >>> van_der_pol_type(0.9).__name__
         'FractionalVanDerPol_0p9'
     """
-    return _published(
-        type(
-            _type_name('FractionalVanDerPol', order),
-            (Element,),
-            {
-                'x': state(2.0, order=order),
-                'y': state(0.0, order=order),
-                'mu': parameter(1.0),
-                'laws': lambda self, s: [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)],
-            },
-        ),
-    )
+
+    class FractionalElement(Element):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 2.0,
+            y: Annotated[float, StateSpec(order=order)] = 0.0,
+            mu: Annotated[float, ParameterSpec()] = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
+            self.mu = mu
+
+        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+            return [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)]
+
+    return _published(FractionalElement, _type_name('FractionalVanDerPol', order))
 
 
 @cache
@@ -129,25 +160,36 @@ def lorenz_type(order: float) -> type[Element]:
         >>> lorenz_type(0.99).__name__
         'FractionalLorenz_0p99'
     """
-    return _published(
-        type(
-            _type_name('FractionalLorenz', order),
-            (Element,),
-            {
-                'x': state(1.0, order=order),
-                'y': state(1.0, order=order),
-                'z': state(1.0, order=order),
-                'sigma': parameter(10.0),
-                'rho': parameter(28.0),
-                'beta': parameter(8 / 3),
-                'laws': lambda self, s: [
-                    RateLaw(s.x, s.sigma * (s.y - s.x)),
-                    RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-                    RateLaw(s.z, s.x * s.y - s.beta * s.z),
-                ],
-            },
-        ),
-    )
+
+    class FractionalElement(Element):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            y: Annotated[float, StateSpec(order=order)] = 1.0,
+            z: Annotated[float, StateSpec(order=order)] = 1.0,
+            sigma: Annotated[float, ParameterSpec()] = 10.0,
+            rho: Annotated[float, ParameterSpec()] = 28.0,
+            beta: Annotated[float, ParameterSpec()] = 8 / 3,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.x = x
+            self.y = y
+            self.z = z
+            self.sigma = sigma
+            self.rho = rho
+            self.beta = beta
+
+        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+            return [
+                RateLaw(s.x, s.sigma * (s.y - s.x)),
+                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
+                RateLaw(s.z, s.x * s.y - s.beta * s.z),
+            ]
+
+    return _published(FractionalElement, _type_name('FractionalLorenz', order))
 
 
 @register_model(

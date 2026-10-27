@@ -3,22 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, vector
-from ....core.elements import ParticleElement
-from ....core.interactions import PairPotentialInteraction
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import GroupElement, ParticleElement
+from ....core.interactions import BaseInteraction, Interaction, PairPotentialInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ...core.elements import GroupElement
 
 
-class MotivationInteraction(BaseInteraction):
+class MotivationInteraction(Interaction):
     """Driving force of the social force model, which relaxes a walker's velocity to its desired velocity.
 
     The force per unit mass is `(speed * direction - v) / tau`.
@@ -45,12 +48,22 @@ class MotivationInteraction(BaseInteraction):
         1.34
     """
 
-    target: str = role()
-    speed: float = parameter(default=1.34, domain=NumericDomain.NONNEGATIVE)
-    direction: npt.ArrayLike = parameter(default=0.0, vector=True)
-    tau: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.34,
+        direction: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.speed = speed
+        self.direction = direction
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the relaxation of the velocity to the desired velocity.
 
         Args:
@@ -64,7 +77,7 @@ class MotivationInteraction(BaseInteraction):
         return [RateLaw(s.target.v, (s.speed * s.direction - s.target.v) / s.tau)]
 
 
-class WallsInteraction(BaseInteraction):
+class WallsInteraction(Interaction):
     """Repulsion of walkers by two walls of a corridor at `y = 0` and `y = width`.
 
     The force per unit mass from a wall at distance `d` is `strength * exp((radius - d) / range)`, pointing away from
@@ -95,13 +108,24 @@ class WallsInteraction(BaseInteraction):
         5.0
     """
 
-    target: str = role()
-    width: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    strength: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    range: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
-    radius: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,  # noqa: A002
+        radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.width = width
+        self.strength = strength
+        self.range = range
+        self.radius = radius
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the repulsion of both walls.
 
         Args:
@@ -114,7 +138,7 @@ class WallsInteraction(BaseInteraction):
         """
         y = s.target.x[1]
         push = s.strength * (exp((s.radius - y) / s.range) - exp((s.radius - s.width + y) / s.range))
-        return [RateLaw(s.target.v, vector([0, push]))]
+        return [RateLaw(s.target.v, vector(SR, [0, push]))]
 
 
 class SocialRepulsionInteraction(PairPotentialInteraction):
@@ -153,11 +177,25 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
         2.0
     """
 
-    strength: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    range: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    radius: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,  # noqa: A002
+        radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.strength = strength
+        self.range = range
+        self.radius = radius
 
-    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
+    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
         """Return the pair energy `strength * range * exp((2 * radius - r) / range)`.
 
         Args:

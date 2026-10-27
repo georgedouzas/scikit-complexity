@@ -3,27 +3,41 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter
 
-from ....core.base import NumericDomain, state
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class BrusselatorReactionElement(Element):
     """Brusselator reaction element."""
 
-    u = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    v = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    a = parameter(1.0)
-    b = parameter(3.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        v: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        b: Annotated[object, ParameterSpec()] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.a = a
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the brusselator reaction element."""
         return [
             RateLaw(s.u, s.a - (s.b + 1) * s.u + s.u**2 * s.v),
@@ -34,15 +48,29 @@ class BrusselatorReactionElement(Element):
 class OregonatorElement(Element):
     """Oregonator element."""
 
-    x = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    y = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    z = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    epsilon = parameter(0.04)
-    delta = parameter(4e-4)
-    q = parameter(8e-4)
-    f = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        y: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        z: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        epsilon: Annotated[object, ParameterSpec()] = 0.04,
+        delta: Annotated[object, ParameterSpec()] = 0.0004,
+        q: Annotated[object, ParameterSpec()] = 0.0008,
+        f: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.epsilon = epsilon
+        self.delta = delta
+        self.q = q
+        self.f = f
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the oregonator element."""
         return [
             RateLaw(s.x, (s.q * s.y - s.x * s.y + s.x * (1 - s.x)) / s.epsilon),
@@ -54,12 +82,23 @@ class OregonatorElement(Element):
 class CubicAutocatalysisElement(Element):
     """Cubic autocatalysis element."""
 
-    a = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    b = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    F = parameter(0.04)
-    k = parameter(0.05)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        F: Annotated[object, ParameterSpec()] = 0.04,
+        k: Annotated[object, ParameterSpec()] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.F = F
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cubic autocatalysis element."""
         return [
             RateLaw(s.a, -s.a * s.b**2 + s.F * (1 - s.a)),

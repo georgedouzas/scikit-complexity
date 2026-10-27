@@ -4,25 +4,27 @@
 # License: MIT
 
 import math
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
+from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, vector
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, neighbors, uniform
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import neighbors, uniform
 from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 
 
-def _coupling(s: Symbols) -> Expression:
+def _coupling(s: SimpleNamespace) -> Expression:
     """Return the alignment of a member with a neighbour, by the species of both."""
     first, second = s.species, s.other.species
     return (
@@ -33,12 +35,12 @@ def _coupling(s: Symbols) -> Expression:
     )
 
 
-def _heading_a(member: Symbols) -> Expression:
+def _heading_a(member: SimpleNamespace) -> Expression:
     """Return the heading of a member of species A, doubled so the mean over both species is the mean over A."""
     return 2 * (1 - member.species) * exp(I * member.theta)
 
 
-def _heading_b(member: Symbols) -> Expression:
+def _heading_b(member: SimpleNamespace) -> Expression:
     """Return the heading of a member of species B, doubled so the mean over both species is the mean over B."""
     return 2 * member.species * exp(I * member.theta)
 
@@ -94,28 +96,35 @@ class NonreciprocalMoverElement(Element):
         -1.0
     """
 
-    visual: ClassVar[VisualSpec] = SPECIES
-    x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
-    species: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    v0: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    eta: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    J_aa: float = parameter(default=1.0)
-    J_ab: float = parameter(default=1.0)
-    J_ba: float = parameter(default=1.0)
-    J_bb: float = parameter(default=1.0)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = SPECIES,
         *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        species: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        J_aa: Annotated[float, ParameterSpec()] = 1.0,
+        J_ab: Annotated[float, ParameterSpec()] = 1.0,
+        J_ba: Annotated[float, ParameterSpec()] = 1.0,
+        J_bb: Annotated[float, ParameterSpec()] = 1.0,
         radius: float = 1.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.species = species
+        self.v0 = v0
+        self.eta = eta
+        self.J_aa = J_aa
+        self.J_ab = J_ab
+        self.J_ba = J_ba
+        self.J_bb = J_bb
         self.radius = radius
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the alignment of the heading with the species-weighted neighbours and the step along it.
 
         Args:
@@ -134,7 +143,7 @@ class NonreciprocalMoverElement(Element):
         )
         return [
             UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2)),
-            UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
+            UpdateLaw(s.x, s.x + s.v0 * vector(SR, [cos(s.theta), sin(s.theta)])),
         ]
 
 

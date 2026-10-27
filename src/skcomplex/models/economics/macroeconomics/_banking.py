@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 
 TOLERANCE = 1e-9
@@ -63,23 +64,27 @@ class DepositorElement(Element):
         10
     """
 
-    bank: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    deposit: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    loan: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    spending: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    repayment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        bank: Annotated[float, StateSpec(domain=NN)] = 0,
+        deposit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        loan: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        spending: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         lenders: str = 'banks',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.bank = bank
+        self.deposit = deposit
+        self.loan = loan
+        self.spending = spending
+        self.repayment = repayment
         self.lenders = lenders
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the payment and repayment rules.
 
         Args:
@@ -171,23 +176,27 @@ class ReserveBankElement(Element):
         3
     """
 
-    index: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    reserves: float = state(default=0.0, domain=NumericDomain.REAL)
-    deposits: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    loans: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    reserve_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        index: Annotated[float, StateSpec(domain=NN)] = 0,
+        reserves: Annotated[float, StateSpec()] = 0.0,
+        deposits: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        loans: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        reserve_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         customers: str = 'customers',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.index = index
+        self.reserves = reserves
+        self.deposits = deposits
+        self.loans = loans
+        self.reserve_ratio = reserve_ratio
         self.customers = customers
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the lending rule.
 
         Args:
@@ -260,18 +269,21 @@ class RegulatorInteraction(InstitutionInteraction):
         0.2
     """
 
-    ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    new_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    change_at: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        rule: object,
+        phase: object,
+        ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        new_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        change_at: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         banks: str = 'banks',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, rule=rule, phase=phase)
+        self.ratio = ratio
+        self.new_ratio = new_ratio
+        self.change_at = change_at
         self.banks = banks
 
     def act(self, model: Any) -> None:  # noqa: ANN401

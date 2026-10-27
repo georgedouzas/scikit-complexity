@@ -3,13 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import Expression, NumericDomain, parameter, role
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
 from ....core.elements import ParticleElement
 from ....core.interactions import PotentialInteraction
-from ....core.laws import Symbols
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -33,10 +36,18 @@ class ExponentialWellInteraction(PotentialInteraction):
         2.0
     """
 
-    target: str = role()
-    k: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `k x² e^-x`.
 
         Args:

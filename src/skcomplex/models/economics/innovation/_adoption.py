@@ -5,20 +5,21 @@
 
 from collections import deque
 from collections.abc import Sequence
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -80,14 +81,25 @@ class HouseholdElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'phone', 'color_range': (0.0, 1.0)})
-    income: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    phone: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    social_class: float = state(default=MIDDLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.02, domain=NumericDomain.REAL)
-    threshold: float = parameter(default=1.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'phone', 'color_range': (0.0, 1.0)}),
+        *,
+        income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        phone: Annotated[float, StateSpec(domain=NN)] = 0,
+        social_class: Annotated[float, StateSpec(domain=NN)] = MIDDLE,
+        growth: Annotated[float, ParameterSpec()] = 0.02,
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.income = income
+        self.phone = phone
+        self.social_class = social_class
+        self.growth = growth
+        self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the yearly rule.
 
         Args:

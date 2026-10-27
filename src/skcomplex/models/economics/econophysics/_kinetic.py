@@ -3,16 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 
 class SaverElement(Element):
@@ -32,10 +36,18 @@ class SaverElement(Element):
         ('savers', 'SaverElement', 10)
     """
 
-    wealth: float = state(default=1.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
 
 
-class SavingExchangeInteraction(BaseInteraction):
+class SavingExchangeInteraction(Interaction):
     """Random pairwise trades of Chakraborti and Chakrabarti, where every agent saves a fraction of its wealth.
 
     A trade between agents `i` and `j` keeps total wealth and gives `w_i' = lambda w_i + eps (1 - lambda) (w_i + w_j)`
@@ -59,10 +71,18 @@ class SavingExchangeInteraction(BaseInteraction):
         0.0
     """
 
-    traders: str = role()
-    saving: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        traders: Annotated[str, RoleSpec()],
+        saving: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.traders = traders
+        self.saving = saving
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the trading rule.
 
         Args:
@@ -97,7 +117,7 @@ class SavingExchangeInteraction(BaseInteraction):
             agent.wealth = float(value)
 
 
-class DebtExchangeInteraction(BaseInteraction):
+class DebtExchangeInteraction(Interaction):
     """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount, allowing debt down to a limit.
 
     In every trade a random agent pays a fixed amount to another random agent, unless its wealth would fall below
@@ -123,11 +143,20 @@ class DebtExchangeInteraction(BaseInteraction):
         5.0
     """
 
-    traders: str = role()
-    debt: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    amount: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        traders: Annotated[str, RoleSpec()],
+        debt: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        amount: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.traders = traders
+        self.debt = debt
+        self.amount = amount
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the trading rule.
 
         Args:

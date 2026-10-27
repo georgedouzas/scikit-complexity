@@ -3,30 +3,43 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 from sage.all__sagemath_symbolics import abs_symbolic
 
-from skcomplex.core.declarations import parameter
-
-from ....core.base import state
-from ....core.components import Element
-from ....core.laws import RateLaw, derivative
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class LorenzElement(Element):
     """Lorenz element."""
 
-    x = state(1.0)
-    y = state(1.0)
-    z = state(1.0)
-    sigma = parameter(10.0)
-    rho = parameter(28.0)
-    beta = parameter(8 / 3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 1.0,
+        sigma: Annotated[object, ParameterSpec()] = 10.0,
+        rho: Annotated[object, ParameterSpec()] = 28.0,
+        beta: Annotated[object, ParameterSpec()] = 8 / 3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.sigma = sigma
+        self.rho = rho
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the lorenz element."""
         return [
             RateLaw(s.x, s.sigma * (s.y - s.x)),
@@ -38,14 +51,27 @@ class LorenzElement(Element):
 class RosslerElement(Element):
     """Rossler element."""
 
-    x = state(1.0)
-    y = state(1.0)
-    z = state(1.0)
-    a = parameter(0.2)
-    b = parameter(0.2)
-    c = parameter(5.7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 0.2,
+        b: Annotated[object, ParameterSpec()] = 0.2,
+        c: Annotated[object, ParameterSpec()] = 5.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rossler element."""
         return [
             RateLaw(s.x, -s.y - s.z),
@@ -153,10 +179,23 @@ def rossler(
 class JerkElement(Element):
     """Jerk element."""
 
-    x = state(default=0.0, order=3, initial=(0.0, 1.0))
-    A = parameter(0.6)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
+        x_d2: float = 1.0,
+        x_d1: float = 0.0,
+        A: Annotated[object, ParameterSpec()] = 0.6,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d2 = x_d2
+        self.x_d1 = x_d1
+        self.A = A
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the jerk element."""
         return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
 
@@ -204,11 +243,21 @@ def sprott_jerk(
 class BlowUpElement(Element):
     """Blow up element."""
 
-    x = state(1.0)
-    a = parameter(1.0)
-    p = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        p: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.p = p
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the blow up element."""
         return [RateLaw(s.x, s.a * s.x**s.p)]
 

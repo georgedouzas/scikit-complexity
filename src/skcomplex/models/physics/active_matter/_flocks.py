@@ -4,15 +4,18 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
+from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -24,27 +27,27 @@ CLOSE = 0.2
 REPULSION = 1e3
 
 
-def _heading(member: Symbols) -> Expression:
+def _heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
     return exp(I * member.theta)
 
 
-def _axis(member: Symbols) -> Expression:
+def _axis(member: SimpleNamespace) -> Expression:
     """Return `exp(2 i theta)`, the heading of a member as an axis without direction."""
     return exp(2 * I * member.theta)
 
 
-def _modulus(name: str, s: Symbols) -> Expression:
+def _modulus(name: str, s: SimpleNamespace) -> Expression:
     """Return the modulus of an observable of a system."""
     return abs(getattr(s, name))
 
 
-def _polarization(s: Symbols) -> Expression:
+def _polarization(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean heading, the polar order parameter."""
     return _modulus('mean_heading', s)
 
 
-def _nematic_order(s: Symbols) -> Expression:
+def _nematic_order(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean axis, the nematic order parameter."""
     return _modulus('mean_axis', s)
 
@@ -59,24 +62,24 @@ def _orders(group: str) -> list[ObservableSpec]:
     ]
 
 
-def _step(s: Symbols) -> BaseLaw:
+def _step(s: SimpleNamespace) -> BaseLaw:
     """Return the move of a flocker by `v0` along its new heading."""
-    return UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)]))
+    return UpdateLaw(s.x, s.x + s.v0 * vector(SR, [cos(s.theta), sin(s.theta)]))
 
 
-def _vicsek_laws(s: Symbols) -> list[BaseLaw]:
+def _vicsek_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the alignment with the mean heading within `r` plus angular noise, and the move."""
     within = RadiusNeighborhood(1.0, center=True)
     turn = atan2(neighbors(sin(s.other.theta), over=within), neighbors(cos(s.other.theta), over=within))
     return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi)), _step(s)]
 
 
-def _attraction(distance: Expression, s: Symbols) -> Expression:
+def _attraction(distance: Expression, s: SimpleNamespace) -> Expression:
     """Return the cohesion force of the Grégoire-Chaté model, repulsive below `r_c` and towards `r_e` beyond it."""
     return where(distance < s.r_c, -REPULSION, (distance - s.r_e) / (4 * (s.r_a - s.r_e)))
 
 
-def _cohesive_laws(s: Symbols) -> list[BaseLaw]:
+def _cohesive_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the alignment, the cohesion, and the vectorial noise of the Grégoire-Chaté model, and the move."""
     near, others = RadiusNeighborhood(1.0, center=True), RadiusNeighborhood(1.0)
     dx, dy = s.other.x[0] - s.x[0], s.other.x[1] - s.x[1]
@@ -97,7 +100,7 @@ def _cohesive_laws(s: Symbols) -> list[BaseLaw]:
     return [UpdateLaw(s.theta, atan2(along_y, along_x)), _step(s)]
 
 
-def _nematic_laws(s: Symbols) -> list[BaseLaw]:
+def _nematic_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the alignment with the axes of the neighbours, each flipped to the near side, plus noise, and the move."""
     within = RadiusNeighborhood(1.0, center=True)
     side = where(cos(s.other.theta - s.theta) >= 0, 1, -1)
@@ -108,12 +111,23 @@ def _nematic_laws(s: Symbols) -> list[BaseLaw]:
 class VicsekParticleElement(Element):
     """Particle of a Vicsek flock that aligns its heading with its neighbours, with noise."""
 
-    x = state(vector=True, position=True)
-    theta = state(default=0.0, domain=NumericDomain.ANGLE)
-    v0 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        v0: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.v0 = v0
+        self.eta = eta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the particle."""
         return _vicsek_laws(s)
 
@@ -121,17 +135,33 @@ class VicsekParticleElement(Element):
 class CohesiveParticleElement(Element):
     """Particle of a cohesive flock that aligns, repels close neighbours, and attracts distant ones."""
 
-    x = state(vector=True, position=True)
-    theta = state(default=0.0, domain=NumericDomain.ANGLE)
-    v0 = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    alpha = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r_c = parameter(default=CLOSE, domain=NumericDomain.POSITIVE)
-    r_e = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    r_a = parameter(default=0.8, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        v0: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r_c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = CLOSE,
+        r_e: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        r_a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.v0 = v0
+        self.eta = eta
+        self.alpha = alpha
+        self.beta = beta
+        self.r_c = r_c
+        self.r_e = r_e
+        self.r_a = r_a
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the particle."""
         return _cohesive_laws(s)
 
@@ -139,12 +169,23 @@ class CohesiveParticleElement(Element):
 class NematicParticleElement(Element):
     """Particle of a nematic flock that aligns its axis with its neighbours, either way."""
 
-    x = state(vector=True, position=True)
-    theta = state(default=0.0, domain=NumericDomain.ANGLE)
-    v0 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    eta = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        v0: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.v0 = v0
+        self.eta = eta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the particle."""
         return _nematic_laws(s)
 

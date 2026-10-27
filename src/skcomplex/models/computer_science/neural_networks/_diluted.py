@@ -3,22 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import total, uniform, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
-def _overlap(member: Symbols) -> Expression:
+def _overlap(member: SimpleNamespace) -> Expression:
     """Return the agreement of a neuron with the first stored pattern."""
     return member.pattern * member.spin
 
@@ -64,21 +66,23 @@ class DilutedNeuronElement(Element):
         0.06
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    pattern: float = parameter(default=1.0)
-    beta: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
-        couplings: Any = None,  # noqa: ANN401
-        **values: Any,  # noqa: ANN401
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        pattern: Annotated[float, ParameterSpec()] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.pattern = pattern
+        self.beta = beta
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the parallel stochastic update of the neuron.
 
         Args:

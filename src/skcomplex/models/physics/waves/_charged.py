@@ -3,16 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols, ramp
-from ....core.laws.utils import gradient, laplacian
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import gradient, laplacian, ramp
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -59,16 +61,31 @@ class ChargedWaveFunctionElement(Element):
         1.0
     """
 
-    u: float = state(default=0.0)
-    w: float = state(default=0.0)
-    D: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    q: float = parameter(default=1.0)
-    A_x: float = parameter(default=0.0)
-    A_t: float = parameter(default=0.0)
-    E: float = parameter(default=0.0)
-    duration: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+        w: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        q: Annotated[float, ParameterSpec()] = 1.0,
+        A_x: Annotated[float, ParameterSpec()] = 0.0,
+        A_t: Annotated[float, ParameterSpec()] = 0.0,
+        E: Annotated[float, ParameterSpec()] = 0.0,
+        duration: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.w = w
+        self.D = D
+        self.q = q
+        self.A_x = A_x
+        self.A_t = A_t
+        self.E = E
+        self.duration = duration
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the minimally coupled Schrödinger equation for the real and imaginary parts.
 
         Args:
@@ -172,6 +189,12 @@ def charged_schrodinger(
     space = LatticeSpace(n_sites, spacing=spacing)
     return System(
         elements=[
-            FieldElement('packet', ChargedWaveFunctionElement, space, values=values, discretization='spectral'),
+            FieldElement(
+                'packet',
+                element=ChargedWaveFunctionElement,
+                space=space,
+                values=values,
+                discretization='spectral',
+            ),
         ],
     )

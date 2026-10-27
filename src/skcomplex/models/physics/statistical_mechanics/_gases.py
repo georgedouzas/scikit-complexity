@@ -5,13 +5,13 @@
 
 import numpy as np
 
-from ....core.base import BaseInteraction, VisualSpec
-from ....core.elements import ParticleElement
+from ....core.elements import GroupElement, ParticleElement
+from ....core.interactions import BaseInteraction
 from ....core.spaces import ContinuousSpace
+from ....core.specs import VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ...core.elements import GroupElement
 from ..realizations.particles import LangevinThermostatInteraction, LennardJonesInteraction
 
 

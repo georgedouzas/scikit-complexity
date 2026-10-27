@@ -3,12 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp, log
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.specs import ObservableSpec
+from sage.all__sagemath_symbolics import Expression, exp, log, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import CollocationSolver
@@ -17,21 +20,21 @@ MIN_CONSUMPTION = 0.05
 MAX_CONSUMPTION = 5.0
 
 
-def _saving_rate(s: Symbols) -> Expression:
+def _saving_rate(s: SimpleNamespace) -> Expression:
     """Return the share of output saved, `1 - c / (A k^alpha)`."""
     economy = s.economy
     rate: Expression = 1 - economy.c / (economy.A * economy.k**economy.alpha)
     return rate
 
 
-def _utility(s: Symbols) -> Expression:
+def _utility(s: SimpleNamespace) -> Expression:
     """Return the discounted utility of consumption per unit time, `exp(-rho t) log(c)`."""
     economy = s.economy
     utility: Expression = exp(-economy.rho * s.t) * log(economy.c)
     return utility
 
 
-def _capital_value(s: Symbols) -> Expression:
+def _capital_value(s: SimpleNamespace) -> Expression:
     """Return the discounted value of the capital left at the horizon, `exp(-rho T) v k(T)`."""
     economy = s.economy
     value: Expression = exp(-economy.rho * s.t) * economy.v * economy.k
@@ -78,15 +81,29 @@ class RamseyEconomyElement(Element):
         2.0
     """
 
-    k: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    c: float = parameter(default=0.5, adaptive=True, bounds=(MIN_CONSUMPTION, MAX_CONSUMPTION))
-    A: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    delta: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    rho: float = parameter(default=0.03, domain=NumericDomain.POSITIVE)
-    v: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        c: Annotated[float, ParameterSpec(adaptive=True, bounds=(MIN_CONSUMPTION, MAX_CONSUMPTION))] = 0.5,
+        A: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.03,
+        v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
+        self.c = c
+        self.A = A
+        self.alpha = alpha
+        self.delta = delta
+        self.rho = rho
+        self.v = v
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the accumulation of capital.
 
         Args:

@@ -3,15 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, both, minimum, mod, neighbors, normal, total, uniform, where
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction, NeighborInteraction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -51,20 +58,21 @@ class TaxonElement(Element):
         5
     """
 
-    h: float = state(default=1.0, domain=NumericDomain.REAL)
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        h: Annotated[float, StateSpec()] = 1.0,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         k: int = 5,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.age = age
         self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the ageing, and the extinction and replacement of a species whose field is negative.
 
         Args:
@@ -78,8 +86,8 @@ class TaxonElement(Element):
         extinct = where(s.h < 0, 1, 0)
         return [
             UpdateLaw(s.age, s.age + 1),
-            UpdateLaw(add_node(edges=self.k), extinct),
-            UpdateLaw(remove_node(), extinct),
+            UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), extinct),
+            UpdateLaw(TopologyRequestSpec('remove-node'), extinct),
         ]
 
 
@@ -104,11 +112,20 @@ class CouplingElement(Element):
         1.0
     """
 
-    J: float = state(default=0.0, domain=NumericDomain.REAL)
-    fresh: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        J: Annotated[float, StateSpec()] = 0.0,
+        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.J = J
+        self.fresh = fresh
 
 
-class CouplingDriftInteraction(BaseInteraction):
+class CouplingDriftInteraction(NeighborInteraction):
     """Random drift of the couplings of an ecosystem, and the first coupling of every new edge.
 
     Args:
@@ -130,12 +147,20 @@ class CouplingDriftInteraction(BaseInteraction):
         0.05
     """
 
-    over: ClassVar[str] = 'neighbors'
-    species: str = role()
-    couplings: str = role()
-    noise: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        species: Annotated[str, RoleSpec()],
+        couplings: Annotated[str, RoleSpec()],
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.couplings = couplings
+        self.noise = noise
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift of the coupling of an edge, or its first draw.
 
         Args:
@@ -153,7 +178,7 @@ class CouplingDriftInteraction(BaseInteraction):
         ]
 
 
-class DependencyFieldInteraction(BaseInteraction):
+class DependencyFieldInteraction(Interaction):
     """Field of every species, the sum of the couplings of its edges to the species it depends on.
 
     Args:
@@ -172,10 +197,18 @@ class DependencyFieldInteraction(BaseInteraction):
         'couplings'
     """
 
-    species: str = role()
-    couplings: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        species: Annotated[str, RoleSpec()],
+        couplings: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the field of every species.
 
         Args:
@@ -231,24 +264,29 @@ class ChemicalElement(Element):
         10.0
     """
 
-    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    tie: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    fresh: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
-    h: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    p: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    period: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        tie: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         k: int = 1,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.tie = tie
+        self.fresh = fresh
+        self.h = h
+        self.p = p
+        self.period = period
         self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the catalytic growth, and the replacement of the least populated species at every graph update.
 
         Args:
@@ -265,7 +303,7 @@ class ChemicalElement(Element):
         least = where(both(key <= minimum(key), update), 1, 0)
         newcomer = where(total(s.fresh) > 1 / 2, 1, 0) * (1 - s.fresh)
 
-        def fresh(node: Symbols) -> object:
+        def fresh(node: SimpleNamespace) -> object:
             """Return the weight of a candidate catalysed species, 1 for the new species and 0 otherwise."""
             return node.fresh
 
@@ -273,9 +311,9 @@ class ChemicalElement(Element):
             UpdateLaw(s.x, grown / total(grown)),
             UpdateLaw(s.tie, uniform('tie')),
             UpdateLaw(s.fresh, 0),
-            UpdateLaw(add_node(edges=self.k), least),
-            UpdateLaw(remove_node(), least),
-            UpdateLaw(add_edge(toward=fresh), s.p * newcomer),
+            UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), least),
+            UpdateLaw(TopologyRequestSpec('remove-node'), least),
+            UpdateLaw(TopologyRequestSpec('add-edge', toward=fresh), s.p * newcomer),
         ]
 
 
@@ -342,7 +380,7 @@ def sole_manrubia(
     for node in range(n):
         others = rng.choice(np.delete(np.arange(n), node), size=k, replace=False)
         graph.add_edges_from((node, int(other)) for other in others)
-    space = NetworkSpace(graph).prepare()
+    space = NetworkSpace(graph).check().prepare()
     edges = graph.number_of_edges()
     couplings = rng.uniform(-1, 1, edges)
     sources, _ = space.edges_[None]

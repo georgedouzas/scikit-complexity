@@ -4,19 +4,21 @@
 # License: MIT
 
 import itertools
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 MARKS = 'ground/marks'
 PLANTS = 'plants'
@@ -29,13 +31,25 @@ PREDATOR_TRAITS: dict[str, Any] = {'maturity': 20.0, 'reproduction': 0.1, 'starv
 class EmotionMarksElement(Element):
     """Emotion marks element."""
 
-    prey_happiness = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    prey_fear = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    predator_happiness = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    predator_anger = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    decay = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        prey_happiness: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        prey_fear: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        predator_happiness: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        predator_anger: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        decay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.prey_happiness = prey_happiness
+        self.prey_fear = prey_fear
+        self.predator_happiness = predator_happiness
+        self.predator_anger = predator_anger
+        self.decay = decay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the emotion marks element."""
         return [
             RateLaw(s.prey_happiness, -s.decay * s.prey_happiness),
@@ -88,11 +102,19 @@ class PlantElement(Element):
         100
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.25})
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    maturity: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.25}),
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+        self.maturity = maturity
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the spreading rule.
 
         Args:
@@ -172,20 +194,37 @@ class ForagerElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'happiness', 'radius': 0.35})
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'happiness', 'radius': 0.35}),
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        hunger: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        happiness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        distress: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        starvation: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        memory: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        communication: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        emotions: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+        self.hunger = hunger
+        self.happiness = happiness
+        self.distress = distress
+        self.maturity = maturity
+        self.reproduction = reproduction
+        self.starvation = starvation
+        self.memory = memory
+        self.communication = communication
+        self.emotions = emotions
+
     food: ClassVar[str] = PLANTS
     happiness_mark: ClassVar[str] = 'prey_happiness'
     distress_mark: ClassVar[str] = 'prey_fear'
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    hunger: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    happiness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    distress: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    maturity: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    reproduction: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    starvation: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    memory: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    communication: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    emotions: float = parameter(default=1.0, domain=NumericDomain.BOOLEAN)
 
     def _preference(self, agent: AgentView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
         """Return the preference of an animal for a neighbouring cell."""
@@ -227,7 +266,7 @@ class ForagerElement(Element):
         model.deposit(f'{MARKS}.{self.happiness_mark}', agent.location, agent.happiness)
         model.deposit(f'{MARKS}.{self.distress_mark}', agent.location, agent.distress)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -387,7 +426,37 @@ class StigmergicPredatorElement(ForagerElement):
         'prey'
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'distress', 'radius': 0.45})
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'distress', 'radius': 0.45}),
+        *,
+        age: float = 0.0,
+        hunger: float = 0.0,
+        happiness: float = 0.0,
+        distress: float = 0.0,
+        maturity: float = 5.0,
+        reproduction: float = 0.3,
+        starvation: float = 10.0,
+        memory: float = 0.3,
+        communication: float = 0.1,
+        emotions: float = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            visual=visual,
+            age=age,
+            hunger=hunger,
+            happiness=happiness,
+            distress=distress,
+            maturity=maturity,
+            reproduction=reproduction,
+            starvation=starvation,
+            memory=memory,
+            communication=communication,
+            emotions=emotions,
+        )
+
     food: ClassVar[str] = PREY
     happiness_mark: ClassVar[str] = 'predator_happiness'
     distress_mark: ClassVar[str] = 'predator_anger'
@@ -493,5 +562,10 @@ def stigmergic_predator_prey(
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )
-    marks = FieldElement('marks', EmotionMarksElement, LatticeSpace((width, height)), values={'decay': decay})
-    return System(elements=[life], systems=[System('ground', elements=[marks])])
+    marks = FieldElement(
+        'marks',
+        element=EmotionMarksElement,
+        space=LatticeSpace((width, height)),
+        values={'decay': decay},
+    )
+    return System(systems=[life, System('ground', elements=[marks])])

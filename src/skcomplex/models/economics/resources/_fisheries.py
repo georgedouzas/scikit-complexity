@@ -3,10 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Sink, Source, Symbols, TransferLaw, where
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -45,27 +51,27 @@ def _stage(
     ]
 
 
-def _spawning(s: Symbols) -> Expression:
+def _spawning(s: SimpleNamespace) -> Expression:
     """Return the spawning, the adults about to spawn that the catch spares over the spawning time."""
     return (1 - s.adult_harvest) * s.spawners / s.spawning_time
 
 
-def _nests(s: Symbols) -> Expression:
+def _nests(s: SimpleNamespace) -> Expression:
     """Return the nests of the spawners, limited by the spawning grounds."""
     return _smaller(s.female_fraction * _spawning(s), s.max_nests)
 
 
-def _adult_weight(s: Symbols) -> Expression:
+def _adult_weight(s: SimpleNamespace) -> Expression:
     """Return the weight of the adults about to spawn, in tonnes."""
     return s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG
 
 
-def _juvenile_weight(s: Symbols) -> Expression:
+def _juvenile_weight(s: SimpleNamespace) -> Expression:
     """Return the weight of the juveniles, in tonnes."""
     return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
 
 
-def _hilsa_laws(s: Symbols) -> list[BaseLaw]:
+def _hilsa_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
     spawning = _spawning(s)
     return [
@@ -105,30 +111,91 @@ def _filled_stages(
     return {**stages, 'spawners': spawners}
 
 
-HilsaElement = type(
-    'HilsaElement',
-    (Element,),
-    {
-        'eggs': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'larvae': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'juveniles': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'yearlings': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'adults': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'migrants': state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'spawners': state(default=375.0, domain=NumericDomain.NONNEGATIVE, quantity='fish'),
-        'female_fraction': parameter(default=FEMALE_FRACTION, domain=NumericDomain.NONNEGATIVE),
-        'eggs_per_nest': parameter(default=2e5, domain=NumericDomain.NONNEGATIVE),
-        'max_nests': parameter(default=MAX_NESTS, domain=NumericDomain.NONNEGATIVE),
-        'spawning_time': parameter(default=SPAWNING_TIME, domain=NumericDomain.POSITIVE),
-        **{time: parameter(default=duration, domain=NumericDomain.POSITIVE) for _, time, duration, _, _ in STAGES},
-        **{loss: parameter(default=fraction, domain=NumericDomain.NONNEGATIVE) for _, _, _, loss, fraction in STAGES},
-        'juvenile_harvest': parameter(default=0.48, domain=NumericDomain.NONNEGATIVE),
-        'adult_harvest': parameter(default=0.8, domain=NumericDomain.NONNEGATIVE),
-        'weight_per_adult': parameter(default=0.82, domain=NumericDomain.NONNEGATIVE),
-        'weight_per_juvenile': parameter(default=0.09, domain=NumericDomain.NONNEGATIVE),
-        'laws': lambda self, s: _hilsa_laws(s),
-    },
-)
+class HilsaElement(Element):
+    """Life cycle of the hilsa, with one stock of fish per stage and the parameters of the stages and the catch.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        eggs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        larvae: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        juveniles: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        yearlings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        adults: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        migrants: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
+        spawners: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 375.0,
+        female_fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = FEMALE_FRACTION,
+        eggs_per_nest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2e5,
+        max_nests: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = MAX_NESTS,
+        spawning_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = SPAWNING_TIME,
+        hatching_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        larval_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        river_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+        adult_ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+        migration_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        egg_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
+        larval_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        juvenile_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        first_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        second_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        migration_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
+        juvenile_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
+        adult_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        weight_per_adult: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.82,
+        weight_per_juvenile: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.eggs = eggs
+        self.larvae = larvae
+        self.juveniles = juveniles
+        self.yearlings = yearlings
+        self.adults = adults
+        self.migrants = migrants
+        self.spawners = spawners
+        self.female_fraction = female_fraction
+        self.eggs_per_nest = eggs_per_nest
+        self.max_nests = max_nests
+        self.spawning_time = spawning_time
+        self.hatching_time = hatching_time
+        self.larval_time = larval_time
+        self.river_time = river_time
+        self.ocean_time = ocean_time
+        self.adult_ocean_time = adult_ocean_time
+        self.migration_time = migration_time
+        self.egg_loss = egg_loss
+        self.larval_loss = larval_loss
+        self.juvenile_loss = juvenile_loss
+        self.first_year_loss = first_year_loss
+        self.second_year_loss = second_year_loss
+        self.migration_loss = migration_loss
+        self.juvenile_harvest = juvenile_harvest
+        self.adult_harvest = adult_harvest
+        self.weight_per_adult = weight_per_adult
+        self.weight_per_juvenile = weight_per_juvenile
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of the life cycle.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return _hilsa_laws(s)
 
 
 @register_model(

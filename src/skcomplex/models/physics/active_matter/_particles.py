@@ -4,21 +4,21 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import cos, sin, sqrt
+from sage.all__sagemath_symbolics import SR, cos, oo, pi, sin, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ....engine.solvers import EulerMaruyamaSolver
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, EulerMaruyamaSolver, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -59,15 +59,27 @@ class ActiveParticleElement(Element):
         2.0
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
-    speed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    D_t: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    D_r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    omega: float = parameter(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.speed = speed
+        self.D_t = D_t
+        self.D_r = D_r
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the self-propulsion, the turning, and the translational and rotational noise.
 
         Args:
@@ -79,7 +91,7 @@ class ActiveParticleElement(Element):
                 The laws of the component.
         """
         return [
-            RateLaw(s.x, s.speed * vector([cos(s.theta), sin(s.theta)])),
+            RateLaw(s.x, s.speed * vector(SR, [cos(s.theta), sin(s.theta)])),
             NoiseLaw(s.x, sqrt(2 * s.D_t)),
             RateLaw(s.theta, s.omega),
             NoiseLaw(s.theta, sqrt(2 * s.D_r)),
@@ -117,14 +129,25 @@ class OrnsteinUhlenbeckParticleElement(Element):
         1.0
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    u: npt.ArrayLike = state(default=0.0, vector=True)
-    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    D: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    D_t: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        u: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.u = u
+        self.tau = tau
+        self.D = D
+        self.D_t = D_t
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the propulsion, its relaxation and noise, and the translational noise.
 
         Args:
@@ -184,17 +207,31 @@ class DepotParticleElement(Element):
         10.0
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    v: npt.ArrayLike = state(default=0.0, vector=True)
-    e: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    q: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    c: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    d: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    D: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        e: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.e = e
+        self.gamma = gamma
+        self.q = q
+        self.c = c
+        self.d = d
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the motion, the friction and pumping of the velocity, its noise, and the depot balance.
 
         Args:
@@ -241,13 +278,23 @@ class TumblerElement(Element):
         0.1
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'theta'})
-    theta: float = state(default=0.0)
-    speed: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    tumble_rate: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    width: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta'}),
+        *,
+        theta: Annotated[float, StateSpec()] = 0.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.speed = speed
+        self.tumble_rate = tumble_rate
+        self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the run-and-tumble rule.
 
         Args:

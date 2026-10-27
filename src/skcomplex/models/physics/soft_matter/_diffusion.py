@@ -5,21 +5,23 @@
 
 import math
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
+from sage.all__sagemath_symbolics import SR, exp, oo, sin, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state, vector
-from ....core.components import Element
-from ....core.elements import ParticleElement
-from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols, pulse_train, where
+from ....core.elements import Element, GroupElement, ParticleElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.laws.utils import pulse_train, where
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.elements import GroupElement
 from ..realizations.particles import LangevinThermostatInteraction
 from ._brownian import DoubleWellElement
 
@@ -50,12 +52,21 @@ class BrownianParticleElement(Element):
         2.0
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    temperature: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.gamma = gamma
+        self.temperature = temperature
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the thermal noise.
 
         Args:
@@ -69,7 +80,7 @@ class BrownianParticleElement(Element):
         return [NoiseLaw(s.x, sqrt(2 * s.temperature / s.gamma))]
 
 
-class OpticalTrapInteraction(BaseInteraction):
+class OpticalTrapInteraction(Interaction):
     """Harmonic optical trap on overdamped particles, `F = -k (x - c(t))` with one stiffness per axis.
 
     The center oscillates as `c(t) = amplitude sin(2 pi frequency t)`, and a blinking trap is on for the first
@@ -106,24 +117,26 @@ class OpticalTrapInteraction(BaseInteraction):
         [1.0, 0.25]
     """
 
-    target: str = role()
-    k: npt.ArrayLike = parameter(default=1.0, vector=True)
-    amplitude: npt.ArrayLike = parameter(default=0.0, vector=True)
-    frequency: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 1.0,
+        amplitude: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        frequency: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         blink_period: float | None = None,
         duty: float = 0.5,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.amplitude = amplitude
+        self.frequency = frequency
         self.blink_period = blink_period
         self.duty = duty
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift towards the center of the trap.
 
         Args:
@@ -138,12 +151,13 @@ class OpticalTrapInteraction(BaseInteraction):
         on = 1 if self.blink_period is None else pulse_train(s.t, self.blink_period, self.duty * self.blink_period)
         position = s.target.x
         force = vector(
+            SR,
             [-stiffness * (item - middle) for stiffness, item, middle in zip(s.k, position, center, strict=True)],
         )
         return [RateLaw(position, on * force / s.target.gamma)]
 
 
-class SpeckleFieldInteraction(BaseInteraction):
+class SpeckleFieldInteraction(Interaction):
     """Random optical speckle field of Gaussian hotspots, which drags particles up its gradient at `u grad(I)`.
 
     The intensity is `I(x) = sum_i I_i exp(-|x - c_i|^2 / d_i^2)`, with hotspot centers, intensities relative to
@@ -179,24 +193,24 @@ class SpeckleFieldInteraction(BaseInteraction):
         1.0
     """
 
-    target: str = role()
-    strength: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         centers: tuple[tuple[float, float], ...] = (),
         intensities: tuple[float, ...] = (),
         lengths: tuple[float, ...] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.strength = strength
         self.centers = centers
         self.intensities = intensities
         self.lengths = lengths
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift up the intensity gradient.
 
         Args:
@@ -210,20 +224,31 @@ class SpeckleFieldInteraction(BaseInteraction):
         position = s.target.x
         intensity = SR(0)
         for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
-            offset = position - vector(center)
+            offset = position - vector(SR, center)
             intensity += height * exp(-offset.dot_product(offset) / length**2)
-        return [RateLaw(position, s.strength * vector([intensity.diff(item) for item in position]))]
+        return [RateLaw(position, s.strength * vector(SR, [intensity.diff(item) for item in position]))]
 
 
 class ScaledWalkerElement(Element):
     """Scaled walker element."""
 
-    x = state(0.0)
-    K = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    t0 = parameter(default=0.01, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        K: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        t0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.K = K
+        self.alpha = alpha
+        self.t0 = t0
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the scaled walker element."""
         return [NoiseLaw(s.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
 
@@ -263,22 +288,25 @@ class ModulatedParticleElement(Element):
         1.8
     """
 
-    x: float = state(default=50.0)
-    s0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    ds: float = parameter(default=1.8)
-    L: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        x: Annotated[float, StateSpec()] = 50.0,
+        s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        ds: Annotated[float, ParameterSpec()] = 1.8,
+        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
         convention: str = 'anti-ito',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.s0 = s0
+        self.ds = ds
+        self.L = L
         self.convention = convention
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the multiplicative noise and the reflecting walls.
 
         Args:

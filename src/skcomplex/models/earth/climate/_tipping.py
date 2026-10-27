@@ -5,16 +5,19 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousTime, NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -52,12 +55,23 @@ class TippingElementElement(Element):
         -1.0
     """
 
-    x: float = state(default=-1.0)
-    c: float = parameter(default=0.0)
-    d: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    degree: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec()] = 0.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        degree: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.c = c
+        self.d = d
+        self.degree = degree
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fold with its coupling to the neighbours.
 
         Args:
@@ -122,5 +136,5 @@ def tipping_cascade_network(
         'd': d,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    elements = FieldElement('elements', TippingElementElement, NetworkSpace(graph), values=values)
+    elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
     return System(elements=[elements], time=ContinuousTime())

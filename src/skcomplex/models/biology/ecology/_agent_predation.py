@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 PREY = 'prey'
 
@@ -41,10 +44,17 @@ class PreyElement(Element):
         200
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.3})
-    birth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
+        *,
+        birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.birth = birth
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -91,11 +101,19 @@ class PredatorElement(Element):
         50
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.4})
-    conversion: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    death: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
+        *,
+        conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.conversion = conversion
+        self.death = death
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the hunting rule.
 
         Args:

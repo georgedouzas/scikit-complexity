@@ -3,10 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import PontryaginSolver
@@ -15,41 +20,41 @@ from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
 MAX_DOSE = 1.0
 
 
-def _tumour_share(s: Symbols) -> Expression:
+def _tumour_share(s: SimpleNamespace) -> Expression:
     """Return the tumour cells as a share of the tumour and normal cells, `A / (A + N)`."""
     patient = s.patient
     share: Expression = patient.A / (patient.A + patient.N)
     return share
 
 
-def _immune_ratio(s: Symbols) -> Expression:
+def _immune_ratio(s: SimpleNamespace) -> Expression:
     """Return the effector cells per tumour cell, `x / (y + 1)` in the scaled units."""
     site = s.site
     ratio: Expression = site.x / (site.y + 1)
     return ratio
 
 
-def _chemotherapy_cost(s: Symbols) -> Expression:
+def _chemotherapy_cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the chemotherapy, the tumour and the squared dose, `A + w u^2 / 2`."""
     patient = s.patient
     cost: Expression = patient.A + patient.w * patient.u**2 / 2
     return cost
 
 
-def _tumour(s: Symbols) -> Expression:
+def _tumour(s: SimpleNamespace) -> Expression:
     """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
     tumour: Expression = s.patient.A
     return tumour
 
 
-def _immunotherapy_cost(s: Symbols) -> Expression:
+def _immunotherapy_cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the immunotherapy, the tumour and the squared doses of both therapies."""
     site = s.site
     cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
     return cost
 
 
-def _tumour_site(s: Symbols) -> Expression:
+def _tumour_site(s: SimpleNamespace) -> Expression:
     """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
     tumour: Expression = s.site.y
     return tumour
@@ -91,10 +96,62 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
         0.5
     """
 
-    u: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
-    w: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: float = 0.15,
+        A: float = 0.25,
+        N: float = 1.0,
+        U: float = 0.0,
+        s: float = 0.33,
+        rho: float = 0.01,
+        alpha: float = 0.3,
+        c1: float = 1.0,
+        c2: float = 0.5,
+        c3: float = 1.0,
+        c4: float = 1.0,
+        d1: float = 0.2,
+        r1: float = 1.5,
+        r2: float = 1.0,
+        b1: float = 1.0,
+        b2: float = 1.0,
+        a1: float = 0.2,
+        a2: float = 0.3,
+        a3: float = 0.1,
+        k: float = 1.0,
+        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(
+            label,
+            visual=visual,
+            E=E,
+            A=A,
+            N=N,
+            U=U,
+            s=s,
+            rho=rho,
+            alpha=alpha,
+            c1=c1,
+            c2=c2,
+            c3=c3,
+            c4=c4,
+            d1=d1,
+            r1=r1,
+            r2=r2,
+            b1=b1,
+            b2=b2,
+            a1=a1,
+            a2=a2,
+            a3=a3,
+            k=k,
+            u=u,
+        )
+        self.w = w
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balances of the cells and of the drug.
 
         Args:
@@ -105,7 +162,7 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
             laws:
                 The laws of the component.
         """
-        return super().laws(s)
+        return super()._get_laws(s)
 
 
 class OptimalImmunotherapyElement(Element):
@@ -181,26 +238,51 @@ class OptimalImmunotherapyElement(Element):
         0.1245
     """
 
-    x: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    y: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    z: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    u1: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
-    u2: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_DOSE))
-    alpha_a: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
-    d1: float = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
-    rho1: float = parameter(default=0.1245, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=0.18, domain=NumericDomain.POSITIVE)
-    b: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
-    c1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    rho2: float = parameter(default=0.025, domain=NumericDomain.NONNEGATIVE)
-    alpha3: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    du: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    a1: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    a2: float = parameter(default=3.5, domain=NumericDomain.NONNEGATIVE)
-    w1: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    w2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u1: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        u2: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
+        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
+        w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.u1 = u1
+        self.u2 = u2
+        self.alpha_a = alpha_a
+        self.d1 = d1
+        self.rho1 = rho1
+        self.r1 = r1
+        self.b = b
+        self.c1 = c1
+        self.rho2 = rho2
+        self.alpha3 = alpha3
+        self.du = du
+        self.a1 = a1
+        self.a2 = a2
+        self.w1 = w1
+        self.w2 = w2
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balances of effector cells, tumour cells, and IL-2.
 
         Args:

@@ -4,17 +4,17 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import pi, sin
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.laws import UpdateLaw, mod, where
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import mod, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
@@ -22,10 +22,19 @@ GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 class LogisticMapElement(Element):
     """Logistic map element."""
 
-    x = state(0.2)
-    r = parameter(3.7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        r: Annotated[object, ParameterSpec()] = 3.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the logistic map element."""
         return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
 
@@ -33,12 +42,23 @@ class LogisticMapElement(Element):
 class HenonMapElement(Element):
     """Henon map element."""
 
-    x = state(0.0)
-    y = state(0.0)
-    a = parameter(1.4)
-    b = parameter(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        a: Annotated[object, ParameterSpec()] = 1.4,
+        b: Annotated[object, ParameterSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.a = a
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the henon map element."""
         return [UpdateLaw(s.x, 1 - s.a * s.x**2 + s.y), UpdateLaw(s.y, s.b * s.x)]
 
@@ -108,11 +128,21 @@ def henon_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.4, b: float = 0.3)
 class StandardMapElement(Element):
     """Standard map element."""
 
-    theta = state(0.0)
-    p = state(2 * math.pi * GOLDEN_MEAN)
-    K = parameter(1.2)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        p: Annotated[object, StateSpec()] = 2 * math.pi * GOLDEN_MEAN,
+        K: Annotated[object, ParameterSpec()] = 1.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.p = p
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the standard map element."""
         return [
             UpdateLaw(s.p, s.p + s.K * sin(s.theta)),
@@ -123,11 +153,21 @@ class StandardMapElement(Element):
 class CircleMapElement(Element):
     """Circle map element."""
 
-    theta = state(0.0)
-    Omega = parameter(0.25)
-    K = parameter(0.9)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        Omega: Annotated[object, ParameterSpec()] = 0.25,
+        K: Annotated[object, ParameterSpec()] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.Omega = Omega
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the circle map element."""
         return [UpdateLaw(s.theta, mod(s.theta + s.Omega - s.K / (2 * pi) * sin(2 * pi * s.theta), 1))]
 
@@ -135,10 +175,19 @@ class CircleMapElement(Element):
 class TentMapElement(Element):
     """Tent map element."""
 
-    x = state(0.3)
-    mu = parameter(1.99)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+        mu: Annotated[object, ParameterSpec()] = 1.99,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.mu = mu
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the tent map element."""
         return [UpdateLaw(s.x, s.mu * where(s.x < 1 / 2, s.x, 1 - s.x))]
 
@@ -146,13 +195,25 @@ class TentMapElement(Element):
 class BakerMapElement(Element):
     """Baker map element."""
 
-    x = state(0.2)
-    y = state(0.3)
-    alpha = parameter(1 / 3)
-    lambda_a = parameter(1 / 3)
-    lambda_b = parameter(2 / 3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        y: Annotated[object, StateSpec()] = 0.3,
+        alpha: Annotated[object, ParameterSpec()] = 1 / 3,
+        lambda_a: Annotated[object, ParameterSpec()] = 1 / 3,
+        lambda_b: Annotated[object, ParameterSpec()] = 2 / 3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.alpha = alpha
+        self.lambda_a = lambda_a
+        self.lambda_b = lambda_b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the baker map element."""
         return [
             UpdateLaw(s.x, where(s.x < s.alpha, s.x / s.alpha, (s.x - s.alpha) / (1 - s.alpha))),
@@ -163,13 +224,25 @@ class BakerMapElement(Element):
 class TowelMapElement(Element):
     """Towel map element."""
 
-    x = state(0.085)
-    y = state(-0.121)
-    z = state(0.075)
-    a = parameter(3.8)
-    b = parameter(3.78)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.085,
+        y: Annotated[object, StateSpec()] = -0.121,
+        z: Annotated[object, StateSpec()] = 0.075,
+        a: Annotated[object, ParameterSpec()] = 3.8,
+        b: Annotated[object, ParameterSpec()] = 3.78,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the towel map element."""
         return [
             UpdateLaw(s.x, s.a * s.x * (1 - s.x) - 0.05 * (s.y + 0.35) * (1 - 2 * s.z)),
@@ -181,10 +254,19 @@ class TowelMapElement(Element):
 class IntermittencyMapElement(Element):
     """Intermittency map element."""
 
-    x = state(0.01)
-    z = parameter(2.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.01,
+        z: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.z = z
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the intermittency map element."""
         return [UpdateLaw(s.x, mod(s.x + s.x**s.z, 1))]
 
@@ -192,10 +274,19 @@ class IntermittencyMapElement(Element):
 class NewtonMapElement(Element):
     """Newton map element."""
 
-    x = state(0.5)
-    y = state(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.5,
+        y: Annotated[object, StateSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the newton map element."""
         return [
             UpdateLaw(s.x, 2 * s.x / 3 + (s.x**2 - s.y**2) / (3 * (s.x**2 + s.y**2) ** 2)),
@@ -206,10 +297,19 @@ class NewtonMapElement(Element):
 class CatMapElement(Element):
     """Cat map element."""
 
-    x = state(0.1)
-    y = state(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cat map element."""
         return [UpdateLaw(s.x, mod(2 * s.x + s.y, 1)), UpdateLaw(s.y, mod(s.x + s.y, 1))]
 

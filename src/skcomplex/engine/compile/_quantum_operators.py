@@ -16,7 +16,8 @@ from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...core.errors import ValidationError
-from ...core.laws.utils import dagger, has_operator, local_operator, operator_product
+from ...core.laws.utils import dagger, has_operator, operator_product
+from ...core.laws.utils._quantum import LOCAL_OPERATOR
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -298,7 +299,7 @@ def operator_of(
     if not has_operator(value):
         return Operator({(): value})
     function, operands = value.operator(), value.operands()
-    if function == local_operator:
+    if function == LOCAL_OPERATOR:
         return _local_of(value, subsystems)
     if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
         function, operands = operator_product, [operands[0]] * int(operands[1])

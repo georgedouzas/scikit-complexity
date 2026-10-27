@@ -3,11 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import pi, sin
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, delayed
+from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class PopulationElement(Element):
@@ -26,10 +32,18 @@ class PopulationElement(Element):
         40
     """
 
-    n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class ExponentialGrowthInteraction(BaseInteraction):
+class ExponentialGrowthInteraction(Interaction):
     """Growth at a constant per capita rate, `dn/dt = r * n`.
 
     Args:
@@ -48,10 +62,18 @@ class ExponentialGrowthInteraction(BaseInteraction):
         0.5
     """
 
-    target: str = role()
-    r: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r * n`.
 
         Args:
@@ -65,7 +87,7 @@ class ExponentialGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class LogisticGrowthInteraction(BaseInteraction):
+class LogisticGrowthInteraction(Interaction):
     """Growth limited by a carrying capacity, `dn/dt = r * n * (1 - n / K)`.
 
     Args:
@@ -87,11 +109,20 @@ class LogisticGrowthInteraction(BaseInteraction):
         200
     """
 
-    target: str = role()
-    r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n / K)`.
 
         Args:
@@ -105,7 +136,7 @@ class LogisticGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
 
 
-class SeasonalLogisticGrowthInteraction(BaseInteraction):
+class SeasonalLogisticGrowthInteraction(Interaction):
     """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
 
     Args:
@@ -133,13 +164,24 @@ class SeasonalLogisticGrowthInteraction(BaseInteraction):
         12.0
     """
 
-    target: str = role()
-    r: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    amplitude: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    period: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.K = K
+        self.amplitude = amplitude
+        self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n / K(t))`.
 
         Args:
@@ -154,7 +196,7 @@ class SeasonalLogisticGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / capacity))]
 
 
-class DelayedLogisticGrowthInteraction(BaseInteraction):
+class DelayedLogisticGrowthInteraction(Interaction):
     """Growth limited by the population a delay ago, `dn/dt = r * n * (1 - n(t - tau) / K)`, of Hutchinson.
 
     The delay stands for maturation or resource regeneration. The equilibrium `K` loses stability to oscillations when
@@ -182,12 +224,22 @@ class DelayedLogisticGrowthInteraction(BaseInteraction):
         2.0
     """
 
-    target: str = role()
-    r: float = parameter(default=1.0, domain=NumericDomain.REAL)
-    K: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.K = K
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r * n * (1 - n(t - tau) / K)`.
 
         Args:
@@ -201,7 +253,7 @@ class DelayedLogisticGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n * (1 - delayed(s.target.n, s.tau) / s.K))]
 
 
-class MortalityInteraction(BaseInteraction):
+class MortalityInteraction(Interaction):
     """Death at a constant per capita rate, `dn/dt = -d * n`.
 
     Args:
@@ -220,10 +272,18 @@ class MortalityInteraction(BaseInteraction):
         0.4
     """
 
-    target: str = role()
-    d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.d = d
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `-d * n`.
 
         Args:
@@ -237,7 +297,7 @@ class MortalityInteraction(BaseInteraction):
         return [RateLaw(s.target.n, -s.d * s.target.n)]
 
 
-class PredationInteraction(BaseInteraction):
+class PredationInteraction(Interaction):
     """Lotka-Volterra predation, where encounters remove prey and feed predators.
 
     The prey loses `a * predator * prey` per unit time and the predator gains `b * predator * prey`.
@@ -264,12 +324,22 @@ class PredationInteraction(BaseInteraction):
         'rabbits'
     """
 
-    predator: str = role()
-    prey: str = role()
-    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        predator: Annotated[str, RoleSpec()],
+        prey: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label)
+        self.predator = predator
+        self.prey = prey
+        self.a = a
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rates `-a * predator * prey` and `b * predator * prey`.
 
         Args:

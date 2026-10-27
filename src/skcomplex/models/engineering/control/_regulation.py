@@ -3,14 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.sets.real_set import RealSet
 
 from ....analysis import linearize, lqr
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import EquationLaw, RateLaw, Symbols, derivative
-from ....core.specs import ObservableSpec
+from ....core.elements import Element
+from ....core.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
@@ -20,13 +24,13 @@ GRAVITY = 9.81
 FORCE_LIMIT = 50.0
 
 
-def _tilt(s: Symbols) -> Expression:
+def _tilt(s: SimpleNamespace) -> Expression:
     """Return the angle of the pendulum from upright."""
     tilt: Expression = s.cart.theta
     return tilt
 
 
-def _oscillator_energy(s: Symbols) -> Expression:
+def _oscillator_energy(s: SimpleNamespace) -> Expression:
     """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
     oscillator = s.oscillator
     energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
@@ -73,15 +77,33 @@ class CartPendulumElement(Element):
         0.1
     """
 
-    x: float = state(default=0.0, order=2)
-    theta: float = state(default=0.0, order=2)
-    force: float = parameter(default=0.0, adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))
-    M: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    m: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    l: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    g: float = parameter(default=GRAVITY, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        theta: Annotated[float, StateSpec(order=2)] = 0.0,
+        theta_d1: float = 0.0,
+        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
+        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.force = force
+        self.M = M
+        self.m = m
+        self.l = l
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the equations of motion of the cart and the pendulum.
 
         Args:
@@ -130,12 +152,25 @@ class DrivenOscillatorElement(Element):
         1.0
     """
 
-    x: float = state(default=0.0, order=2)
-    force: float = parameter(default=0.0, adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))
-    omega: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    zeta: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        zeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.force = force
+        self.omega = omega
+        self.zeta = zeta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the velocity.
 
         Args:

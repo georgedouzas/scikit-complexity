@@ -4,19 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols, UpdateLaw, shift_member
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import laplacian, shift_member
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 class ContourCellElement(Element):
@@ -48,12 +50,23 @@ class ContourCellElement(Element):
         2.5
     """
 
-    x: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    r: float = parameter(default=2.5, domain=NumericDomain.NONNEGATIVE)
-    c: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    p: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.5,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
+        self.c = c
+        self.p = p
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the logistic intracellular map and the uptake from the next cell of the contour.
 
         Args:
@@ -103,14 +116,27 @@ class ExchangingCellElement(Element):
         0.1
     """
 
-    x: float = state(default=1.0)
-    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    g: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    xi: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    degree: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.alpha = alpha
+        self.beta = beta
+        self.g = g
+        self.xi = xi
+        self.degree = degree
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the metabolism of the substance and its exchange through gap junctions and nanotubes.
 
         Args:
@@ -259,5 +285,5 @@ def nanotube_gap_junction_exchange(
         'xi': xi,
         'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
-    cells = FieldElement('cells', ExchangingCellElement, NetworkSpace(graph), values=values)
+    cells = FieldElement('cells', element=ExchangingCellElement, space=NetworkSpace(graph), values=values)
     return System(elements=[cells], time=ContinuousTime())

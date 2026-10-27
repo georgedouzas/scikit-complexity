@@ -3,10 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Sink, Symbols, TransferLaw, lookup, where
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw, Sink, TransferLaw
+from ....core.laws.utils import lookup, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -83,22 +89,22 @@ def _positive(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-def _cocoa_yield(s: Symbols) -> Expression:
+def _cocoa_yield(s: SimpleNamespace) -> Expression:
     """Return the yield of cocoa per area, which the insects and the removal of shade change."""
     return s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT)
 
 
-def _profit_per_area(s: Symbols) -> Expression:
+def _profit_per_area(s: SimpleNamespace) -> Expression:
     """Return the profit per area of cocoa land."""
     return s.price * _cocoa_yield(s) - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX
 
 
-def _profitability(s: Symbols) -> Expression:
+def _profitability(s: SimpleNamespace) -> Expression:
     """Return the profitability of cocoa land, the positive profit over the revenue."""
     return _positive(_profit_per_area(s)) / (s.price * _cocoa_yield(s))
 
 
-def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
+def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
     profitability = _profitability(s)
     desired = s.area * lookup(profitability, PROFITABILITY_EFFECT)
@@ -134,25 +140,49 @@ def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
 class PlantationElement(Element):
     """Plantation element."""
 
-    forest = state(default=490.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
-    area = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
-    abandoned = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='land')
-    shade_removal = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    insects = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    yield_normal = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    price = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
-    cost = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    thinning_cost = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    adjustment_time = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    abandon_time = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    conversion_time = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    palm_margin = parameter(default=0.4, domain=NumericDomain.POSITIVE)
-    thinning_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
-    insect_growth = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
-    insect_control = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    subsidy = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        forest: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 490.0,
+        area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 10.0,
+        abandoned: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.0,
+        shade_removal: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        insects: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        yield_normal: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        price: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+        cost: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        thinning_cost: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        abandon_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        conversion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        palm_margin: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+        thinning_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        insect_growth: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        insect_control: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        subsidy: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.forest = forest
+        self.area = area
+        self.abandoned = abandoned
+        self.shade_removal = shade_removal
+        self.insects = insects
+        self.yield_normal = yield_normal
+        self.price = price
+        self.cost = cost
+        self.thinning_cost = thinning_cost
+        self.adjustment_time = adjustment_time
+        self.abandon_time = abandon_time
+        self.conversion_time = conversion_time
+        self.palm_margin = palm_margin
+        self.thinning_time = thinning_time
+        self.insect_growth = insect_growth
+        self.insect_control = insect_control
+        self.subsidy = subsidy
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the plantation element."""
         return _cocoa_laws(s)
 

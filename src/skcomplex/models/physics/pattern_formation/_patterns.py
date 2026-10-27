@@ -5,22 +5,20 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
@@ -33,12 +31,23 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
 class GinzburgLandauElement(Element):
     """Ginzburg landau element."""
 
-    u = state(0.0)
-    v = state(0.0)
-    b = parameter(1.0)
-    c = parameter(-1.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        b: Annotated[object, ParameterSpec()] = 1.0,
+        c: Annotated[object, ParameterSpec()] = -1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.b = b
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the ginzburg landau element."""
         return [
             RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
@@ -49,10 +58,19 @@ class GinzburgLandauElement(Element):
 class SwiftHohenbergElement(Element):
     """Swift hohenberg element."""
 
-    u = state(0.0)
-    r = parameter(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        r: Annotated[object, ParameterSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the swift hohenberg element."""
         return [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)]
 
@@ -106,7 +124,15 @@ def complex_ginzburg_landau(
     values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        elements=[FieldElement('medium', GinzburgLandauElement, space, values=values, discretization='spectral')],
+        elements=[
+            FieldElement(
+                'medium',
+                element=GinzburgLandauElement,
+                space=space,
+                values=values,
+                discretization='spectral',
+            ),
+        ],
     )
 
 
@@ -153,5 +179,7 @@ def swift_hohenberg(
     values = {'u': _noise(shape, 0.01, random_state), 'r': r}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        elements=[FieldElement('cells', SwiftHohenbergElement, space, values=values, discretization='spectral')],
+        elements=[
+            FieldElement('cells', element=SwiftHohenbergElement, space=space, values=values, discretization='spectral'),
+        ],
     )

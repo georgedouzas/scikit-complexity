@@ -210,9 +210,7 @@ def _split_assignment(
         )
         raise ValidationError(error_msg)
     real_targets, real_values = _split_value(targets, values, description, state_of)
-    if isinstance(law, RateLaw | NoiseLaw):
-        return [type(law)((target,), value, law.order) for target, value in zip(real_targets, real_values, strict=True)]
-    return [type(law)((target,), value) for target, value in zip(real_targets, real_values, strict=True)]
+    return [replaced(law, target=target, value=value) for target, value in zip(real_targets, real_values, strict=True)]
 
 
 def _split_event(event: CrossingLaw, owner: str, state_of: Callable[[Expression], str]) -> CrossingLaw:

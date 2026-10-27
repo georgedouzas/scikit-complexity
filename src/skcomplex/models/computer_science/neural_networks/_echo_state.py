@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import sin, tanh
+from sage.all__sagemath_symbolics import oo, sin, tanh
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, total
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import total
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 def _recurrent_weights(
@@ -71,23 +74,27 @@ class ReservoirUnitElement(Element):
         0.3
     """
 
-    r: float = state(default=0.0)
-    w_in: float = parameter(default=1.0)
-    leak: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    amplitude: float = parameter(default=1.0)
-    frequency: float = parameter(default=0.2)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
-        weights: Any = None,  # noqa: ANN401
-        **values: Any,  # noqa: ANN401
+        r: Annotated[float, StateSpec()] = 0.0,
+        w_in: Annotated[float, ParameterSpec()] = 1.0,
+        leak: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        amplitude: Annotated[float, ParameterSpec()] = 1.0,
+        frequency: Annotated[float, ParameterSpec()] = 0.2,
+        weights: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.r = r
+        self.w_in = w_in
+        self.leak = leak
+        self.amplitude = amplitude
+        self.frequency = frequency
         self.weights = weights
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the leaky update of the activity.
 
         Args:

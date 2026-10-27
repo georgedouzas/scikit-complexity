@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -106,13 +110,24 @@ class StrategistElement(Element):
         ('agents', 'StrategistElement', 10)
     """
 
-    genome: npt.ArrayLike = state(default=1.0, vector=True)
-    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    death: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    mutation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        genome: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 1.0,
+        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.genome = genome
+        self.fitness = fitness
+        self.death = death
+        self.mutation = mutation
 
 
-class TournamentInteraction(BaseInteraction):
+class TournamentInteraction(Interaction):
     """Tournament and selection of strategies of the iterated prisoner's dilemma.
 
     Every step the agents stand in a random ring and play their two neighbours, and their fitness is their mean score
@@ -138,19 +153,18 @@ class TournamentInteraction(BaseInteraction):
         6
     """
 
-    target: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
         rounds: int = 6,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
         self.rounds = rounds
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the tournament rule.
 
         Args:

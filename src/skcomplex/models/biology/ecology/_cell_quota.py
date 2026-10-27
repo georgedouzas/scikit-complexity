@@ -3,9 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -50,16 +56,31 @@ class QuotaPhytoplanktonElement(Element):
         2.0
     """
 
-    Q: float = state(default=1.5, domain=NumericDomain.POSITIVE)
-    P: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r_inf: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    q: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    vmax: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    g: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    R: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Q: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.5,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r_inf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        vmax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Q = Q
+        self.P = P
+        self.r_inf = r_inf
+        self.q = q
+        self.vmax = vmax
+        self.g = g
+        self.R = R
+        self.d = d
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the uptake and dilution of the quota and the growth and death of the biomass.
 
         Args:

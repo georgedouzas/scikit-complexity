@@ -4,26 +4,27 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role, state
-
-from ....core.base import BaseInteraction, Expression, NumericDomain, ValidationError, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, mean
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import mean
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')
 
 
-def _stuart_landau_rates(s: Symbols) -> tuple[Expression, Expression]:
+def _stuart_landau_rates(s: SimpleNamespace) -> tuple[Expression, Expression]:
     """Return the real and imaginary parts of `τ ((β + iω) z - |z|² z)` for `z = x + iy`."""
     growth = s.beta - s.x**2 - s.y**2
     return s.tau * (growth * s.x - s.omega * s.y), s.tau * (growth * s.y + s.omega * s.x)
@@ -33,25 +34,47 @@ class StuartLandauElement(Element):
     """Stuart landau element."""
 
     visual = VisualSpec('points', {'position': 'x', 'states': ()})
-    x = state(1.0)
-    y = state(0.0)
-    beta = parameter(1.0)
-    omega = parameter(0.0)
-    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        beta: Annotated[object, ParameterSpec()] = 1.0,
+        omega: Annotated[object, ParameterSpec()] = 0.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.beta = beta
+        self.omega = omega
+        self.tau = tau
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the stuart landau element."""
         return [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])]
 
 
-class GlobalCouplingInteraction(BaseInteraction):
+class GlobalCouplingInteraction(Interaction):
     """Global coupling interaction."""
 
-    target = role()
-    source = role()
-    K = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        source: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the global coupling interaction."""
         return [
             RateLaw(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
@@ -59,22 +82,22 @@ class GlobalCouplingInteraction(BaseInteraction):
         ]
 
 
-def _amplitude(member: Symbols) -> Expression:
+def _amplitude(member: SimpleNamespace) -> Expression:
     """Return the amplitude `|z|` of an oscillator."""
     return sqrt(member.x**2 + member.y**2)
 
 
-def _order(s: Symbols) -> Expression:
+def _order(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean field `X + iY`."""
     return sqrt(s.X**2 + s.Y**2)
 
 
-def _time_scale_deviation_x(member: Symbols) -> Expression:
+def _time_scale_deviation_x(member: SimpleNamespace) -> Expression:
     """Return the product of the deviation of the time scale from its mean 1 and the first variable."""
     return (member.tau - 1) * member.x
 
 
-def _time_scale_deviation_y(member: Symbols) -> Expression:
+def _time_scale_deviation_y(member: SimpleNamespace) -> Expression:
     """Return the product of the deviation of the time scale from its mean 1 and the second variable."""
     return (member.tau - 1) * member.y
 
@@ -250,6 +273,6 @@ def heterogeneous_global_coupling(
         values={'x': radius * x, 'y': radius * y, 'beta': beta, 'omega': gamma, 'tau': taus},
     )
     return System(
-        systems=[systems],
+        elements=[systems],
         interactions=[GlobalCouplingInteraction('coupling', target='systems', source='systems', K=k)],
     )

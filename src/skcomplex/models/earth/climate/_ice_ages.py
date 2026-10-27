@@ -3,20 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
-from sage.all__sagemath_symbolics import cos, pi
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import parameter
-
-from ....core.base import BaseLaw, Expression, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _saltzman_laws(s: Symbols) -> list[BaseLaw]:
+def _saltzman_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the feedbacks of ice volume, carbon dioxide, and deep ocean temperature, with orbital forcing."""
     orbital = cos(2 * pi * s.t0 * s.t / 22.1) - cos(2 * pi * s.t0 * s.t / 44.1)
     return [
@@ -31,7 +31,7 @@ def _saturation(c: Any, crossover: Any, exponent: Any) -> Expression:  # noqa: A
     return c**exponent / (c**exponent + crossover**exponent)
 
 
-def _carbon_laws(s: Symbols) -> list[BaseLaw]:
+def _carbon_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return Rothman's balance of carbonate ion and dissolved inorganic carbon."""
     burial = s.b * _saturation(s.c, s.c_p, s.gamma)
     respiration = s.theta * (1 - _saturation(s.c, s.c_x, s.gamma))
@@ -45,23 +45,40 @@ def _carbon_laws(s: Symbols) -> list[BaseLaw]:
 class SaltzmanMaaschElement(Element):
     """Saltzman maasch element."""
 
-    x = state(-0.2)
-    y = state(1.0)
-    z = state(0.0)
-    p = parameter(1.0)
-    q = parameter(2.5)
-    r = parameter(1.3)
-    s = parameter(0.6)
-    u = parameter(0.2)
-    nu = parameter(0.0)
-    t0 = parameter(10.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = -0.2,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        p: Annotated[object, ParameterSpec()] = 1.0,
+        q: Annotated[object, ParameterSpec()] = 2.5,
+        r: Annotated[object, ParameterSpec()] = 1.3,
+        s: Annotated[object, ParameterSpec()] = 0.6,
+        u: Annotated[object, ParameterSpec()] = 0.2,
+        nu: Annotated[object, ParameterSpec()] = 0.0,
+        t0: Annotated[object, ParameterSpec()] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.p = p
+        self.q = q
+        self.r = r
+        self.s = s
+        self.u = u
+        self.nu = nu
+        self.t0 = t0
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the saltzman maasch element."""
         return _saltzman_laws(s)
 
 
-def _ice_age_laws(s: Symbols) -> list[BaseLaw]:
+def _ice_age_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the slow ice volume and the fast climate of a Van der Pol relaxation oscillator under orbital forcing."""
     forcing = cos(2 * pi * s.t / 23) + cos(2 * pi * s.t / 41)
     return [
@@ -73,14 +90,27 @@ def _ice_age_laws(s: Symbols) -> list[BaseLaw]:
 class VanDerPolIceAgesElement(Element):
     """Van der pol ice ages element."""
 
-    x = state(0.0)
-    y = state(1.0)
-    alpha = parameter(30.0)
-    beta = parameter(0.75)
-    gamma = parameter(0.0)
-    tau = parameter(35.09)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        alpha: Annotated[object, ParameterSpec()] = 30.0,
+        beta: Annotated[object, ParameterSpec()] = 0.75,
+        gamma: Annotated[object, ParameterSpec()] = 0.0,
+        tau: Annotated[object, ParameterSpec()] = 35.09,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the van der pol ice ages element."""
         return _ice_age_laws(s)
 
@@ -88,21 +118,41 @@ class VanDerPolIceAgesElement(Element):
 class CarbonCycleElement(Element):
     """Carbon cycle element."""
 
-    c = state(default=83.58, domain=NumericDomain.POSITIVE)
-    w = state(default=2050.0, domain=NumericDomain.POSITIVE)
-    mu = parameter(250.0)
-    b = parameter(4.0)
-    theta = parameter(5.0)
-    c_x = parameter(55.0)
-    c_p = parameter(110.0)
-    nu = parameter(0.0)
-    w0 = parameter(2000.0)
-    gamma = parameter(4.0)
-    f0 = parameter(0.694)
-    c_f = parameter(43.9)
-    beta = parameter(1.7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        c: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 83.58,
+        w: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 2050.0,
+        mu: Annotated[object, ParameterSpec()] = 250.0,
+        b: Annotated[object, ParameterSpec()] = 4.0,
+        theta: Annotated[object, ParameterSpec()] = 5.0,
+        c_x: Annotated[object, ParameterSpec()] = 55.0,
+        c_p: Annotated[object, ParameterSpec()] = 110.0,
+        nu: Annotated[object, ParameterSpec()] = 0.0,
+        w0: Annotated[object, ParameterSpec()] = 2000.0,
+        gamma: Annotated[object, ParameterSpec()] = 4.0,
+        f0: Annotated[object, ParameterSpec()] = 0.694,
+        c_f: Annotated[object, ParameterSpec()] = 43.9,
+        beta: Annotated[object, ParameterSpec()] = 1.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.c = c
+        self.w = w
+        self.mu = mu
+        self.b = b
+        self.theta = theta
+        self.c_x = c_x
+        self.c_p = c_p
+        self.nu = nu
+        self.w0 = w0
+        self.gamma = gamma
+        self.f0 = f0
+        self.c_f = c_f
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the carbon cycle element."""
         return _carbon_laws(s)
 

@@ -3,19 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import floor
+from sage.all__sagemath_symbolics import Expression, floor, oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import Expression, NumericDomain, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, mod, where
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import mod, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
@@ -24,11 +24,22 @@ class CubicWalkElement(Element):
     """Cubic walk element."""
 
     visual = VisualSpec('points', {'position': 'y', 'states': ()})
-    x = state(0.3)
-    y = state(0.0)
-    lam = parameter(default=15.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+        y: Annotated[object, StateSpec()] = 0.0,
+        lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.lam = lam
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cubic walk element."""
         return [
             UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
@@ -39,10 +50,19 @@ class CubicWalkElement(Element):
 class SkewTentMapElement(Element):
     """Skew tent map element."""
 
-    x = state(0.4)
-    a = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.4,
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the skew tent map element."""
         return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
 
@@ -50,15 +70,24 @@ class SkewTentMapElement(Element):
 class DoublingMapElement(Element):
     """Doubling map element."""
 
-    x = state(0.4)
-    q = parameter(default=DOUBLING_DENOMINATOR, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.4,
+        q: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = DOUBLING_DENOMINATOR,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.q = q
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the doubling map element."""
         return [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)]
 
 
-def _square_displacement(member: Symbols) -> Expression:
+def _square_displacement(member: SimpleNamespace) -> Expression:
     """Return the squared position of a walker."""
     return member.y**2
 

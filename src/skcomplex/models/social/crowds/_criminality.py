@@ -4,16 +4,20 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import EncounterLaw, RateLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, EncounterLaw, RateLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -110,7 +114,7 @@ def deterrence_table(classes: int, forces: int) -> tuple[npt.NDArray[np.float64]
     return pattern, table
 
 
-def mean_criminality(s: Symbols, criminality: npt.NDArray[np.float64]) -> Expression:
+def mean_criminality(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -> Expression:
     """Return the mean criminality of a distribution of citizens.
 
     Args:
@@ -127,7 +131,7 @@ def mean_criminality(s: Symbols, criminality: npt.NDArray[np.float64]) -> Expres
     return moment(s.f, 1, criminality, normalized=True)
 
 
-def criminal_fraction(s: Symbols, criminality: npt.NDArray[np.float64]) -> Expression:
+def criminal_fraction(s: SimpleNamespace, criminality: npt.NDArray[np.float64]) -> Expression:
     """Return the fraction of citizens whose criminality is at least one half.
 
     Args:
@@ -144,7 +148,7 @@ def criminal_fraction(s: Symbols, criminality: npt.NDArray[np.float64]) -> Expre
     return moment(s.f, 1, (criminality >= CRIMINAL_THRESHOLD).astype(float), normalized=True)
 
 
-def security_density(s: Symbols, forces: int) -> Expression:
+def security_density(s: SimpleNamespace, forces: int) -> Expression:
     """Return the density of the security forces.
 
     Args:
@@ -177,7 +181,15 @@ class CitizensElement(Element):
         5
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
 
 
 class SecurityAgentsElement(Element):
@@ -199,11 +211,20 @@ class SecurityAgentsElement(Element):
         3
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    share: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
+        self.share = share
 
 
-class CriminalContagionInteraction(BaseInteraction):
+class CriminalContagionInteraction(Interaction):
     """Conservative encounters between citizens, in which crime attracts and honesty redeems.
 
     Args:
@@ -231,13 +252,24 @@ class CriminalContagionInteraction(BaseInteraction):
         0.3
     """
 
-    citizens: str = role()
-    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
-    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    attraction: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    redemption: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        citizens: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        redemption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.citizens = citizens
+        self.classes = classes
+        self.eta = eta
+        self.attraction = attraction
+        self.redemption = redemption
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the citizens with themselves.
 
         Args:
@@ -252,7 +284,7 @@ class CriminalContagionInteraction(BaseInteraction):
         return [EncounterLaw(s.citizens.f, s.citizens.f, s.eta, table)]
 
 
-class DeterrenceInteraction(BaseInteraction):
+class DeterrenceInteraction(Interaction):
     """Encounters of citizens with security forces, which move criminal citizens toward honesty.
 
     Args:
@@ -280,13 +312,24 @@ class DeterrenceInteraction(BaseInteraction):
         2.0
     """
 
-    citizens: str = role()
-    security: str = role()
-    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
-    forces: int = parameter(default=3, domain=NumericDomain.POSITIVE)
-    deterrence: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        citizens: Annotated[str, RoleSpec()],
+        security: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
+        forces: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        deterrence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.citizens = citizens
+        self.security = security
+        self.classes = classes
+        self.forces = forces
+        self.deterrence = deterrence
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the citizens with the security forces.
 
         Args:
@@ -301,7 +344,7 @@ class DeterrenceInteraction(BaseInteraction):
         return [EncounterLaw(s.citizens.f, s.security.f, pattern * s.deterrence, table)]
 
 
-class RecruitmentInteraction(BaseInteraction):
+class RecruitmentInteraction(Interaction):
     """Recruitment of security agents in proportion to the mean criminality, a macro-scale external action.
 
     The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean
@@ -332,13 +375,24 @@ class RecruitmentInteraction(BaseInteraction):
         0.1
     """
 
-    citizens: str = role()
-    security: str = role()
-    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
-    recruitment: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    retirement: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        citizens: Annotated[str, RoleSpec()],
+        security: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
+        recruitment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        retirement: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.citizens = citizens
+        self.security = security
+        self.classes = classes
+        self.recruitment = recruitment
+        self.retirement = retirement
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the security forces.
 
         Args:

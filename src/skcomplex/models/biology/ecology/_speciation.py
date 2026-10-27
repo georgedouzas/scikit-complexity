@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -41,10 +44,17 @@ class OrganismElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'species'})
-    species: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'species'}),
+        *,
+        species: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.species = species
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the replacement moves every individual.
 
         Args:
@@ -58,7 +68,7 @@ class OrganismElement(Element):
         return []
 
 
-class NeutralReplacementInteraction(BaseInteraction):
+class NeutralReplacementInteraction(Interaction):
     """Deaths of random individuals at unit rate, each replaced by the offspring of another, a new species at rate `nu`.
 
     One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the other `N - 1`
@@ -80,10 +90,18 @@ class NeutralReplacementInteraction(BaseInteraction):
         0.01
     """
 
-    community: str = role()
-    nu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        community: Annotated[str, RoleSpec()],
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label)
+        self.community = community
+        self.nu = nu
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the replacement rule.
 
         Args:

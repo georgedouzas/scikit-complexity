@@ -3,16 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, lag, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import lag, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 MAX_RECOVERY = 12
 
 
-def _infected_or_immune(center: Symbols) -> Expression:
+def _infected_or_immune(center: SimpleNamespace) -> Expression:
     """Return the fraction of a center infected now or in the last `recovery` steps, who cannot be infected."""
     past = sum(where(step <= center.recovery, lag(center.x, step), 0) for step in range(1, MAX_RECOVERY + 1))
     return center.x + past
@@ -42,12 +50,25 @@ class EpidemicCenterElement(Element):
         6
     """
 
-    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE, lags=MAX_RECOVERY, initial=(0.0,) * MAX_RECOVERY)
-    a: float = parameter(default=2.2, domain=NumericDomain.NONNEGATIVE)
-    recovery: int = parameter(default=6, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[
+            float,
+            StateSpec(domain=RealSet.closed_open(0, oo), lags=MAX_RECOVERY, initial=(0.0,) * MAX_RECOVERY),
+        ] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.2,
+        recovery: Annotated[int, ParameterSpec(domain=NN)] = 6,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.recovery = recovery
 
 
-class VisitsInteraction(BaseInteraction):
+class VisitsInteraction(Interaction):
     """Infection of a center by its own infected and by a fraction of the infected of another center who visit it.
 
     The next infected fraction is `x' = a (x + e y) s`, where `y` is the infected fraction of the other center and
@@ -72,11 +93,20 @@ class VisitsInteraction(BaseInteraction):
         0.01
     """
 
-    home: str = role()
-    away: str = role()
-    e: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        home: Annotated[str, RoleSpec()],
+        away: Annotated[str, RoleSpec()],
+        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+    ) -> None:
+        super().__init__(label)
+        self.home = home
+        self.away = away
+        self.e = e
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the next infected fraction of the home center.
 
         Args:

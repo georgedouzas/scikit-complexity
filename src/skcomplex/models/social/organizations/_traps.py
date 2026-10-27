@@ -3,27 +3,33 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import distributed_delay, lookup, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
 
-def _success(s: Symbols) -> Expression:
+def _success(s: SimpleNamespace) -> Expression:
     """Return the past success of the first competitor, its fraction of all resources."""
     return s.a / (s.a + s.b)
 
 
-def _allocation(s: Symbols) -> Expression:
+def _allocation(s: SimpleNamespace) -> Expression:
     """Return the share of the budget the first competitor gets."""
     return lookup(_success(s), ALLOCATION_TABLE)
 
 
-def _contest_laws(s: Symbols) -> list[BaseLaw]:
+def _contest_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of two competitors that share a budget in proportion to their past success."""
     allocation = _allocation(s)
     return [
@@ -37,22 +43,33 @@ def _contest_laws(s: Symbols) -> list[BaseLaw]:
 class ContestElement(Element):
     """Contest element."""
 
-    a = state(default=55.0, domain=NumericDomain.NONNEGATIVE, quantity='resources')
-    b = state(default=45.0, domain=NumericDomain.NONNEGATIVE, quantity='resources')
-    budget = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    lifetime = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
+        budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.budget = budget
+        self.lifetime = lifetime
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the contest element."""
         return _contest_laws(s)
 
 
-def _symptom(s: Symbols) -> Expression:
+def _symptom(s: SimpleNamespace) -> Expression:
     """Return the symptom, the gap between the desired and the current state of the problem."""
     return s.desired - s.capability - s.intervention
 
 
-def _burden_laws(s: Symbols) -> list[BaseLaw]:
+def _burden_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of a problem that a quick fix relieves while it erodes the capability of a fundamental one."""
     symptom = _symptom(s)
     building = distributed_delay(symptom, conserved=False, time=s.solution_delay) / s.build_time
@@ -66,30 +83,44 @@ def _burden_laws(s: Symbols) -> list[BaseLaw]:
 class BurdenElement(Element):
     """Burden element."""
 
-    capability = state(default=0.5, domain=NumericDomain.NONNEGATIVE, quantity='capability')
-    intervention = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='intervention')
-    desired = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    fix_rate = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    build_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    solution_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    erosion = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
+        intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
+        desired: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        fix_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        build_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.capability = capability
+        self.intervention = intervention
+        self.desired = desired
+        self.fix_rate = fix_rate
+        self.build_time = build_time
+        self.solution_delay = solution_delay
+        self.erosion = erosion
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the burden element."""
         return _burden_laws(s)
 
 
-def _desired_a(s: Symbols) -> Expression:
+def _desired_a(s: SimpleNamespace) -> Expression:
     """Return the stock the first party desires, a margin above its delayed view of the second's."""
     return (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay)
 
 
-def _desired_b(s: Symbols) -> Expression:
+def _desired_b(s: SimpleNamespace) -> Expression:
     """Return the stock the second party desires, a margin above its delayed view of the first's."""
     return (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay)
 
 
-def _escalation_laws(s: Symbols) -> list[BaseLaw]:
+def _escalation_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of two parties that each build their stock up to a margin above their view of the other's."""
     desired_a, desired_b = _desired_a(s), _desired_b(s)
     build_a = where(desired_a > s.a, desired_a - s.a, 0) / s.adjustment_time
@@ -103,13 +134,25 @@ def _escalation_laws(s: Symbols) -> list[BaseLaw]:
 class ArmsRaceElement(Element):
     """Arms race element."""
 
-    a = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='arms')
-    b = state(default=10.5, domain=NumericDomain.NONNEGATIVE, quantity='arms')
-    margin = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    adjustment_time = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    perception_delay = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
+        margin: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.margin = margin
+        self.adjustment_time = adjustment_time
+        self.perception_delay = perception_delay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the arms race element."""
         return _escalation_laws(s)
 

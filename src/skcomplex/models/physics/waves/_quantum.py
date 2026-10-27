@@ -3,34 +3,46 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import DissipatorLaw, GeneratorLaw, RateLaw, Symbols
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement
+from ....core.errors import ValidationError
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
+from ....core.laws.utils import laplacian, local_operator
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
-from ...core.base import BaseLaw
-from ..realizations.quantum import SiteElement
+from ..realizations.quantum import SiteElement, site_space
 
 
 class WaveFunctionElement(Element):
     """Wave function element."""
 
-    u = state(0.0)
-    w = state(0.0)
-    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    V = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        w: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        V: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.w = w
+        self.D = D
+        self.V = V
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the wave function element."""
         return [
             RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
@@ -41,24 +53,18 @@ class WaveFunctionElement(Element):
 FORMULATIONS = ('fields', 'operators')
 
 
-class LatticeHamiltonianInteraction(BaseInteraction):
+class LatticeHamiltonianInteraction(Interaction):
     """Hamiltonian `-D laplacian + V` of a particle on the sites of a lattice.
 
     Args:
         label:
             The label of the interaction.
 
-        potential:
-            The potential at every site.
+        target:
+            The path of the particle, whose Hilbert space holds the operators `laplacian` and `potential`.
 
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the particle.
-
-            D:
-                The coefficient of the Laplacian, `ħ / (2 m)`.
+        D:
+            The coefficient of the Laplacian, `ħ / (2 m)`.
 
     Examples:
         >>> from skcomplex.models.physics.waves import LatticeHamiltonianInteraction
@@ -66,20 +72,18 @@ class LatticeHamiltonianInteraction(BaseInteraction):
         0.5
     """
 
-    target: str = role()
-    D: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
-        potential: Any = 0.0,  # noqa: ANN401
-        **values: Any,  # noqa: ANN401
+        target: Annotated[str, RoleSpec()],
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, **values)
-        self.potential = potential
+        super().__init__(label)
+        self.target = target
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the Hamiltonian of the particle.
 
         Args:
@@ -90,10 +94,11 @@ class LatticeHamiltonianInteraction(BaseInteraction):
             laws:
                 The Hamiltonian.
         """
-        return [GeneratorLaw(-s.D * s.target.laplacian + s.target.diagonal(self.potential))]
+        psi = s.target.psi
+        return [GeneratorLaw(-s.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential'))]
 
 
-class PositionDephasingInteraction(BaseInteraction):
+class PositionDephasingInteraction(Interaction):
     """Dephasing of a particle in the position basis, one dissipator per site projector at the rate `gamma`.
 
     Args:
@@ -101,10 +106,13 @@ class PositionDephasingInteraction(BaseInteraction):
             The label of the interaction.
 
         target:
-            The path of the particle.
+            The path of the particle, whose Hilbert space holds the site projectors `site_<k>`.
 
         gamma:
             The dephasing rate.
+
+        n_sites:
+            The number of sites.
 
     Examples:
         >>> from skcomplex.models.physics.waves import PositionDephasingInteraction
@@ -112,10 +120,20 @@ class PositionDephasingInteraction(BaseInteraction):
         0.5
     """
 
-    target: str = role()
-    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        n_sites: int = 1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gamma = gamma
+        self.n_sites = n_sites
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the dissipators of the site projectors.
 
         Args:
@@ -126,7 +144,7 @@ class PositionDephasingInteraction(BaseInteraction):
             laws:
                 The dissipators.
         """
-        return [DissipatorLaw(s.target.projector(site), s.gamma) for site in s.target.sites]
+        return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
 
 
 @register_model(
@@ -212,19 +230,21 @@ def schrodinger(
     if formulation == 'operators':
         amplitudes = psi / np.linalg.norm(psi)
         interactions: list[BaseInteraction] = [
-            LatticeHamiltonianInteraction('kinetic', target='packet', D=D, potential=potential),
+            LatticeHamiltonianInteraction('kinetic', target='packet', D=D),
         ]
         if gamma > 0:
-            interactions.append(PositionDephasingInteraction('dephasing', target='packet', gamma=gamma))
+            interactions.append(
+                PositionDephasingInteraction('dephasing', target='packet', gamma=gamma, n_sites=n_sites),
+            )
         return System(
             'schrodinger',
-            elements=[SiteElement('packet', space=space, initial=amplitudes)],
+            elements=[SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=gamma > 0))],
             interactions=interactions,
         )
     packet = FieldElement(
         'packet',
-        WaveFunctionElement,
-        space,
+        element=WaveFunctionElement,
+        space=space,
         values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
         discretization='spectral',
     )

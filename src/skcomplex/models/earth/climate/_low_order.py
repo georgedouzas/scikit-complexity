@@ -3,38 +3,54 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
+from sage.all__sagemath_symbolics import SR, vector
 
-from skcomplex.core.declarations import parameter
-
-from ....core.base import BaseLaw, state, vector
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _lorenz_96_laws(s: Symbols) -> list[BaseLaw]:
+def _lorenz_96_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the advection, damping, and forcing of every site of the Lorenz-96 ring."""
     x = s.x
     n_sites = len(x)
     rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + s.F for i in range(n_sites)]
-    return [RateLaw(s.x, vector(rates))]
+    return [RateLaw(s.x, vector(SR, rates))]
 
 
 class Lorenz84Element(Element):
     """Lorenz84 element."""
 
-    x = state(1.0)
-    y = state(1.0)
-    z = state(1.0)
-    a = parameter(0.25)
-    b = parameter(4.0)
-    F = parameter(8.0)
-    G = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 0.25,
+        b: Annotated[object, ParameterSpec()] = 4.0,
+        F: Annotated[object, ParameterSpec()] = 8.0,
+        G: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
+        self.F = F
+        self.G = G
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the lorenz84 element."""
         return [
             RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
@@ -46,10 +62,19 @@ class Lorenz84Element(Element):
 class Lorenz96Element(Element):
     """Lorenz96 element."""
 
-    x = state(default=8.0, vector=True)
-    F = parameter(8.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True)] = 8.0,
+        F: Annotated[object, ParameterSpec()] = 8.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.F = F
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the lorenz96 element."""
         return _lorenz_96_laws(s)
 
@@ -57,14 +82,27 @@ class Lorenz96Element(Element):
 class GeodynamoElement(Element):
     """Geodynamo element."""
 
-    Q = state(0.1)
-    D = state(0.1)
-    V = state(0.1)
-    mu = parameter(0.119)
-    nu = parameter(0.1)
-    Gamma = parameter(0.9)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Q: Annotated[object, StateSpec()] = 0.1,
+        D: Annotated[object, StateSpec()] = 0.1,
+        V: Annotated[object, StateSpec()] = 0.1,
+        mu: Annotated[object, ParameterSpec()] = 0.119,
+        nu: Annotated[object, ParameterSpec()] = 0.1,
+        Gamma: Annotated[object, ParameterSpec()] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Q = Q
+        self.D = D
+        self.V = V
+        self.mu = mu
+        self.nu = nu
+        self.Gamma = Gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the geodynamo element."""
         return [
             RateLaw(s.Q, s.mu * s.Q - s.V * s.D),

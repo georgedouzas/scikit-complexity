@@ -3,18 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, LocalRuleLaw, RateLaw, Symbols
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.laws import BaseLaw, JumpLaw, LocalRuleLaw, RateLaw
 from ....core.spaces import BoxNeighborhood, LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -70,12 +72,23 @@ class MicrostateElement(Element):
         0.5
     """
 
-    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    U: float = state(default=0.0)
-    beta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    w: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U: Annotated[float, StateSpec()] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.P = P
+        self.U = U
+        self.beta = beta
+        self.w = w
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the master equation step.
 
         Args:
@@ -117,12 +130,23 @@ class ZoneElement(Element):
         100.0
     """
 
-    N: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    Na: float = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        N: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        Na: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.N = N
+        self.Na = Na
+        self.p = p
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the entries into and exits from the zone.
 
         Args:
@@ -175,15 +199,29 @@ class OrderParameterElement(Element):
         1.0
     """
 
-    phi: float = state(default=0.1)
-    a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    T: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    Tc: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    h: float = parameter(default=0.0)
-    Gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[float, StateSpec()] = 0.1,
+        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        Tc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+        Gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.a = a
+        self.b = b
+        self.T = T
+        self.Tc = Tc
+        self.h = h
+        self.Gamma = Gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the relaxation down the gradient of the free energy.
 
         Args:

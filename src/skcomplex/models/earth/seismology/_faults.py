@@ -4,18 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -50,20 +52,21 @@ class FaultElement(Element):
         0.2
     """
 
-    force: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        force: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         threshold: float = 1.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.force = force
+        self.alpha = alpha
         self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the uniform loading and the slipping relaxation.
 
         Args:

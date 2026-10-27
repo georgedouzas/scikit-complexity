@@ -3,25 +3,37 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter, state
 
-from ....core.components import Element
-from ....core.laws import UpdateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class SoilTemperatureElement(Element):
     """Soil temperature element."""
 
-    x = state(0.3)
-    y = state(0.1)
-    r = parameter(3.8)
-    epsilon = parameter(0.1)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+        y: Annotated[object, StateSpec()] = 0.1,
+        r: Annotated[object, ParameterSpec()] = 3.8,
+        epsilon: Annotated[object, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.r = r
+        self.epsilon = epsilon
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the soil temperature element."""
         return [
             UpdateLaw(s.x, s.r * s.x * (1 - s.x) + s.epsilon * s.y),

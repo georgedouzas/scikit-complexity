@@ -4,22 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
@@ -27,14 +25,27 @@ type Array = npt.NDArray[np.float64]
 class GrayScottElement(Element):
     """Gray scott element."""
 
-    u = state(1.0)
-    v = state(0.0)
-    Du = parameter(0.16)
-    Dv = parameter(0.08)
-    F = parameter(0.035)
-    k = parameter(0.065)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        Du: Annotated[object, ParameterSpec()] = 0.16,
+        Dv: Annotated[object, ParameterSpec()] = 0.08,
+        F: Annotated[object, ParameterSpec()] = 0.035,
+        k: Annotated[object, ParameterSpec()] = 0.065,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.Du = Du
+        self.Dv = Dv
+        self.F = F
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the gray scott element."""
         return [
             RateLaw(s.u, s.Du * laplacian(s.u) - s.u * s.v**2 + s.F * (1 - s.u)),
@@ -45,14 +56,27 @@ class GrayScottElement(Element):
 class BrusselatorElement(Element):
     """Brusselator element."""
 
-    u = state(1.0)
-    v = state(3.0)
-    a = parameter(1.0)
-    b = parameter(3.0)
-    Du = parameter(1.0)
-    Dv = parameter(8.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 3.0,
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        b: Annotated[object, ParameterSpec()] = 3.0,
+        Du: Annotated[object, ParameterSpec()] = 1.0,
+        Dv: Annotated[object, ParameterSpec()] = 8.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.a = a
+        self.b = b
+        self.Du = Du
+        self.Dv = Dv
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the brusselator element."""
         return [
             RateLaw(s.u, s.Du * laplacian(s.u) + s.a - (s.b + 1) * s.u + s.u**2 * s.v),
@@ -63,14 +87,27 @@ class BrusselatorElement(Element):
 class SchnakenbergElement(Element):
     """Schnakenberg element."""
 
-    u = state(1.0)
-    v = state(0.9)
-    a = parameter(0.1)
-    b = parameter(0.9)
-    Du = parameter(1.0)
-    Dv = parameter(40.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 0.9,
+        a: Annotated[object, ParameterSpec()] = 0.1,
+        b: Annotated[object, ParameterSpec()] = 0.9,
+        Du: Annotated[object, ParameterSpec()] = 1.0,
+        Dv: Annotated[object, ParameterSpec()] = 40.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.a = a
+        self.b = b
+        self.Du = Du
+        self.Dv = Dv
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the schnakenberg element."""
         return [
             RateLaw(s.u, s.Du * laplacian(s.u) + s.a - s.u + s.u**2 * s.v),
@@ -134,7 +171,7 @@ def gray_scott(
     u[middle], v[middle] = 0.5, 0.25
     noise = _noise(shape, 0.01, random_state)
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(elements=[FieldElement('cells', GrayScottElement, LatticeSpace(shape), values=values)])
+    return System(elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -191,7 +228,9 @@ def brusselator(
         'Du': Du,
         'Dv': Dv,
     }
-    return System(elements=[FieldElement('cells', BrusselatorElement, LatticeSpace(shape), values=values)])
+    return System(
+        elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
+    )
 
 
 @register_model(
@@ -258,6 +297,11 @@ def schnakenberg(
     }
     return System(
         elements=[
-            FieldElement('cells', SchnakenbergElement, LatticeSpace(shape, spacing=spacing), values=values),
+            FieldElement(
+                'cells',
+                element=SchnakenbergElement,
+                space=LatticeSpace(shape, spacing=spacing),
+                values=values,
+            ),
         ],
     )

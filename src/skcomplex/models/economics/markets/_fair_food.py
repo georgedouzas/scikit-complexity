@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._learning import logit_choice
 
 
@@ -60,17 +63,31 @@ class ConsumerElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)})
-    fair: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    ethics: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    budget: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    premium: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    ethics_weight: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    price_weight: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    social_weight: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)}),
+        *,
+        fair: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        ethics: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        budget: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        premium: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        ethics_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        price_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        social_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.fair = fair
+        self.ethics = ethics
+        self.budget = budget
+        self.premium = premium
+        self.ethics_weight = ethics_weight
+        self.price_weight = price_weight
+        self.social_weight = social_weight
+        self.intensity = intensity
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the shopping rule in the phase of shopping.
 
         Args:

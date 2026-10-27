@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -50,11 +51,19 @@ class NeuronElement(Element):
         ('neurons', 'NeuronElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    weights: object = state(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)}),
+        *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        weights: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.weights = weights
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update rule.
 
         Args:

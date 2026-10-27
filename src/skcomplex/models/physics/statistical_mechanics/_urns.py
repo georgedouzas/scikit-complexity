@@ -3,22 +3,36 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import UpdateLaw, bernoulli
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import bernoulli
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class EhrenfestUrnElement(Element):
     """Ehrenfest urn element."""
 
-    n = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    N = parameter(40, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(domain=NN)] = 0,
+        N: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.N = N
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the ehrenfest urn element."""
         return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))]
 

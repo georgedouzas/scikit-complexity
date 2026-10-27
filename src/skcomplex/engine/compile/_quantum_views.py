@@ -1,7 +1,7 @@
 """Define views of quantum elements, whose states lie in Hilbert spaces, as the quantum compiler reads them.
 
-An element is a quantum subsystem when it takes a `HilbertSpec` as an argument of its constructor and declares a state
-over `CC^dimension`, such as `psi: Annotated[object, StateSpec(domain=CC^2)] = 'up'`. A group of such elements takes
+An element is a quantum subsystem when it takes a `HilbertSpec` as an argument of its constructor and declares a complex
+state, over `CC` or over `CC^dimension`, such as `psi: Annotated[object, StateSpec(domain=CC)] = 'up'`. A group of such elements takes
 the spec of its members, which `values` may replace like any other argument.
 """
 
@@ -24,7 +24,7 @@ NORM_TOLERANCE = 1e-8
 
 
 def hilbert_state(element_type: type) -> str | None:
-    """Return the name of the state of an element type over a complex vector space, or `None` for a classical type.
+    """Return the name of the complex state of an element type, over `CC` or `CC^dimension`, or `None` for none.
 
     Args:
         element_type:
@@ -49,7 +49,7 @@ def hilbert_state(element_type: type) -> str | None:
     """
     for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
         base_ring = getattr(declaration.domain, 'base_ring', None)
-        if base_ring is not None and declaration.domain is not CC and base_ring() is CC:
+        if declaration.domain is CC or (base_ring is not None and base_ring() is CC):
             return name
     return None
 
@@ -140,8 +140,8 @@ class QuantumView:
         name = hilbert_state(type(self.element))
         if name is None:
             error_msg = (
-                f'{type(self.element).__name__} {self.element.label!r} takes a HilbertSpec but declares no state over '
-                'CC^dimension. Declare its state as `StateSpec(domain=CC^dimension)`.'
+                f'{type(self.element).__name__} {self.element.label!r} takes a HilbertSpec but declares no complex '
+                'state. Declare its state as `StateSpec(domain=CC)`.'
             )
             raise ValidationError(error_msg)
         return name
@@ -154,7 +154,8 @@ class QuantumView:
             error_msg = f'{type(self.element).__name__} {self.label!r} takes no HilbertSpec.'
             raise ValidationError(error_msg)
         space.check()
-        dimension = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain.dimension()
+        domain = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain
+        dimension = space.dimension if domain is CC else domain.dimension()
         if dimension != space.dimension:
             error_msg = (
                 f'{type(self.element).__name__} {self.label!r} has its state {self.state} over CC^{dimension}, but its '

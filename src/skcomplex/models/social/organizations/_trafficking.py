@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 MONTH = 30
 QUARTER = 90
@@ -58,12 +62,23 @@ class PremisesElement(Element):
         ('premises', 'PremisesElement', 3)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)})
-    brothel: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    bills: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    last_bills: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    efficiency: float = state(default=1.0)
-    day: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'brothel', 'color_range': (0.0, 1.0)}),
+        *,
+        brothel: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        last_bills: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        efficiency: Annotated[float, StateSpec()] = 1.0,
+        day: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.brothel = brothel
+        self.bills = bills
+        self.last_bills = last_bills
+        self.efficiency = efficiency
+        self.day = day
 
 
 class TravellerElement(Element):
@@ -86,12 +101,20 @@ class TravellerElement(Element):
         ('women', 'TravellerElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)})
-    victim: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    trips: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'victim', 'color_range': (0.0, 1.0)}),
+        *,
+        victim: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        trips: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.victim = victim
+        self.trips = trips
 
 
-class DailyMovementsInteraction(BaseInteraction):
+class DailyMovementsInteraction(Interaction):
     """Day of the brothel movement model.
 
     One random free woman moves to a random cell of a random city. Every month the traffickers move a random number
@@ -121,20 +144,20 @@ class DailyMovementsInteraction(BaseInteraction):
         3
     """
 
-    women: str = role()
-    premises: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        women: Annotated[str, RoleSpec()],
+        premises: Annotated[str, RoleSpec()],
         n_cities: int = 3,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.women = women
+        self.premises = premises
         self.n_cities = n_cities
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the daily rule.
 
         Args:

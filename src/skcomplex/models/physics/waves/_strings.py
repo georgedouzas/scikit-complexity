@@ -4,34 +4,43 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import Expression, NumericDomain, parameter, role, vector
-from ....core.components import Element
-from ....core.elements import FieldElement, ParticleElement
+from ....core.elements import Element, FieldElement, ParticleElement
 from ....core.interactions import PotentialInteraction
-from ....core.laws import RateLaw, Symbols
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerletSolver
-from ...core.base import BaseLaw
 from ..realizations.particles import SpringInteraction
 
 
 class WaveStringElement(Element):
     """Wave string element."""
 
-    u = state(0.0)
-    v = state(0.0)
-    c = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the wave string element."""
         return [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))]
 
@@ -72,13 +81,24 @@ class DrivenAnchorInteraction(PotentialInteraction):
         0.1
     """
 
-    target: str = role()
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    center: list[float] = parameter(default=0.0, vector=True)
-    amplitude: float = parameter(default=0.0)
-    omega: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        center: Annotated[list[float], ParameterSpec(vector=True)] = 0.0,
+        amplitude: Annotated[float, ParameterSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.center = center
+        self.amplitude = amplitude
+        self.omega = omega
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `k |x - center - (0, amplitude sin(omega t))|² / 2`.
 
         Args:
@@ -89,7 +109,7 @@ class DrivenAnchorInteraction(PotentialInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        anchor = s.center + vector([0, s.amplitude * sin(s.omega * s.t)])
+        anchor = s.center + vector(SR, [0, s.amplitude * sin(s.omega * s.t)])
         displacement = s.target.x - anchor
         return s.k * displacement.dot_product(displacement) / 2
 
@@ -224,8 +244,8 @@ def standing_waves(
     edges = ('fixed', 0.0)
     string = FieldElement(
         'string',
-        WaveStringElement,
-        space,
+        element=WaveStringElement,
+        space=space,
         boundary={'u': edges, 'v': edges},
         values={'u': shape, 'c': c},
     )

@@ -3,11 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import role
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Sink, Source, Symbols, TransferLaw, UpdateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, Sink, Source, TransferLaw, UpdateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -15,24 +21,50 @@ from ....engine.runtime import register_model
 class HouseholdsElement(Element):
     """Households element."""
 
-    deposits = state(default=60.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 60.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.deposits = deposits
 
 
 class FirmsElement(Element):
     """Firms element."""
 
-    deposits = state(default=20.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
-    loans = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
-    sales = state(default=40.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 20.0,
+        loans: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        sales: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.deposits = deposits
+        self.loans = loans
+        self.sales = sales
 
 
 class MonetaryBankElement(Element):
     """Monetary bank element."""
 
-    deposits = state(default=10.0, domain=NumericDomain.NONNEGATIVE, quantity='money')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.deposits = deposits
 
 
-def _circuit(s: Symbols) -> list[BaseLaw]:
+def _circuit(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the transactions of one period between households, firms, and the bank."""
     households, firms, bank = s.households, s.firms, s.bank
     consumption = s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits
@@ -50,22 +82,39 @@ def _circuit(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-class CircuitInteraction(BaseInteraction):
+class CircuitInteraction(Interaction):
     """Circuit interaction."""
 
-    households = role()
-    firms = role()
-    bank = role()
-    alpha_income = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
-    alpha_wealth = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
-    wage_share = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
-    interest = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
-    payout = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    distribution = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    credit = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    repayment = parameter(default=0.08, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        households: Annotated[object, RoleSpec()],
+        firms: Annotated[object, RoleSpec()],
+        bank: Annotated[object, RoleSpec()],
+        alpha_income: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        alpha_wealth: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        wage_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        interest: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        payout: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        distribution: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        credit: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        repayment: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+    ) -> None:
+        super().__init__(label)
+        self.households = households
+        self.firms = firms
+        self.bank = bank
+        self.alpha_income = alpha_income
+        self.alpha_wealth = alpha_wealth
+        self.wage_share = wage_share
+        self.interest = interest
+        self.payout = payout
+        self.distribution = distribution
+        self.credit = credit
+        self.repayment = repayment
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the circuit interaction."""
         return _circuit(s)
 

@@ -3,27 +3,38 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import sqrt
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import HeunSolver
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
-from ...core.laws import Symbols
 
 
 class IntermittentVariableElement(Element):
     """Intermittent variable element."""
 
-    x = state(default=1.0, domain=NumericDomain.POSITIVE)
-    epsilon = parameter(0.0)
-    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[object, ParameterSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.epsilon = epsilon
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the intermittent variable element."""
         return [
             RateLaw(s.x, s.epsilon * s.x - s.x**3),

@@ -4,17 +4,21 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import EncounterLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, EncounterLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -177,7 +181,7 @@ def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.f
     return pattern, table
 
 
-def evacuated_fraction(s: Symbols, rooms: int, speeds: int) -> Expression:
+def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     """Return the fraction of the crowd that has left the building.
 
     Args:
@@ -198,7 +202,7 @@ def evacuated_fraction(s: Symbols, rooms: int, speeds: int) -> Expression:
     return moment(s.f, 1, outside, normalized=True)
 
 
-def mean_speed(s: Symbols, rooms: int, speeds: int) -> Expression:
+def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     """Return the mean walking speed of the crowd, as a fraction of the free speed.
 
     Args:
@@ -234,10 +238,18 @@ class PedestriansElement(Element):
         1
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
 
 
-class WalkingInteraction(BaseInteraction):
+class WalkingInteraction(Interaction):
     """Walking of pedestrians to the next room on the way out, an encounter with the exit signs.
 
     Args:
@@ -268,14 +280,26 @@ class WalkingInteraction(BaseInteraction):
         0.5
     """
 
-    crowd: str = role()
-    signs: str = role()
-    branching: int = parameter(default=2, domain=NumericDomain.POSITIVE)
-    depth: int = parameter(default=2, domain=NumericDomain.POSITIVE)
-    speeds: int = parameter(default=3, domain=NumericDomain.POSITIVE)
-    mobility: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        crowd: Annotated[str, RoleSpec()],
+        signs: Annotated[str, RoleSpec()],
+        branching: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
+        depth: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
+        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        mobility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.crowd = crowd
+        self.signs = signs
+        self.branching = branching
+        self.depth = depth
+        self.speeds = speeds
+        self.mobility = mobility
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the crowd with the exit signs.
 
         Args:
@@ -291,7 +315,7 @@ class WalkingInteraction(BaseInteraction):
         return [EncounterLaw(s.crowd.f, s.signs.f, pattern * s.mobility, table)]
 
 
-class CrowdingInteraction(BaseInteraction):
+class CrowdingInteraction(Interaction):
     """Encounters that slow pedestrians down in crowded rooms, and the exit signs that speed them up again.
 
     Two pedestrians in the same room meet at the rate `crowding`, and the candidate slows down one speed class. A
@@ -326,14 +350,26 @@ class CrowdingInteraction(BaseInteraction):
         2.0
     """
 
-    crowd: str = role()
-    signs: str = role()
-    rooms: int = parameter(default=7, domain=NumericDomain.POSITIVE)
-    speeds: int = parameter(default=3, domain=NumericDomain.POSITIVE)
-    crowding: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    recovery: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        crowd: Annotated[str, RoleSpec()],
+        signs: Annotated[str, RoleSpec()],
+        rooms: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
+        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        crowding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.crowd = crowd
+        self.signs = signs
+        self.rooms = rooms
+        self.speeds = speeds
+        self.crowding = crowding
+        self.recovery = recovery
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the slowing encounters within rooms and the recovery with the exit signs.
 
         Args:

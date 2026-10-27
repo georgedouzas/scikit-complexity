@@ -3,30 +3,41 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, RuleLaw, Symbols, UpdateLaw
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class NodeContentElement(Element):
     """Node content element."""
 
-    u = state(0.0)
-    D = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the node content element."""
         return [RateLaw(s.u, s.D * laplacian(s.u))]
 
@@ -34,12 +45,23 @@ class NodeContentElement(Element):
 class NodeRankElement(Element):
     """Node rank element."""
 
-    rank = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    damping = parameter(0.85, domain=NumericDomain.NONNEGATIVE)
-    degree = parameter(1.0, domain=NumericDomain.POSITIVE)
-    n_nodes = parameter(1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rank: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        damping: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
+        degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n_nodes: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rank = rank
+        self.damping = damping
+        self.degree = degree
+        self.n_nodes = n_nodes
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the node rank element."""
         return [
             UpdateLaw(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
@@ -63,10 +85,17 @@ class NetworkWalkerElement(Element):
         ('walkers', 'NetworkWalkerElement', 5)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'steps'})
-    steps: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'steps'}),
+        *,
+        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.steps = steps
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule.
 
         Args:
@@ -168,7 +197,7 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     graph = _graph_or_default(graph)
     initial = np.zeros(graph.number_of_nodes())
     initial[source] = 1.0
-    nodes = FieldElement('nodes', NodeContentElement, NetworkSpace(graph), values={'u': initial, 'D': D})
+    nodes = FieldElement('nodes', element=NodeContentElement, space=NetworkSpace(graph), values={'u': initial, 'D': D})
     return System(elements=[nodes])
 
 
@@ -204,4 +233,4 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     size = graph.number_of_nodes()
     degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
     values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    return System(elements=[FieldElement('pages', NodeRankElement, NetworkSpace(graph), values=values)])
+    return System(elements=[FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)])

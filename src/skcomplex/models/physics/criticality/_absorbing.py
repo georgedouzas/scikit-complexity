@@ -4,38 +4,52 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class ActiveFieldElement(Element):
     """Active field element."""
 
-    rho = state(0.5)
-    nu = state(1.0)
-    a = parameter(-1.0)
-    b = parameter(1.0)
-    c = parameter(1.0)
-    d = parameter(1.0)
-    e = parameter(0.2)
-    f = parameter(0.0)
-    g = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec()] = 0.5,
+        nu: Annotated[object, StateSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = -1.0,
+        b: Annotated[object, ParameterSpec()] = 1.0,
+        c: Annotated[object, ParameterSpec()] = 1.0,
+        d: Annotated[object, ParameterSpec()] = 1.0,
+        e: Annotated[object, ParameterSpec()] = 0.2,
+        f: Annotated[object, ParameterSpec()] = 0.0,
+        g: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.nu = nu
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.e = e
+        self.f = f
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the active field element."""
         return [
             RateLaw(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
@@ -132,4 +146,6 @@ def directed_percolation_langevin(
         'f': f,
         'g': g,
     }
-    return System(elements=[FieldElement('neurons', ActiveFieldElement, LatticeSpace(shape), values=values)])
+    return System(
+        elements=[FieldElement('neurons', element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
+    )

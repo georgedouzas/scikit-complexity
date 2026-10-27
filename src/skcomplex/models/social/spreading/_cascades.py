@@ -3,19 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class ThresholdNodeElement(Element):
@@ -38,11 +42,19 @@ class ThresholdNodeElement(Element):
         ('nodes', 'ThresholdNodeElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)})
-    active: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    threshold: float = state(default=0.18, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'active', 'color_range': (0.0, 1.0)}),
+        *,
+        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.active = active
+        self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the activation rule.
 
         Args:

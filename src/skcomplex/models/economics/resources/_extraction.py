@@ -4,11 +4,16 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Sink, Source, Symbols, TransferLaw, lookup, where
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import lookup, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -75,33 +80,38 @@ class OilEconomyElement(Element):
         4.0
     """
 
-    resource: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='oil')
-    capital: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE, quantity='capital')
-    price: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    cost: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    growth_goal: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        resource: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='oil')] = 1000.0,
+        capital: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capital')] = 5.0,
+        price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        growth_goal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
         yield_table: Sequence[float] = OIL_YIELD,
         price_table: Sequence[float] | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.resource = resource
+        self.capital = capital
+        self.price = price
+        self.cost = cost
+        self.growth_goal = growth_goal
+        self.lifetime = lifetime
         self.yield_table = yield_table
         self.price_table = price_table
 
-    def _profit(self, s: Symbols, efficiency: Expression) -> Expression:
+    def _profit(self, s: SimpleNamespace, efficiency: Expression) -> Expression:
         """Return the profit of the extraction at a yield per unit of capital."""
         price = s.price
         if self.price_table is not None:
             price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
         return price * s.capital * efficiency - s.cost * s.capital
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the extraction from the resource and the investment in and depreciation of the capital.
 
         Args:
@@ -165,27 +175,31 @@ class FisheryElement(Element):
         15.0
     """
 
-    resource: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='fish')
-    capital: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE, quantity='capital')
-    cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    growth_goal: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        resource: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 1000.0,
+        capital: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capital')] = 5.0,
+        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        growth_goal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
         yield_table: Sequence[float] = FISH_YIELD,
         regeneration_table: Sequence[float] = REGENERATION,
         price_table: Sequence[float] = PRICE_BY_YIELD,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.resource = resource
+        self.capital = capital
+        self.cost = cost
+        self.growth_goal = growth_goal
+        self.lifetime = lifetime
         self.yield_table = yield_table
         self.regeneration_table = regeneration_table
         self.price_table = price_table
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regeneration and harvest of the resource and the investment in and depreciation of the capital.
 
         Args:

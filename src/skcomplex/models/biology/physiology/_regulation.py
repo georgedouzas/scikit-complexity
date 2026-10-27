@@ -3,11 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -88,37 +94,51 @@ class GlucoseControlElement(Element):
         2.0
     """
 
-    G: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    I: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    N: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    R: float = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
-    k0: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    k_i: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    k_n: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    s_i: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    s_n: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    d_i: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    d_n: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    n: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    meal: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    exercise: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        k0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        s_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        d_n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        meal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        exercise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
         meal_time: float = 2.0,
         exercise_time: float = 12.0,
         duration: float = 2.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.G = G
+        self.I = I
+        self.N = N
+        self.R = R
+        self.k0 = k0
+        self.k_i = k_i
+        self.k_n = k_n
+        self.s_i = s_i
+        self.s_n = s_n
+        self.d_i = d_i
+        self.d_n = d_n
+        self.K = K
+        self.n = n
+        self.meal = meal
+        self.exercise = exercise
         self.meal_time = meal_time
         self.exercise_time = exercise_time
         self.duration = duration
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the glucose balance and the secretion and clearance of insulin and glucagon.
 
         Args:
@@ -214,35 +234,49 @@ class CoagulationElement(Element):
         1.0
     """
 
-    T: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    C: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    F: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    ka: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    k_half: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    d_t: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    k_c: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    s_c: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    d_c: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    s_f: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    k_p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    s_p: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    d_p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    injury: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        F: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ka: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        k_half: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        d_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        d_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        s_f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        d_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        injury: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         injury_time: float = 1.0,
         duration: float = 1.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.C = C
+        self.F = F
+        self.P = P
+        self.ka = ka
+        self.k_half = k_half
+        self.d_t = d_t
+        self.k_c = k_c
+        self.s_c = s_c
+        self.d_c = d_c
+        self.s_f = s_f
+        self.k_p = k_p
+        self.s_p = s_p
+        self.d_p = d_p
+        self.injury = injury
         self.injury_time = injury_time
         self.duration = duration
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the activation and inactivation of thrombin, protein C, fibrin, and plasmin.
 
         Args:

@@ -4,11 +4,18 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -49,14 +56,27 @@ class GProteinElement(Element):
         0.5
     """
 
-    g: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    k_on: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    k_gtp: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    hormone: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    start: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    width: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        g: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k_on: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k_gtp: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        hormone: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.g = g
+        self.k_on = k_on
+        self.k_gtp = k_gtp
+        self.hormone = hormone
+        self.start = start
+        self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the activation by the hormone pulse and the inactivation by GTP hydrolysis.
 
         Args:
@@ -90,10 +110,19 @@ class CascadeStageElement(Element):
         2.0
     """
 
-    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the inactivation `-beta x`.
 
         Args:
@@ -107,7 +136,7 @@ class CascadeStageElement(Element):
         return [RateLaw(s.x, -s.beta * s.x)]
 
 
-class ActivationInteraction(BaseInteraction):
+class ActivationInteraction(Interaction):
     """Activation of a cascade stage by the active form of the stage above it, at the rate `alpha` times its amount.
 
     Args:
@@ -135,21 +164,22 @@ class ActivationInteraction(BaseInteraction):
         5.0
     """
 
-    upstream: str = role()
-    downstream: str = role()
-    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        upstream: Annotated[str, RoleSpec()],
+        downstream: Annotated[str, RoleSpec()],
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         state_name: str = 'x',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.upstream = upstream
+        self.downstream = downstream
+        self.alpha = alpha
         self.state_name = state_name
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the activation `alpha` times the active upstream amount.
 
         Args:

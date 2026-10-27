@@ -3,16 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import NumericDomain, ValidationError, parameter
 from ....core.elements import PatchElement, WordElement
-from ....core.laws import ProductionLaw, SubstitutionLaw, Symbols
-from ....core.specs import AffineSpec, PrototileSpec
+from ....core.errors import ValidationError
+from ....core.laws import ProductionLaw, SubstitutionLaw
+from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 from ....core.system import System
-from ....engine.runtime import WordGeometry, register_model
+from ....engine.runtime import register_model
 
 SHAPES = ('triangle', 'carpet')
 
@@ -39,16 +44,19 @@ class KochElement(WordElement):
         label:
             The label of the word.
 
-        **settings:
-            The settings and the values of the declared variables of a word, by name.
+        axiom:
+            The word at generation 0.
+
+        geometry:
+            How the word is drawn as line segments, or `None` for no geometry.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import KochElement
-        >>> KochElement('koch', axiom='F').laws(None)[0].productions()[0].text
-        'F → F+F--F+F'
+        >>> KochElement('koch', axiom='F')._get_laws(None)[0].successor
+        'F+F--F+F'
     """
 
-    def laws(self, s: Symbols) -> list[RewritingLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
         """Return the production of the Koch curve.
 
         Args:
@@ -57,10 +65,10 @@ class KochElement(WordElement):
 
         Returns:
             laws:
-                The rewriting law of the word.
+                The production of the word.
         """
         del s
-        return [RewriteLaw([ProductionLaw('F', 'F+F--F+F')])]
+        return [ProductionLaw('F', 'F+F--F+F')]
 
 
 class CantorElement(PatchElement):
@@ -70,11 +78,11 @@ class CantorElement(PatchElement):
         label:
             The label of the patch.
 
-        **settings:
-            The settings and the values of the declared variables of a patch, by name:
+        ratio:
+            The length of each kept part relative to its interval.
 
-            ratio:
-                The length of each kept part relative to its interval.
+        prototiles:
+            The prototiles of the patch.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import CantorElement
@@ -82,9 +90,30 @@ class CantorElement(PatchElement):
         0.25
     """
 
-    ratio: float = parameter(1 / 3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
+        *,
+        ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1 / 3,
+        prototiles: Sequence[PrototileSpec] = (),
+        filled: bool = False,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            tiles,
+            prototiles=prototiles,
+            filled=filled,
+            max_size=max_size,
+            bounds=bounds,
+            visual=visual,
+        )
+        self.ratio = ratio
 
-    def laws(self, s: Symbols) -> list[RewritingLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
         """Return the substitution of every interval by its two outer parts.
 
         Args:
@@ -93,13 +122,13 @@ class CantorElement(PatchElement):
 
         Returns:
             laws:
-                The rewriting law of the patch.
+                The substitution of the patch.
         """
         pieces = [
             ('interval', AffineSpec(scale=s.ratio)),
             ('interval', AffineSpec(scale=s.ratio, translation=(1 - s.ratio, 0))),
         ]
-        return [RewriteLaw([SubstitutionLaw('interval', pieces)])]
+        return [SubstitutionLaw('interval', pieces)]
 
 
 class SierpinskiElement(PatchElement):
@@ -112,20 +141,39 @@ class SierpinskiElement(PatchElement):
         shape:
             `'triangle'` or `'carpet'`.
 
-        **settings:
-            The settings and the values of the declared variables of a patch, by name.
+        prototiles:
+            The prototiles of the patch.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import SierpinskiElement
-        >>> len(SierpinskiElement('sierpinski', shape='carpet').laws(None)[0].productions()[0].pieces)
+        >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
         8
     """
 
-    def __init__(self, label: str, *, shape: str = 'triangle', **settings: Any) -> None:  # noqa: ANN401
-        super().__init__(label, **settings)
+    def __init__(
+        self,
+        label: str,
+        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
+        *,
+        shape: str = 'triangle',
+        prototiles: Sequence[PrototileSpec] = (),
+        filled: bool = False,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            tiles,
+            prototiles=prototiles,
+            filled=filled,
+            max_size=max_size,
+            bounds=bounds,
+            visual=visual,
+        )
         self.shape = shape
 
-    def laws(self, s: Symbols) -> list[RewritingLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
         """Return the substitution of every polygon by its scaled copies.
 
         Args:
@@ -134,7 +182,7 @@ class SierpinskiElement(PatchElement):
 
         Returns:
             laws:
-                The rewriting law of the patch.
+                The substitution of the patch.
 
         Raises:
             ValidationError:
@@ -142,7 +190,7 @@ class SierpinskiElement(PatchElement):
         """
         del s
         prototile, pieces = _sierpinski_tiles(self.shape)
-        return [RewriteLaw([SubstitutionLaw(prototile.name, pieces)])]
+        return [SubstitutionLaw(prototile.name, pieces)]
 
 
 @register_model(
@@ -175,7 +223,7 @@ def koch_curve(angle: float = 60.0) -> System:
         'koch',
         axiom='F',
         alphabet='F+-',
-        geometry=WordGeometry(angle=angle, step=1.0, contraction=1 / 3),
+        geometry=GeometrySpec(angle=angle, step=1.0, contraction=1 / 3),
         bounds=(-0.03, -0.05, 1.03, 0.35),
     )
     return System(elements=[word])

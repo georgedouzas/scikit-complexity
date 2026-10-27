@@ -3,39 +3,62 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import sin
+from types import SimpleNamespace
+from typing import Annotated
 
-from skcomplex.core.declarations import role
+from sage.all__sagemath_symbolics import oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, derivative
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class GridNodeElement(Element):
     """Grid node element."""
 
-    phi = state(default=0.0, order=2)
-    P = parameter(1.0)
-    gamma = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec(order=2)] = 0.0,
+        phi_d1: float = 0.0,
+        P: Annotated[object, ParameterSpec()] = 1.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.phi_d1 = phi_d1
+        self.P = P
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the grid node element."""
         return [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))]
 
 
-class TransmissionLineInteraction(BaseInteraction):
+class TransmissionLineInteraction(Interaction):
     """Transmission line interaction."""
 
-    first = role()
-    second = role()
-    K = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RoleSpec()],
+        second: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the transmission line interaction."""
         return [
             RateLaw(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),

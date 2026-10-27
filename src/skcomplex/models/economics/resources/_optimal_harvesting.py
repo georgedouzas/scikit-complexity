@@ -3,12 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.specs import ObservableSpec
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import CollocationSolver
@@ -16,14 +19,14 @@ from ....engine.solvers import CollocationSolver
 MAX_EFFORT = 1.0
 
 
-def _catch(s: Symbols) -> Expression:
+def _catch(s: SimpleNamespace) -> Expression:
     """Return the catch per unit time, `q E x`."""
     resource = s.resource
     catch: Expression = resource.q * resource.effort * resource.x
     return catch
 
 
-def _profit(s: Symbols) -> Expression:
+def _profit(s: SimpleNamespace) -> Expression:
     """Return the discounted profit per unit time, `exp(-delta t) (p q x - c) E`."""
     resource = s.resource
     margin = resource.p * resource.q * resource.x - resource.c
@@ -74,16 +77,31 @@ class HarvestedResourceElement(Element):
         0.5
     """
 
-    x: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    effort: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_EFFORT))
-    r: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    q: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    c: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    delta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        effort: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_EFFORT))] = 0.0,
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.effort = effort
+        self.r = r
+        self.K = K
+        self.q = q
+        self.p = p
+        self.c = c
+        self.delta = delta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth less the catch.
 
         Args:

@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 type Array = npt.NDArray[np.float64]
 type Integers = npt.NDArray[np.int64]
@@ -107,12 +111,20 @@ class StrategyElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'score'})
-    actions: object = state(default=0.0)
-    score: float = state(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'score'}),
+        *,
+        actions: Annotated[object, StateSpec()] = 0.0,
+        score: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.actions = actions
+        self.score = score
 
 
-class EvolutionInteraction(BaseInteraction):
+class EvolutionInteraction(Interaction):
     """Generation of a genetic algorithm: score every strategy in random rooms and breed the next generation.
 
     Every strategy cleans `sessions` random rooms of side `side`, with a can in each cell with probability `density`,
@@ -151,26 +163,26 @@ class EvolutionInteraction(BaseInteraction):
         10
     """
 
-    mutation: float = parameter(0.005, domain=NumericDomain.NONNEGATIVE)
-    population: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        population: Annotated[str, RoleSpec()],
         sessions: int = 10,
         n_actions: int = 100,
         side: int = 10,
         density: float = 0.5,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.mutation = mutation
+        self.population = population
         self.sessions = sessions
         self.n_actions = n_actions
         self.side = side
         self.density = density
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one generation.
 
         Args:

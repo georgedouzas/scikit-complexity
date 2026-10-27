@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state, vector
-from ....core.components import Element
-from ....core.laws import FractionalNoiseLaw, JumpLaw, NoiseLaw, RateLaw, Symbols, UpdateLaw, draw, normal
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, FractionalNoiseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import draw, normal
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
-from ...core.elements import GroupElement
 
 POINTS = VisualSpec('points', {'position': 'x'})
 
@@ -53,13 +56,23 @@ class ContinuousTimeWalkerElement(Element):
         0.7
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.alpha = alpha
+        self.tau0 = tau0
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps after power-law waiting times.
 
         Args:
@@ -108,14 +121,25 @@ class LevyWalkerElement(Element):
         2.0
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    v: npt.ArrayLike = state(default=0.0, vector=True)
-    sigma: float = parameter(default=1.5, domain=NumericDomain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    speed: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.sigma = sigma
+        self.tau0 = tau0
+        self.speed = speed
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flight at constant velocity and the turns after power-law flight times.
 
         Args:
@@ -165,13 +189,23 @@ class TransientWalkerElement(Element):
         2.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)})
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    D: float = state(default=0.5, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+        self.sigma = sigma
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the diffusion and the renewals of the diffusion coefficient.
 
         Args:
@@ -211,12 +245,21 @@ class FractionalWalkerElement(Element):
         0.3
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    D: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    H: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        H: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+        self.H = H
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fractional noise.
 
         Args:
@@ -252,12 +295,21 @@ class LevyFlierElement(Element):
         1.2
     """
 
-    visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    mu: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
-    l0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
+        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.mu = mu
+        self.l0 = l0
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps of power-law lengths.
 
         Args:
@@ -270,7 +322,7 @@ class LevyFlierElement(Element):
         """
         length = draw('length', 'pareto', b=s.mu, scale=s.l0)
         jumps = [item + length * step for item, step in zip(s.x, _direction('direction', len(list(s.x))), strict=True)]
-        return [UpdateLaw(s.x, vector(jumps))]
+        return [UpdateLaw(s.x, vector(SR, jumps))]
 
 
 @register_model(

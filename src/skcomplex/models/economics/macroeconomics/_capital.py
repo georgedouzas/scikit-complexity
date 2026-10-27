@@ -3,24 +3,39 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class CapitalStockElement(Element):
     """Capital stock element."""
 
-    K = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    investment_fraction = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    output_per_capital = parameter(default=1 / 3, domain=NumericDomain.POSITIVE)
-    lifetime = parameter(default=15.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        K: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        investment_fraction: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        output_per_capital: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1 / 3,
+        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.K = K
+        self.investment_fraction = investment_fraction
+        self.output_per_capital = output_per_capital
+        self.lifetime = lifetime
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the capital stock element."""
         return [RateLaw(s.K, s.investment_fraction * s.output_per_capital * s.K - s.K / s.lifetime)]
 

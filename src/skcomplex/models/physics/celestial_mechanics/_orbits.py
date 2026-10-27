@@ -6,21 +6,22 @@
 import itertools
 import math
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos
+from sage.all__sagemath_symbolics import cos, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import NumericDomain, ValidationError, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import ParticleElement
-from ....core.laws import RateLaw, derivative
+from ....core.elements import Element, ParticleElement
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 from ..realizations.particles import GravityInteraction
 
 FIGURE_EIGHT = {
@@ -53,11 +54,26 @@ class RotatingFrameBodyElement(Element):
     """Rotating frame body element."""
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
-    x = state(default=0.5, order=2)
-    y = state(default=0.0, order=2)
-    mu = parameter(default=0.01215, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.5,
+        x_d1: float = 0.0,
+        y: Annotated[object, StateSpec(order=2)] = 0.0,
+        y_d1: float = 0.0,
+        mu: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.y = y
+        self.y_d1 = y_d1
+        self.mu = mu
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rotating frame body element."""
         return [
             RateLaw(
@@ -256,10 +272,21 @@ def restricted_three_body(
 class SitnikovBodyElement(Element):
     """Sitnikov body element."""
 
-    z = state(default=0.5, order=2)
-    e = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[object, StateSpec(order=2)] = 0.5,
+        z_d1: float = 0.0,
+        e: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.z_d1 = z_d1
+        self.e = e
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the sitnikov body element."""
         return [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))]
 

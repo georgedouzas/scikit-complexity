@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Bits = npt.NDArray[np.int64]
 
@@ -77,15 +80,28 @@ class SpeculatorElement(Element):
         11
     """
 
-    first: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    second: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    first_score: float = state(default=0.0, domain=NumericDomain.REAL)
-    second_score: float = state(default=0.0, domain=NumericDomain.REAL)
-    action: float = state(default=0.0, domain=NumericDomain.INTEGER)
-    wealth: float = state(default=0.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        first: Annotated[float, StateSpec(domain=NN)] = 0,
+        second: Annotated[float, StateSpec(domain=NN)] = 1,
+        first_score: Annotated[float, StateSpec()] = 0.0,
+        second_score: Annotated[float, StateSpec()] = 0.0,
+        action: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        wealth: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.first = first
+        self.second = second
+        self.first_score = first_score
+        self.second_score = second_score
+        self.action = action
+        self.wealth = wealth
 
 
-class MinorityGameInteraction(BaseInteraction):
+class MinorityGameInteraction(Interaction):
     """Rounds of the minority game of Challet and Zhang, where the agents on the minority side win.
 
     Every round each agent plays the action, `+1` or `-1`, that its best strategy assigns to the last `m` winning
@@ -121,22 +137,23 @@ class MinorityGameInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
-    players: str = role()
-    fraction: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
         label: str,
         *,
+        players: Annotated[str, RoleSpec()],
+        fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         memory: int = 3,
         period: int = 0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.players = players
+        self.fraction = fraction
         self.memory = memory
         self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of a round.
 
         Args:

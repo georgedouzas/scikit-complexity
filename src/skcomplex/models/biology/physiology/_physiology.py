@@ -4,33 +4,47 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, delayed
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class FitzHughNagumoElement(Element):
     """Fitz hugh nagumo element."""
 
-    u = state(0.0)
-    v = state(0.0)
-    D = parameter(1.0)
-    a = parameter(0.7)
-    b = parameter(0.8)
-    epsilon = parameter(0.02)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 0.7,
+        b: Annotated[object, ParameterSpec()] = 0.8,
+        epsilon: Annotated[object, ParameterSpec()] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.D = D
+        self.a = a
+        self.b = b
+        self.epsilon = epsilon
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the fitz hugh nagumo element."""
         return [
             RateLaw(s.u, s.D * laplacian(s.u) + s.u - s.u**3 / 3 - s.v),
@@ -87,19 +101,31 @@ def fitzhugh_nagumo(
     v[:, : columns // 2] = 1.0
     values = {'u': u, 'v': v, 'D': D, 'a': a, 'b': b, 'epsilon': epsilon}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(elements=[FieldElement('medium', FitzHughNagumoElement, space, values=values)])
+    return System(elements=[FieldElement('medium', element=FitzHughNagumoElement, space=space, values=values)])
 
 
 class MackeyGlassElement(Element):
     """Mackey glass element."""
 
-    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(0.2)
-    gamma = parameter(0.1)
-    n = parameter(10.0)
-    tau = parameter(default=17.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beta: Annotated[object, ParameterSpec()] = 0.2,
+        gamma: Annotated[object, ParameterSpec()] = 0.1,
+        n: Annotated[object, ParameterSpec()] = 10.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 17.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.beta = beta
+        self.gamma = gamma
+        self.n = n
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the mackey glass element."""
         return [RateLaw(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)]
 

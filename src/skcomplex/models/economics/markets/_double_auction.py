@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._markets import CallAuction, MarketInteraction, OrderBook, Trade
 
@@ -89,14 +90,27 @@ class ZeroIntelligenceBuyerElement(Element):
         5
     """
 
-    value: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    demand: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    profit: float = state(default=0.0, domain=NumericDomain.REAL)
-    ceiling: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
-    constrained: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        profit: Annotated[float, StateSpec()] = 0.0,
+        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+        self.bid = bid
+        self.demand = demand
+        self.profit = profit
+        self.ceiling = ceiling
+        self.constrained = constrained
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the bidding rule of the trading rounds.
 
         Args:
@@ -157,14 +171,27 @@ class ZeroIntelligenceSellerElement(Element):
         5
     """
 
-    value: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    ask: float = state(default=200.0, domain=NumericDomain.NONNEGATIVE)
-    supply: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    profit: float = state(default=0.0, domain=NumericDomain.REAL)
-    ceiling: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
-    constrained: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 200.0,
+        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        profit: Annotated[float, StateSpec()] = 0.0,
+        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+        self.ask = ask
+        self.supply = supply
+        self.profit = profit
+        self.ceiling = ceiling
+        self.constrained = constrained
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the asking rule of the trading rounds.
 
         Args:

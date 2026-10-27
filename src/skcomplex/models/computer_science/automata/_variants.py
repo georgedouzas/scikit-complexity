@@ -5,18 +5,22 @@
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, ParameterError, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.errors import ParameterError
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ._automata import LifeCellElement
 
 type Array = npt.NDArray[np.float64]
@@ -59,20 +63,21 @@ class NoisyElementaryCellElement(Element):
         184
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    noise: float = parameter(0.01, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         rule: int = 18,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.alive = alive
+        self.noise = noise
         self.rule = rule
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the elementary rule followed by a random flip.
 
         Args:
@@ -111,10 +116,19 @@ class DiffusionCellElement(Element):
         0.2
     """
 
-    level: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    r: float = parameter(0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the discrete diffusion rule.
 
         Args:
@@ -148,9 +162,17 @@ class PascalCellElement(Element):
         3
     """
 
-    value: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the additive rule over the integers.
 
         Args:

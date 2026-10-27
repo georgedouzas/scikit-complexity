@@ -3,10 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, lookup
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import lookup
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -15,32 +21,32 @@ LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
 TONNES_PER_KG = 1e-3
 
 
-def _input_ratio(s: Symbols) -> Expression:
+def _input_ratio(s: SimpleNamespace) -> Expression:
     """Return the input ratio, the fraction of the recommended inputs that the farmers apply."""
     return s.bio_fraction + (1 - s.bio_fraction) * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs)
 
 
-def _productivity(s: Symbols) -> Expression:
+def _productivity(s: SimpleNamespace) -> Expression:
     """Return the productivity of the rice land."""
     return s.potential * lookup(_input_ratio(s), INPUT_EFFECT) * s.soil_quality * s.practice
 
 
-def _production(s: Symbols) -> Expression:
+def _production(s: SimpleNamespace) -> Expression:
     """Return the production of milled rice."""
     return s.milling_rate * _productivity(s) * s.rice_area * s.cropping_intensity
 
 
-def _requirement(s: Symbols) -> Expression:
+def _requirement(s: SimpleNamespace) -> Expression:
     """Return the rice the population requires."""
     return s.consumption * TONNES_PER_KG * s.population
 
 
-def _self_sufficiency(s: Symbols) -> Expression:
+def _self_sufficiency(s: SimpleNamespace) -> Expression:
     """Return the self-sufficiency, the production over the requirement."""
     return _production(s) / _requirement(s)
 
 
-def _rice_laws(s: Symbols) -> list[BaseLaw]:
+def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the development and loss of rice land, the population, and the factors of the rice productivity."""
     chemical = 1 - s.bio_fraction
     return [
@@ -63,36 +69,71 @@ def _rice_laws(s: Symbols) -> list[BaseLaw]:
 class RiceSectorElement(Element):
     """Rice sector element."""
 
-    available_land = state(default=0.088, domain=NumericDomain.NONNEGATIVE, quantity='land')
-    rice_area = state(default=0.680647, domain=NumericDomain.NONNEGATIVE, quantity='land')
-    population = state(default=18.1024, domain=NumericDomain.NONNEGATIVE, quantity='people')
-    potential = state(default=6.0, domain=NumericDomain.NONNEGATIVE)
-    soil_quality = state(default=0.99, domain=NumericDomain.NONNEGATIVE)
-    practice = state(default=0.61, domain=NumericDomain.NONNEGATIVE)
-    training = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    bio_fraction = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    cropping_intensity = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    conversion_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
-    discard_rate = parameter(default=0.0085, domain=NumericDomain.NONNEGATIVE)
-    growth_rate = parameter(default=0.021, domain=NumericDomain.REAL)
-    consumption = parameter(default=80.0, domain=NumericDomain.NONNEGATIVE)
-    milling_rate = parameter(default=0.65, domain=NumericDomain.NONNEGATIVE)
-    subsidy = parameter(default=0.67, domain=NumericDomain.NONNEGATIVE)
-    farmer_inputs = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    research = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    potential_limit = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    research_time = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    regeneration_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    degradation = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
-    learning_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    training_target = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    extension_time = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    bio_target = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    transition_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    intensity_target = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    implementation_time = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        available_land: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.088,
+        rice_area: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 0.680647,
+        population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 18.1024,
+        potential: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
+        soil_quality: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
+        practice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.61,
+        training: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        bio_fraction: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        cropping_intensity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        conversion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        discard_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0085,
+        growth_rate: Annotated[object, ParameterSpec()] = 0.021,
+        consumption: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 80.0,
+        milling_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.65,
+        subsidy: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.67,
+        farmer_inputs: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        research: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        potential_limit: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        research_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        regeneration_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        degradation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
+        learning_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        training_target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        extension_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        bio_target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        transition_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        intensity_target: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        implementation_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.available_land = available_land
+        self.rice_area = rice_area
+        self.population = population
+        self.potential = potential
+        self.soil_quality = soil_quality
+        self.practice = practice
+        self.training = training
+        self.bio_fraction = bio_fraction
+        self.cropping_intensity = cropping_intensity
+        self.conversion_time = conversion_time
+        self.discard_rate = discard_rate
+        self.growth_rate = growth_rate
+        self.consumption = consumption
+        self.milling_rate = milling_rate
+        self.subsidy = subsidy
+        self.farmer_inputs = farmer_inputs
+        self.research = research
+        self.potential_limit = potential_limit
+        self.research_time = research_time
+        self.regeneration_time = regeneration_time
+        self.degradation = degradation
+        self.learning_time = learning_time
+        self.training_target = training_target
+        self.extension_time = extension_time
+        self.bio_target = bio_target
+        self.transition_time = transition_time
+        self.intensity_target = intensity_target
+        self.implementation_time = implementation_time
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rice sector element."""
         return _rice_laws(s)
 

@@ -5,14 +5,19 @@
 
 from collections.abc import Sequence
 from math import prod
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, where
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -56,10 +61,18 @@ class BooleanNodeElement(Element):
         1
     """
 
-    x: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
-class BooleanFunctionInteraction(BaseInteraction):
+class BooleanFunctionInteraction(Interaction):
     """Synchronous update of a node by a truth table of any number of input nodes.
 
     A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
@@ -88,20 +101,20 @@ class BooleanFunctionInteraction(BaseInteraction):
         (0, 0, 0, 1)
     """
 
-    target: str = role()
-    inputs: list[str] = role(variadic=True)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        inputs: Annotated[list[str], RoleSpec(variadic=True)],
         table: tuple[int, ...] = (0,),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.inputs = inputs
         self.table = table
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the target by the truth table.
 
         Args:
@@ -127,7 +140,7 @@ class BooleanFunctionInteraction(BaseInteraction):
         return [UpdateLaw(s.target.x, sum(terms, start=SR(0)))]
 
 
-class ThresholdFunctionInteraction(BaseInteraction):
+class ThresholdFunctionInteraction(Interaction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
 
     The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
@@ -158,21 +171,22 @@ class ThresholdFunctionInteraction(BaseInteraction):
         [1.0, -1.0]
     """
 
-    target: str = role()
-    inputs: list[str] = role(variadic=True)
-    weights: list[float] = parameter(default=(), per='inputs')
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        weights: Annotated[list[float], ParameterSpec(per='inputs')] = (),
         decays: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.inputs = inputs
+        self.weights = weights
         self.decays = decays
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the threshold update of the target.
 
         Args:

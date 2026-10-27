@@ -4,11 +4,14 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import EmissionLaw, Symbols, TransitionLaw
+from sage.all__sagemath_symbolics import NN
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -40,19 +43,19 @@ class MarkovSourceElement(Element):
         ((0.9, 0.1), (0.4, 0.6))
     """
 
-    symbol: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
         transition: Matrix = CHAIN,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.symbol = symbol
         self.transition = transition
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the step of the chain.
 
         Args:
@@ -94,22 +97,23 @@ class HiddenMarkovSourceElement(Element):
         ((0.7, 0.3), (0.2, 0.8))
     """
 
-    hidden: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    symbol: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        hidden: Annotated[float, StateSpec(domain=NN)] = 0,
+        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
         transition: Matrix = CHAIN,
         emission: Matrix = EMISSION,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.hidden = hidden
+        self.symbol = symbol
         self.transition = transition
         self.emission = emission
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the step of the hidden chain and the emission of the symbol.
 
         Args:

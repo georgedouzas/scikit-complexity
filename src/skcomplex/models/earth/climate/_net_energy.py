@@ -3,35 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _eroi(s: Symbols) -> Expression:
+def _eroi(s: SimpleNamespace) -> Expression:
     """Return the energy return on investment, which falls with the remaining fraction of the reserve."""
     return 1 + (s.initial_eroi - 1) * (s.reserve / s.reserve_size) ** s.decline
 
 
-def _gross_energy(s: Symbols) -> Expression:
+def _gross_energy(s: SimpleNamespace) -> Expression:
     """Return the gross energy extracted per year."""
     return s.capacity * s.reserve / s.reserve_size
 
 
-def _extraction_cost(s: Symbols) -> Expression:
+def _extraction_cost(s: SimpleNamespace) -> Expression:
     """Return the energy the extraction work costs per year."""
     return _gross_energy(s) / _eroi(s)
 
 
-def _net_per_capita(s: Symbols) -> Expression:
+def _net_per_capita(s: SimpleNamespace) -> Expression:
     """Return the net energy per person."""
     return (_gross_energy(s) - _extraction_cost(s)) / s.population
 
 
-def _energy_laws(s: Symbols) -> list[BaseLaw]:
+def _energy_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population."""
     cost = _extraction_cost(s)
     net = _gross_energy(s) - cost
@@ -47,18 +52,35 @@ def _energy_laws(s: Symbols) -> list[BaseLaw]:
 class EnergySectorElement(Element):
     """Energy sector element."""
 
-    reserve = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='energy')
-    capacity = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    population = state(default=1.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
-    reserve_size = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
-    initial_eroi = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    decline = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    reinvestment = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    lifetime = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    birth_rate = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
-    death_rate = parameter(default=0.015, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        reserve: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
+        capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1.0,
+        reserve_size: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        initial_eroi: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        decline: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        reinvestment: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        birth_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        death_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.reserve = reserve
+        self.capacity = capacity
+        self.population = population
+        self.reserve_size = reserve_size
+        self.initial_eroi = initial_eroi
+        self.decline = decline
+        self.reinvestment = reinvestment
+        self.lifetime = lifetime
+        self.birth_rate = birth_rate
+        self.death_rate = death_rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the energy sector element."""
         return _energy_laws(s)
 

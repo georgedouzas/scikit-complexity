@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 ROAD_WIDTH = 1.0
 
@@ -65,16 +68,29 @@ class MotoristElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'position': 'x', 'color_by': 'v'})
-    x: float = state(default=0.0)
-    v: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    rank: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    safe_distance: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    braking: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    acceleration: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    speed_limit: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'position': 'x', 'color_by': 'v'}),
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        safe_distance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        braking: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        acceleration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.rank = rank
+        self.safe_distance = safe_distance
+        self.braking = braking
+        self.acceleration = acceleration
+        self.speed_limit = speed_limit
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the speed adjustment rule.
 
         Args:
@@ -110,7 +126,7 @@ class MotoristElement(Element):
         agent.v = float(np.clip(agent.v + change, 0.0, agent.speed_limit))
 
 
-class CarelessBrakingInteraction(BaseInteraction):
+class CarelessBrakingInteraction(Interaction):
     """Model rule of Charbonneau's traffic model: a random driver brakes now and then, and every car moves.
 
     Every step, with probability `probability`, one random driver brakes by the braking of its group whatever the
@@ -135,11 +151,20 @@ class CarelessBrakingInteraction(BaseInteraction):
         0.1
     """
 
-    cars: str = role()
-    probability: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    gap: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[str, RoleSpec()],
+        probability: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        gap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.probability = probability
+        self.gap = gap
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of random braking and motion.
 
         Args:
@@ -210,16 +235,29 @@ class DriverElement(Element):
         2
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'speed'})
-    speed: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    rank: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    acceleration: float = parameter(default=1.0)
-    min_acc: float = parameter(default=-10.0)
-    max_acc: float = parameter(default=1.0)
-    speed_limit: float = parameter(default=40.0, domain=NumericDomain.POSITIVE)
-    eps: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'speed'}),
+        *,
+        speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        acceleration: Annotated[float, ParameterSpec()] = 1.0,
+        min_acc: Annotated[float, ParameterSpec()] = -10.0,
+        max_acc: Annotated[float, ParameterSpec()] = 1.0,
+        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
+        eps: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.speed = speed
+        self.rank = rank
+        self.acceleration = acceleration
+        self.min_acc = min_acc
+        self.max_acc = max_acc
+        self.speed_limit = speed_limit
+        self.eps = eps
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the driving rule.
 
         Args:
@@ -356,7 +394,7 @@ def ring_road_drivers(
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import ring_road_drivers
-        >>> ring_road_drivers(10).space.prepare().extent_[0]
+        >>> ring_road_drivers(10).space.check().prepare().extent_[0]
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)

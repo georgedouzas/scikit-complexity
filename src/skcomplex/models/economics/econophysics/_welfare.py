@@ -4,16 +4,20 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import EncounterLaw, Symbols, total
-from ....core.laws.utils import moment
+from ....core.elements import Element, GroupElement
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, EncounterLaw
+from ....core.laws.utils import moment, total
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -110,7 +114,7 @@ def policy_table(classes: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.
     return pattern, table
 
 
-def gini_coefficient(s: Symbols, wealth: npt.NDArray[np.float64]) -> Expression:
+def gini_coefficient(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expression:
     """Return the Gini coefficient of a distribution over wealth classes, read by every member of its group.
 
     The coefficient is `sum_ij f_i f_j |w_i - w_j| / (2 F M)`, with the density `F` and the total wealth `M`.
@@ -130,7 +134,7 @@ def gini_coefficient(s: Symbols, wealth: npt.NDArray[np.float64]) -> Expression:
     return total(s.f * spread) / (2 * moment(s.f, 0, wealth) * moment(s.f, 1, wealth))
 
 
-def wealth_density(s: Symbols, wealth: npt.NDArray[np.float64]) -> Expression:
+def wealth_density(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expression:
     """Return the density of a distribution over wealth classes, its order-0 moment.
 
     Args:
@@ -147,7 +151,7 @@ def wealth_density(s: Symbols, wealth: npt.NDArray[np.float64]) -> Expression:
     return moment(s.f, 0, wealth)
 
 
-def mean_wealth(s: Symbols, wealth: npt.NDArray[np.float64]) -> Expression:
+def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expression:
     """Return the mean wealth of a distribution over wealth classes.
 
     Args:
@@ -209,10 +213,18 @@ class WealthClassElement(Element):
         9
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
 
 
-class WealthExchangeInteraction(BaseInteraction):
+class WealthExchangeInteraction(Interaction):
     """Conservative encounters between wealth classes, with cooperation and competition.
 
     Args:
@@ -240,13 +252,24 @@ class WealthExchangeInteraction(BaseInteraction):
         0.3
     """
 
-    population: str = role()
-    classes: int = parameter(default=9, domain=NumericDomain.POSITIVE)
-    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    cooperation: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    competition: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        competition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.classes = classes
+        self.eta = eta
+        self.cooperation = cooperation
+        self.competition = competition
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the population with itself.
 
         Args:
@@ -261,7 +284,7 @@ class WealthExchangeInteraction(BaseInteraction):
         return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
 
 
-class WelfarePolicyInteraction(BaseInteraction):
+class WelfarePolicyInteraction(Interaction):
     """Welfare policy that taxes the richest classes and helps the poorest, a micro-scale external action.
 
     The policy is an encounter whose field role binds a group with a fixed density, so it acts on the transitions of
@@ -289,12 +312,22 @@ class WelfarePolicyInteraction(BaseInteraction):
         0.1
     """
 
-    population: str = role()
-    policy: str = role()
-    classes: int = parameter(default=9, domain=NumericDomain.POSITIVE)
-    tax: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        policy: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
+        tax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.policy = policy
+        self.classes = classes
+        self.tax = tax
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the population with the policy.
 
         Args:

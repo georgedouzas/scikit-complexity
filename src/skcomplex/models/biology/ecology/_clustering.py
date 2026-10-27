@@ -4,19 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 
 def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
@@ -52,11 +54,19 @@ class PatchElement(Element):
         1.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('image', {'low': 0.0})
-    n: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('image', {'low': 0.0}),
+        *,
+        n: Annotated[float, StateSpec(domain=NN)] = 10.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.alpha = alpha
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the divisions and deaths of the organisms of the patch.
 
         Args:
@@ -70,7 +80,7 @@ class PatchElement(Element):
         return [JumpLaw(s.alpha * s.n, {s.n: 1}), JumpLaw(s.alpha * s.n, {s.n: -1})]
 
 
-class HoppingInteraction(BaseInteraction):
+class HoppingInteraction(Interaction):
     """Hops of single organisms between neighbouring patches, each organism moving to each neighbour at the rate `beta`.
 
     The patches are the entries of a variadic role, and every pair `(i, j)` of `links` gives a jump that moves one
@@ -98,20 +108,20 @@ class HoppingInteraction(BaseInteraction):
         0.5
     """
 
-    patches: list[str] = role(variadic=True)
-    beta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        patches: Annotated[list[str], RoleSpec(variadic=True)],
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         links: Sequence[tuple[int, int]] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.patches = patches
+        self.beta = beta
         self.links = links
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return one hop per ordered pair of neighbouring patches.
 
         Args:

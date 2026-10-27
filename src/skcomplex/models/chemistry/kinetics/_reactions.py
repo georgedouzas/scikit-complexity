@@ -4,13 +4,18 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, NoiseLaw, RateLaw, Symbols, where
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
@@ -45,7 +50,7 @@ def _reaction_laws(
     return [RateLaw(target, change * propensity) for target, change in changes.items()]
 
 
-def _schlogl_laws(s: Symbols) -> list[BaseLaw]:
+def _schlogl_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the drift and the independent noise of the four channels of the Schlögl reaction."""
     x = s.x
     increments = [
@@ -77,10 +82,18 @@ class SpeciesElement(Element):
         300.0
     """
 
-    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class BindingInteraction(BaseInteraction):
+class BindingInteraction(Interaction):
     """Second-order reaction `first + second -> product` with the mass-action rate `k * first * second`.
 
     In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
@@ -118,24 +131,26 @@ class BindingInteraction(BaseInteraction):
         0.01
     """
 
-    first: str = role()
-    second: str = role()
-    product: str = role()
-    k: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        product: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         stochastic: bool = False,
         langevin: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.product = product
+        self.k = k
         self.stochastic = stochastic
         self.langevin = langevin
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reaction at the rate `k * first * second`.
 
         Args:
@@ -155,7 +170,7 @@ class BindingInteraction(BaseInteraction):
         return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
 
 
-class DissociationInteraction(BaseInteraction):
+class DissociationInteraction(Interaction):
     """First-order reaction `complex -> first + second` with the mass-action rate `k * complex`.
 
     In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
@@ -193,24 +208,26 @@ class DissociationInteraction(BaseInteraction):
         'P'
     """
 
-    complex: str = role()
-    first: str = role()
-    second: str = role()
-    k: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        complex: Annotated[str, RoleSpec()],  # noqa: A002
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         stochastic: bool = False,
         langevin: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.complex = complex
+        self.first = first
+        self.second = second
+        self.k = k
         self.stochastic = stochastic
         self.langevin = langevin
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reaction at the rate `k * complex`.
 
         Args:
@@ -233,15 +250,29 @@ class DissociationInteraction(BaseInteraction):
 class SchloglElement(Element):
     """Schlogl element."""
 
-    x = state(default=50.0, domain=NumericDomain.REAL)
-    c1 = parameter(1.5e-6)
-    c2 = parameter(2.5e-3)
-    c3 = parameter(2e-4)
-    c4 = parameter(3.5)
-    A = parameter(1e5)
-    B = parameter(2e5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 50.0,
+        c1: Annotated[object, ParameterSpec()] = 1.5e-06,
+        c2: Annotated[object, ParameterSpec()] = 0.0025,
+        c3: Annotated[object, ParameterSpec()] = 0.0002,
+        c4: Annotated[object, ParameterSpec()] = 3.5,
+        A: Annotated[object, ParameterSpec()] = 100000.0,
+        B: Annotated[object, ParameterSpec()] = 200000.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+        self.A = A
+        self.B = B
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the schlogl element."""
         return _schlogl_laws(s)
 

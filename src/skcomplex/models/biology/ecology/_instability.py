@@ -3,11 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp, sqrt
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, bernoulli, normal, where
+from sage.all__sagemath_symbolics import Expression, exp, oo, sqrt
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import bernoulli, normal, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -62,17 +67,33 @@ class UnstablePopulationsElement(Element):
         0.001
     """
 
-    x: float = state(default=1.1, domain=NumericDomain.NONNEGATIVE)
-    y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    eta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    mean: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    nu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    p: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    sigma: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.1,
+        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        mean: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.eta = eta
+        self.mean = mean
+        self.alpha = alpha
+        self.beta = beta
+        self.nu = nu
+        self.p = p
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the steps of the two populations.
 
         Args:

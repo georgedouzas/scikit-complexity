@@ -3,9 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -26,10 +33,18 @@ class ListenersElement(Element):
         1
     """
 
-    n: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class RumourContactsInteraction(BaseInteraction):
+class RumourContactsInteraction(Interaction):
     """Contacts of the Maki-Thompson rumour model in a well-mixed population of size `N`.
 
     A spreader who meets an ignorant tells the rumour at rate `spread * X * Y / N`, and a spreader who meets another
@@ -60,13 +75,24 @@ class RumourContactsInteraction(BaseInteraction):
         1.0
     """
 
-    ignorants: str = role()
-    spreaders: str = role()
-    stiflers: str = role()
-    spread: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    stifle: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        ignorants: Annotated[str, RoleSpec()],
+        spreaders: Annotated[str, RoleSpec()],
+        stiflers: Annotated[str, RoleSpec()],
+        spread: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        stifle: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.ignorants = ignorants
+        self.spreaders = spreaders
+        self.stiflers = stiflers
+        self.spread = spread
+        self.stifle = stifle
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the telling and stifling jumps.
 
         Args:

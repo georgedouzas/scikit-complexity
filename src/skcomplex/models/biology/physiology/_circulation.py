@@ -4,18 +4,22 @@
 # License: MIT
 
 import math
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, mod, where
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import mod, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _pressure(chamber: Symbols, t: Expression) -> Expression:
+def _pressure(chamber: SimpleNamespace, t: Expression) -> Expression:
     """Return the pressure of a chamber, its elastance times its volume above the unstressed volume."""
     phase = mod(t, chamber.period)
     activation = where(phase < chamber.systole, sin(math.pi * phase / chamber.systole), 0)
@@ -57,15 +61,28 @@ class ChamberElement(Element):
         0.8
     """
 
-    V: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    V0: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    E_min: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    E_max: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    period: float = parameter(default=0.8, domain=NumericDomain.POSITIVE)
-    systole: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E_min: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        E_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
+        systole: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.V = V
+        self.V0 = V0
+        self.E_min = E_min
+        self.E_max = E_max
+        self.period = period
+        self.systole = systole
 
 
-class TransferInteraction(BaseInteraction):
+class TransferInteraction(Interaction):
     """Transfer of blood from one chamber to another through a resistance, `Q = (P_up - P_down) / R`.
 
     A valve lets blood pass forward only, so the flow is zero when the downstream pressure is higher.
@@ -95,21 +112,22 @@ class TransferInteraction(BaseInteraction):
         True
     """
 
-    upstream: str = role()
-    downstream: str = role()
-    R: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        upstream: Annotated[str, RoleSpec()],
+        downstream: Annotated[str, RoleSpec()],
+        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         valve: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.upstream = upstream
+        self.downstream = downstream
+        self.R = R
         self.valve = valve
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the transfer of volume from the upstream to the downstream chamber.
 
         Args:

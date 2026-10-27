@@ -4,21 +4,23 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 from scipy.spatial import KDTree
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -33,7 +35,7 @@ def _sine(agent: AgentView) -> float:
     return math.sin(agent.theta)
 
 
-def _polarization(s: Symbols) -> Expression:
+def _polarization(s: SimpleNamespace) -> Expression:
     """Return the length of the mean heading, the polarization."""
     return (s.mean_cos**2 + s.mean_sin**2) ** 0.5
 
@@ -65,11 +67,18 @@ class FlockerElement(Element):
         1.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)})
-    theta: float = state(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
+        *,
+        theta: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
 
 
-class BinaryCollisionsInteraction(BaseInteraction):
+class BinaryCollisionsInteraction(Interaction):
     """Motion, self-diffusion, and aligning binary collisions of self-propelled particles, in steps of `1 / substeps`.
 
     In every substep of length `tau` each particle moves `speed * tau` along its heading, and with probability
@@ -105,14 +114,26 @@ class BinaryCollisionsInteraction(BaseInteraction):
         0.5
     """
 
-    target: str = role()
-    speed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    sigma: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    d0: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    substeps: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        d0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        substeps: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.speed = speed
+        self.lam = lam
+        self.sigma = sigma
+        self.d0 = d0
+        self.substeps = substeps
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that moves the particles for one unit of time.
 
         Args:

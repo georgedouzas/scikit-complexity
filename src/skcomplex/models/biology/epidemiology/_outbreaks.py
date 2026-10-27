@@ -3,23 +3,27 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, total
-from ....core.specs import ObservableSpec
+import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import total
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
-def _recovered_share(member: Symbols) -> Expression:
+def _recovered_share(member: SimpleNamespace) -> Expression:
     """Return the share of the whole population that a degree class holds as recovered individuals."""
     return member.P * member.r
 
 
-def _infected_share(member: Symbols) -> Expression:
+def _infected_share(member: SimpleNamespace) -> Expression:
     """Return the share of the whole population that a degree class holds as infected individuals."""
     return member.P * member.i
 
@@ -69,15 +73,29 @@ class ImmunizingDegreeClassElement(Element):
         3
     """
 
-    s: float = state(default=0.999, domain=NumericDomain.NONNEGATIVE)
-    i: float = state(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    r: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    mu: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    P: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.999,
+        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.s = s
+        self.i = i
+        self.r = r
+        self.beta = beta
+        self.mu = mu
+        self.k = k
+        self.P = P
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the infections along contacts and the recoveries of the class.
 
         Args:

@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import ExtremalLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, ExtremalLaw
 from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -60,21 +63,21 @@ class SpeciesElement(Element):
         200
     """
 
-    fitness: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         updates: int = 200,
         neighbors: str = 'ring',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.fitness = fitness
         self.updates = updates
         self.neighbors = neighbors
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the extremal update of the least fit species and its neighbours.
 
         Args:
@@ -130,7 +133,7 @@ def bak_sneppen(
         >>> bak_sneppen(50).elements[0].values['updates']
         50
     """
-    space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).prepare()
+    space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).check().prepare()
     count = int(space.size_ or 0)
     fitness = np.random.default_rng(random_state).random(count)
     species = LatticeElement(

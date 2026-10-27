@@ -3,27 +3,41 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, NoiseLaw, RateLaw, RuleLaw, Symbols, UpdateLaw, bernoulli, normal
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
+from ....core.laws.utils import bernoulli, normal
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class PersistentWalkerElement(Element):
     """Persistent walker element."""
 
-    d = state(default=1.0, domain=NumericDomain.INTEGER)
-    x = state(default=0.0, domain=NumericDomain.INTEGER)
-    persistence = parameter(0.8, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        d: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
+        x: Annotated[object, StateSpec(domain=ZZ)] = 0.0,
+        persistence: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.d = d
+        self.x = x
+        self.persistence = persistence
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the persistent walker element."""
         return [
             UpdateLaw(s.d, s.d * (1 - 2 * bernoulli('turn', 1 - s.persistence))),
@@ -34,12 +48,23 @@ class PersistentWalkerElement(Element):
 class MemoryWalkerElement(Element):
     """Memory walker element."""
 
-    x = state(0.0)
-    v = state(0.0)
-    alpha = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
-    sigma = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.alpha = alpha
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the memory walker element."""
         return [UpdateLaw(s.x, s.x + s.v), UpdateLaw(s.v, s.alpha * s.v + normal('xi', 0, s.sigma))]
 
@@ -47,11 +72,21 @@ class MemoryWalkerElement(Element):
 class RandomWalkerElement(Element):
     """Random walker element."""
 
-    x = state(default=0.0, domain=NumericDomain.INTEGER)
-    rate = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
-    bias = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=ZZ)] = 0.0,
+        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        bias: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.rate = rate
+        self.bias = bias
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the random walker element."""
         return [JumpLaw(s.rate * s.bias, {s.x: 1}), JumpLaw(s.rate * (1 - s.bias), {s.x: -1})]
 
@@ -59,12 +94,23 @@ class RandomWalkerElement(Element):
 class WeakeningParticleElement(Element):
     """Weakening particle element."""
 
-    x = state(0.0)
-    k = parameter(1.0, domain=NumericDomain.POSITIVE)
-    ell = parameter(1.0, domain=NumericDomain.POSITIVE)
-    D = parameter(0.25, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        ell: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.k = k
+        self.ell = ell
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the weakening particle element."""
         return [RateLaw(s.x, -s.k * s.x / (1 + (s.x / s.ell) ** 2)), NoiseLaw(s.x, (2 * s.D) ** (1 / 2))]
 
@@ -97,13 +143,23 @@ class AgeingWalkerElement(Element):
         ('walkers', 'AgeingWalkerElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'x'})
-    x: float = state(default=0.0, domain=NumericDomain.INTEGER)
-    ups: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    p: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
-    nu: float = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'x'}),
+        *,
+        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        ups: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.ups = ups
+        self.p = p
+        self.nu = nu
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stepping rule.
 
         Args:

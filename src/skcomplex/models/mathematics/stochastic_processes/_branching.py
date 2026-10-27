@@ -3,15 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class IndividualElement(Element):
@@ -34,11 +38,19 @@ class IndividualElement(Element):
         ('population', 'IndividualElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'generation'})
-    generation: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    m: float = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'generation'}),
+        *,
+        generation: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.generation = generation
+        self.m = m
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reproduction rule.
 
         Args:

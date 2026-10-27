@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 from ..realizations._exchange import cobb_douglas
 from ._goods_traders import ExchangeInteraction
 
@@ -106,13 +107,23 @@ class BartererElement(Element):
         2
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
-    chocolate: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    cigarettes: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    chocolate_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    cigarettes_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)}),
+        *,
+        chocolate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        cigarettes: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        chocolate_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        cigarettes_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.chocolate = chocolate
+        self.cigarettes = cigarettes
+        self.chocolate_weight = chocolate_weight
+        self.cigarettes_weight = cigarettes_weight
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the exchange moves the goods.
 
         Args:

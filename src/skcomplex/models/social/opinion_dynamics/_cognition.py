@@ -3,20 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -85,13 +89,22 @@ class ThinkerElement(Element):
         ('thinkers', 'ThinkerElement', 5)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)})
-    valences: npt.ArrayLike = state(default=0.0, vector=True)
-    attitude: float = state(default=0.0)
-    decay: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)}),
+        *,
+        valences: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        attitude: Annotated[float, StateSpec()] = 0.0,
+        decay: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.valences = valences
+        self.attitude = attitude
+        self.decay = decay
 
 
-class ConversationsInteraction(BaseInteraction):
+class ConversationsInteraction(Interaction):
     """Conversations of the cognitive consistency model, as many per step as there are agents.
 
     A random speaker talks to a random neighbour about F1 or F2. The hearer averages its valence of the topic with the
@@ -110,9 +123,16 @@ class ConversationsInteraction(BaseInteraction):
         'thinkers'
     """
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the conversation rule.
 
         Args:

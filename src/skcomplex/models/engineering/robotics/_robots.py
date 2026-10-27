@@ -4,25 +4,28 @@
 # License: MIT
 
 import math
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
+from sage.all__sagemath_symbolics import NN, Expression, cos, exp, oo, sin, sqrt
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, RuleLaw, Symbols, delayed, where
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
+from ....core.laws.utils import delayed, where
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9
 
 
-def _light(s: Symbols, x: Expression, y: Expression) -> Expression:
+def _light(s: SimpleNamespace, x: Expression, y: Expression) -> Expression:
     """Return the Gaussian light intensity `I0 exp(-(x^2 + y^2) / r0^2)` at a point."""
     return s.I0 * exp(-(x**2 + y**2) / s.r0**2)
 
@@ -93,27 +96,35 @@ class LightSensitiveRobotElement(Element):
         5.0
     """
 
-    x: float = state(default=0.0)
-    y: float = state(default=0.0)
-    phi: float = state(default=0.0)
-    V0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    V_inf: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    I0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    R: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        phi: Annotated[float, StateSpec()] = 0.0,
+        V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        V_inf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        I0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         delay: float = 0.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.phi = phi
+        self.V0 = V0
+        self.V_inf = V_inf
+        self.I0 = I0
+        self.r0 = r0
+        self.tau = tau
+        self.R = R
         self.delay = delay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the motion at the light-dependent speed, the rotational noise, and the reflecting wall.
 
         Args:
@@ -192,19 +203,37 @@ class SwarmRobotElement(Element):
         2
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)})
-    heading: float = state(default=0.0)
-    connections: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    illuminated: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
-    speed: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    radio_range: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    alpha: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    avoid_illuminated: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
-    avoid_shadowed: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    shadow_angle: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    beacon_x: float = parameter(default=95.0)
-    beacon_y: float = parameter(default=50.0)
-    arena: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)}),
+        *,
+        heading: Annotated[float, StateSpec()] = 0.0,
+        connections: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        illuminated: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        radio_range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        avoid_illuminated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        avoid_shadowed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        shadow_angle: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beacon_x: Annotated[float, ParameterSpec()] = 95.0,
+        beacon_y: Annotated[float, ParameterSpec()] = 50.0,
+        arena: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.heading = heading
+        self.connections = connections
+        self.illuminated = illuminated
+        self.speed = speed
+        self.radio_range = radio_range
+        self.alpha = alpha
+        self.avoid_illuminated = avoid_illuminated
+        self.avoid_shadowed = avoid_shadowed
+        self.shadow_angle = shadow_angle
+        self.beacon_x = beacon_x
+        self.beacon_y = beacon_y
+        self.arena = arena
 
     def _is_shadowed(self, agent: AgentView, neighbors: list[AgentView]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
@@ -234,7 +263,7 @@ class SwarmRobotElement(Element):
         _, nearest = min(close, key=lambda pair: pair[0])
         return _bearing(x - _position(nearest)[0], y - _position(nearest)[1])
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the swarmtaxis rule.
 
         Args:

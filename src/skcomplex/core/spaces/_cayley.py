@@ -133,9 +133,28 @@ class CayleySpace(BaseSpace):
         degree = int(libgap.DegreeOfTree(group))
         return max(1, int(np.log(LEVEL_POINTS) / np.log(degree)))
 
-    def _get_key(self, element: GapElement) -> str:
-        """Return the key of an element, its canonical text, or its action on a level of the tree of an automaton."""
-        return str(libgap.PermOnLevel(element, self.level_)) if self.level_ else str(element)
+    def _get_key(self, element: GapElement | npt.NDArray[np.intp]) -> str | bytes:
+        """Return the key of an element: its canonical text, or for an automaton its action on a level of the tree."""
+        return element.tobytes() if self.level_ else str(element)
+
+    def _get_letters(self, group: GapElement) -> list[GapElement | npt.NDArray[np.intp]]:
+        """Return every generator and its inverse, as permutations of the points of a level for an automaton group."""
+        letters = [generator**sign for generator in libgap.GeneratorsOfGroup(group) for sign in (1, -1)]
+        if not self.level_:
+            return letters
+        points = int(libgap.DegreeOfTree(group)) ** self.level_
+        return [
+            np.array(libgap.ListPerm(libgap.PermOnLevel(letter, self.level_), points).sage(), dtype=np.intp) - 1
+            for letter in letters
+        ]
+
+    def _multiply(
+        self,
+        element: GapElement | npt.NDArray[np.intp],
+        letter: GapElement | npt.NDArray[np.intp],
+    ) -> GapElement | npt.NDArray[np.intp]:
+        """Return the product of an element and a letter, composing the actions on the level for an automaton."""
+        return letter[element] if self.level_ else element * letter
 
     def _parse_word(self, text: str) -> list[int]:
         """Return a word written as `a*b^-1*a^2` as signed generator numbers, `i + 1` for generator `i`.
@@ -166,14 +185,12 @@ class CayleySpace(BaseSpace):
             return '1'
         return '*'.join(self.generators_[abs(letter) - 1] + ('' if letter > 0 else '^-1') for letter in word)
 
-    def _find_site(self, buckets: dict[str, list[int]], elements: list[GapElement], element: GapElement) -> int | None:
-        """Return the site of an element among the known ones, or `None`, comparing elements of equal keys in GAP."""
-        for site in buckets.get(self._get_key(element), []):
-            if not self.level_ or elements[site] == element:
-                return site
-        return None
-
-    def _add_site(self, buckets: dict[str, list[int]], elements: list[GapElement], element: GapElement) -> int:
+    def _add_site(
+        self,
+        sites: dict[str | bytes, int],
+        elements: list[GapElement | npt.NDArray[np.intp]],
+        element: GapElement | npt.NDArray[np.intp],
+    ) -> int:
         """Return the new site of an element, after adding it to the known ones.
 
         Raises:
@@ -187,18 +204,19 @@ class CayleySpace(BaseSpace):
             )
             raise SpaceTooLargeError(error_msg)
         elements.append(element)
-        buckets.setdefault(self._get_key(element), []).append(len(elements) - 1)
+        sites[self._get_key(element)] = len(elements) - 1
         return len(elements) - 1
 
     def _enumerate(self, group: GapElement) -> tuple[list[list[int]], list[list[int]], list[int]]:
         """Return the word and the neighbours by letter of every site, and the ball sizes, by breadth-first search."""
         rewriting = self._get_rewriting(group) if libgap.IsFpGroup(group) else None
         words_group = libgap.FreeGroupOfFpGroup(group) if rewriting is not None else group
-        letters = [generator**sign for generator in libgap.GeneratorsOfGroup(words_group) for sign in (1, -1)]
-        elements = [libgap.One(words_group)]
+        letters = self._get_letters(words_group)
+        identity = np.arange(len(letters[0])) if self.level_ else libgap.One(words_group)
+        elements: list[GapElement | npt.NDArray[np.intp]] = [identity]
         words: list[list[int]] = [[]]
         rows = [[-1] * len(letters)]
-        buckets = {self._get_key(elements[0]): [0]}
+        sites = {self._get_key(identity): 0}
         frontier, sizes, depth = [0], [1], 0
         while frontier:
             grows = self.ball is None or depth < self.ball
@@ -206,11 +224,11 @@ class CayleySpace(BaseSpace):
             for site, column in ((site, column) for site in frontier for column in range(len(letters))):
                 if rows[site][column] != -1:
                     continue
-                element = elements[site] * letters[column]
+                element = self._multiply(elements[site], letters[column])
                 element = element if rewriting is None else libgap.ReducedWord(rewriting, element)
-                neighbour = self._find_site(buckets, elements, element)
+                neighbour = sites.get(self._get_key(element))
                 if neighbour is None and grows:
-                    neighbour = self._add_site(buckets, elements, element)
+                    neighbour = self._add_site(sites, elements, element)
                     words.append([*words[site], (column // 2 + 1) * (-1 if column % 2 else 1)])
                     rows.append([-1] * len(letters))
                     found.append(neighbour)

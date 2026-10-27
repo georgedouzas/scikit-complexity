@@ -153,6 +153,10 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "INP", "PIE", "T20", "PT", "Q", "RET501", "RET502", "RET503", "SIM",
 "PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF", "TID251"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Specs are frozen dataclasses, so a spec in a default argument is shared safely.
+extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec"]
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
 

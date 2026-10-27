@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from ....core.laws import transfer
+from ....core.laws.utils import transfer
 
 
 def cobb_douglas(agent: Any, goods: Sequence[str], weights: Sequence[str]) -> float:  # noqa: ANN401

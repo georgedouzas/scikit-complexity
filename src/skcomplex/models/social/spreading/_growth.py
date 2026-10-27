@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 
 class WordElement(Element):
@@ -39,11 +43,20 @@ class WordElement(Element):
         ('words', 'WordElement', 1)
     """
 
-    count: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    innovation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        count: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        innovation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.count = count
+        self.innovation = innovation
 
 
-class WritingInteraction(BaseInteraction):
+class WritingInteraction(Interaction):
     """Writing of the Simon model, a number of words per step.
 
     Every next word is new with probability `innovation`, and otherwise repeats a random earlier occurrence, so a word
@@ -68,19 +81,18 @@ class WritingInteraction(BaseInteraction):
         100
     """
 
-    target: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
         words_per_step: int = 100,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
         self.words_per_step = words_per_step
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the writing rule.
 
         Args:

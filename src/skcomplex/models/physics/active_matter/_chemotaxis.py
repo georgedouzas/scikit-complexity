@@ -4,34 +4,46 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import NumericDomain, parameter
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import divergence, gradient, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class ChemotaxisElement(Element):
     """Chemotaxis element."""
 
-    rho = state(1.0)
-    c = state(1.0)
-    D = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    chi = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    Dc = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    k = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec()] = 1.0,
+        c: Annotated[object, StateSpec()] = 1.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        chi: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        Dc: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.c = c
+        self.D = D
+        self.chi = chi
+        self.Dc = Dc
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the chemotaxis element."""
         return [
             RateLaw(s.rho, s.D * laplacian(s.rho) - s.chi * divergence(s.rho * gradient(s.c))),
@@ -109,4 +121,4 @@ def keller_segel(
         'k': k,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(elements=[FieldElement('colony', ChemotaxisElement, space, values=values)])
+    return System(elements=[FieldElement('colony', element=ChemotaxisElement, space=space, values=values)])

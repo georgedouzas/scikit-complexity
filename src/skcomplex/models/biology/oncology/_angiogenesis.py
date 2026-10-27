@@ -3,20 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
@@ -58,14 +60,27 @@ class TissueElement(Element):
         1.0
     """
 
-    oxygen: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    vegf: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    D_oxygen: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    decay_oxygen: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    D_vegf: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    decay_vegf: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        oxygen: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        vegf: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        D_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        decay_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        D_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        decay_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.oxygen = oxygen
+        self.vegf = vegf
+        self.D_oxygen = D_oxygen
+        self.decay_oxygen = decay_oxygen
+        self.D_vegf = D_vegf
+        self.decay_vegf = decay_vegf
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the diffusion and decay of oxygen and VEGF.
 
         Args:
@@ -117,14 +132,27 @@ class TumourCellElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)})
-    hypoxic: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    consumption: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    proliferation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    division: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    hypoxia: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    secretion: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    necrosis: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)}),
+        *,
+        hypoxic: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        consumption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        proliferation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        division: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        hypoxia: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        secretion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        necrosis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.hypoxic = hypoxic
+        self.consumption = consumption
+        self.proliferation = proliferation
+        self.division = division
+        self.hypoxia = hypoxia
+        self.secretion = secretion
+        self.necrosis = necrosis
 
     def _divide(self, agent: AgentView, model: ModelView) -> None:
         """Place a daughter cell in a random neighbouring cell without a tumour cell, if there is one."""
@@ -133,7 +161,7 @@ class TumourCellElement(Element):
         if free:
             agent.create(location=free[int(model.rng.integers(len(free)))])
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life cycle rule.
 
         Args:
@@ -184,9 +212,17 @@ class VesselElement(Element):
         2
     """
 
-    supply: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        supply: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.supply = supply
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the supply rule.
 
         Args:
@@ -238,11 +274,21 @@ class SproutElement(Element):
         2
     """
 
-    chemotaxis: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
-    branching: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    activation: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        chemotaxis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
+        branching: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        activation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.chemotaxis = chemotaxis
+        self.branching = branching
+        self.activation = activation
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sprouting rule.
 
         Args:
@@ -356,7 +402,7 @@ def tumour_angiogenesis(
             location=[(0, row) for row in tips],
         ),
     ]
-    tissue = FieldElement('tissue', TissueElement, LatticeSpace((width, height), boundary='reflecting'))
+    tissue = FieldElement('tissue', element=TissueElement, space=LatticeSpace((width, height), boundary='reflecting'))
     return System(
         systems=[
             System('cells', elements=groups, space=LatticeSpace((width, height), boundary='fixed')),

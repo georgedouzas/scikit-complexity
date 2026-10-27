@@ -5,22 +5,24 @@
 
 import math
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
 from ....analysis import gini
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 MODES = ('hunter_gatherer', 'monetary')
 PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
@@ -139,12 +141,23 @@ class PlotElement(Element):
         1.0
     """
 
-    food: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    capacity: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    resistance: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    regrowth: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        food: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        resistance: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.food = food
+        self.capacity = capacity
+        self.resistance = resistance
+        self.regrowth = regrowth
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule in the phase of growth.
 
         Args:
@@ -260,31 +273,61 @@ class SettlerElement(Element):
         3
     """
 
-    food: float = state(default=10.0)
-    money: float = state(default=0.0, quantity='money')
-    loans: float = state(default=0.0, quantity='credit')
-    age: float = state(default=20.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    parent: float = state(default=-1.0)
-    employer: float = state(default=-1.0)
-    harvested: float = state(default=0.0)
-    born: float = state(default=-100.0)
-    fate: float = state(default=ALIVE)
-    fertility: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    exploration: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    enterprise: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    restlessness: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    labour: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    need: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    maturity: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
-    lifespan: float = parameter(default=85.0, domain=NumericDomain.NONNEGATIVE)
-    spacing: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    endowment: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    mutation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    sight: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    reserve: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    monetary: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        food: Annotated[float, StateSpec()] = 10.0,
+        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
+        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
+        age: Annotated[float, StateSpec(domain=NN)] = 20.0,
+        parent: Annotated[float, StateSpec()] = -1.0,
+        employer: Annotated[float, StateSpec()] = -1.0,
+        harvested: Annotated[float, StateSpec()] = 0.0,
+        born: Annotated[float, StateSpec()] = -100.0,
+        fate: Annotated[float, StateSpec()] = ALIVE,
+        fertility: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        exploration: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        enterprise: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        restlessness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        labour: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        need: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        maturity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        lifespan: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 85.0,
+        spacing: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        endowment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        sight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        reserve: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        monetary: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.food = food
+        self.money = money
+        self.loans = loans
+        self.age = age
+        self.parent = parent
+        self.employer = employer
+        self.harvested = harvested
+        self.born = born
+        self.fate = fate
+        self.fertility = fertility
+        self.exploration = exploration
+        self.enterprise = enterprise
+        self.restlessness = restlessness
+        self.labour = labour
+        self.need = need
+        self.maturity = maturity
+        self.lifespan = lifespan
+        self.spacing = spacing
+        self.endowment = endowment
+        self.mutation = mutation
+        self.sight = sight
+        self.reserve = reserve
+        self.monetary = monetary
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of living in the phase of living.
 
         Args:
@@ -424,21 +467,41 @@ class BusinessElement(Element):
         2
     """
 
-    money: float = state(default=0.0, quantity='money')
-    loans: float = state(default=0.0, quantity='credit')
-    stock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    wage: float = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    price: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    owner: float = state(default=-1.0)
-    workers: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    vacancies: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    revenue: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    interest: float = parameter(default=0.003, domain=NumericDomain.NONNEGATIVE)
-    repayment: float = parameter(default=0.004, domain=NumericDomain.NONNEGATIVE)
-    adjustment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    stock_limit: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
+        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
+        stock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        owner: Annotated[float, StateSpec()] = -1.0,
+        workers: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        vacancies: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
+        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
+        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        stock_limit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.money = money
+        self.loans = loans
+        self.stock = stock
+        self.wage = wage
+        self.price = price
+        self.owner = owner
+        self.workers = workers
+        self.vacancies = vacancies
+        self.revenue = revenue
+        self.interest = interest
+        self.repayment = repayment
+        self.adjustment = adjustment
+        self.stock_limit = stock_limit
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of production in the phase of work.
 
         Args:
@@ -542,10 +605,19 @@ class CentralBankElement(Element):
         1
     """
 
-    money: float = state(default=0.0, quantity='money')
-    loans: float = state(default=0.0, quantity='credit')
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
+        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.money = money
+        self.loans = loans
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the dividend rule in the phase of banking.
 
         Args:
@@ -574,7 +646,7 @@ class CentralBankElement(Element):
             transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
 
 
-class CommonsInteraction(BaseInteraction):
+class CommonsInteraction(Interaction):
     """Harvest of the hunter-gatherers, who pool the labour of the adults on a patch and share the food equally.
 
     The adults of a patch harvest `min(food, labour - resistance)`, and everyone on the patch, child or adult, gets an
@@ -593,9 +665,16 @@ class CommonsInteraction(BaseInteraction):
         'people'
     """
 
-    people: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        people: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.people = people
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the harvest rule in the phase of work.
 
         Args:
@@ -628,7 +707,7 @@ class CommonsInteraction(BaseInteraction):
                 person.harvested = harvest / len(group)
 
 
-class LabourMarketInteraction(BaseInteraction):
+class LabourMarketInteraction(Interaction):
     """Labour market in which unemployed adults take the best-paying vacancy within their sight.
 
     Args:
@@ -641,7 +720,7 @@ class LabourMarketInteraction(BaseInteraction):
         'jobs'
     """
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of vacancies with workers and the rule that hires along the pairs.
 
         Args:
@@ -671,7 +750,7 @@ class LabourMarketInteraction(BaseInteraction):
             firm.vacancies = max(firm.vacancies - 1, 0.0)
 
 
-class FoodMarketInteraction(BaseInteraction):
+class FoodMarketInteraction(Interaction):
     """Food market in which people short of food buy from the cheapest stocked shop within their sight.
 
     A buyer takes the food it lacks for `reserve` steps, as much as the stock and its money allow, and pays the price
@@ -689,7 +768,7 @@ class FoodMarketInteraction(BaseInteraction):
 
     reports: ClassVar[tuple[str, ...]] = ('gdp',)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of buyers with shops and the rule that trades along the pairs.
 
         Args:
@@ -725,7 +804,7 @@ class FoodMarketInteraction(BaseInteraction):
         model.report('gdp', value)
 
 
-class CensusInteraction(BaseInteraction):
+class CensusInteraction(Interaction):
     """Census that counts births and deaths and settles the estate of the dead before removing them.
 
     The money and the loans of a dead person go to a random living person of its patch, or of anywhere. When nobody
@@ -746,7 +825,15 @@ class CensusInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'starvations', 'old_age')
-    people: str = role()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        people: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.people = people
 
     def _settle(self, dead: AgentView, living: list[AgentView], model: Any) -> None:  # noqa: ANN401
         """Leave the money and the loans of a dead person to an heir, and remove the person."""
@@ -774,7 +861,7 @@ class CensusInteraction(BaseInteraction):
         for person in dead:
             self._settle(person, living, model)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the counting rule in the phase of the census.
 
         Args:

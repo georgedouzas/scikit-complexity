@@ -3,28 +3,38 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sqrt, tanh
+from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt, tanh
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role, state
-
-from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import RateLaw, delayed, mod, shift_member
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed, mod, shift_member
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
-from ...core.laws import Symbols
 
 
 class CarElement(Element):
     """Car element."""
 
-    x = state(0.0)
-    v = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the car element."""
         return [RateLaw(s.x, s.v)]
 
@@ -32,13 +42,25 @@ class CarElement(Element):
 class LeadCarElement(Element):
     """Lead car element."""
 
-    x = state(0.0)
-    v = state(1.0)
-    u = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    amplitude = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    omega = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 1.0,
+        u: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.u = u
+        self.amplitude = amplitude
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the lead car element."""
         return [RateLaw(s.x, s.v), RateLaw(s.v, -s.u * s.amplitude * s.omega * cos(s.omega * s.t))]
 
@@ -48,16 +70,27 @@ def _headway(x: Expression, road_length: Expression) -> Expression:
     return mod(shift_member(x, 1) - x, road_length)
 
 
-class OptimalVelocityInteraction(BaseInteraction):
+class OptimalVelocityInteraction(Interaction):
     """Optimal velocity interaction."""
 
-    cars = role()
-    a = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    V0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    hc = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    road_length = parameter(default=40.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[object, RoleSpec()],
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        hc: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.a = a
+        self.V0 = V0
+        self.hc = hc
+        self.road_length = road_length
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the optimal velocity interaction."""
         return [
             RateLaw(
@@ -67,20 +100,35 @@ class OptimalVelocityInteraction(BaseInteraction):
         ]
 
 
-class IntelligentDriverInteraction(BaseInteraction):
+class IntelligentDriverInteraction(Interaction):
     """Intelligent driver interaction."""
 
-    cars = role()
-    v0 = parameter(default=30.0, domain=NumericDomain.POSITIVE)
-    T = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
-    a = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    b = parameter(default=1.5, domain=NumericDomain.POSITIVE)
-    s0 = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    delta = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    length = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    road_length = parameter(default=500.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[object, RoleSpec()],
+        v0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        s0: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        delta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        length: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.v0 = v0
+        self.T = T
+        self.a = a
+        self.b = b
+        self.s0 = s0
+        self.delta = delta
+        self.length = length
+        self.road_length = road_length
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the intelligent driver interaction."""
         return [
             RateLaw(
@@ -103,16 +151,27 @@ class IntelligentDriverInteraction(BaseInteraction):
         ]
 
 
-class DelayedFollowingInteraction(BaseInteraction):
+class DelayedFollowingInteraction(Interaction):
     """Delayed following interaction."""
 
-    leader = role()
-    follower = role()
-    reaction = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    T = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    power = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        leader: Annotated[object, RoleSpec()],
+        follower: Annotated[object, RoleSpec()],
+        reaction: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        power: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.leader = leader
+        self.follower = follower
+        self.reaction = reaction
+        self.T = T
+        self.power = power
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the delayed following interaction."""
         return [
             RateLaw(

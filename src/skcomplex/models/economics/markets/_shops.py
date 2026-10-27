@@ -4,20 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._markets import Trade
 
 
@@ -126,15 +128,27 @@ class ResidentElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)})
-    bid: float = state(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    demand: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    money: float = state(default=1000.0, domain=NumericDomain.REAL)
-    travel: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    distance_cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    online: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'travel', 'color_range': (0.0, 1.0)}),
+        *,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        money: Annotated[float, StateSpec()] = 1000.0,
+        travel: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        distance_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        online: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.bid = bid
+        self.demand = demand
+        self.money = money
+        self.travel = travel
+        self.distance_cost = distance_cost
+        self.online = online
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that decides how the shopper shops in the step.
 
         Args:
@@ -212,20 +226,37 @@ class StoreElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'price'})
-    price: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    ask: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    sales: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    money: float = state(default=100.0, domain=NumericDomain.REAL)
-    profit: float = state(default=0.0, domain=NumericDomain.REAL)
-    direction: float = state(default=1.0, domain=NumericDomain.REAL)
-    capacity: float = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
-    unit_cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    fixed_cost: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    adjustment: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'price'}),
+        *,
+        price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sales: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        money: Annotated[float, StateSpec()] = 100.0,
+        profit: Annotated[float, StateSpec()] = 0.0,
+        direction: Annotated[float, StateSpec()] = 1.0,
+        capacity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        unit_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        fixed_cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.price = price
+        self.ask = ask
+        self.supply = supply
+        self.sales = sales
+        self.money = money
+        self.profit = profit
+        self.direction = direction
+        self.capacity = capacity
+        self.unit_cost = unit_cost
+        self.fixed_cost = fixed_cost
+        self.adjustment = adjustment
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that opens the shop for the market and the rule that settles its accounts.
 
         Args:
@@ -274,7 +305,7 @@ class StoreElement(Element):
         agent.price = max(unit_cost, agent.price * (1 + agent.direction * model.parameter('adjustment')))
 
 
-class ShoppingInteraction(BaseInteraction):
+class ShoppingInteraction(Interaction):
     """Market where shoppers buy from the shops they prefer, by price plus travel cost.
 
     The matching law pairs every shopper with the shop of the lowest price plus travel cost that has units left, and
@@ -297,10 +328,19 @@ class ShoppingInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('volume',)
-    shoppers: str = role()
-    shops: str = role()
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def __init__(
+        self,
+        label: str,
+        *,
+        shoppers: Annotated[str, RoleSpec()],
+        shops: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.shoppers = shoppers
+        self.shops = shops
+
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the matching of shoppers with shops and the rule that settles the trades.
 
         Args:

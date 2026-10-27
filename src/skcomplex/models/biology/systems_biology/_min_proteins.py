@@ -3,17 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
@@ -73,20 +75,39 @@ class MinSkeletonElement(Element):
         6.0
     """
 
-    md: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    mde: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    cdt: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    cdd: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    ce: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    Dm: float = parameter(default=0.013, domain=NumericDomain.POSITIVE)
-    Dc: float = parameter(default=60.0, domain=NumericDomain.POSITIVE)
-    k_d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    k_dd: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    k_de: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    k_off: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=6.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        md: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mde: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        cdt: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        cdd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ce: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Dm: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.013,
+        Dc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
+        k_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        k_dd: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        k_de: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k_off: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.md = md
+        self.mde = mde
+        self.cdt = cdt
+        self.cdd = cdd
+        self.ce = ce
+        self.Dm = Dm
+        self.Dc = Dc
+        self.k_d = k_d
+        self.k_dd = k_dd
+        self.k_de = k_de
+        self.k_off = k_off
+        self.lam = lam
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reactions and the diffusion of the five species.
 
         Args:
@@ -185,4 +206,4 @@ def min_protein_skeleton(
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise
     space = LatticeSpace(n_sites, spacing=length / n_sites)
-    return System(elements=[FieldElement('cell', MinSkeletonElement, space, values=values)])
+    return System(elements=[FieldElement('cell', element=MinSkeletonElement, space=space, values=values)])

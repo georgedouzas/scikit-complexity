@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
@@ -87,18 +90,35 @@ class PersonElement(Element):
         100
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)})
-    health: float = state(default=SUSCEPTIBLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    d: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    mu: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    incubation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lockdown_start: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lockdown_length: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lockdown_d: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)}),
+        *,
+        health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
+        clock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        incubation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lockdown_start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lockdown_length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lockdown_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.health = health
+        self.clock = clock
+        self.d = d
+        self.beta = beta
+        self.gamma = gamma
+        self.mu = mu
+        self.alpha = alpha
+        self.incubation = incubation
+        self.lockdown_start = lockdown_start
+        self.lockdown_length = lockdown_length
+        self.lockdown_d = lockdown_d
 
     def _infect(self, agent: AgentView, model: ModelView) -> None:
         """Infect every susceptible person of the cell with probability `beta`."""
@@ -124,7 +144,7 @@ class PersonElement(Element):
         elif agent.health == RECOVERED and model.rng.random() < agent.alpha:
             agent.health = SUSCEPTIBLE
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -188,14 +208,25 @@ class WalkerElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)})
-    health: float = state(default=HEALTHY, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    remaining: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lifetime: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    infection: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    travel: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
+        *,
+        health: Annotated[float, StateSpec(domain=NN)] = HEALTHY,
+        remaining: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        infection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        travel: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.health = health
+        self.remaining = remaining
+        self.lifetime = lifetime
+        self.infection = infection
+        self.travel = travel
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -264,14 +295,25 @@ class TravellerElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)})
-    health: float = state(default=SUSCEPTIBLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    tau: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    days: float = parameter(default=14.0, domain=NumericDomain.POSITIVE)
-    m: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)}),
+        *,
+        health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
+        clock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        days: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.health = health
+        self.clock = clock
+        self.tau = tau
+        self.days = days
+        self.m = m
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:

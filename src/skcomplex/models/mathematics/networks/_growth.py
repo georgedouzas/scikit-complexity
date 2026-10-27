@@ -3,14 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, neighbors, total, where
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -19,7 +24,7 @@ SMALLEST_TOTAL = 1e-12
 SMALLEST_DEGREE = 1e-9
 
 
-def _degree(node: Symbols) -> object:
+def _degree(node: SimpleNamespace) -> object:
     """Return the degree of a candidate node, its weight under preferential attachment."""
     return neighbors(1)
 
@@ -59,11 +64,19 @@ class VertexElement(Element):
         0.0
     """
 
-    visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = DEGREE_VISUAL,
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+        self.degree = degree
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the ageing and the degree of the node.
 
         Args:
@@ -103,11 +116,23 @@ class TriadVertexElement(VertexElement):
         0.5
     """
 
-    near: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    triad: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    extra: int = parameter(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        age: float = 0.0,
+        degree: float = 0.0,
+        near: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        triad: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        extra: Annotated[int, ParameterSpec(domain=NN)] = 1,
+    ) -> None:
+        super().__init__(label, visual=visual, age=age, degree=degree)
+        self.near = near
+        self.triad = triad
+        self.extra = extra
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the ageing, the degree, the marks next to the newest node, and the edges of triad formation.
 
         Args:
@@ -120,16 +145,19 @@ class TriadVertexElement(VertexElement):
         """
         triad = s.triad
 
-        def weight(node: Symbols) -> object:
+        def weight(node: SimpleNamespace) -> object:
             """Return the mixture of triad formation and preferential attachment for a candidate node."""
             closing = neighbors(node.other.near)
             attaching = neighbors(1)
             return triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - triad) * attaching / total(attaching)
 
         return [
-            *super().laws(s),
+            *super()._get_laws(s),
             UpdateLaw(s.near, neighbors(where(s.other.age < 0.5, 1, 0))),  # noqa: PLR2004
-            UpdateLaw(add_edge(edges=int(self.extra), toward=weight), where(s.age < 0.5, 1, 0)),  # noqa: PLR2004
+            UpdateLaw(
+                TopologyRequestSpec('add-edge', edges=int(self.extra), toward=weight),
+                where(s.age < 0.5, 1, 0),  # noqa: PLR2004
+            ),
         ]
 
 
@@ -149,9 +177,19 @@ class CopyingVertexElement(VertexElement):
         1.0
     """
 
-    inverse: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        age: float = 0.0,
+        degree: float = 0.0,
+        inverse: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual, age=age, degree=degree)
+        self.inverse = inverse
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the ageing, the degree, and its inverse.
 
         Args:
@@ -162,7 +200,7 @@ class CopyingVertexElement(VertexElement):
             laws:
                 The laws of the component.
         """
-        return [*super().laws(s), UpdateLaw(s.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))]
+        return [*super()._get_laws(s), UpdateLaw(s.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))]
 
 
 class AttachmentElement(Element):
@@ -181,9 +219,17 @@ class AttachmentElement(Element):
         3
     """
 
-    edges: int = parameter(default=2, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        edges: Annotated[int, ParameterSpec(domain=NN)] = 2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.edges = edges
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the arrival of a node with its edges.
 
         Args:
@@ -194,7 +240,7 @@ class AttachmentElement(Element):
             laws:
                 The laws of the component.
         """
-        return [UpdateLaw(add_node(edges=int(self.edges), toward=_degree), 1)]
+        return [UpdateLaw(TopologyRequestSpec('add-node', edges=int(self.edges), toward=_degree), 1)]
 
 
 class CopyingElement(Element):
@@ -220,10 +266,19 @@ class CopyingElement(Element):
         0.1
     """
 
-    edges: int = parameter(default=3, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    randomness: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        edges: Annotated[int, ParameterSpec(domain=NN)] = 3,
+        randomness: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.edges = edges
+        self.randomness = randomness
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the arrival of a node with its copied edges.
 
         Args:
@@ -236,11 +291,11 @@ class CopyingElement(Element):
         """
         randomness = float(self.randomness)
 
-        def weight(node: Symbols) -> object:
+        def weight(node: SimpleNamespace) -> object:
             """Return the chance that a copied edge or a random edge reaches a candidate node."""
             return randomness + (1 - randomness) * neighbors(node.other.inverse)
 
-        return [UpdateLaw(add_node(edges=int(self.edges), toward=weight), 1)]
+        return [UpdateLaw(TopologyRequestSpec('add-node', edges=int(self.edges), toward=weight), 1)]
 
 
 def _nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:

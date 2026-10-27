@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, draw, uniform
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import draw, uniform
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 class TrapWalkerElement(Element):
@@ -46,13 +49,23 @@ class TrapWalkerElement(Element):
         0.5
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)})
-    x: npt.ArrayLike = state(default=0.5, vector=True)
-    E: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    T: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    tau0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)}),
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.5,
+        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.E = E
+        self.T = T
+        self.tau0 = tau0
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the escapes after activated waiting times.
 
         Args:

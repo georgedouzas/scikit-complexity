@@ -3,11 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import EventLaw, RateLaw, Symbols
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -81,20 +85,39 @@ class HodgkinHuxleyElement(Element):
         120.0
     """
 
-    v: float = state(default=-65.0)
-    n: float = state(default=0.3177, domain=NumericDomain.NONNEGATIVE)
-    m: float = state(default=0.0529, domain=NumericDomain.NONNEGATIVE)
-    h: float = state(default=0.5961, domain=NumericDomain.NONNEGATIVE)
-    C: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g_na: float = parameter(default=120.0, domain=NumericDomain.NONNEGATIVE)
-    g_k: float = parameter(default=36.0, domain=NumericDomain.NONNEGATIVE)
-    g_l: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    e_na: float = parameter(default=50.0)
-    e_k: float = parameter(default=-77.0)
-    e_l: float = parameter(default=-54.387)
-    I: float = parameter(default=10.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[float, StateSpec()] = -65.0,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3177,
+        m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0529,
+        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5961,
+        C: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g_na: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 120.0,
+        g_k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 36.0,
+        g_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        e_na: Annotated[float, ParameterSpec()] = 50.0,
+        e_k: Annotated[float, ParameterSpec()] = -77.0,
+        e_l: Annotated[float, ParameterSpec()] = -54.387,
+        I: Annotated[float, ParameterSpec()] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.n = n
+        self.m = m
+        self.h = h
+        self.C = C
+        self.g_na = g_na
+        self.g_k = g_k
+        self.g_l = g_l
+        self.e_na = e_na
+        self.e_k = e_k
+        self.e_l = e_l
+        self.I = I
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the membrane equation, the gate kinetics, and the spike events.
 
         Args:
@@ -110,7 +133,7 @@ class HodgkinHuxleyElement(Element):
             RateLaw(getattr(s, gate), opening * (1 - getattr(s, gate)) - closing * getattr(s, gate))
             for gate, (opening, closing) in _gate_rates(s.v).items()
         ]
-        return [RateLaw(s.v, (s.I - currents) / s.C), *gates, EventLaw(s.v, None, direction=1, label='spike')]
+        return [RateLaw(s.v, (s.I - currents) / s.C), *gates, CrossingLaw(s.v, None, direction=1, label='spike')]
 
 
 class FitzHughNagumoNeuronElement(Element):
@@ -146,14 +169,27 @@ class FitzHughNagumoNeuronElement(Element):
         0.08
     """
 
-    v: float = state(default=-1.2)
-    w: float = state(default=-0.6)
-    a: float = parameter(default=0.7)
-    b: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.08, domain=NumericDomain.POSITIVE)
-    I: float = parameter(default=0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[float, StateSpec()] = -1.2,
+        w: Annotated[float, StateSpec()] = -0.6,
+        a: Annotated[float, ParameterSpec()] = 0.7,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
+        I: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.w = w
+        self.a = a
+        self.b = b
+        self.epsilon = epsilon
+        self.I = I
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fast potential and the slow recovery.
 
         Args:

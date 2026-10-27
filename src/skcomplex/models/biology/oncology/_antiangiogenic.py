@@ -4,13 +4,16 @@
 # License: MIT
 
 import math
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import exp, log, pi
+from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse_train
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
@@ -94,32 +97,41 @@ class AngiogenicTumourElement(Element):
         5.85
     """
 
-    A: float = state(default=17347.0, domain=NumericDomain.NONNEGATIVE)
-    Vb: float = state(default=17347.0, domain=NumericDomain.POSITIVE)
-    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lambda1: float = parameter(default=0.192, domain=NumericDomain.POSITIVE)
-    lambda2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    xi_s: float = parameter(default=5.85, domain=NumericDomain.POSITIVE)
-    xi_i: float = parameter(default=0.00873, domain=NumericDomain.POSITIVE)
-    a: float = parameter(default=0.66, domain=NumericDomain.NONNEGATIVE)
-    du: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
-    dose: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17347.0,
+        Vb: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 17347.0,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lambda1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.192,
+        lambda2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        xi_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.85,
+        xi_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00873,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.66,
+        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         period: float = 1.0,
         width: float = 1.0,
         start: float = 0.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.A = A
+        self.Vb = Vb
+        self.U = U
+        self.lambda1 = lambda1
+        self.lambda2 = lambda2
+        self.xi_s = xi_s
+        self.xi_i = xi_i
+        self.a = a
+        self.du = du
+        self.dose = dose
         self.period = period
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the Gompertz growth of the tumour, the balance of the vasculature, and the inhibitor kinetics.
 
         Args:
@@ -262,52 +274,81 @@ class VascularizedSpheroidElement(Element):
         495.0
     """
 
-    Ar: float = state(default=13.0, domain=NumericDomain.POSITIVE)
-    Ac: float = state(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    Ap: float = state(default=495.0, domain=NumericDomain.NONNEGATIVE)
-    An: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    Vbc: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    Vbp: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    U: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
-    r2: float = parameter(default=12.0, domain=NumericDomain.POSITIVE)
-    r3: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
-    m: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    a1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    p1: float = parameter(default=1.0, domain=NumericDomain.REAL)
-    p2: float = parameter(default=4e5, domain=NumericDomain.REAL)
-    p3: float = parameter(default=0.2, domain=NumericDomain.REAL)
-    p4: float = parameter(default=0.45, domain=NumericDomain.REAL)
-    p_g: float = parameter(default=4e5, domain=NumericDomain.REAL)
-    kappa1: float = parameter(default=0.17, domain=NumericDomain.REAL)
-    kappa2: float = parameter(default=-45000.0, domain=NumericDomain.REAL)
-    kappa3: float = parameter(default=-0.04, domain=NumericDomain.REAL)
-    kappa4: float = parameter(default=-0.06, domain=NumericDomain.REAL)
-    kappa_g: float = parameter(default=55000.0, domain=NumericDomain.REAL)
-    theta1: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    theta2: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    beta: float = parameter(default=1.2, domain=NumericDomain.POSITIVE)
-    xi_e: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    rv_ref: float = parameter(default=0.005, domain=NumericDomain.POSITIVE)
-    Vx: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
-    du: float = parameter(default=INHIBITOR_CLEARANCE, domain=NumericDomain.POSITIVE)
-    dose: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        Ar: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 13.0,
+        Ac: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 495.0,
+        An: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Vbc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Vbp: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        p1: Annotated[float, ParameterSpec()] = 1.0,
+        p2: Annotated[float, ParameterSpec()] = 400000.0,
+        p3: Annotated[float, ParameterSpec()] = 0.2,
+        p4: Annotated[float, ParameterSpec()] = 0.45,
+        p_g: Annotated[float, ParameterSpec()] = 400000.0,
+        kappa1: Annotated[float, ParameterSpec()] = 0.17,
+        kappa2: Annotated[float, ParameterSpec()] = -45000.0,
+        kappa3: Annotated[float, ParameterSpec()] = -0.04,
+        kappa4: Annotated[float, ParameterSpec()] = -0.06,
+        kappa_g: Annotated[float, ParameterSpec()] = 55000.0,
+        theta1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        theta2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
+        xi_e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        rv_ref: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
+        Vx: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = INHIBITOR_CLEARANCE,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         period: float = 7.0,
         width: float = 1.0,
         start: float = 0.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.Ar = Ar
+        self.Ac = Ac
+        self.Ap = Ap
+        self.An = An
+        self.Vbc = Vbc
+        self.Vbp = Vbp
+        self.U = U
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
+        self.m = m
+        self.a1 = a1
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+        self.p4 = p4
+        self.p_g = p_g
+        self.kappa1 = kappa1
+        self.kappa2 = kappa2
+        self.kappa3 = kappa3
+        self.kappa4 = kappa4
+        self.kappa_g = kappa_g
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.beta = beta
+        self.xi_e = xi_e
+        self.rv_ref = rv_ref
+        self.Vx = Vx
+        self.du = du
+        self.dose = dose
         self.period = period
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth of the radius, the cell balances, the vascular balances, and the inhibitor kinetics.
 
         Args:

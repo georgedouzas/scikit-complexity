@@ -3,14 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, TransferLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, TransferLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _adoption(s: Symbols) -> list[BaseLaw]:
+def _adoption(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the adoption flow from potential adopters to adopters, driven by innovation and imitation."""
     market = s.P + s.A
     return [TransferLaw(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
@@ -19,12 +25,23 @@ def _adoption(s: Symbols) -> list[BaseLaw]:
 class BassMarketElement(Element):
     """Bass market element."""
 
-    P = state(default=1000.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
-    A = state(default=0.0, domain=NumericDomain.NONNEGATIVE, quantity='people')
-    p = parameter(default=0.03, domain=NumericDomain.NONNEGATIVE)
-    q = parameter(default=0.38, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        P: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000.0,
+        A: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 0.0,
+        p: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        q: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.38,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.P = P
+        self.A = A
+        self.p = p
+        self.q = q
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the bass market element."""
         return _adoption(s)
 

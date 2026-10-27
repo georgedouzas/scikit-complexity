@@ -3,25 +3,41 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, RuleLaw, Symbols, count
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.laws.utils import count
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class StockElement(Element):
     """Stock element."""
 
-    n = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
-    r = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    K = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        r: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.r = r
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the stock element."""
         return [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))]
 
@@ -51,21 +67,21 @@ class FarmerElement(Element):
         10
     """
 
-    wealth: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        wealth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         resource: str = 'land/stock.n',
         effort: str = 'harvest.effort',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
         self.resource = resource
         self.effort = effort
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the catch rule.
 
         Args:
@@ -91,7 +107,7 @@ class FarmerElement(Element):
         agent.wealth += model.parameters[self.effort] * float(model.inputs.get(self.resource, 0.0))
 
 
-class HarvestInteraction(BaseInteraction):
+class HarvestInteraction(Interaction):
     """Harvest of a resource proportional to its stock and to the number of harvesters, `-effort * N * n`.
 
     Args:
@@ -113,11 +129,20 @@ class HarvestInteraction(BaseInteraction):
         0.05
     """
 
-    resource: str = role()
-    harvesters: str = role()
-    effort: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        resource: Annotated[str, RoleSpec()],
+        harvesters: Annotated[str, RoleSpec()],
+        effort: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label)
+        self.resource = resource
+        self.harvesters = harvesters
+        self.effort = effort
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the harvest rate.
 
         Args:
@@ -167,4 +192,4 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
     land = System('land', elements=[StockElement('stock', n=K, r=r, K=K)])
     village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=farmers)])
     harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=effort)
-    return System(elements=[land, village], interactions=[harvest])
+    return System(interactions=[harvest], systems=[land, village])

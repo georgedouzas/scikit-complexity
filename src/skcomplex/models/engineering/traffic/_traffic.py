@@ -3,18 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -47,20 +49,21 @@ class RoadElement(Element):
         5
     """
 
-    velocity: float = state(default=-1, domain=NumericDomain.INTEGER)
-    slowdown: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        velocity: Annotated[float, StateSpec(domain=ZZ)] = -1,
+        slowdown: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         vmax: int = 5,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.velocity = velocity
+        self.slowdown = slowdown
         self.vmax = vmax
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the velocity update and the movement of cars.
 
         Args:

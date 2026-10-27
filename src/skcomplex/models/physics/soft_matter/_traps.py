@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -31,7 +35,7 @@ def _hop(*values: Array) -> tuple[Array, Array, Array]:
     return next_occupied, np.maximum(visited, next_occupied), np.where(stays, clock + 1, 0.0)
 
 
-def _mean_position(s: Symbols) -> object:
+def _mean_position(s: SimpleNamespace) -> object:
     """Return the mean distance travelled by the walkers."""
     return s.visits / s.walkers - 1
 
@@ -65,12 +69,23 @@ class TrapSiteElement(Element):
         3.0
     """
 
-    occupied: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    visited: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    clock: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    tau: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        visited: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        clock: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        tau: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.occupied = occupied
+        self.visited = visited
+        self.clock = clock
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the deterministic hops of the walkers out of their traps.
 
         Args:

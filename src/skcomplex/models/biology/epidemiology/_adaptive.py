@@ -3,18 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, bernoulli, neighbors, where
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import NeighborInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import bernoulli, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
@@ -41,10 +46,19 @@ class CarrierElement(Element):
         0.2
     """
 
-    p: float = state(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.p = p
+        self.lam = lam
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the recovery and the infection by the neighbours.
 
         Args:
@@ -83,11 +97,21 @@ class HostElement(Element):
         1.0
     """
 
-    i: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.i = i
+        self.beta = beta
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the infection by the infected neighbours and the recovery.
 
         Args:
@@ -118,7 +142,7 @@ class ContactElement(Element):
     """
 
 
-class RewiringInteraction(BaseInteraction):
+class RewiringInteraction(NeighborInteraction):
     """Susceptible end of an edge to an infected node that moves the edge to another susceptible node at rate `w`.
 
     Args:
@@ -140,12 +164,20 @@ class RewiringInteraction(BaseInteraction):
         2.0
     """
 
-    over: ClassVar[str] = 'neighbors'
-    hosts: str = role()
-    contacts: str = role()
-    w: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        hosts: Annotated[str, RoleSpec()],
+        contacts: Annotated[str, RoleSpec()],
+        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.hosts = hosts
+        self.contacts = contacts
+        self.w = w
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rewiring of the edge from either orientation of a susceptible and an infected end.
 
         Args:
@@ -157,13 +189,19 @@ class RewiringInteraction(BaseInteraction):
                 The jumps that rewire the edge.
         """
 
-        def susceptible(node: Symbols) -> object:
+        def susceptible(node: SimpleNamespace) -> object:
             """Return the weight of a candidate new end, 1 for a susceptible node and 0 otherwise."""
             return 1 - node.i
 
         return [
-            JumpLaw(s.w * (1 - s.source.i) * s.target.i, {rewire(keep='source', toward=susceptible): 1}),
-            JumpLaw(s.w * s.source.i * (1 - s.target.i), {rewire(keep='target', toward=susceptible): 1}),
+            JumpLaw(
+                s.w * (1 - s.source.i) * s.target.i,
+                {TopologyRequestSpec('rewire', keep='source', toward=susceptible): 1},
+            ),
+            JumpLaw(
+                s.w * s.source.i * (1 - s.target.i),
+                {TopologyRequestSpec('rewire', keep='target', toward=susceptible): 1},
+            ),
         ]
 
 
@@ -202,22 +240,25 @@ class ActiveHostElement(Element):
         2
     """
 
-    i: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    mu: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         m: int = 2,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.i = i
+        self.a = a
+        self.lam = lam
+        self.mu = mu
         self.m = m
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the infection along the edges, the recovery, and the edges created when the node fires.
 
         Args:
@@ -233,11 +274,11 @@ class ActiveHostElement(Element):
         recovered = bernoulli('recovery', s.mu)
         return [
             UpdateLaw(s.i, where(s.i > 1 / 2, 1 - recovered, infected)),
-            UpdateLaw(add_edge(edges=self.m), s.a),
+            UpdateLaw(TopologyRequestSpec('add-edge', edges=self.m), s.a),
         ]
 
 
-class ExpiryInteraction(BaseInteraction):
+class ExpiryInteraction(NeighborInteraction):
     """Removal of every edge of an activity-driven network one step after it is created.
 
     Args:
@@ -256,11 +297,18 @@ class ExpiryInteraction(BaseInteraction):
         'hosts'
     """
 
-    over: ClassVar[str] = 'neighbors'
-    hosts: str = role()
-    contacts: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        hosts: Annotated[str, RoleSpec()],
+        contacts: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.hosts = hosts
+        self.contacts = contacts
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the removal of the edge at the next step.
 
         Args:
@@ -271,7 +319,7 @@ class ExpiryInteraction(BaseInteraction):
             laws:
                 The update that removes the edge.
         """
-        return [UpdateLaw(remove_edge(), 1)]
+        return [UpdateLaw(TopologyRequestSpec('remove-edge'), 1)]
 
 
 def _initial_stream(seed: int | None) -> np.random.Generator:

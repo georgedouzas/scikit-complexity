@@ -3,15 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import role
 
-from ....core.base import BaseInteraction, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Sink, Source, TransferLaw, step, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import step, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 INFLOW_START = 5.0
 
@@ -19,11 +24,21 @@ INFLOW_START = 5.0
 class TubElement(Element):
     """Tub element."""
 
-    water = state(default=50.0, domain=NumericDomain.NONNEGATIVE, quantity='water')
-    inflow = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    outflow = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        water: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
+        inflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        outflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.water = water
+        self.inflow = inflow
+        self.outflow = outflow
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the tub element."""
         return [
             TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
@@ -34,22 +49,40 @@ class TubElement(Element):
 class StageElement(Element):
     """Stage element."""
 
-    m = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    feed = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        m: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        feed: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.m = m
+        self.feed = feed
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the stage element."""
         return [RateLaw(s.m, s.feed)]
 
 
-class PassageInteraction(BaseInteraction):
+class PassageInteraction(Interaction):
     """Passage interaction."""
 
-    source = role()
-    target = role()
-    rate = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[object, RoleSpec()],
+        target: Annotated[object, RoleSpec()],
+        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.target = target
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the passage interaction."""
         return [RateLaw(s.source.m, -s.rate * s.source.m), RateLaw(s.target.m, s.rate * s.source.m)]
 

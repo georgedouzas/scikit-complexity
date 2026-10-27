@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Callable, Sequence
 
-from ....core.base import ValidationError
+from ....core.errors import ValidationError
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._boolean import BooleanFunctionInteraction, BooleanNodeElement

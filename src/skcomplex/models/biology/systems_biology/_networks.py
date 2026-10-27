@@ -6,13 +6,17 @@
 import itertools
 from collections.abc import Sequence
 from math import prod
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -103,23 +107,45 @@ class PhosphorylationLoopElement(Element):
         0.5
     """
 
-    A: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    B: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    C: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    kp1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    kd1: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    kp2: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    kd2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    kp3: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    kd3: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    K1: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    K2: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    K3: float = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    A_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    B_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    C_T: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        kp1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        kd1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        kp2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        kd2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        kp3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        kd3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        K3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        A_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        B_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A = A
+        self.B = B
+        self.C = C
+        self.kp1 = kp1
+        self.kd1 = kd1
+        self.kp2 = kp2
+        self.kd2 = kd2
+        self.kp3 = kp3
+        self.kd3 = kd3
+        self.K1 = K1
+        self.K2 = K2
+        self.K3 = K3
+        self.A_T = A_T
+        self.B_T = B_T
+        self.C_T = C_T
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the Michaelis-Menten rates of the three proteins.
 
         Args:
@@ -154,10 +180,18 @@ class MetaboliteElement(Element):
         2.0
     """
 
-    x: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
-class GeneralizedMassActionInteraction(BaseInteraction):
+class GeneralizedMassActionInteraction(Interaction):
     """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
 
     Flux `j` is the power law `v_j = gamma_j prod_k x_k^f_jk`, and species `i` changes as `dx_i/dt = sum_j s_ij v_j`.
@@ -191,23 +225,22 @@ class GeneralizedMassActionInteraction(BaseInteraction):
         (1, 2)
     """
 
-    species: list[str] = role(variadic=True)
-
     def __init__(
         self,
         label: str,
         *,
+        species: Annotated[list[str], RoleSpec(variadic=True)],
         stoichiometry: Sequence[Sequence[float]] = ((0.0,),),
         gamma: Sequence[float] = (0.0,),
         orders: Sequence[Sequence[float]] = ((0.0,),),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.species = species
         self.stoichiometry = stoichiometry
         self.gamma = gamma
         self.orders = orders
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sum of the power-law fluxes of every species.
 
         Args:
@@ -232,7 +265,7 @@ class GeneralizedMassActionInteraction(BaseInteraction):
         ]
 
 
-class SSystemInteraction(BaseInteraction):
+class SSystemInteraction(Interaction):
     """Rates of a biochemical system in the S-system form of biochemical systems theory.
 
     Every species has one aggregated production and one aggregated degradation, both power laws:
@@ -266,23 +299,24 @@ class SSystemInteraction(BaseInteraction):
         ((1.0,),)
     """
 
-    species: list[str] = role(variadic=True)
-    alpha: list[float] = parameter(default=(), per='species', domain=NumericDomain.NONNEGATIVE)
-    beta: list[float] = parameter(default=(), per='species', domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        species: Annotated[list[str], RoleSpec(variadic=True)],
+        alpha: Annotated[list[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
+        beta: Annotated[list[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
         g: Sequence[Sequence[float]] = ((0.0,),),
         h: Sequence[Sequence[float]] = ((0.0,),),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.species = species
+        self.alpha = alpha
+        self.beta = beta
         self.g = g
         self.h = h
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the production minus the degradation of every species.
 
         Args:
@@ -325,10 +359,19 @@ class GoodwinStageElement(Element):
         0.1
     """
 
-    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decay `-b x`.
 
         Args:
@@ -342,7 +385,7 @@ class GoodwinStageElement(Element):
         return [RateLaw(s.x, -s.b * s.x)]
 
 
-class HillRepressionInteraction(BaseInteraction):
+class HillRepressionInteraction(Interaction):
     """Synthesis of a target repressed by a Hill function of a repressor, `a / (1 + (y / K)^n)`.
 
     Args:
@@ -370,13 +413,24 @@ class HillRepressionInteraction(BaseInteraction):
         12.0
     """
 
-    repressor: str = role()
-    target: str = role()
-    a: float = parameter(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    K: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    n: float = parameter(default=12.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        repressor: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+    ) -> None:
+        super().__init__(label)
+        self.repressor = repressor
+        self.target = target
+        self.a = a
+        self.K = K
+        self.n = n
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the repressed synthesis of the target.
 
         Args:
@@ -390,7 +444,7 @@ class HillRepressionInteraction(BaseInteraction):
         return [RateLaw(s.target.x, s.a / (1 + (s.repressor.x / s.K) ** s.n))]
 
 
-class SynthesisInteraction(BaseInteraction):
+class SynthesisInteraction(Interaction):
     """Synthesis of a target in proportion to a source, `k x`, such as translation or an enzymatic product.
 
     Args:
@@ -412,11 +466,20 @@ class SynthesisInteraction(BaseInteraction):
         2.0
     """
 
-    source: str = role()
-    target: str = role()
-    k: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.target = target
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the synthesis `k x` of the target.
 
         Args:

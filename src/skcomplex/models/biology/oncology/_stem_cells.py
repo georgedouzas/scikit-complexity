@@ -3,14 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, Literal
+from types import SimpleNamespace
+from typing import Annotated, Literal
 
 import numpy as np
-from sage.all__sagemath_symbolics import exp, log
+from sage.all__sagemath_symbolics import Expression, exp, log, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, delayed, pulse
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed, pulse
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
@@ -170,62 +173,101 @@ class StemCellDifferentiationElement(Element):
         'pulsed'
     """
 
-    NSq: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    NPr: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
-    NBs: float = state(default=2000.0, domain=NumericDomain.NONNEGATIVE)
-    ND: float = state(default=2000.0, domain=NumericDomain.NONNEGATIVE)
-    ASq: float = state(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    APr: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    ABs: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    AD: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    d1: float = parameter(default=0.0001, domain=NumericDomain.NONNEGATIVE)
-    d2: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    d3: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    d4: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    d5: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    d6: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    d7: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    d8: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    k12: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    k21: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    k23: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    k34: float = parameter(default=0.06, domain=NumericDomain.NONNEGATIVE)
-    k56: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    k65: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
-    k67: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    k78: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    r2: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    r3: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    r4: float = parameter(default=0.001, domain=NumericDomain.NONNEGATIVE)
-    m1: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
-    NPinf: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    APinf: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    NPmax: float = parameter(default=1e4, domain=NumericDomain.POSITIVE)
-    APmax: float = parameter(default=5e4, domain=NumericDomain.POSITIVE)
-    Nbmax: float = parameter(default=1e4, domain=NumericDomain.POSITIVE)
-    Abmax: float = parameter(default=5e3, domain=NumericDomain.POSITIVE)
-    beta0: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    kappa0: float = parameter(default=2000.0, domain=NumericDomain.POSITIVE)
-    delta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    up: float = parameter(default=30.0, domain=NumericDomain.NONNEGATIVE)
-    uc: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        NSq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        NBs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
+        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
+        ASq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        APr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ABs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k34: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        k56: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        k65: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        k67: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        k78: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        NPinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        APinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        NPmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
+        APmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50000.0,
+        Nbmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
+        Abmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5000.0,
+        beta0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        kappa0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2000.0,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
+        uc: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         therapy: str = 'continuous',
         start: float = 100.0,
         duration: float = 100.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.NSq = NSq
+        self.NPr = NPr
+        self.NBs = NBs
+        self.ND = ND
+        self.ASq = ASq
+        self.APr = APr
+        self.ABs = ABs
+        self.AD = AD
+        self.d1 = d1
+        self.d2 = d2
+        self.d3 = d3
+        self.d4 = d4
+        self.d5 = d5
+        self.d6 = d6
+        self.d7 = d7
+        self.d8 = d8
+        self.k12 = k12
+        self.k21 = k21
+        self.k23 = k23
+        self.k34 = k34
+        self.k56 = k56
+        self.k65 = k65
+        self.k67 = k67
+        self.k78 = k78
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
+        self.r4 = r4
+        self.m1 = m1
+        self.NPinf = NPinf
+        self.APinf = APinf
+        self.NPmax = NPmax
+        self.APmax = APmax
+        self.Nbmax = Nbmax
+        self.Abmax = Abmax
+        self.beta0 = beta0
+        self.kappa0 = kappa0
+        self.delta = delta
+        self.up = up
+        self.uc = uc
         self.therapy = therapy
         self.start = start
         self.duration = duration
 
-    def _therapy_deaths(self, s: Symbols, renewal: Expression) -> tuple[Expression, Expression]:
+    def _therapy_deaths(self, s: SimpleNamespace, renewal: Expression) -> tuple[Expression, Expression]:
         """Return the death rate of normal progenitors and the factor of the other death rates under the therapy."""
         if self.therapy == 'continuous':
             return s.d2 * s.uc * (1 + s.delta * renewal), s.uc
@@ -234,7 +276,7 @@ class StemCellDifferentiationElement(Element):
             return s.d2 * s.up * (1 + on * s.delta * renewal), s.up * (1 + 3 * on)
         return s.d2, 1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the transitions, renewals, deaths, and mutation of the eight compartments.
 
         Args:
@@ -377,38 +419,75 @@ class BoneMarrowBloodElement(Element):
         96.0
     """
 
-    NBM: float = state(default=1e13, domain=NumericDomain.NONNEGATIVE)
-    NPB: float = state(default=3.5e9, domain=NumericDomain.NONNEGATIVE)
-    ABM: float = state(default=4e11, domain=NumericDomain.NONNEGATIVE)
-    APB: float = state(default=5e9, domain=NumericDomain.NONNEGATIVE)
-    AS: float = state(default=1e5, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=0.149, domain=NumericDomain.NONNEGATIVE)
-    b1: float = parameter(default=5.8e13, domain=NumericDomain.POSITIVE)
-    b2: float = parameter(default=1e13, domain=NumericDomain.POSITIVE)
-    theta1: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
-    m1: float = parameter(default=0.0013, domain=NumericDomain.NONNEGATIVE)
-    m2: float = parameter(default=2.7e4, domain=NumericDomain.NONNEGATIVE)
-    theta2: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
-    r2: float = parameter(default=1e-12, domain=NumericDomain.NONNEGATIVE)
-    m3: float = parameter(default=1e-7, domain=NumericDomain.NONNEGATIVE)
-    c1: float = parameter(default=1e-14, domain=NumericDomain.NONNEGATIVE)
-    alpha1: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    tau1: float = parameter(default=96.0, domain=NumericDomain.POSITIVE)
-    c2: float = parameter(default=1e-14, domain=NumericDomain.NONNEGATIVE)
-    d1: float = parameter(default=0.0083, domain=NumericDomain.NONNEGATIVE)
-    r3: float = parameter(default=0.00396, domain=NumericDomain.NONNEGATIVE)
-    b3: float = parameter(default=3.688e14, domain=NumericDomain.POSITIVE)
-    theta3: float = parameter(default=1e10, domain=NumericDomain.POSITIVE)
-    m4: float = parameter(default=0.0065, domain=NumericDomain.NONNEGATIVE)
-    m5: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    alpha2: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
-    tau2: float = parameter(default=576.0, domain=NumericDomain.POSITIVE)
-    r4: float = parameter(default=1e-12, domain=NumericDomain.NONNEGATIVE)
-    d2: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    r5: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    b4: float = parameter(default=1e-6, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        NBM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10000000000000.0,
+        NPB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3500000000.0,
+        ABM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 400000000000.0,
+        APB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5000000000.0,
+        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.149,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 58000000000000.0,
+        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000000.0,
+        theta1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 27000.0,
+        theta2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
+        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
+        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 96.0,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0083,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00396,
+        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 368800000000000.0,
+        theta3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
+        m4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0065,
+        m5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
+        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 576.0,
+        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
+        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.NBM = NBM
+        self.NPB = NPB
+        self.ABM = ABM
+        self.APB = APB
+        self.AS = AS
+        self.r1 = r1
+        self.b1 = b1
+        self.b2 = b2
+        self.theta1 = theta1
+        self.m1 = m1
+        self.m2 = m2
+        self.theta2 = theta2
+        self.r2 = r2
+        self.m3 = m3
+        self.c1 = c1
+        self.alpha1 = alpha1
+        self.tau1 = tau1
+        self.c2 = c2
+        self.d1 = d1
+        self.r3 = r3
+        self.b3 = b3
+        self.theta3 = theta3
+        self.m4 = m4
+        self.m5 = m5
+        self.alpha2 = alpha2
+        self.tau2 = tau2
+        self.r4 = r4
+        self.d2 = d2
+        self.r5 = r5
+        self.b4 = b4
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the renewal, mutation, migration, and delayed maturation and conversion of the five populations.
 
         Args:
@@ -523,29 +602,57 @@ class LeukaemiaStemCellsElement(Element):
         0.01
     """
 
-    NS: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    NPr: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    ND: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    AS: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    AD: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
-    m1: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    d1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    r2: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    r3: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    d2: float = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
-    m2: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    d3: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    r4: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
-    m3: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    d4: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    r5: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    d5: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    beta1: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    beta2: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    beta3: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        NS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        beta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        beta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.NS = NS
+        self.NPr = NPr
+        self.ND = ND
+        self.AS = AS
+        self.AD = AD
+        self.r1 = r1
+        self.m1 = m1
+        self.d1 = d1
+        self.r2 = r2
+        self.r3 = r3
+        self.d2 = d2
+        self.m2 = m2
+        self.d3 = d3
+        self.r4 = r4
+        self.m3 = m3
+        self.d4 = d4
+        self.r5 = r5
+        self.d5 = d5
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.beta3 = beta3
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regulated renewal, division, and differentiation of the normal and leukaemic lineages.
 
         Args:

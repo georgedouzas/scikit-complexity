@@ -3,26 +3,37 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter
 
-from ....core.base import NumericDomain, state
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw, delayed
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.laws.utils import delayed
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class ClimateAnomalyElement(Element):
     """Climate anomaly element."""
 
-    T = state(default=0.0, domain=NumericDomain.REAL)
-    lam = parameter(0.5)
-    sigma = parameter(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 0.0,
+        lam: Annotated[object, ParameterSpec()] = 0.5,
+        sigma: Annotated[object, ParameterSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.lam = lam
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the climate anomaly element."""
         return [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)]
 
@@ -30,11 +41,21 @@ class ClimateAnomalyElement(Element):
 class DelayedOscillatorElement(Element):
     """Delayed oscillator element."""
 
-    T = state(default=0.1, domain=NumericDomain.REAL)
-    alpha = parameter(0.75)
-    delta = parameter(6.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 0.1,
+        alpha: Annotated[object, ParameterSpec()] = 0.75,
+        delta: Annotated[object, ParameterSpec()] = 6.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.alpha = alpha
+        self.delta = delta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the delayed oscillator element."""
         return [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))]
 

@@ -3,20 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 PHEROMONE = 'ground/pheromone.level'
 
@@ -24,11 +26,21 @@ PHEROMONE = 'ground/pheromone.level'
 class PheromoneElement(Element):
     """Pheromone element."""
 
-    level = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    D = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    evaporation = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        evaporation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.D = D
+        self.evaporation = evaporation
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the pheromone element."""
         return [RateLaw(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)]
 
@@ -77,18 +89,33 @@ class AntElement(Element):
         5
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)})
-    carrying: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    nest_x: float = parameter(default=5.0)
-    nest_y: float = parameter(default=10.0)
-    food_x: float = parameter(default=34.0)
-    food_y: float = parameter(default=10.0)
-    food_radius: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    attraction: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    outward: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    deposit: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)}),
+        *,
+        carrying: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        nest_x: Annotated[float, ParameterSpec()] = 5.0,
+        nest_y: Annotated[float, ParameterSpec()] = 10.0,
+        food_x: Annotated[float, ParameterSpec()] = 34.0,
+        food_y: Annotated[float, ParameterSpec()] = 10.0,
+        food_radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        outward: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        deposit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.carrying = carrying
+        self.nest_x = nest_x
+        self.nest_y = nest_y
+        self.food_x = food_x
+        self.food_y = food_y
+        self.food_radius = food_radius
+        self.attraction = attraction
+        self.outward = outward
+        self.deposit = deposit
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the foraging rule.
 
         Args:
@@ -200,8 +227,8 @@ def pheromone_foraging(
     )
     pheromone = FieldElement(
         'pheromone',
-        PheromoneElement,
-        LatticeSpace((width, height)),
+        element=PheromoneElement,
+        space=LatticeSpace((width, height)),
         boundary={'level': 'zero-flux'},
         values={'D': D, 'evaporation': evaporation},
     )

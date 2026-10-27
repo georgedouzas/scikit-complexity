@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 GROWN_SHARE = 0.5
 
@@ -57,12 +60,24 @@ class GrassElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5})
-    grown: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    countdown: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    regrowth: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec(
+            'agents',
+            {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
+        ),
+        *,
+        grown: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        countdown: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        regrowth: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.grown = grown
+        self.countdown = countdown
+        self.regrowth = regrowth
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule.
 
         Args:
@@ -116,12 +131,21 @@ class SheepElement(Element):
         100
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.3})
-    energy: float = state(default=8.0)
-    gain: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    reproduction: float = parameter(default=0.04, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
+        *,
+        energy: Annotated[float, StateSpec()] = 8.0,
+        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.energy = energy
+        self.gain = gain
+        self.reproduction = reproduction
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:
@@ -175,12 +199,21 @@ class WolfElement(Element):
         25
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.35})
-    energy: float = state(default=20.0)
-    gain: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    reproduction: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.35}),
+        *,
+        energy: Annotated[float, StateSpec()] = 20.0,
+        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.energy = energy
+        self.gain = gain
+        self.reproduction = reproduction
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
         Args:

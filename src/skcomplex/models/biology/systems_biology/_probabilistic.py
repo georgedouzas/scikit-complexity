@@ -4,13 +4,18 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import NN, SR, Expression
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, role, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, categorical, where
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import categorical, where
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._boolean import _pattern
@@ -44,11 +49,20 @@ class ProbabilisticNodeElement(Element):
         1
     """
 
-    x: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    function: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        function: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.function = function
 
 
-class ProbabilisticFunctionInteraction(BaseInteraction):
+class ProbabilisticFunctionInteraction(Interaction):
     """Synchronous update of a node by one of several truth tables, drawn with given probabilities at every step.
 
     Each table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and
@@ -82,18 +96,18 @@ class ProbabilisticFunctionInteraction(BaseInteraction):
         (0.7, 0.3)
     """
 
-    target: str = role()
-    inputs: list[str] = role(variadic=True)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        inputs: Annotated[list[str], RoleSpec(variadic=True)],
         tables: Sequence[Sequence[int]] = ((0,),),
         probabilities: Sequence[float] = (1.0,),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.inputs = inputs
         self.tables = tables
         self.probabilities = probabilities
 
@@ -107,7 +121,7 @@ class ProbabilisticFunctionInteraction(BaseInteraction):
             raise ValidationError(error_msg)
         return sum((_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the target by the drawn table and the record of the drawn index.
 
         Args:

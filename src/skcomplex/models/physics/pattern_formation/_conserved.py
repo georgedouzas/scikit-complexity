@@ -4,33 +4,44 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class NonreciprocalMixtureElement(Element):
     """Nonreciprocal mixture element."""
 
-    phi = state(0.0)
-    psi = state(0.0)
-    chi = parameter(0.0)
-    alpha = parameter(0.3)
-    D = parameter(0.1)
-    kappa = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec()] = 0.0,
+        psi: Annotated[object, StateSpec()] = 0.0,
+        chi: Annotated[object, ParameterSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec()] = 0.3,
+        D: Annotated[object, ParameterSpec()] = 0.1,
+        kappa: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.psi = psi
+        self.chi = chi
+        self.alpha = alpha
+        self.D = D
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the nonreciprocal mixture element."""
         return [
             RateLaw(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
@@ -104,4 +115,4 @@ def nonreciprocal_cahn_hilliard(
         'kappa': kappa,
     }
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(elements=[FieldElement('mixture', NonreciprocalMixtureElement, space, values=values)])
+    return System(elements=[FieldElement('mixture', element=NonreciprocalMixtureElement, space=space, values=values)])

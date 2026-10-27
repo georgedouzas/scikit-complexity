@@ -4,20 +4,19 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import I, exp
+from sage.all__sagemath_symbolics import Expression, I, exp
 
-from ....core.base import Expression
-from ....core.laws import Symbols
 from ....core.specs import ObservableSpec
 
 
-def _phase_vector(member: Symbols) -> Expression:
+def _phase_vector(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's phase in the complex plane."""
     return exp(I * member.theta)
 
 
-def _modulus(name: str, s: Symbols) -> Expression:
+def _modulus(name: str, s: SimpleNamespace) -> Expression:
     """Return the modulus of an observable of a system."""
     return abs(getattr(s, name))
 

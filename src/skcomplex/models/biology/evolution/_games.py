@@ -4,18 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, role, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, RateLaw, Symbols, total
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, LocalRuleLaw, RateLaw
+from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -40,10 +44,18 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
 class StrategyElement(Element):
     """Strategy element."""
 
-    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
-class ReplicationInteraction(BaseInteraction):
+class ReplicationInteraction(Interaction):
     """Replicator equation of the strategies of a group, `dx_i/dt = x_i ((A x)_i - x . A x)`, with a payoff matrix `A`.
 
     Every strategy is a member of the group, and its fitness `(A x)_i` is a total over the strategies weighted by its
@@ -68,19 +80,18 @@ class ReplicationInteraction(BaseInteraction):
         ((0, 1), (1, 0))
     """
 
-    population: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        population: Annotated[str, RoleSpec()],
         payoff: Sequence[Sequence[float]] = ((0.0, 0.0), (0.0, 0.0)),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.population = population
         self.payoff = payoff
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the replicator equation of the payoff matrix.
 
         Args:
@@ -113,9 +124,17 @@ class CyclicSpeciesElement(Element):
         2
     """
 
-    strategy: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        strategy: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stochastic invasion by a random neighbour.
 
         Args:

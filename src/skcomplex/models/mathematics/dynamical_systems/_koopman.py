@@ -3,25 +3,37 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter, state
 
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class SlowManifoldElement(Element):
     """Slow manifold element."""
 
-    x1 = state(1.0)
-    x2 = state(1.0)
-    mu = parameter(-0.05)
-    lam = parameter(-1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x1: Annotated[object, StateSpec()] = 1.0,
+        x2: Annotated[object, StateSpec()] = 1.0,
+        mu: Annotated[object, ParameterSpec()] = -0.05,
+        lam: Annotated[object, ParameterSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x1 = x1
+        self.x2 = x2
+        self.mu = mu
+        self.lam = lam
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the slow manifold element."""
         return [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))]
 

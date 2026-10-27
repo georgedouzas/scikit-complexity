@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -63,11 +64,21 @@ class StallElement(Element):
         3
     """
 
-    stall: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    stock: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    markup: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        stall: Annotated[float, StateSpec(domain=NN)] = 0,
+        stock: Annotated[float, StateSpec(domain=NN)] = 0,
+        markup: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stall = stall
+        self.stock = stock
+        self.markup = markup
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since stalls only wait for shoppers.
 
         Args:
@@ -109,12 +120,24 @@ class ShopperElement(Element):
     """
 
     stalls: ClassVar[str] = 'stalls'
-    wanted: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    visited: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    missed: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    spent: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wanted: Annotated[float, StateSpec(domain=NN)] = 0,
+        visited: Annotated[float, StateSpec(domain=NN)] = 0,
+        missed: Annotated[float, StateSpec(domain=NN)] = 0,
+        spent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wanted = wanted
+        self.visited = visited
+        self.missed = missed
+        self.spent = spent
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the shopping rule.
 
         Args:

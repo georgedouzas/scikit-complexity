@@ -3,25 +3,38 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import state
 
-from ....core.base import NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class CoffeeCupElement(Element):
     """Coffee cup element."""
 
-    T = state(90.0)
-    room = parameter(20.0)
-    k = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 90.0,
+        room: Annotated[object, ParameterSpec()] = 20.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.room = room
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the coffee cup element."""
         return [RateLaw(s.T, -s.k * (s.T - s.room))]
 

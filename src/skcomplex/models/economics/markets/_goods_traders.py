@@ -5,20 +5,22 @@
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
@@ -75,16 +77,29 @@ class GoodsTraderElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)})
-    sugar: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    spice: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    salt: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    sugar_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    spice_weight: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    salt_weight: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    mobility: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)}),
+        *,
+        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        spice: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        salt: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sugar_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mobility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.sugar = sugar
+        self.spice = spice
+        self.salt = salt
+        self.sugar_weight = sugar_weight
+        self.spice_weight = spice_weight
+        self.salt_weight = salt_weight
+        self.mobility = mobility
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the wandering rule of the phase of moves.
 
         Args:
@@ -113,7 +128,7 @@ class GoodsTraderElement(Element):
         agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
-class ExchangeInteraction(BaseInteraction):
+class ExchangeInteraction(Interaction):
     """Bilateral barter between traders, paired every step by the matching law.
 
     Every pair barters small quantities of every pair of goods at the geometric mean of their marginal rates of
@@ -149,23 +164,23 @@ class ExchangeInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'dispersion', 'volume')
-    traders: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        traders: Annotated[str, RoleSpec()],
         goods: tuple[str, ...] = GOODS,
         pairing: Pairing | None = None,
         quantity: float = 0.1,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.traders = traders
         self.goods = goods
         self.pairing = pairing
         self.quantity = quantity
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the matching of neighbours and the barter rule.
 
         Args:

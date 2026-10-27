@@ -3,19 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, shift_member, where
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import shift_member, where
 from ....core.spaces import ContinuousSpace, LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement, LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -65,7 +70,15 @@ class ParticleSiteElement(Element):
         3.0
     """
 
-    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
 class TreeNodeElement(ParticleSiteElement):
@@ -87,14 +100,22 @@ class TreeNodeElement(ParticleSiteElement):
         0.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec(
-        'points',
-        {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
-    )
-    x: npt.ArrayLike = state(default=0.0, vector=True)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec(
+            'points',
+            {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
+        ),
+        *,
+        n: float = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual, n=n)
+        self.x = x
 
 
-class ZeroRangeHopInteraction(BaseInteraction):
+class ZeroRangeHopInteraction(Interaction):
     """Hop of one particle along a link, forward at rate `p u(n)` and backward at rate `q u(n')`.
 
     The rate depends only on the occupation of the departure site, through `u(n) = 1 + b / n`.
@@ -121,12 +142,22 @@ class ZeroRangeHopInteraction(BaseInteraction):
         4.0
     """
 
-    link: list[str] = role(variadic=True)
-    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        link: Annotated[list[str], RoleSpec(variadic=True)],
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+    ) -> None:
+        super().__init__(label)
+        self.link = link
+        self.p = p
+        self.q = q
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the forward and the backward hop.
 
         Args:
@@ -144,7 +175,7 @@ class ZeroRangeHopInteraction(BaseInteraction):
         ]
 
 
-class ZeroRangeHopsInteraction(BaseInteraction):
+class ZeroRangeHopsInteraction(Interaction):
     """Hops of one particle from every site of a ring, to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
     The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`.
@@ -171,12 +202,22 @@ class ZeroRangeHopsInteraction(BaseInteraction):
         4.0
     """
 
-    sites: str = role()
-    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        sites: Annotated[str, RoleSpec()],
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+    ) -> None:
+        super().__init__(label)
+        self.sites = sites
+        self.p = p
+        self.q = q
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the hops to the right and to the left.
 
         Args:
@@ -195,7 +236,7 @@ class ZeroRangeHopsInteraction(BaseInteraction):
         ]
 
 
-class ExclusionHopsInteraction(BaseInteraction):
+class ExclusionHopsInteraction(Interaction):
     """Hops of a particle from every site of a line to an empty neighbour, to the right at rate `p` and left at `q`.
 
     No particle hops past the ends of the line.
@@ -219,11 +260,20 @@ class ExclusionHopsInteraction(BaseInteraction):
         1.0
     """
 
-    sites: str = role()
-    p: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    q: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        sites: Annotated[str, RoleSpec()],
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.sites = sites
+        self.p = p
+        self.q = q
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the hops to the right and to the left.
 
         Args:
@@ -242,7 +292,7 @@ class ExclusionHopsInteraction(BaseInteraction):
         ]
 
 
-class ReservoirInteraction(BaseInteraction):
+class ReservoirInteraction(Interaction):
     """Reservoir that adds one particle to each of its sites at rate `entry` and removes one at rate `exit`.
 
     A particle leaves only an occupied site. With exclusion a particle enters only an empty site.
@@ -272,21 +322,22 @@ class ReservoirInteraction(BaseInteraction):
         0.0
     """
 
-    sites: list[str] = role(variadic=True)
-    entry: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    exit: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        sites: Annotated[list[str], RoleSpec(variadic=True)],
+        entry: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        exit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,  # noqa: A002
         exclusion: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.sites = sites
+        self.entry = entry
+        self.exit = exit
         self.exclusion = exclusion
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the entry and the exit of a particle at every site.
 
         Args:

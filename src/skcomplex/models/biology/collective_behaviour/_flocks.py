@@ -4,21 +4,21 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.elements import ParticleElement
-from ....core.interactions import PairPotentialInteraction
-from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, GroupElement, ParticleElement
+from ....core.interactions import Interaction, PairPotentialInteraction
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
@@ -84,18 +84,35 @@ class BoidElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'vx'})
-    vx: float = state(default=1.0)
-    vy: float = state(default=0.0)
-    radius: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    separation_radius: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    cohesion: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    separation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    alignment: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    min_speed: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    max_speed: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    width: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
-    height: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'vx'}),
+        *,
+        vx: Annotated[float, StateSpec()] = 1.0,
+        vy: Annotated[float, StateSpec()] = 0.0,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        separation_radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        cohesion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        alignment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        min_speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        max_speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.vx = vx
+        self.vy = vy
+        self.radius = radius
+        self.separation_radius = separation_radius
+        self.cohesion = cohesion
+        self.separation = separation
+        self.alignment = alignment
+        self.min_speed = min_speed
+        self.max_speed = max_speed
+        self.width = width
+        self.height = height
 
     def _steering(self, agent: AgentView, neighbours: list[AgentView], size: np.ndarray) -> np.ndarray:
         """Return the change of velocity from cohesion, separation, and alignment."""
@@ -110,7 +127,7 @@ class BoidElement(Element):
             + agent.alignment * (velocities.mean(axis=0) - (agent.vx, agent.vy))
         )
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flocking rule.
 
         Args:
@@ -143,7 +160,7 @@ class BoidElement(Element):
         agent.move_to(tuple(np.mod(np.asarray(cast('tuple[float, float]', agent.location)) + velocity, size)))
 
 
-class SelfPropulsionInteraction(BaseInteraction):
+class SelfPropulsionInteraction(Interaction):
     """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v / m`, which drives particles to speed `sqrt(alpha / beta)`.
 
     Args:
@@ -165,11 +182,20 @@ class SelfPropulsionInteraction(BaseInteraction):
         1.5
     """
 
-    target: str = role()
-    alpha: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the velocity change `(alpha - beta |v|²) v / m`.
 
         Args:
@@ -221,12 +247,27 @@ class MorsePotentialInteraction(PairPotentialInteraction):
         2.0
     """
 
-    C_a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    l_a: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    C_r: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    l_r: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        C_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        l_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        C_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        l_r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.C_a = C_a
+        self.l_a = l_a
+        self.C_r = C_r
+        self.l_r = l_r
 
-    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
+    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
         """Return `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
 
         Args:

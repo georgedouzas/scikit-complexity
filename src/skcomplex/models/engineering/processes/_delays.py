@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Expression
-from ....core.laws import distributed_delay
+from sage.all__sagemath_symbolics import Expression
+
+from ....core.laws.utils import distributed_delay
 
 
 def delay1(value: object, time: object) -> Expression:

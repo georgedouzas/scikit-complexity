@@ -3,28 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class FisherKPPElement(Element):
     """Fisher k p p element."""
 
-    u = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the fisher k p p element."""
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
@@ -76,8 +88,8 @@ def fisher_kpp(
         elements=[
             FieldElement(
                 'line',
-                FisherKPPElement,
-                space,
+                element=FisherKPPElement,
+                space=space,
                 boundary={'u': 'zero-flux'},
                 values={'u': u, 'D': D, 'r': r},
             ),

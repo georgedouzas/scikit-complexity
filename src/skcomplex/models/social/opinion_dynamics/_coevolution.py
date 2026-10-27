@@ -3,16 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, neighbors, uniform, where
+from ....core.elements import Element, GroupElement
+from ....core.interactions import NeighborInteraction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -20,12 +25,12 @@ SMALLEST_DEGREE = 1e-9
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
 
 
-def _same(node: Symbols) -> object:
+def _same(node: SimpleNamespace) -> object:
     """Return the weight of a candidate node of opinion 1 as a new end, 1 for opinion 1 and 0 otherwise."""
     return node.opinion
 
 
-def _opposite(node: Symbols) -> object:
+def _opposite(node: SimpleNamespace) -> object:
     """Return the weight of a candidate node of opinion 0 as a new end, 1 for opinion 0 and 0 otherwise."""
     return 1 - node.opinion
 
@@ -73,13 +78,23 @@ class CoevolvingVoterElement(Element):
         0.3
     """
 
-    visual: ClassVar[VisualSpec] = OPINION_VISUAL
-    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    activity: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    rewiring: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = OPINION_VISUAL,
+        *,
+        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.degree = degree
+        self.activity = activity
+        self.rewiring = rewiring
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the degree and the copying of a discordant neighbour's opinion.
 
         Args:
@@ -99,7 +114,7 @@ class CoevolvingVoterElement(Element):
         ]
 
 
-class SeparationInteraction(BaseInteraction):
+class SeparationInteraction(NeighborInteraction):
     """Rewiring of discordant edges: the end that acts keeps the edge and moves its other end to a like-minded node.
 
     An end acts on an edge with probability `activity / degree` per step, and rewires a discordant edge with
@@ -121,11 +136,18 @@ class SeparationInteraction(BaseInteraction):
         'ties'
     """
 
-    over: ClassVar[str] = 'neighbors'
-    voters: str = role()
-    ties: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        voters: Annotated[str, RoleSpec()],
+        ties: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.voters = voters
+        self.ties = ties
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rewiring of a discordant edge by either end.
 
         Args:
@@ -140,10 +162,22 @@ class SeparationInteraction(BaseInteraction):
         by_source = source.activity * source.rewiring / (source.degree + SMALLEST_DEGREE)
         by_target = target.activity * target.rewiring / (target.degree + SMALLEST_DEGREE)
         return [
-            UpdateLaw(rewire(keep='source', toward=_same), by_source * source.opinion * (1 - target.opinion)),
-            UpdateLaw(rewire(keep='source', toward=_opposite), by_source * (1 - source.opinion) * target.opinion),
-            UpdateLaw(rewire(keep='target', toward=_same), by_target * target.opinion * (1 - source.opinion)),
-            UpdateLaw(rewire(keep='target', toward=_opposite), by_target * (1 - target.opinion) * source.opinion),
+            UpdateLaw(
+                TopologyRequestSpec('rewire', keep='source', toward=_same),
+                by_source * source.opinion * (1 - target.opinion),
+            ),
+            UpdateLaw(
+                TopologyRequestSpec('rewire', keep='source', toward=_opposite),
+                by_source * (1 - source.opinion) * target.opinion,
+            ),
+            UpdateLaw(
+                TopologyRequestSpec('rewire', keep='target', toward=_same),
+                by_target * target.opinion * (1 - source.opinion),
+            ),
+            UpdateLaw(
+                TopologyRequestSpec('rewire', keep='target', toward=_opposite),
+                by_target * (1 - target.opinion) * source.opinion,
+            ),
         ]
 
 
@@ -186,16 +220,29 @@ class ClubMemberElement(Element):
         2.0
     """
 
-    visual: ClassVar[VisualSpec] = OPINION_VISUAL
-    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    appeal: float = parameter(default=0.0, domain=NumericDomain.REAL)
-    deciding: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    activity: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    rewiring: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = OPINION_VISUAL,
+        *,
+        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        appeal: Annotated[float, ParameterSpec()] = 0.0,
+        deciding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.degree = degree
+        self.beta = beta
+        self.appeal = appeal
+        self.deciding = deciding
+        self.activity = activity
+        self.rewiring = rewiring
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the degree and the heat-bath choice of joining the club.
 
         Args:
@@ -222,7 +269,7 @@ def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarra
         element=element,
         on='sites',
         variable=True,
-        capacity=space.prepare().size_,
+        capacity=space.check().prepare().size_,
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )

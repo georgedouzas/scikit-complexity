@@ -3,18 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
-from sage.all__sagemath_symbolics import cos, pi, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import Expression, NumericDomain, ParameterError, parameter, state
-from ....core.components import Element
-from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative, where
+from ....core.elements import Element
+from ....core.errors import ParameterError
+from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.laws.utils import derivative, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ScipyODESolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
@@ -22,14 +24,29 @@ CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 class CircuitElement(Element):
     """Circuit element."""
 
-    q = state(default=1.0, order=2)
-    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    R = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    V = parameter(default=0.0)
-    omega = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        q: Annotated[object, StateSpec(order=2)] = 1.0,
+        q_d1: float = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        V: Annotated[object, ParameterSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.q = q
+        self.q_d1 = q_d1
+        self.L = L
+        self.R = R
+        self.C = C
+        self.V = V
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the circuit element."""
         return [
             EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
@@ -98,15 +115,29 @@ def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Express
 class ChuaCircuitElement(Element):
     """Chua circuit element."""
 
-    x = state(0.1)
-    y = state(0.0)
-    z = state(0.0)
-    alpha = parameter(default=15.6, domain=NumericDomain.POSITIVE)
-    beta = parameter(default=28.0, domain=NumericDomain.POSITIVE)
-    m0 = parameter(default=-8 / 7)
-    m1 = parameter(default=-5 / 7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.6,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 28.0,
+        m0: Annotated[object, ParameterSpec()] = -8 / 7,
+        m1: Annotated[object, ParameterSpec()] = -5 / 7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.alpha = alpha
+        self.beta = beta
+        self.m0 = m0
+        self.m1 = m1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the chua circuit element."""
         return [
             RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
@@ -118,16 +149,31 @@ class ChuaCircuitElement(Element):
 class MultiscrollChuaCircuitElement(Element):
     """Multiscroll chua circuit element."""
 
-    x = state(1.0)
-    y = state(1.0)
-    z = state(0.0)
-    alpha = parameter(default=10.82, domain=NumericDomain.POSITIVE)
-    beta = parameter(default=14.286, domain=NumericDomain.POSITIVE)
-    a = parameter(default=1.3, domain=NumericDomain.POSITIVE)
-    b = parameter(default=0.11, domain=NumericDomain.POSITIVE)
-    c = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.82,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.286,
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
+        c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.alpha = alpha
+        self.beta = beta
+        self.a = a
+        self.b = b
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the multiscroll chua circuit element."""
         return [
             RateLaw(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
@@ -139,18 +185,35 @@ class MultiscrollChuaCircuitElement(Element):
 class MixedModeChuaCircuitElement(Element):
     """Mixed mode chua circuit element."""
 
-    x = state(0.01)
-    y = state(0.0)
-    z = state(0.0)
-    epsilon = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    a = parameter(default=1.5)
-    b = parameter(default=-1.0)
-    alpha = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    R = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=0.005, domain=NumericDomain.POSITIVE)
-    c = parameter(default=0.00053)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.01,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        epsilon: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        a: Annotated[object, ParameterSpec()] = 1.5,
+        b: Annotated[object, ParameterSpec()] = -1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
+        c: Annotated[object, ParameterSpec()] = 0.00053,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.epsilon = epsilon
+        self.a = a
+        self.b = b
+        self.alpha = alpha
+        self.R = R
+        self.beta = beta
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the mixed mode chua circuit element."""
         return [
             RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
@@ -162,15 +225,29 @@ class MixedModeChuaCircuitElement(Element):
 class MemristorCircuitElement(Element):
     """Memristor circuit element."""
 
-    v = state(0.1)
-    i = state(0.0)
-    w = state(0.1)
-    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    L = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=0.6, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = 0.1,
+        i: Annotated[object, StateSpec()] = 0.0,
+        w: Annotated[object, StateSpec()] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.i = i
+        self.w = w
+        self.C = C
+        self.L = L
+        self.alpha = alpha
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the memristor circuit element."""
         return [
             RateLaw(s.v, s.i / s.C),
@@ -182,14 +259,27 @@ class MemristorCircuitElement(Element):
 class TunnelDiodeCircuitElement(Element):
     """Tunnel diode circuit element."""
 
-    V = state(0.1)
-    i = state(0.0)
-    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        V: Annotated[object, StateSpec()] = 0.1,
+        i: Annotated[object, StateSpec()] = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.V = V
+        self.i = i
+        self.L = L
+        self.C = C
+        self.alpha = alpha
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the tunnel diode circuit element."""
         return [
             RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
@@ -200,20 +290,36 @@ class TunnelDiodeCircuitElement(Element):
 class KickedCircuitElement(Element):
     """Kicked circuit element."""
 
-    x = state(default=0.0, order=2)
-    clock = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    L = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    R = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    C = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    A = parameter(default=1.0)
-    T = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        clock: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        A: Annotated[object, ParameterSpec()] = 1.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.clock = clock
+        self.L = L
+        self.R = R
+        self.C = C
+        self.A = A
+        self.T = T
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the kicked circuit element."""
         return [
             EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
             RateLaw(s.clock, 1),
-            EventLaw(
+            CrossingLaw(
                 s.clock - s.T,
                 {s.clock: 0, derivative(s.x, 1): derivative(s.x, 1) + s.A / (s.L * s.C)},
                 direction=1,

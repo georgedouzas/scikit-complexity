@@ -3,119 +3,188 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import hashlib
-from typing import Any, ClassVar
+from typing import Annotated
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
+from sage.all__sagemath_symbolics import CC
 
-from .....core.base import ValidationError, VisualSpec, state
-from .....core.components import Element
+from .....core.elements import Element
+from .....core.errors import ValidationError
 from .....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from .....engine.compile import HilbertDomain, LocalOperator, Operator, QuantumView, sparse_matrix
-
-DIGEST_SIZE = 8
+from .....core.specs import HilbertSpec, StateSpec, VisualSpec
 
 
-def _spin_space(element: 'SpinElement') -> HilbertDomain:
-    """Return the space of a spin of quantum number `j`, from `m = j` down to `m = -j`."""
-    size = 2 * element.j + 1
+def spin_space(j: float = 0.5) -> HilbertSpec:
+    """Return the Hilbert space of a spin of quantum number `j`, with the basis from `m = j` down to `m = -j`.
+
+    Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
+
+    Args:
+        j:
+            The spin quantum number, a positive multiple of one half.
+
+    Returns:
+        space:
+            The Hilbert space, of dimension `2 j + 1`.
+
+    Raises:
+        ValidationError:
+            The quantum number is not a positive multiple of one half.
+
+    Examples:
+        >>> from skcomplex.models.physics.realizations.quantum import spin_space
+        >>> spin_space(1).dimension
+        3
+    """
+    size = 2 * j + 1
     if not float(size).is_integer() or size < 2:  # noqa: PLR2004
-        error_msg = f'Spin {element.label!r} has j = {element.j!r}, which is not a positive multiple of one half.'
+        error_msg = f'A spin has j = {j!r}, which is not a positive multiple of one half.'
         raise ValidationError(error_msg)
     operators = {
-        'x': (qutip.jmat(element.j, 'x'), True),
-        'y': (qutip.jmat(element.j, 'y'), True),
-        'z': (qutip.jmat(element.j, 'z'), True),
-        'plus': (qutip.jmat(element.j, '+'), False),
-        'minus': (qutip.jmat(element.j, '-'), False),
+        'x': (qutip.jmat(j, 'x').full(), True),
+        'y': (qutip.jmat(j, 'y').full(), True),
+        'z': (qutip.jmat(j, 'z').full(), True),
+        'plus': (qutip.jmat(j, '+').full(), False),
+        'minus': (qutip.jmat(j, '-').full(), False),
     }
-    return HilbertDomain(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
+    return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
 
 
-QUBIT = HilbertDomain(
+QUBIT = HilbertSpec(
     2,
     {
-        'x': (qutip.sigmax(), True),
-        'y': (qutip.sigmay(), True),
-        'z': (qutip.sigmaz(), True),
-        'plus': (qutip.sigmap(), False),
-        'minus': (qutip.sigmam(), False),
+        'x': (qutip.sigmax().full(), True),
+        'y': (qutip.sigmay().full(), True),
+        'z': (qutip.sigmaz().full(), True),
+        'plus': (qutip.sigmap().full(), False),
+        'minus': (qutip.sigmam().full(), False),
     },
     basis={'up': 0, 'excited': 0, 'down': 1, 'ground': 1},
 )
+"""Hilbert space of a qubit, with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`."""
 
 
-def _mode_space(element: 'ModeElement') -> HilbertDomain:
-    """Return the space of a bosonic mode truncated at a number of quanta."""
-    quanta = element.quanta
+def mode_space(quanta: int = 4) -> HilbertSpec:
+    """Return the Hilbert space of a bosonic mode truncated at a number of quanta.
+
+    Its operators are `annihilate`, `create`, and `number`, and its basis state `n` holds `n` quanta.
+
+    Args:
+        quanta:
+            The largest number of quanta, so the dimension is `quanta + 1`.
+
+    Returns:
+        space:
+            The Hilbert space.
+
+    Raises:
+        ValidationError:
+            The number of quanta is not a positive integer.
+
+    Examples:
+        >>> from skcomplex.models.physics.realizations.quantum import mode_space
+        >>> mode_space(4).dimension
+        5
+    """
     if isinstance(quanta, bool) or not isinstance(quanta, int | np.integer) or quanta < 1:
-        error_msg = f'Mode {element.label!r} has quanta = {quanta!r}, which is not a positive integer.'
+        error_msg = f'A mode has quanta = {quanta!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
     size = int(quanta) + 1
     operators = {
-        'annihilate': (qutip.destroy(size), False),
-        'create': (qutip.create(size), False),
-        'number': (qutip.num(size), True),
+        'annihilate': (qutip.destroy(size).full(), False),
+        'create': (qutip.create(size).full(), False),
+        'number': (qutip.num(size).full(), True),
     }
-    return HilbertDomain(size, operators, display='number')
+    return HilbertSpec(size, operators, display='number')
 
 
-def _site_space(element: 'SiteElement') -> HilbertDomain:
-    """Return the space of a particle on the sites of a lattice or a network, with its Laplacian and adjacency."""
-    space = element.space
-    if isinstance(space, LatticeSpace | NetworkSpace):
-        size = int(space.prepare().size_ or 0)
-    else:
-        error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
+def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, projectors: bool = False) -> HilbertSpec:
+    """Return the Hilbert space of a particle on the sites of a lattice or a network, whose basis state `k` is site `k`.
+
+    Its operators are the graph Laplacian of the neighbouring sites, `laplacian`, their adjacency, `adjacency`, with a
+    potential the operator `potential` with the potential of every site on its diagonal, and with projectors the
+    projector `site_<k>` on every site `k`, as sparse matrices.
+
+    Args:
+        space:
+            The lattice or the network.
+
+        potential:
+            The potential of every site, or `None` for no potential.
+
+        projectors:
+            Whether the space holds the projector on every site.
+
+    Returns:
+        space:
+            The Hilbert space, of the dimension of the number of sites.
+
+    Raises:
+        ValidationError:
+            The space is neither a lattice nor a network.
+
+    Examples:
+        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> from skcomplex.models.physics.realizations.quantum import site_space
+        >>> site_space(LatticeSpace(16)).operators['laplacian'][0].trace()
+        np.float64(-30.0)
+    """
+    if not isinstance(space, LatticeSpace | NetworkSpace):
+        error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
         raise ValidationError(error_msg)
-    rows, columns = zip(*space.prepare()._neighbor_pairs(), strict=True) if size > 1 else ((), ())
-    adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
-    laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
-    operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}
-    return HilbertDomain(size, operators, display=None)
+    prepared = space.check().prepare()
+    size = int(prepared.size_)
+    adjacency = np.zeros((size, size))
+    for first, second in prepared._neighbor_pairs():
+        adjacency[first, second] = adjacency[second, first] = 1.0
+    laplacian = adjacency - np.diag(adjacency.sum(axis=1))
+    operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency, True)}
+    if potential is not None:
+        operators['potential'] = (np.diag(np.broadcast_to(np.asarray(potential, dtype=float), (size,))), True)
+    for site in range(size if projectors else 0):
+        operators[f'site_{site}'] = (sp.csr_array(([1.0], ([site], [site])), shape=(size, size)), True)
+    return HilbertSpec(size, operators, display=None)
 
 
 class SpinElement(Element):
-    """Spin of quantum number `j`, with the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
+    """Spin of the Hilbert space it takes, with the spin components `x`, `y`, `z` and the ladder operators.
 
-    The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index.
+    The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Its laws read
+    the operators of its state `psi`, such as `local_operator(namespace.psi, 'z')`.
 
     Args:
         label:
             The label of the spin.
 
-        j:
-            The spin quantum number, a positive multiple of one half.
+        psi:
+            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
-        **values:
-            The values of the declared variables, by name:
+        hilbert:
+            The Hilbert space, `spin_space(j)`.
 
-            initial:
-                The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
+        visual:
+            How the spin is drawn.
 
     Examples:
-        >>> from skcomplex.engine.compile import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import SpinElement
-        >>> QuantumView(SpinElement('s', j=1)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SpinElement, spin_space
+        >>> SpinElement('s', hilbert=spin_space(1)).hilbert.dimension
         3
     """
-
-    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state('up', domain=HilbertDomain.family(_spin_space))
 
     def __init__(
         self,
         label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
         *,
-        j: float = 0.5,
-        **values: Any,  # noqa: ANN401
+        hilbert: HilbertSpec = QUBIT,
+        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, **values)
-        self.j = j
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert
 
 
 class QubitElement(Element):
@@ -127,125 +196,102 @@ class QubitElement(Element):
         label:
             The label of the qubit.
 
-        initial:
+        psi:
             The state in the Hilbert space: `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
 
+        hilbert:
+            The Hilbert space of the qubit.
+
+        visual:
+            How the qubit is drawn.
+
     Examples:
-        >>> from skcomplex.engine.compile import QuantumView
         >>> from skcomplex.models.physics.realizations.quantum import QubitElement
-        >>> sorted(QuantumView(QubitElement('q')).local_operators())
+        >>> sorted(QubitElement('q').hilbert.operators)
         ['minus', 'plus', 'x', 'y', 'z']
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state('up', domain=QUBIT)
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = QUBIT,
+        visual: VisualSpec | None = VisualSpec('expectations'),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert
 
 
 class ModeElement(Element):
-    """Bosonic mode truncated at a number of quanta, with `annihilate`, `create`, and `number`.
+    """Bosonic mode of the Hilbert space it takes, with `annihilate`, `create`, and `number`.
 
     Args:
         label:
             The label of the mode.
 
-        quanta:
-            The largest number of quanta, so the dimension is `quanta + 1`.
+        psi:
+            The state in the Hilbert space: the number of quanta, or a vector.
 
-        **values:
-            The values of the declared variables, by name:
+        hilbert:
+            The Hilbert space, `mode_space(quanta)`.
 
-            initial:
-                The state in the Hilbert space: the number of quanta, or a vector.
+        visual:
+            How the mode is drawn.
 
     Examples:
-        >>> from skcomplex.engine.compile import QuantumView
-        >>> from skcomplex.models.physics.realizations.quantum import ModeElement
-        >>> QuantumView(ModeElement('cavity', quanta=4)).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import ModeElement, mode_space
+        >>> ModeElement('cavity', hilbert=mode_space(4)).hilbert.dimension
         5
     """
-
-    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state(0, domain=HilbertDomain.family(_mode_space))
 
     def __init__(
         self,
         label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
-        quanta: int = 4,
-        **values: Any,  # noqa: ANN401
+        hilbert: HilbertSpec | None = None,
+        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, **values)
-        self.quanta = quanta
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert
 
 
 class SiteElement(Element):
     """Single particle on the sites of a lattice or a network, whose basis state `k` is the particle at site `k`.
 
-    Its namespace holds the Laplacian of the space, `laplacian`, spectral on a periodic lattice and of finite
-    differences otherwise, the adjacency of neighbouring sites, `adjacency`, the site indices, `sites`, and the
-    functions `projector(k)` and `diagonal(values)` that return the projector on a site and the operator with given
-    values on the diagonal.
+    Its laws read the operators of `site_space`: `laplacian`, `adjacency`, and `potential`.
 
     Args:
         label:
             The label of the particle.
 
-        space:
-            The lattice or the network.
+        psi:
+            The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
-        **values:
-            The values of the declared variables, by name:
+        hilbert:
+            The Hilbert space, `site_space(space, potential)`.
 
-            initial:
-                The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
+        visual:
+            How the particle is drawn.
 
     Examples:
-        >>> from skcomplex.engine.compile import QuantumView
         >>> from skcomplex.core.spaces import LatticeSpace
-        >>> from skcomplex.models.physics.realizations.quantum import SiteElement
-        >>> QuantumView(SiteElement('particle', space=LatticeSpace(16))).dimension
+        >>> from skcomplex.models.physics.realizations.quantum import SiteElement, site_space
+        >>> SiteElement('particle', hilbert=site_space(LatticeSpace(16))).hilbert.dimension
         16
     """
-
-    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    initial: Any = state(0, domain=HilbertDomain.family(_site_space))
 
     def __init__(
         self,
         label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 0,
         *,
-        space: BaseSpace | None = None,
-        **values: Any,  # noqa: ANN401
+        hilbert: HilbertSpec | None = None,
+        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, **values)
-        self.space = space
-
-    def operator_namespace(self, key: str, view: QuantumView) -> dict[str, Any]:
-        """Return the site indices and the functions `projector` and `diagonal` of the particle.
-
-        Args:
-            key:
-                The key of the subsystem.
-
-            view:
-                The quantum view of the particle.
-
-        Returns:
-            names:
-                A mapping from name to operator, function, or indices.
-        """
-        size = view.dimension
-
-        def projector(site: int) -> Operator:
-            values = np.zeros(size)
-            values[view.basis_index(site)] = 1.0
-            matrix = sp.csr_array(sp.diags_array(values.astype(complex)))
-            return Operator({((key, LocalOperator(f'projector({site})', matrix, hermitian=True)),): 1})
-
-        def diagonal(values: npt.ArrayLike) -> Operator:
-            array = np.broadcast_to(np.asarray(values, dtype=float), (size,))
-            digest = hashlib.blake2b(array.tobytes(), digest_size=DIGEST_SIZE).hexdigest()
-            matrix = sp.csr_array(sp.diags_array(array.astype(complex)))
-            return Operator({((key, LocalOperator(f'diagonal({digest})', matrix, hermitian=True)),): 1})
-
-        return {'projector': projector, 'diagonal': diagonal, 'sites': tuple(range(size))}
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert

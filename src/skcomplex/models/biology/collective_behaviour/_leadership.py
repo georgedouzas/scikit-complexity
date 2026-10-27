@@ -4,19 +4,20 @@
 # License: MIT
 
 import math
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, DiscreteTime
-from ....core.specs import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 def _unit(vector: np.ndarray) -> np.ndarray:
@@ -83,17 +84,33 @@ class ShoalMemberElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'omega'})
-    vx: float = state(default=1.0)
-    vy: float = state(default=0.0)
-    omega: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    preferred: float = parameter(default=0.0)
-    alpha: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho: float = parameter(default=6.0, domain=NumericDomain.POSITIVE)
-    speed: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    max_turn: float = parameter(default=0.4, domain=NumericDomain.POSITIVE)
-    noise: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    size: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'omega'}),
+        *,
+        vx: Annotated[float, StateSpec()] = 1.0,
+        vy: Annotated[float, StateSpec()] = 0.0,
+        omega: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        preferred: Annotated[float, ParameterSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        max_turn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.vx = vx
+        self.vy = vy
+        self.omega = omega
+        self.preferred = preferred
+        self.alpha = alpha
+        self.rho = rho
+        self.speed = speed
+        self.max_turn = max_turn
+        self.noise = noise
+        self.size = size
 
     def _desired(self, agent: AgentView) -> np.ndarray:
         """Return the desired direction from repulsion, or from attraction and alignment."""
@@ -115,7 +132,7 @@ class ShoalMemberElement(Element):
         goal = np.array([math.cos(agent.preferred), math.sin(agent.preferred)])
         return _unit(_unit(social) + agent.omega * goal)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the simultaneous turning and the swimming of the fish.
 
         Args:

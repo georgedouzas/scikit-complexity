@@ -4,20 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 
 UNLIMITED = 1e9
@@ -105,13 +107,23 @@ class PastureElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)})
-    grass: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    capacity: float = state(default=2.0, domain=NumericDomain.POSITIVE)
-    regrowth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    seed: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 2.0)}),
+        *,
+        grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        capacity: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 2.0,
+        regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        seed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.grass = grass
+        self.capacity = capacity
+        self.regrowth = regrowth
+        self.seed = seed
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule of the phase of growth.
 
         Args:
@@ -158,11 +170,19 @@ class CowElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'energy'})
-    owner: float = state(default=-1.0, domain=NumericDomain.REAL)
-    energy: float = state(default=4.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'energy'}),
+        *,
+        owner: Annotated[float, StateSpec()] = -1.0,
+        energy: Annotated[float, StateSpec()] = 4.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.owner = owner
+        self.energy = energy
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the grazing moves the cows and their energy.
 
         Args:
@@ -207,14 +227,27 @@ class HerderElement(Element):
         5
     """
 
-    number: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    income: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    herd: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    upkeep: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    newborn: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    quota: float = parameter(default=UNLIMITED, domain=NumericDomain.POSITIVE, adaptive=True)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        number: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        herd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        upkeep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        newborn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        quota: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo), adaptive=True)] = UNLIMITED,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.number = number
+        self.income = income
+        self.herd = herd
+        self.upkeep = upkeep
+        self.newborn = newborn
+        self.quota = quota
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that grows the herd in the phase of herding.
 
         Args:
@@ -246,7 +279,7 @@ class HerderElement(Element):
         agent.herd = 0.0
 
 
-class GrazingInteraction(BaseInteraction):
+class GrazingInteraction(Interaction):
     """Grazing of the meadow, where every cow moves to the richest pasture it can reach and eats its fill.
 
     The matching law pairs every cow with the free pasture of most grass in its cell or the cells around it, the cow
@@ -281,14 +314,26 @@ class GrazingInteraction(BaseInteraction):
         1.0
     """
 
-    cows: str = role()
-    meadow: str = role()
-    herders: str = role()
-    appetite: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    metabolism: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    milk: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cows: Annotated[str, RoleSpec()],
+        meadow: Annotated[str, RoleSpec()],
+        herders: Annotated[str, RoleSpec()],
+        appetite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        metabolism: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        milk: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.cows = cows
+        self.meadow = meadow
+        self.herders = herders
+        self.appetite = appetite
+        self.metabolism = metabolism
+        self.milk = milk
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the matching of cows with pastures and the grazing rule.
 
         Args:
@@ -358,9 +403,20 @@ class RegulatorInteraction(InstitutionInteraction):
         1.0
     """
 
-    regulated: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    low: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    high: float = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: object,
+        phase: object,
+        regulated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+    ) -> None:
+        super().__init__(label, rule=rule, phase=phase)
+        self.regulated = regulated
+        self.low = low
+        self.high = high
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Change the quota with the share of grass left on the meadow.

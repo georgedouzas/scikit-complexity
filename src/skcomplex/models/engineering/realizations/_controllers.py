@@ -4,11 +4,16 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, parameter, role, state
-from ....core.components import Element
-from ....core.laws import BoundaryLaw, RateLaw, Symbols, derivative, where
+from sage.all__sagemath_symbolics import Expression
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, BoundaryLaw, RateLaw
+from ....core.laws.utils import derivative, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 def _limited(value: Expression, limits: tuple[float, float] | None) -> Expression:
@@ -19,7 +24,7 @@ def _limited(value: Expression, limits: tuple[float, float] | None) -> Expressio
     return where(value > upper, upper, where(value < lower, lower, value))
 
 
-def _read(plant: Symbols, name: str) -> Expression:
+def _read(plant: SimpleNamespace, name: str) -> Expression:
     """Return the symbol of a variable of a plant by its name, such as `x` or its velocity `x_d1`."""
     value: Expression = getattr(plant, name)
     return value
@@ -41,10 +46,18 @@ class IntegratorElement(Element):
         0.0
     """
 
-    value: float = state(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
 
 
-class PIDInteraction(BaseInteraction):
+class PIDInteraction(Interaction):
     """Proportional-integral-derivative controller that sets a control input of a plant from the error of a measure.
 
     The error is `e = setpoint - y` for the measured state `y`, and the controller sets the control input to
@@ -94,28 +107,32 @@ class PIDInteraction(BaseInteraction):
         40.0
     """
 
-    plant: str = role()
-    integrator: str = role()
-    kp: float = parameter(default=1.0)
-    ki: float = parameter(default=0.0)
-    kd: float = parameter(default=0.0)
-    setpoint: float = parameter(default=0.0)
-
     def __init__(
         self,
         label: str,
         *,
+        plant: Annotated[str, RoleSpec()],
+        integrator: Annotated[str, RoleSpec()],
+        kp: Annotated[float, ParameterSpec()] = 1.0,
+        ki: Annotated[float, ParameterSpec()] = 0.0,
+        kd: Annotated[float, ParameterSpec()] = 0.0,
+        setpoint: Annotated[float, ParameterSpec()] = 0.0,
         control: str = 'u',
         measure: str = 'y',
         limits: tuple[float, float] | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.plant = plant
+        self.integrator = integrator
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.setpoint = setpoint
         self.control = control
         self.measure = measure
         self.limits = limits
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the integral of the error and the control input it sets.
 
         Args:
@@ -137,7 +154,7 @@ class PIDInteraction(BaseInteraction):
         ]
 
 
-class StateFeedbackInteraction(BaseInteraction):
+class StateFeedbackInteraction(Interaction):
     """Linear state feedback `u = -K x` that sets a control input of a plant from its states.
 
     The control input is an adaptive parameter of the plant, which the controller sets after every solver step, so it
@@ -174,25 +191,24 @@ class StateFeedbackInteraction(BaseInteraction):
         (1.0, 1.7)
     """
 
-    plant: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        plant: Annotated[str, RoleSpec()],
         control: str = 'u',
         states: Sequence[str] = (),
         gain: Sequence[float] = (),
         limits: tuple[float, float] | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.plant = plant
         self.control = control
         self.states = states
         self.gain = gain
         self.limits = limits
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the control input the feedback sets.
 
         Args:

@@ -5,17 +5,20 @@
 
 import math
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, exp, sin
+from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, mean, total
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import mean, total
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 def _sigmoid(x: Expression, gain: Expression, threshold: Expression) -> Expression:
@@ -98,24 +101,47 @@ class WilsonCowanElement(Element):
         16.0
     """
 
-    E: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    I: float = state(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    c1: float = parameter(default=16.0, domain=NumericDomain.NONNEGATIVE)
-    c2: float = parameter(default=12.0, domain=NumericDomain.NONNEGATIVE)
-    c3: float = parameter(default=15.0, domain=NumericDomain.NONNEGATIVE)
-    c4: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    a_e: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
-    theta_e: float = parameter(default=4.0)
-    a_i: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    theta_i: float = parameter(default=3.7)
-    r_e: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r_i: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    P: float = parameter(default=1.25)
-    Q: float = parameter(default=0.0)
-    tau_e: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    tau_i: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.0,
+        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        a_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        theta_e: Annotated[float, ParameterSpec()] = 4.0,
+        a_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        theta_i: Annotated[float, ParameterSpec()] = 3.7,
+        r_e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        P: Annotated[float, ParameterSpec()] = 1.25,
+        Q: Annotated[float, ParameterSpec()] = 0.0,
+        tau_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.E = E
+        self.I = I
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+        self.a_e = a_e
+        self.theta_e = theta_e
+        self.a_i = a_i
+        self.theta_i = theta_i
+        self.r_e = r_e
+        self.r_i = r_i
+        self.P = P
+        self.Q = Q
+        self.tau_e = tau_e
+        self.tau_i = tau_i
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the relaxation of both activities toward their responses.
 
         Args:
@@ -162,10 +188,19 @@ class ThetaNeuronElement(Element):
         10
     """
 
-    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
-    eta: float = parameter(default=1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        eta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.eta = eta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the phase dynamics.
 
         Args:
@@ -179,7 +214,7 @@ class ThetaNeuronElement(Element):
         return [RateLaw(s.theta, 1 - cos(s.theta) + (1 + cos(s.theta)) * s.eta)]
 
 
-class PulseCouplingInteraction(BaseInteraction):
+class PulseCouplingInteraction(Interaction):
     """Global coupling of theta neurons through the mean of the smooth pulses that every neuron emits.
 
     Every neuron receives the current `(1 + cos theta) kappa I`, where `I = mean_j a_n (1 - cos theta_j)^n` is the mean
@@ -208,20 +243,20 @@ class PulseCouplingInteraction(BaseInteraction):
         2.0
     """
 
-    neurons: str = role()
-    kappa: float = parameter(default=1.0)
-
     def __init__(
         self,
         label: str,
         *,
+        neurons: Annotated[str, RoleSpec()],
+        kappa: Annotated[float, ParameterSpec()] = 1.0,
         n: int = 2,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.neurons = neurons
+        self.kappa = kappa
         self.n = n
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the current of the mean pulse into every neuron.
 
         Args:
@@ -260,11 +295,21 @@ class RateUnitElement(Element):
         1.2
     """
 
-    x: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    I: float = parameter(default=1.0)
-    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        I: Annotated[float, ParameterSpec()] = 1.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.I = I
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the self-limited growth of the activity.
 
         Args:
@@ -278,7 +323,7 @@ class RateUnitElement(Element):
         return [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
-class MutualInhibitionInteraction(BaseInteraction):
+class MutualInhibitionInteraction(Interaction):
     """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
 
     Args:
@@ -297,10 +342,18 @@ class MutualInhibitionInteraction(BaseInteraction):
         2.0
     """
 
-    units: str | Sequence[str] = role()
-    beta: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        units: Annotated[str | Sequence[str], RoleSpec()],
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.units = units
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `-beta x_i (sum_j x_j - x_i) / tau_i`.
 
         Args:
@@ -363,18 +416,35 @@ class PolyhomeostaticNeuronElement(Element):
         0.2
     """
 
-    x: float = state(default=0.0)
-    a: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    b: float = state(default=0.0)
-    mu: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
-    eps_a: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    eps_b: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    Gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    I0: float = parameter(default=0.0)
-    A: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    omega: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[float, StateSpec()] = 0.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+        eps_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        eps_b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        Gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        I0: Annotated[float, ParameterSpec()] = 0.0,
+        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.b = b
+        self.mu = mu
+        self.eps_a = eps_a
+        self.eps_b = eps_b
+        self.Gamma = Gamma
+        self.I0 = I0
+        self.A = A
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the leaky membrane and the adaptation of gain and threshold.
 
         Args:

@@ -4,25 +4,23 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
 import skfem
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import NumericDomain, parameter
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace, MeshSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import IMEXEulerSolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 type Array = npt.NDArray[np.float64]
 
@@ -30,10 +28,19 @@ type Array = npt.NDArray[np.float64]
 class HeatElement(Element):
     """Heat element."""
 
-    u = state(0.0)
-    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the heat element."""
         return [RateLaw(s.u, s.D * laplacian(s.u))]
 
@@ -82,7 +89,9 @@ def heat_diffusion(
     condition = ('fixed', 0.0) if boundary == 'fixed' else boundary
     space = LatticeSpace(shape, spacing=spacing)
     return System(
-        elements=[FieldElement('plate', HeatElement, space, boundary={'u': condition}, values={'u': u, 'D': D})],
+        elements=[
+            FieldElement('plate', element=HeatElement, space=space, boundary={'u': condition}, values={'u': u, 'D': D}),
+        ],
     )
 
 
@@ -150,8 +159,8 @@ def heat_l_shape(
         elements=[
             FieldElement(
                 'plate',
-                HeatElement,
-                mesh,
+                element=HeatElement,
+                space=mesh,
                 boundary={'u': ('fixed', temperature)},
                 values={'D': D},
                 discretization='finite-element',

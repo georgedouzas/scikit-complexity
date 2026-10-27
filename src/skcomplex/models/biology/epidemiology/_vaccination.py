@@ -3,10 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import PontryaginSolver
@@ -14,14 +19,14 @@ from ....engine.solvers import PontryaginSolver
 MAX_RATE = 0.9
 
 
-def _vaccinated(s: Symbols) -> Expression:
+def _vaccinated(s: SimpleNamespace) -> Expression:
     """Return the susceptible people vaccinated per unit time, `u S`."""
     population = s.population
     vaccinated: Expression = population.u * population.S
     return vaccinated
 
 
-def _cost(s: Symbols) -> Expression:
+def _cost(s: SimpleNamespace) -> Expression:
     """Return the running cost of the epidemic, the infected fraction and the effort of vaccination."""
     population = s.population
     cost: Expression = population.a * population.I + population.b * population.u**2 / 2
@@ -69,16 +74,31 @@ class VaccinatedPopulationElement(Element):
         0.01
     """
 
-    S: float = state(default=0.99, domain=NumericDomain.NONNEGATIVE)
-    I: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    R: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    u: float = parameter(default=0.0, adaptive=True, bounds=(0.0, MAX_RATE))
-    beta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.S = S
+        self.I = I
+        self.R = R
+        self.u = u
+        self.beta = beta
+        self.gamma = gamma
+        self.a = a
+        self.b = b
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flows between the fractions.
 
         Args:

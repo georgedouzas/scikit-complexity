@@ -3,15 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, maximum, neighbors, where
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.interactions import NeighborInteraction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import maximum, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._growth import DEGREE_VISUAL, LinkElement
@@ -45,12 +53,21 @@ class FailingElement(Element):
         1
     """
 
-    visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    rate: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    targeted: float = parameter(default=0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = DEGREE_VISUAL,
+        *,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        targeted: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.degree = degree
+        self.rate = rate
+        self.targeted = targeted
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the degree of the node and its removal.
 
         Args:
@@ -63,7 +80,10 @@ class FailingElement(Element):
         """
         degree = neighbors(1)
         hub = where(s.targeted * (degree - maximum(degree)) >= 0, s.targeted, 0)
-        return [UpdateLaw(s.degree, degree), UpdateLaw(remove_node(), (1 - s.targeted) * s.rate + hub)]
+        return [
+            UpdateLaw(s.degree, degree),
+            UpdateLaw(TopologyRequestSpec('remove-node'), (1 - s.targeted) * s.rate + hub),
+        ]
 
 
 class EnsembleNodeElement(Element):
@@ -85,11 +105,19 @@ class EnsembleNodeElement(Element):
         0.1
     """
 
-    visual: ClassVar[VisualSpec] = DEGREE_VISUAL
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    rate: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = DEGREE_VISUAL,
+        *,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.degree = degree
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the degree of the node and its new edges.
 
         Args:
@@ -100,10 +128,10 @@ class EnsembleNodeElement(Element):
             laws:
                 The laws of the component.
         """
-        return [UpdateLaw(s.degree, neighbors(1)), UpdateLaw(add_edge(), s.rate)]
+        return [UpdateLaw(s.degree, neighbors(1)), UpdateLaw(TopologyRequestSpec('add-edge'), s.rate)]
 
 
-class RewiringInteraction(BaseInteraction):
+class RewiringInteraction(NeighborInteraction):
     """Rewiring of every edge of a ring lattice to a uniformly random node, the Watts-Strogatz construction.
 
     Every step every edge moves its target to a random node with probability `rate`, so after `n` steps an edge has
@@ -129,12 +157,20 @@ class RewiringInteraction(BaseInteraction):
         0.01
     """
 
-    over: ClassVar[str] = 'neighbors'
-    nodes: str = role()
-    links: str = role()
-    rate: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.links = links
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rewiring of one edge.
 
         Args:
@@ -145,7 +181,7 @@ class RewiringInteraction(BaseInteraction):
             laws:
                 The laws of the component.
         """
-        return [UpdateLaw(rewire(keep='source'), s.rate)]
+        return [UpdateLaw(TopologyRequestSpec('rewire', keep='source'), s.rate)]
 
 
 def _variable_network(
@@ -160,7 +196,7 @@ def _variable_network(
         element=element,
         on='sites',
         variable=True,
-        capacity=space.prepare().size_,
+        capacity=space.check().prepare().size_,
         values=values,
         visual=DEGREE_VISUAL,
     )

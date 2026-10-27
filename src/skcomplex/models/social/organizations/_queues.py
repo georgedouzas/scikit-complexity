@@ -3,17 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 
 class TaskElement(Element):
@@ -42,14 +45,24 @@ class TaskElement(Element):
         ('tasks', 'TaskElement', 2)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)})
-    priority: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    wait: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    greed: float = parameter(default=0.99999, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)}),
+        *,
+        priority: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        age: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        wait: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        greed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99999,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.priority = priority
+        self.age = age
+        self.wait = wait
+        self.greed = greed
 
 
-class ExecutionInteraction(BaseInteraction):
+class ExecutionInteraction(Interaction):
     """Execution of one task per step from the list of the Barabási model.
 
     The highest priority task is executed with probability `greed` and a random task otherwise. The executed task is
@@ -70,9 +83,17 @@ class ExecutionInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('wait',)
-    target: str = role()
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the execution rule.
 
         Args:

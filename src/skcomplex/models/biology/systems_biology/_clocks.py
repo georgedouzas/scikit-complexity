@@ -3,9 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -92,28 +98,55 @@ class PerClockElement(Element):
         0.76
     """
 
-    M: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    P0: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    P1: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    P2: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    PN: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    v_s: float = parameter(default=0.76, domain=NumericDomain.POSITIVE)
-    v_m: float = parameter(default=0.65, domain=NumericDomain.POSITIVE)
-    K_m: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    k_s: float = parameter(default=0.38, domain=NumericDomain.POSITIVE)
-    v_d: float = parameter(default=0.95, domain=NumericDomain.POSITIVE)
-    K_d: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
-    k1: float = parameter(default=1.9, domain=NumericDomain.POSITIVE)
-    k2: float = parameter(default=1.3, domain=NumericDomain.POSITIVE)
-    K_I: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    n: float = parameter(default=4.0, domain=NumericDomain.POSITIVE)
-    V1: float = parameter(default=3.2, domain=NumericDomain.POSITIVE)
-    V2: float = parameter(default=1.58, domain=NumericDomain.POSITIVE)
-    V3: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    V4: float = parameter(default=2.5, domain=NumericDomain.POSITIVE)
-    K: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        M: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        P0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        P1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        P2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        PN: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        v_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.76,
+        v_m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.65,
+        K_m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        k_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.38,
+        v_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.95,
+        K_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+        k1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.9,
+        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        K_I: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        V1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.2,
+        V2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.58,
+        V3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        V4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.5,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.M = M
+        self.P0 = P0
+        self.P1 = P1
+        self.P2 = P2
+        self.PN = PN
+        self.v_s = v_s
+        self.v_m = v_m
+        self.K_m = K_m
+        self.k_s = k_s
+        self.v_d = v_d
+        self.K_d = K_d
+        self.k1 = k1
+        self.k2 = k2
+        self.K_I = K_I
+        self.n = n
+        self.V1 = V1
+        self.V2 = V2
+        self.V3 = V3
+        self.V4 = V4
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return transcription, translation, phosphorylation, degradation, and nuclear transport.
 
         Args:

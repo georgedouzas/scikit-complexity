@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, Any, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
@@ -41,11 +44,19 @@ class PastureElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)})
-    grass: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    growth: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)}),
+        *,
+        grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.grass = grass
+        self.growth = growth
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth rule.
 
         Args:
@@ -88,11 +99,18 @@ class CowElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.4})
-    bite: float = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
+        *,
+        bite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.bite = bite
 
 
-class GrazingInteraction(BaseInteraction):
+class GrazingInteraction(Interaction):
     """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
 
     Args:
@@ -111,10 +129,18 @@ class GrazingInteraction(BaseInteraction):
         'pasture'
     """
 
-    cows: str = role()
-    pasture: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        cows: Annotated[str, RoleSpec()],
+        pasture: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.cows = cows
+        self.pasture = pasture
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the grazing rule.
 
         Args:
@@ -141,7 +167,7 @@ class GrazingInteraction(BaseInteraction):
                 patch.grass = max(patch.grass - cow.bite, 0.0)
 
 
-class HerdingInteraction(BaseInteraction):
+class HerdingInteraction(Interaction):
     """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
 
     Args:
@@ -163,11 +189,20 @@ class HerdingInteraction(BaseInteraction):
         0.9
     """
 
-    cows: str = role()
-    pasture: str = role()
-    threshold: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cows: Annotated[str, RoleSpec()],
+        pasture: Annotated[str, RoleSpec()],
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label)
+        self.cows = cows
+        self.pasture = pasture
+        self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the herding rule.
 
         Args:

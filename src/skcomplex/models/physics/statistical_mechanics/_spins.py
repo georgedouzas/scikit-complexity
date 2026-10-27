@@ -4,19 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos
+from sage.all__sagemath_symbolics import NN, ZZ, cos, oo, pi
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import SampleLaw, Symbols, neighbors, where
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, SampleLaw
+from ....core.laws.utils import neighbors, where
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
+from ....core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 NEAREST = VonNeumannNeighborhood()
 
@@ -52,22 +53,25 @@ class IsingSpinElement(Element):
         2.0
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    J: float = parameter(default=1.0)
-    h: float = parameter(default=0.0)
-    temperature: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         sampler: str = 'metropolis',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.J = J
+        self.h = h
+        self.temperature = temperature
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the local energy, the spin flip, and the sampler.
 
         Args:
@@ -113,23 +117,25 @@ class PottsSpinElement(Element):
         3
     """
 
-    color: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    J: float = parameter(default=1.0)
-    temperature: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        color: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         q: int = 3,
         sampler: str = 'heat-bath',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.color = color
+        self.J = J
+        self.temperature = temperature
         self.q = q
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the local energy, the random value move, and the sampler.
 
         Args:
@@ -178,21 +184,23 @@ class XYSpinElement(Element):
         1.0
     """
 
-    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
-    J: float = parameter(default=1.0)
-    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         width: float = 1.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.J = J
+        self.temperature = temperature
         self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the local energy, the rotation, and the Metropolis sampler.
 
         Args:

@@ -4,15 +4,17 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
 from ....core.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -21,9 +23,9 @@ from ....core.spaces import (
     TriangularNeighborhood,
     VonNeumannNeighborhood,
 )
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -32,7 +34,7 @@ SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'triangular': TriangularNeighborhood(center=True),
     'graph': AdjacencyNeighborhood(center=True),
 }
-NEAREST_STEPS = np.array(VonNeumannNeighborhood().offsets)
+NEAREST_STEPS = np.array(VonNeumannNeighborhood().check().prepare().offsets_)
 MANNA_THRESHOLD = 2
 BURNING = 2
 
@@ -83,19 +85,19 @@ class SandpileCellElement(Element):
         4
     """
 
-    height: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        height: Annotated[float, StateSpec(domain=NN)] = 0,
         threshold: int = 4,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.height = height
         self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drive by single grains and the toppling relaxation.
 
         Args:
@@ -141,9 +143,17 @@ class MannaCellElement(Element):
         0
     """
 
-    height: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        height: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.height = height
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drive by single grains and the stochastic toppling relaxation.
 
         Args:
@@ -190,11 +200,21 @@ class ForestElement(Element):
         0.05
     """
 
-    cover: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    lightning: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        cover: Annotated[float, StateSpec(domain=NN)] = 0,
+        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.cover = cover
+        self.growth = growth
+        self.lightning = lightning
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stochastic rule of growth, fire, and burning out.
 
         Args:
@@ -249,21 +269,23 @@ class SpreadingForestElement(Element):
         'triangular'
     """
 
-    cover: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    growth: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    lightning: float = parameter(default=1e-4, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        cover: Annotated[float, StateSpec(domain=NN)] = 0,
+        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
         neighbors: str = 'triangular',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.cover = cover
+        self.growth = growth
+        self.lightning = lightning
         self.neighbors = neighbors
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stochastic rule of growth, fire, and burning out over the neighbours of the site.
 
         Args:
@@ -458,7 +480,9 @@ def hexagonal_forest_fire(
         >>> hexagonal_forest_fire(graph=nx.cycle_graph(12)).elements[0].size
         12
     """
-    space = (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).prepare()
+    space = (
+        (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).check().prepare()
+    )
     size = int(space.size_ or 0)
     initial = (
         (np.random.default_rng(random_state).random(size) < density).astype(float)

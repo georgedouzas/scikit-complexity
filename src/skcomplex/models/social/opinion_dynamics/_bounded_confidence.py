@@ -3,19 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols, UpdateLaw, neighbors, where
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.laws.utils import neighbors, where
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement, LatticeElement
+from ....engine.solvers import ModelView
 
 
 class DiscussantElement(Element):
@@ -41,13 +46,22 @@ class DiscussantElement(Element):
         ('people', 'DiscussantElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    confidence: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    convergence: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        convergence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.confidence = confidence
+        self.convergence = convergence
 
 
-class EncountersInteraction(BaseInteraction):
+class EncountersInteraction(Interaction):
     """Random binary encounters of the Deffuant model, as many per step as there are agents.
 
     In every encounter two random agents whose opinions differ by less than the confidence bound move towards each
@@ -66,9 +80,16 @@ class EncountersInteraction(BaseInteraction):
         'people'
     """
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter rule.
 
         Args:
@@ -174,11 +195,19 @@ class ConfidentElement(Element):
         0.1
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_range': (0.0, 1.0), 'histogram_first': True})
-    opinion: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    confidence: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('traits', {'color_range': (0.0, 1.0), 'histogram_first': True}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.confidence = confidence
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the move to the mean opinion of the confident neighbours.
 
         Args:
@@ -242,7 +271,7 @@ def hegselmann_krause(
         >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
         True
     """
-    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
+    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).check().prepare()
     opinions = np.random.default_rng(random_state).random(space.size_)
     people = LatticeElement(
         'people',

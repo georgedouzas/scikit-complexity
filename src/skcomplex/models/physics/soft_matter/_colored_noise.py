@@ -4,33 +4,43 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
-from ...core.laws import Symbols
 
 
 class ColoredNoiseParticleElement(Element):
     """Colored noise particle element."""
 
-    v = state(0.0)
-    xi = state(0.0)
-    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    D = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = 0.0,
+        xi: Annotated[object, StateSpec()] = 0.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.xi = xi
+        self.gamma = gamma
+        self.D = D
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the colored noise particle element."""
         return [
             RateLaw(s.v, -s.gamma * s.v + s.xi),

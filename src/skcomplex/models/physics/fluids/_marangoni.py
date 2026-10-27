@@ -5,31 +5,39 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class MarangoniLayerElement(Element):
     """Marangoni layer element."""
 
-    u = state(0.0)
-    r = parameter(0.1)
-    g = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+        r: Annotated[object, ParameterSpec()] = 0.1,
+        g: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.r = r
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the marangoni layer element."""
         return [
             RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) + s.g * s.u**2 - s.u**3),
@@ -88,5 +96,7 @@ def benard_marangoni(
     values = {'u': 0.01 * rng.uniform(-1.0, 1.0, shape), 'r': r, 'g': g}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
-        elements=[FieldElement('layer', MarangoniLayerElement, space, values=values, discretization='spectral')],
+        elements=[
+            FieldElement('layer', element=MarangoniLayerElement, space=space, values=values, discretization='spectral'),
+        ],
     )

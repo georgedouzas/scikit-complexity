@@ -3,20 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, count, mean, total, where
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import count, mean, total, where
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -30,7 +32,7 @@ def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Gen
     return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
 
 
-def _magnetization() -> Observable:
+def _magnetization() -> ObservableSpec:
     """Return the observable of the mean spin of the group `spins`."""
     return ObservableSpec('magnetization', group='spins', variable='spin')
 
@@ -70,28 +72,31 @@ class FullyConnectedSpinElement(Element):
         0.5
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    J: float = parameter(default=1.0)
-    h: float = parameter(default=0.0)
-    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         couplings: npt.ArrayLike | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.J = J
+        self.h = h
+        self.temperature = temperature
         self.couplings = couplings
 
-    def _field(self, s: Symbols) -> Expression:
+    def _field(self, s: SimpleNamespace) -> Expression:
         """Return the local field of a spin, without its own contribution."""
         if self.couplings is None:
             return s.J * (mean(s.spin) - s.spin / count()) + s.h
         return s.J * total(s.spin, weights=np.asarray(self.couplings, dtype=float)) + s.h
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the flips of up spins and of down spins at the Glauber rate.
 
         Args:

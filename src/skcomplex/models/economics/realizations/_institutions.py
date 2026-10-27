@@ -4,13 +4,14 @@
 # License: MIT
 
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Any
 
-from ....core.base import BaseInteraction, BaseLaw
-from ....core.laws import RuleLaw, Symbols
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 
 
-class InstitutionInteraction(BaseInteraction):
+class InstitutionInteraction(Interaction):
     """Single actor, such as a central bank, a regulator, or a quota board, that sets parameters from observables.
 
     Its rule runs once per round of its phase, after the agents of the phase. It reads observables with
@@ -44,13 +45,12 @@ class InstitutionInteraction(BaseInteraction):
         *,
         rule: Callable[[Any], None] | None = None,
         phase: str | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
         self.rule = rule
         self.phase = phase
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the institution in its phase.
 
         Args:

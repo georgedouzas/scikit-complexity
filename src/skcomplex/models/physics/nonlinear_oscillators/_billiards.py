@@ -3,56 +3,61 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter
-from ....core.components import Element
-from ....core.laws import EventLaw, RateLaw, Symbols, where
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 SHAPES = ('sinai', 'mushroom')
 
 
-def _reflections(s: Symbols, normal: tuple[Expression, Expression]) -> dict[Expression, Expression]:
+def _reflections(s: SimpleNamespace, normal: tuple[Expression, Expression]) -> dict[Expression, Expression]:
     """Return the velocity after a specular reflection off a wall with the given normal, of any length."""
     nx, ny = normal
     projection = (s.vx * nx + s.vy * ny) / (nx**2 + ny**2)
     return {s.vx: s.vx - 2 * projection * nx, s.vy: s.vy - 2 * projection * ny}
 
 
-def _sinai_laws(s: Symbols) -> list[BaseLaw]:
+def _sinai_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the free flight in a square table and the reflections off its walls and its central disc."""
     return [
         RateLaw(s.x, s.vx),
         RateLaw(s.y, s.vy),
-        EventLaw(s.x - s.size, {s.vx: -s.vx}, direction=1, label='right wall'),
-        EventLaw(s.x + s.size, {s.vx: -s.vx}, direction=-1, label='left wall'),
-        EventLaw(s.y - s.size, {s.vy: -s.vy}, direction=1, label='top wall'),
-        EventLaw(s.y + s.size, {s.vy: -s.vy}, direction=-1, label='bottom wall'),
-        EventLaw(s.x**2 + s.y**2 - s.radius**2, _reflections(s, (s.x, s.y)), direction=-1, label='disc'),
+        CrossingLaw(s.x - s.size, {s.vx: -s.vx}, direction=1, label='right wall'),
+        CrossingLaw(s.x + s.size, {s.vx: -s.vx}, direction=-1, label='left wall'),
+        CrossingLaw(s.y - s.size, {s.vy: -s.vy}, direction=1, label='top wall'),
+        CrossingLaw(s.y + s.size, {s.vy: -s.vy}, direction=-1, label='bottom wall'),
+        CrossingLaw(s.x**2 + s.y**2 - s.radius**2, _reflections(s, (s.x, s.y)), direction=-1, label='disc'),
     ]
 
 
-def _mushroom_laws(s: Symbols) -> list[BaseLaw]:
+def _mushroom_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the free flight in a mushroom table and the reflections off the parts of its lines that are walls."""
     cap = _reflections(s, (s.x, s.y))
     in_cap, in_stem = s.y > 0, s.y < 0
     return [
         RateLaw(s.x, s.vx),
         RateLaw(s.y, s.vy),
-        EventLaw(
+        CrossingLaw(
             s.x**2 + s.y**2 - s.radius**2,
             {s.vx: where(in_cap, cap[s.vx], s.vx), s.vy: where(in_cap, cap[s.vy], s.vy)},
             direction=1,
             label='cap',
         ),
-        EventLaw(s.y, {s.vy: where(abs(s.x) > s.width, -s.vy, s.vy)}, direction=-1, label='cap floor'),
-        EventLaw(s.x - s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=1, label='right stem wall'),
-        EventLaw(s.x + s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=-1, label='left stem wall'),
-        EventLaw(s.y + s.height, {s.vy: -s.vy}, direction=-1, label='stem floor'),
+        CrossingLaw(s.y, {s.vy: where(abs(s.x) > s.width, -s.vy, s.vy)}, direction=-1, label='cap floor'),
+        CrossingLaw(s.x - s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=1, label='right stem wall'),
+        CrossingLaw(s.x + s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=-1, label='left stem wall'),
+        CrossingLaw(s.y + s.height, {s.vy: -s.vy}, direction=-1, label='stem floor'),
     ]
 
 
@@ -67,14 +72,28 @@ class SinaiBilliardElement(Element):
     """Sinai billiard element."""
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls})
-    x = state(0.1)
-    y = state(0.6)
-    vx = state(0.6)
-    vy = state(0.8)
-    size = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    radius = parameter(default=0.4, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.6,
+        vx: Annotated[object, StateSpec()] = 0.6,
+        vy: Annotated[object, StateSpec()] = 0.8,
+        size: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.radius = radius
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the sinai billiard element."""
         return _sinai_laws(s)
 
@@ -82,15 +101,29 @@ class SinaiBilliardElement(Element):
 class MushroomBilliardElement(Element):
     """Mushroom billiard element."""
 
-    x = state(0.1)
-    y = state(0.6)
-    vx = state(0.6)
-    vy = state(0.8)
-    radius = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    width = parameter(default=0.4, domain=NumericDomain.POSITIVE)
-    height = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.6,
+        vx: Annotated[object, StateSpec()] = 0.6,
+        vy: Annotated[object, StateSpec()] = 0.8,
+        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        width: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+        height: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.radius = radius
+        self.width = width
+        self.height = height
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the mushroom billiard element."""
         return _mushroom_laws(s)
 

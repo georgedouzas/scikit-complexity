@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._markets import DeferredAcceptance, MarketInteraction, Trade
 
@@ -51,14 +52,27 @@ class EmployerElement(Element):
         5
     """
 
-    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    posted: float = state(default=-1.0)
-    vacancy_rate: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    low_wage: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    high_wage: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        demand: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        posted: Annotated[float, StateSpec()] = -1.0,
+        vacancy_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        low_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        high_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.bid = bid
+        self.demand = demand
+        self.posted = posted
+        self.vacancy_rate = vacancy_rate
+        self.low_wage = low_wage
+        self.high_wage = high_wage
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the posting rule in the phase of offers.
 
         Args:
@@ -134,18 +148,35 @@ class JobseekerElement(Element):
         5
     """
 
-    ask: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    supply: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    employer: float = state(default=-1.0)
-    wage: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    duration: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    hired: float = state(default=-1.0)
-    offer: float = state(default=-1.0)
-    separation: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    reservation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    decline: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        supply: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        employer: Annotated[float, StateSpec()] = -1.0,
+        wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        duration: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        hired: Annotated[float, StateSpec()] = -1.0,
+        offer: Annotated[float, StateSpec()] = -1.0,
+        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        reservation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        decline: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.ask = ask
+        self.supply = supply
+        self.employer = employer
+        self.wage = wage
+        self.duration = duration
+        self.hired = hired
+        self.offer = offer
+        self.separation = separation
+        self.reservation = reservation
+        self.decline = decline
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of separations and search in the phase of offers.
 
         Args:
@@ -216,7 +247,17 @@ class SearchCountInteraction(InstitutionInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('searching',)
-    workers: str = role()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: object,
+        phase: object,
+        workers: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label, rule=rule, phase=phase)
+        self.workers = workers
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Report the number of searching workers.

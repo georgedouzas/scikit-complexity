@@ -3,20 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -46,10 +50,17 @@ class PersuaderElement(Element):
         ('people', 'PersuaderElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the persuasion rule.
 
         Args:
@@ -102,11 +113,20 @@ class CitizenElement(Element):
         ('citizens', 'CitizenElement', 10)
     """
 
-    opinion: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    group_size: float = parameter(default=3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        group_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.group_size = group_size
 
 
-class DiscussionsInteraction(BaseInteraction):
+class DiscussionsInteraction(Interaction):
     """Discussions of the Galam model, which split the agents into random groups that adopt their majority opinion.
 
     A tie in a group of even size goes to opinion 0, the status quo.
@@ -124,9 +144,16 @@ class DiscussionsInteraction(BaseInteraction):
         'citizens'
     """
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the discussion rule.
 
         Args:
@@ -187,15 +214,26 @@ class InfluenceeElement(Element):
         ('people', 'InfluenceeElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
-    opinion: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    persuasiveness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    supportiveness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    exponent: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    noise: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        persuasiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        supportiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.persuasiveness = persuasiveness
+        self.supportiveness = supportiveness
+        self.exponent = exponent
+        self.noise = noise
 
 
-class SocialImpactInteraction(BaseInteraction):
+class SocialImpactInteraction(Interaction):
     """Synchronous update of the social impact model, where every agent takes the opinion of the stronger impact.
 
     The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
@@ -216,9 +254,16 @@ class SocialImpactInteraction(BaseInteraction):
         'people'
     """
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the impact rule.
 
         Args:

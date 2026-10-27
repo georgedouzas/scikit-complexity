@@ -3,46 +3,58 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role
-
-from ....core.base import BaseInteraction, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import NoiseLaw, RateLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import divergence, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ...core.base import BaseLaw
-from ...core.elements import GroupElement
 from ._car_following import CarElement, _headway
 
 
-def _target_speed(density: Expression, s: Symbols) -> Expression:
+def _target_speed(density: Expression, s: SimpleNamespace) -> Expression:
     """Return the desired speed `u(rho) = u0 (1 - rho / rho_max)` at a density."""
     return s.u0 * (1 - density / s.rho_max)
 
 
-def _local_density(s: Symbols) -> Expression:
+def _local_density(s: SimpleNamespace) -> Expression:
     """Return the density seen by every car of a ring road, the inverse of its headway."""
     return 1 / _headway(s.cars.x, s.road_length)
 
 
-class LangevinDrivingInteraction(BaseInteraction):
+class LangevinDrivingInteraction(Interaction):
     """Langevin driving interaction."""
 
-    cars = role()
-    gamma = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    u0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    D1 = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    road_length = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[object, RoleSpec()],
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        u0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.gamma = gamma
+        self.u0 = u0
+        self.rho_max = rho_max
+        self.D1 = D1
+        self.road_length = road_length
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the langevin driving interaction."""
         return [
             RateLaw(s.cars.v, -s.gamma * (s.cars.v - _target_speed(_local_density(s), s))),
@@ -53,14 +65,27 @@ class LangevinDrivingInteraction(BaseInteraction):
 class TrafficMomentsElement(Element):
     """Traffic moments element."""
 
-    rho = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    w = state(0.25)
-    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    u0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    D1 = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        w: Annotated[object, StateSpec()] = 0.25,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        u0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.w = w
+        self.gamma = gamma
+        self.u0 = u0
+        self.rho_max = rho_max
+        self.D1 = D1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the traffic moments element."""
         return [
             RateLaw(s.rho, -divergence([s.w]) + laplacian(s.D1 * s.rho**2 / 2)),
@@ -223,5 +248,5 @@ def traffic_density_equation(
         'D1': D1,
     }
     space = LatticeSpace(n, spacing=length / n)
-    road = FieldElement('road', TrafficMomentsElement, space, values=values)
+    road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
     return System(elements=[road])

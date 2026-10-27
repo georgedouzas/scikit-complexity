@@ -3,9 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -41,13 +47,25 @@ class TwoCompartmentElement(Element):
         0.0475
     """
 
-    Uc: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    Up: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    k10: float = parameter(default=0.082, domain=NumericDomain.NONNEGATIVE)
-    k12: float = parameter(default=0.0475, domain=NumericDomain.NONNEGATIVE)
-    k21: float = parameter(default=0.00125, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Uc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k10: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.082,
+        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0475,
+        k21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00125,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Uc = Uc
+        self.Up = Up
+        self.k10 = k10
+        self.k12 = k12
+        self.k21 = k21
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange between the compartments and the elimination from the central one.
 
         Args:

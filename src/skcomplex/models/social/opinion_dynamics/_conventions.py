@@ -3,16 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import BaseInteraction, BaseLaw, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -54,10 +57,18 @@ class NamerElement(Element):
         ('namers', 'NamerElement', 5)
     """
 
-    words: npt.ArrayLike = state(default=0.0, vector=True)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        words: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.words = words
 
 
-class NamingGamesInteraction(BaseInteraction):
+class NamingGamesInteraction(Interaction):
     """Pairwise games of the minimal naming game, as many per step as there are agents.
 
     A random speaker says a random word of its inventory to a random hearer. When the hearer knows it, both keep that
@@ -76,9 +87,16 @@ class NamingGamesInteraction(BaseInteraction):
         'namers'
     """
 
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the game rule.
 
         Args:

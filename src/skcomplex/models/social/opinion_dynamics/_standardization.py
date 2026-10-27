@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -57,10 +60,19 @@ class ComplexAgentElement(Element):
         10
     """
 
-    configuration: float = state(default=2.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    spin: float = state(default=0.0, domain=NumericDomain.INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        configuration: Annotated[float, StateSpec(domain=NN)] = 2.0,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.configuration = configuration
+        self.spin = spin
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the standardization moves every agent.
 
         Args:
@@ -74,7 +86,7 @@ class ComplexAgentElement(Element):
         return []
 
 
-class StandardizationInteraction(BaseInteraction):
+class StandardizationInteraction(Interaction):
     """Changes of configuration of random agents, accepted with the logistic probability of their gain in utility.
 
     The utility of agent `i` is `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. A random
@@ -109,22 +121,24 @@ class StandardizationInteraction(BaseInteraction):
         100
     """
 
-    agents: str = role()
-    K: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    J: float = parameter(default=1.0, domain=NumericDomain.REAL)
-    T: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        agents: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         H: int = 50,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.agents = agents
+        self.K = K
+        self.J = J
+        self.T = T
         self.H = H
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the configuration changes.
 
         Args:

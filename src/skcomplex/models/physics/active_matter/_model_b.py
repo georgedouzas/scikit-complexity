@@ -4,25 +4,25 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import BaseLaw, NumericDomain, parameter
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import NoiseLaw, RateLaw, Symbols
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import divergence, gradient, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.backends import NumbaBackend
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 
 
-def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
+def _active_model_b_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the rate and the conserved noise of Active Model B+ for one site."""
     phi = s.phi
     slope = gradient(phi)
@@ -34,13 +34,25 @@ def _active_model_b_laws(s: Symbols) -> list[BaseLaw]:
 class ActiveScalarElement(Element):
     """Active scalar element."""
 
-    phi = state(0.0)
-    kappa = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    lam = parameter(1.0)
-    zeta = parameter(4.0)
-    D = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec()] = 0.0,
+        kappa: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lam: Annotated[object, ParameterSpec()] = 1.0,
+        zeta: Annotated[object, ParameterSpec()] = 4.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.kappa = kappa
+        self.lam = lam
+        self.zeta = zeta
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the active scalar element."""
         return _active_model_b_laws(s)
 
@@ -112,4 +124,6 @@ def active_model_b(
         'zeta': zeta,
         'D': D,
     }
-    return System(elements=[FieldElement('fluid', ActiveScalarElement, LatticeSpace(shape), values=values)])
+    return System(
+        elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
+    )

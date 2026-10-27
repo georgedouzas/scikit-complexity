@@ -3,9 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -45,14 +52,27 @@ class ReactingParticlesElement(Element):
         2.0
     """
 
-    n: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    kappa: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    nu: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    volume: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    epsilon: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=NN)] = 100.0,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        volume: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.kappa = kappa
+        self.nu = nu
+        self.lam = lam
+        self.volume = volume
+        self.epsilon = epsilon
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the creation and the removal of one particle.
 
         Args:

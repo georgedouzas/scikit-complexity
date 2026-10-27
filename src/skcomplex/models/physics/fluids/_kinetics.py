@@ -4,15 +4,17 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import FluxLaw, RateLaw, Symbols
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import SSPRKSolver
@@ -40,10 +42,19 @@ class WaveNumberElement(Element):
         1.0
     """
 
-    k: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    g: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the conservation of waves, with the frequency as the flux of the wave number.
 
         Args:
@@ -86,12 +97,23 @@ class CarlemanGasElement(Element):
         1.0
     """
 
-    f_plus: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    f_minus: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    c: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    kappa: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f_plus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        f_minus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f_plus = f_plus
+        self.f_minus = f_minus
+        self.c = c
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the transport of both densities and their collisions.
 
         Args:
@@ -151,7 +173,15 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
     values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        elements=[FieldElement('train', WaveNumberElement, space, values=values, discretization='finite-volume')],
+        elements=[
+            FieldElement(
+                'train',
+                element=WaveNumberElement,
+                space=space,
+                values=values,
+                discretization='finite-volume',
+            ),
+        ],
     )
 
 
@@ -201,5 +231,7 @@ def discrete_velocity_boltzmann(
     values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        elements=[FieldElement('gas', CarlemanGasElement, space, values=values, discretization='finite-volume')],
+        elements=[
+            FieldElement('gas', element=CarlemanGasElement, space=space, values=values, discretization='finite-volume'),
+        ],
     )

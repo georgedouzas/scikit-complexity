@@ -4,18 +4,21 @@
 # License: MIT
 
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols, total
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import laplacian, total
 from ....core.spaces import NetworkSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 class DegreeClassElement(Element):
@@ -49,12 +52,23 @@ class DegreeClassElement(Element):
         2
     """
 
-    rho: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    lam: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    P: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.lam = lam
+        self.k = k
+        self.P = P
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the recovery and the infection along edges of the class.
 
         Args:
@@ -103,14 +117,27 @@ class SubpopulationElement(Element):
         0.3
     """
 
-    S: float = state(default=1000.0, domain=NumericDomain.NONNEGATIVE)
-    I: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    R: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    D: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.S = S
+        self.I = I
+        self.R = R
+        self.beta = beta
+        self.gamma = gamma
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the infections, recoveries, and hops of the node.
 
         Args:
@@ -247,4 +274,6 @@ def metapopulation(
         'gamma': gamma,
         'D': D,
     }
-    return System(elements=[FieldElement('cities', SubpopulationElement, NetworkSpace(graph), values=values)])
+    return System(
+        elements=[FieldElement('cities', element=SubpopulationElement, space=NetworkSpace(graph), values=values)],
+    )

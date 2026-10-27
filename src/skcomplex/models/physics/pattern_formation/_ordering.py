@@ -4,22 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import NoiseLaw, RateLaw
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
@@ -27,10 +25,19 @@ REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hill
 class AllenCahnElement(Element):
     """Allen cahn element."""
 
-    phi = state(0.0)
-    kappa = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec()] = 0.0,
+        kappa: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the allen cahn element."""
         return [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))]
 
@@ -38,10 +45,19 @@ class AllenCahnElement(Element):
 class CahnHilliardElement(Element):
     """Cahn hilliard element."""
 
-    phi = state(0.0)
-    kappa = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec()] = 0.0,
+        kappa: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cahn hilliard element."""
         return [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))]
 
@@ -49,11 +65,21 @@ class CahnHilliardElement(Element):
 class ThermalCahnHilliardElement(Element):
     """Thermal cahn hilliard element."""
 
-    phi = state(0.0)
-    kappa = parameter(1.0)
-    temperature = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec()] = 0.0,
+        kappa: Annotated[object, ParameterSpec()] = 1.0,
+        temperature: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.kappa = kappa
+        self.temperature = temperature
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the thermal cahn hilliard element."""
         return [
             RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
@@ -77,9 +103,11 @@ def _ordering(
     values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
     space = LatticeSpace(shape, spacing=length / shape[0])
     if not temperature:
-        return System(elements=[FieldElement('mixture', element, space, values=values, discretization='spectral')])
+        return System(
+            elements=[FieldElement('mixture', element=element, space=space, values=values, discretization='spectral')],
+        )
     values['temperature'] = temperature
-    return System(elements=[FieldElement('mixture', ThermalCahnHilliardElement, space, values=values)])
+    return System(elements=[FieldElement('mixture', element=ThermalCahnHilliardElement, space=space, values=values)])
 
 
 @register_model(

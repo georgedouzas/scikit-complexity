@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -51,10 +55,19 @@ class CustomerElement(Element):
         10
     """
 
-    s1: float = state(default=0.5, domain=NumericDomain.REAL)
-    s2: float = state(default=0.5, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        s1: Annotated[float, StateSpec()] = 0.5,
+        s2: Annotated[float, StateSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.s1 = s1
+        self.s2 = s2
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade moves every customer.
 
         Args:
@@ -87,10 +100,19 @@ class ProductElement(Element):
         4
     """
 
-    shop: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    shelved: float = state(default=0.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        shop: Annotated[float, StateSpec(domain=NN)] = 0,
+        shelved: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.shop = shop
+        self.shelved = shelved
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade sells and replaces products.
 
         Args:
@@ -123,10 +145,19 @@ class ShopElement(Element):
         2
     """
 
-    share: float = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    freshness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        share: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        freshness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.share = share
+        self.freshness = freshness
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the trade records the shares and the freshness.
 
         Args:
@@ -140,7 +171,7 @@ class ShopElement(Element):
         return []
 
 
-class PerishableTradeInteraction(BaseInteraction):
+class PerishableTradeInteraction(Interaction):
     """Visits of customers to two shops, one random customer at a time, `N` visits per unit of time.
 
     A customer visits the first shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` and buys a random product
@@ -176,14 +207,26 @@ class PerishableTradeInteraction(BaseInteraction):
         0.1
     """
 
-    customers: str = role()
-    products: str = role()
-    shops: str = role()
-    T: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    alpha: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
-    tau_a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        customers: Annotated[str, RoleSpec()],
+        products: Annotated[str, RoleSpec()],
+        shops: Annotated[str, RoleSpec()],
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        tau_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.customers = customers
+        self.products = products
+        self.shops = shops
+        self.T = T
+        self.alpha = alpha
+        self.tau_a = tau_a
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the trade rule.
 
         Args:

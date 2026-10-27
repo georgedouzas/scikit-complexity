@@ -4,20 +4,22 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics
 
@@ -109,12 +111,24 @@ class PatronElement(Element):
     """
 
     bar: ClassVar[str] = 'bar'
-    predictors: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    forecast: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    attends: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    discount: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        predictors: Annotated[float, StateSpec(domain=NN)] = 1,
+        forecast: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        attends: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        discount: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.predictors = predictors
+        self.forecast = forecast
+        self.attends = attends
+        self.discount = discount
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decision rule.
 
         Args:
@@ -188,17 +202,18 @@ class BarInteraction(InstitutionInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
-    capacity: float = parameter(default=60.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
         label: str,
         *,
+        rule: object,
+        phase: object,
+        capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
         patrons: str = 'patrons',
-        phase: str | None = 'count',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, rule=rule, phase=phase)
+        self.capacity = capacity
         self.patrons = patrons
         self.phase = phase
 

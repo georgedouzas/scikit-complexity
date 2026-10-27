@@ -3,16 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class InvestingFirmElement(Element):
@@ -62,18 +65,35 @@ class InvestingFirmElement(Element):
         10
     """
 
-    A: float = state(default=1.0, domain=NumericDomain.REAL)
-    K: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    Z: float = state(default=0.0, domain=NumericDomain.REAL)
-    B: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    Y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    P: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=1.1, domain=NumericDomain.POSITIVE)
-    phi: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    r: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    pbar: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A: Annotated[float, StateSpec()] = 1.0,
+        K: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        Z: Annotated[float, StateSpec()] = 0.0,
+        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
+        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        pbar: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A = A
+        self.K = K
+        self.Z = Z
+        self.B = B
+        self.Y = Y
+        self.P = P
+        self.gamma = gamma
+        self.phi = phi
+        self.r = r
+        self.pbar = pbar
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one period.
 
         Args:

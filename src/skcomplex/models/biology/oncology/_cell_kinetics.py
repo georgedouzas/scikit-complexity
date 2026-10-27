@@ -3,11 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, delayed
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -56,16 +61,31 @@ class CellCycleElement(Element):
         0.395
     """
 
-    A1: float = state(default=15.0, domain=NumericDomain.NONNEGATIVE)
-    A2: float = state(default=3.8, domain=NumericDomain.NONNEGATIVE)
-    A3: float = state(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    l1: float = parameter(default=0.197, domain=NumericDomain.POSITIVE)
-    l2: float = parameter(default=0.395, domain=NumericDomain.POSITIVE)
-    l3: float = parameter(default=0.107, domain=NumericDomain.POSITIVE)
-    u1: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    u2: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.8,
+        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.197,
+        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.395,
+        l3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.107,
+        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A1 = A1
+        self.A2 = A2
+        self.A3 = A3
+        self.l1 = l1
+        self.l2 = l2
+        self.l3 = l3
+        self.u1 = u1
+        self.u2 = u2
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the transits between the three compartments and the division with its kill.
 
         Args:
@@ -132,18 +152,35 @@ class DormantCellCycleElement(Element):
         0.9
     """
 
-    A0: float = state(default=6.5, domain=NumericDomain.NONNEGATIVE)
-    A1: float = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    A2: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    l0: float = parameter(default=0.05, domain=NumericDomain.POSITIVE)
-    l1: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    l2: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    b0: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
-    b1: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    u: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    v: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.5,
+        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A0 = A0
+        self.A1 = A1
+        self.A2 = A2
+        self.l0 = l0
+        self.l1 = l1
+        self.l2 = l2
+        self.b0 = b0
+        self.b1 = b1
+        self.u = u
+        self.v = v
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the recruitment from G0, the transits, and the division with its kill.
 
         Args:
@@ -233,24 +270,47 @@ class ErythropoiesisElement(Element):
         120.0
     """
 
-    L: float = state(default=3.84, domain=NumericDomain.NONNEGATIVE)
-    Q: float = state(default=19.6, domain=NumericDomain.NONNEGATIVE)
-    P: float = state(default=2.16, domain=NumericDomain.NONNEGATIVE)
-    MCV: float = state(default=85.0, domain=NumericDomain.NONNEGATIVE)
-    r1: float = parameter(default=0.00139, domain=NumericDomain.POSITIVE)
-    d1: float = parameter(default=0.0071, domain=NumericDomain.POSITIVE)
-    a0: float = parameter(default=0.00022, domain=NumericDomain.NONNEGATIVE)
-    tau_h: float = parameter(default=0.68, domain=NumericDomain.POSITIVE)
-    MCV_h: float = parameter(default=85.0, domain=NumericDomain.POSITIVE)
-    MCV0: float = parameter(default=85.0, domain=NumericDomain.POSITIVE)
-    g1: float = parameter(default=0.0317, domain=NumericDomain.NONNEGATIVE)
-    m0: float = parameter(default=1.01, domain=NumericDomain.POSITIVE)
-    Q50: float = parameter(default=0.027, domain=NumericDomain.POSITIVE)
-    n: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    lifespan: float = parameter(default=120.0, domain=NumericDomain.POSITIVE)
-    U: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        L: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.84,
+        Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 19.6,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.16,
+        MCV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 85.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00139,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0071,
+        a0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00022,
+        tau_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.68,
+        MCV_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
+        MCV0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
+        g1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0317,
+        m0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.01,
+        Q50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.027,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lifespan: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120.0,
+        U: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.L = L
+        self.Q = Q
+        self.P = P
+        self.MCV = MCV
+        self.r1 = r1
+        self.d1 = d1
+        self.a0 = a0
+        self.tau_h = tau_h
+        self.MCV_h = MCV_h
+        self.MCV0 = MCV0
+        self.g1 = g1
+        self.m0 = m0
+        self.Q50 = Q50
+        self.n = n
+        self.lifespan = lifespan
+        self.U = U
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balances of quiescent, proliferating, and mature cells and of their mean volume.
 
         Args:

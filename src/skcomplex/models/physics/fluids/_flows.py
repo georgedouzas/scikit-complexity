@@ -5,17 +5,19 @@
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import FluxLaw, RateLaw, Symbols
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import divergence, gradient, inverse_laplacian, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import ETDRK4Solver, SSPRKSolver
@@ -26,9 +28,17 @@ type Array = npt.NDArray[np.float64]
 class KuramotoSivashinskyElement(Element):
     """Kuramoto sivashinsky element."""
 
-    u = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the kuramoto sivashinsky element."""
         return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
 
@@ -73,7 +83,13 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     space = LatticeSpace(modes, spacing=spacing)
     return System(
         elements=[
-            FieldElement('line', KuramotoSivashinskyElement, space, values=values, discretization='spectral'),
+            FieldElement(
+                'line',
+                element=KuramotoSivashinskyElement,
+                space=space,
+                values=values,
+                discretization='spectral',
+            ),
         ],
     )
 
@@ -109,11 +125,21 @@ class VorticityElement(Element):
         0.001
     """
 
-    omega: float = state(default=0.0)
-    nu: float = parameter(default=1e-3, domain=NumericDomain.NONNEGATIVE)
-    f: float = parameter(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        omega: Annotated[float, StateSpec()] = 0.0,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        f: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.omega = omega
+        self.nu = nu
+        self.f = f
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the vorticity equation.
 
         Args:
@@ -157,12 +183,23 @@ class BoussinesqElement(Element):
         1000.0
     """
 
-    omega: float = state(default=0.0)
-    theta: float = state(default=0.0)
-    Ra: float = parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE)
-    Pr: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        omega: Annotated[float, StateSpec()] = 0.0,
+        theta: Annotated[float, StateSpec()] = 0.0,
+        Ra: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        Pr: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.omega = omega
+        self.theta = theta
+        self.Ra = Ra
+        self.Pr = Pr
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the vorticity and temperature equations.
 
         Args:
@@ -187,9 +224,17 @@ class BoussinesqElement(Element):
 class BurgersElement(Element):
     """Burgers element."""
 
-    u = state(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the burgers element."""
         return [FluxLaw(s.u, s.u**2 / 2)]
 
@@ -197,11 +242,21 @@ class BurgersElement(Element):
 class ShallowWaterElement(Element):
     """Shallow water element."""
 
-    h = state(default=1.0, domain=NumericDomain.POSITIVE)
-    q = state(0.0)
-    g = parameter(9.81)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        q: Annotated[object, StateSpec()] = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.q = q
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the shallow water element."""
         return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
 
@@ -286,7 +341,14 @@ def incompressible_flow(
             values['theta'] = np.asarray(temperature, dtype=float)
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
     symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
-    field = FieldElement('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
+    field = FieldElement(
+        'flow',
+        element=element,
+        space=space,
+        values=values,
+        discretization='spectral',
+        symmetry=symmetry,
+    )
     return System(elements=[field])
 
 
@@ -426,7 +488,9 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
     values = {'u': mean + amplitude * np.sin(centers)}
     space = LatticeSpace(n, spacing=spacing)
     return System(
-        elements=[FieldElement('line', BurgersElement, space, values=values, discretization='finite-volume')],
+        elements=[
+            FieldElement('line', element=BurgersElement, space=space, values=values, discretization='finite-volume'),
+        ],
     )
 
 
@@ -480,8 +544,8 @@ def shallow_water(
     boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
     field = FieldElement(
         'channel',
-        ShallowWaterElement,
-        space,
+        element=ShallowWaterElement,
+        space=space,
         boundary=boundary,
         values=values,
         discretization='finite-volume',

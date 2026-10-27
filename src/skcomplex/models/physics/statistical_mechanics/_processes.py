@@ -4,19 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import DriveLaw, LocalRuleLaw, RuleLaw, Symbols
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement, LatticeElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -95,20 +98,21 @@ class Q2RSpinElement(Element):
         2
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    phase: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         n_dim: int = 2,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.phase = phase
         self.n_dim = n_dim
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reversible energy-conserving flip and the swap of phases.
 
         Args:
@@ -142,9 +146,17 @@ class PercolationSiteElement(Element):
         0.0
     """
 
-    cover: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        cover: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.cover = cover
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the spread and burning out of the fire.
 
         Args:
@@ -184,11 +196,21 @@ class ContactSiteElement(Element):
         3.0
     """
 
-    infected: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    rate: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    tau: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.infected = infected
+        self.rate = rate
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stochastic infection and recovery.
 
         Args:
@@ -236,22 +258,25 @@ class ExclusionSiteElement(Element):
         False
     """
 
-    occupied: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    p: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.7, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
         ring: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.occupied = occupied
+        self.p = p
+        self.alpha = alpha
+        self.beta = beta
         self.ring = ring
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the parallel update of hops, entries, and exits.
 
         Args:
@@ -281,10 +306,17 @@ class WalkerElement(Element):
         0.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)})
-    stuck: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)}),
+        *,
+        stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stuck = stuck
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the walk-and-stick rule.
 
         Args:

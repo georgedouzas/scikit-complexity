@@ -3,27 +3,46 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter
 
-from ....core.base import VisualSpec, state
-from ....core.components import Element
-from ....core.laws import RateLaw, derivative
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class DipoleChargeElement(Element):
     """Dipole charge element."""
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y', 'z'), 'trail': None, 'marks': [(0.0, 0.0, 0.0)]})
-    x = state(default=1.0, order=2)
-    y = state(default=0.0, order=2)
-    z = state(default=0.0, order=2)
-    alpha = parameter(1.0)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 1.0,
+        x_d1: float = 0.0,
+        y: Annotated[object, StateSpec(order=2)] = 0.0,
+        y_d1: float = 0.0,
+        z: Annotated[object, StateSpec(order=2)] = 0.0,
+        z_d1: float = 0.0,
+        alpha: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.y = y
+        self.y_d1 = y_d1
+        self.z = z
+        self.z_d1 = z_d1
+        self.alpha = alpha
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the dipole charge element."""
         return [
             RateLaw(

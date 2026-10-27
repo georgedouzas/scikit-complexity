@@ -3,19 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -64,13 +70,23 @@ class BelieverElement(Element):
         ('people', 'BelieverElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
-    belief: npt.ArrayLike = state(default=0.0, vector=True)
-    caring: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    influence: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    learning: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)}),
+        *,
+        belief: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        caring: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        influence: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        learning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.belief = belief
+        self.caring = caring
+        self.influence = influence
+        self.learning = learning
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the learning rule.
 
         Args:
@@ -127,14 +143,24 @@ class AdopterElement(Element):
         ('people', 'AdopterElement', 10)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
-    adopted: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    threshold: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
-    reach: float = parameter(default=15.0, domain=NumericDomain.POSITIVE)
-    shifting: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)}),
+        *,
+        adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        shifting: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.adopted = adopted
+        self.threshold = threshold
+        self.reach = reach
+        self.shifting = shifting
 
 
-class AdoptionInteraction(BaseInteraction):
+class AdoptionInteraction(Interaction):
     """Synchronous adoption step of the threshold model, after a share of agents shift.
 
     In the infection mode an agent adopts once anyone in its social circle has adopted. In the influence mode it
@@ -162,21 +188,20 @@ class AdoptionInteraction(BaseInteraction):
         'influence'
     """
 
-    target: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
         size: float = 175.0,
         mode: str = 'infection',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
         self.size = size
         self.mode = mode
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the adoption rule.
 
         Args:

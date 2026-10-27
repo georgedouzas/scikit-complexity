@@ -4,33 +4,37 @@
 # License: MIT
 
 from itertools import pairwise
+from types import SimpleNamespace
+from typing import Annotated
 
-from skcomplex.core.declarations import role
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.specs import ObservableSpec
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import distributed_delay, step, where
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 
-def _shipments(echelon: Symbols) -> Expression:
+def _shipments(echelon: SimpleNamespace) -> Expression:
     """Return the shipments of an echelon, its backlog limited by its inventory over the dispatch time."""
     available = where(echelon.backlog < echelon.inventory, echelon.backlog, echelon.inventory)
     return available / echelon.dispatch_time
 
 
-def _orders(echelon: Symbols) -> Expression:
+def _orders(echelon: SimpleNamespace) -> Expression:
     """Return the orders of an echelon by Sterman's anchoring and adjustment rule, never negative."""
     effective = echelon.inventory - echelon.backlog
     orders = echelon.expected + echelon.alpha * (echelon.desired - effective - echelon.beta * echelon.supply_line)
     return where(orders > 0, orders, 0)
 
 
-def _echelon_laws(s: Symbols) -> list[BaseLaw]:
+def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
     return [
         RateLaw(s.backlog, -_shipments(s)),
@@ -38,7 +42,7 @@ def _echelon_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-def _link_laws(s: Symbols) -> list[BaseLaw]:
+def _link_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of a link, the mail of orders upstream and the shipping of beer downstream."""
     orders = _orders(s.downstream)
     shipments = _shipments(s.upstream)
@@ -53,12 +57,12 @@ def _link_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-def _customer_orders(s: Symbols) -> Expression:
+def _customer_orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the customers, their demand after its step."""
     return s.demand + step(s.t, s.step_time, s.demand_step)
 
 
-def _customer_laws(s: Symbols) -> list[BaseLaw]:
+def _customer_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of the customers, whose demand reaches the retailer and who take its shipments."""
     demand = _customer_orders(s)
     return [
@@ -68,7 +72,7 @@ def _customer_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-def _brewery_laws(s: Symbols) -> list[BaseLaw]:
+def _brewery_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of the brewery, which brews the orders of the factory over the production delay."""
     orders = _orders(s.factory)
     completions = distributed_delay(orders, order=3, time=s.production_delay)
@@ -82,55 +86,100 @@ def _brewery_laws(s: Symbols) -> list[BaseLaw]:
 class EchelonElement(Element):
     """Echelon element."""
 
-    inventory = state(default=12.0, domain=NumericDomain.NONNEGATIVE, quantity='beer')
-    in_transit = state(default=8.0, domain=NumericDomain.NONNEGATIVE, quantity='beer')
-    backlog = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    expected = state(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    supply_line = state(default=16.0, domain=NumericDomain.NONNEGATIVE)
-    desired = parameter(default=13.44, domain=NumericDomain.REAL)
-    theta = parameter(default=0.36, domain=NumericDomain.NONNEGATIVE)
-    alpha = parameter(default=0.26, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=0.34, domain=NumericDomain.NONNEGATIVE)
-    dispatch_time = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        inventory: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
+        in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
+        backlog: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        expected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        supply_line: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
+        desired: Annotated[object, ParameterSpec()] = 13.44,
+        theta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
+        dispatch_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.inventory = inventory
+        self.in_transit = in_transit
+        self.backlog = backlog
+        self.expected = expected
+        self.supply_line = supply_line
+        self.desired = desired
+        self.theta = theta
+        self.alpha = alpha
+        self.beta = beta
+        self.dispatch_time = dispatch_time
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the echelon element."""
         return _echelon_laws(s)
 
 
-class SupplyLinkInteraction(BaseInteraction):
+class SupplyLinkInteraction(Interaction):
     """Supply link interaction."""
 
-    downstream = role()
-    upstream = role()
-    mail_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    shipping_delay = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        downstream: Annotated[object, RoleSpec()],
+        upstream: Annotated[object, RoleSpec()],
+        mail_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        shipping_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.downstream = downstream
+        self.upstream = upstream
+        self.mail_delay = mail_delay
+        self.shipping_delay = shipping_delay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the supply link interaction."""
         return _link_laws(s)
 
 
-class RetailDemandInteraction(BaseInteraction):
+class RetailDemandInteraction(Interaction):
     """Retail demand interaction."""
 
-    retailer = role()
-    demand = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    demand_step = parameter(default=4.0, domain=NumericDomain.REAL)
-    step_time = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        retailer: Annotated[object, RoleSpec()],
+        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        demand_step: Annotated[object, ParameterSpec()] = 4.0,
+        step_time: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+    ) -> None:
+        super().__init__(label)
+        self.retailer = retailer
+        self.demand = demand
+        self.demand_step = demand_step
+        self.step_time = step_time
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the retail demand interaction."""
         return _customer_laws(s)
 
 
-class BreweryInteraction(BaseInteraction):
+class BreweryInteraction(Interaction):
     """Brewery interaction."""
 
-    factory = role()
-    production_delay = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        factory: Annotated[object, RoleSpec()],
+        production_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label)
+        self.factory = factory
+        self.production_delay = production_delay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the brewery interaction."""
         return _brewery_laws(s)
 

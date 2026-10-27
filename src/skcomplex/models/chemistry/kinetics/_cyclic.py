@@ -4,18 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -52,11 +54,21 @@ class CyclicCellElement(Element):
         14.0
     """
 
-    level: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    n: float = parameter(default=14.0, domain=NumericDomain.POSITIVE)
-    threshold: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec(domain=NN)] = 0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.n = n
+        self.threshold = threshold
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that advances a cell to the following level.
 
         Args:

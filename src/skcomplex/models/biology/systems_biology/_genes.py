@@ -5,11 +5,16 @@
 
 from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, RateLaw, Symbols
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -51,23 +56,27 @@ class GeneElement(Element):
         20.0
     """
 
-    m: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    p: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    delta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    b: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
         stochastic: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.m = m
+        self.p = p
+        self.delta = delta
+        self.b = b
+        self.beta = beta
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decay of mRNA, the translation, and the decay of the protein.
 
         Args:
@@ -83,7 +92,7 @@ class GeneElement(Element):
         return [RateLaw(s.m, -s.delta * s.m), RateLaw(s.p, s.b * s.m - s.beta * s.p)]
 
 
-class RepressionInteraction(BaseInteraction):
+class RepressionInteraction(Interaction):
     """Transcription of a target gene repressed by the protein of a repressor gene, a Hill function of its count.
 
     The target gains mRNA at rate `alpha0 + alpha / (1 + (p / K)^n)`, where `p` is the repressor protein. In stochastic
@@ -124,24 +133,28 @@ class RepressionInteraction(BaseInteraction):
         2.0
     """
 
-    repressor: str = role()
-    target: str = role()
-    alpha: float = parameter(default=40.0, domain=NumericDomain.NONNEGATIVE)
-    alpha0: float = parameter(default=0.04, domain=NumericDomain.NONNEGATIVE)
-    K: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    n: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        repressor: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+        alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         stochastic: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.repressor = repressor
+        self.target = target
+        self.alpha = alpha
+        self.alpha0 = alpha0
+        self.K = K
+        self.n = n
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the repressed transcription `alpha0 + alpha / (1 + (p / K)^n)`.
 
         Args:

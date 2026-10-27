@@ -3,28 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 from sage.all__sagemath_symbolics import abs_symbolic
 
-from skcomplex.core.declarations import parameter, state
-
-from ....core.components import Element
-from ....core.laws import RateLaw
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class StommelBoxesElement(Element):
     """Stommel boxes element."""
 
-    T = state(3.0)
-    S = state(0.0)
-    eta1 = parameter(3.0)
-    eta2 = parameter(1.2)
-    eta3 = parameter(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 3.0,
+        S: Annotated[object, StateSpec()] = 0.0,
+        eta1: Annotated[object, ParameterSpec()] = 3.0,
+        eta2: Annotated[object, ParameterSpec()] = 1.2,
+        eta3: Annotated[object, ParameterSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.S = S
+        self.eta1 = eta1
+        self.eta2 = eta2
+        self.eta3 = eta3
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the stommel boxes element."""
         return [
             RateLaw(s.T, s.eta1 - s.T * (1 + abs_symbolic(s.T - s.S))),

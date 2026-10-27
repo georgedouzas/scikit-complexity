@@ -3,37 +3,66 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, where
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
 
 
 class TradingEconomyElement(Element):
     """Trading economy element."""
 
-    E = state(default=0.885, domain=NumericDomain.POSITIVE)
-    X = state(default=32.0, domain=NumericDomain.NONNEGATIVE)
-    M = state(default=34.0, domain=NumericDomain.NONNEGATIVE)
-    PH = state(default=1.2, domain=NumericDomain.POSITIVE)
-    home_price = parameter(default=1.2, domain=NumericDomain.POSITIVE)
-    inflation = parameter(default=0.1, domain=NumericDomain.REAL)
-    world_price = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    exports = parameter(default=32.0, domain=NumericDomain.NONNEGATIVE)
-    imports = parameter(default=34.0, domain=NumericDomain.NONNEGATIVE)
-    export_price = parameter(default=1.062, domain=NumericDomain.POSITIVE)
-    import_price = parameter(default=1.13, domain=NumericDomain.POSITIVE)
-    export_elasticity = parameter(default=-1.0, domain=NumericDomain.REAL)
-    import_elasticity = parameter(default=-1.0, domain=NumericDomain.REAL)
-    floating = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    import_share = parameter(default=0.34, domain=NumericDomain.NONNEGATIVE)
-    demand = parameter(default=52.0, domain=NumericDomain.NONNEGATIVE)
-    government = parameter(default=50.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 0.885,
+        X: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 32.0,
+        M: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
+        PH: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.2,
+        home_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
+        inflation: Annotated[object, ParameterSpec()] = 0.1,
+        world_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        exports: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 32.0,
+        imports: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
+        export_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.062,
+        import_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.13,
+        export_elasticity: Annotated[object, ParameterSpec()] = -1.0,
+        import_elasticity: Annotated[object, ParameterSpec()] = -1.0,
+        floating: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        import_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
+        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 52.0,
+        government: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.E = E
+        self.X = X
+        self.M = M
+        self.PH = PH
+        self.home_price = home_price
+        self.inflation = inflation
+        self.world_price = world_price
+        self.exports = exports
+        self.imports = imports
+        self.export_price = export_price
+        self.import_price = import_price
+        self.export_elasticity = export_elasticity
+        self.import_elasticity = import_elasticity
+        self.floating = floating
+        self.import_share = import_share
+        self.demand = demand
+        self.government = government
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the trading economy element."""
         return [
             UpdateLaw(s.PH, s.home_price * (1 + s.inflation)),
@@ -43,19 +72,19 @@ class TradingEconomyElement(Element):
         ]
 
 
-def _balance(s: Symbols) -> Expression:
+def _balance(s: SimpleNamespace) -> Expression:
     """Return the balance of trade of the economy `home` at home prices."""
     return s.home.X * s.home.PH - s.home.M * s.home.world_price / s.home.E
 
 
-def _real_rate(s: Symbols) -> Expression:
+def _real_rate(s: SimpleNamespace) -> Expression:
     """Return the real exchange rate, the home price level in World currency over the world price level."""
     home = s.home
     price_level = home.world_price / home.E * home.import_share + home.PH * (1 - home.import_share)
     return price_level * home.E / home.world_price
 
 
-def _output(s: Symbols) -> Expression:
+def _output(s: SimpleNamespace) -> Expression:
     """Return the output, domestic demand and government spending plus net exports."""
     return s.home.demand + s.home.government + s.home.X - s.home.M
 

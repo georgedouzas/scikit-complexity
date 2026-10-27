@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
-from sage.all__sagemath_symbolics import exp
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import FluxLaw, RateLaw
+import numpy as np
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import SSPRKSolver
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 
@@ -24,11 +25,21 @@ KERNER_KONHAUSER_OFFSET = 3.72e-6
 class LighthillWhithamRichardsElement(Element):
     """Lighthill whitham richards element."""
 
-    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    vmax = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.vmax = vmax
+        self.rho_max = rho_max
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the lighthill whitham richards element."""
         return [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')]
 
@@ -36,13 +47,25 @@ class LighthillWhithamRichardsElement(Element):
 class PayneElement(Element):
     """Payne element."""
 
-    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    q = state(0.21)
-    vmax = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    tau = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        q: Annotated[object, StateSpec()] = 0.21,
+        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.q = q
+        self.vmax = vmax
+        self.rho_max = rho_max
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the payne element."""
         return [
             FluxLaw(s.rho, s.q),
@@ -54,15 +77,29 @@ class PayneElement(Element):
 class KernerKonhauserElement(Element):
     """Kerner konhauser element."""
 
-    rho = state(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    q = state(0.21)
-    V0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    rho_max = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    tau = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    c0 = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    mu = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        q: Annotated[object, StateSpec()] = 0.21,
+        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.q = q
+        self.V0 = V0
+        self.rho_max = rho_max
+        self.tau = tau
+        self.c0 = c0
+        self.mu = mu
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the kerner konhauser element."""
         return [
             FluxLaw(s.rho, s.q),
@@ -137,8 +174,8 @@ def lighthill_whitham_richards(
     space = LatticeSpace(n, spacing=1 / n)
     road = FieldElement(
         'road',
-        LighthillWhithamRichardsElement,
-        space,
+        element=LighthillWhithamRichardsElement,
+        space=space,
         boundary={'rho': 'zero-flux'},
         values=values,
         discretization='finite-volume',
@@ -201,8 +238,8 @@ def payne(
     values = {'rho': rho, 'q': rho * vmax * (1 - rho / rho_max), 'vmax': vmax, 'rho_max': rho_max, 'tau': tau}
     road = FieldElement(
         'road',
-        PayneElement,
-        LatticeSpace(n, spacing=1 / n),
+        element=PayneElement,
+        space=LatticeSpace(n, spacing=1 / n),
         values=values,
         discretization='finite-volume',
     )
@@ -282,5 +319,11 @@ def kerner_konhauser(
         'mu': mu,
     }
     space = LatticeSpace(n, spacing=length / n)
-    road = FieldElement('road', KernerKonhauserElement, space, values=values, discretization='finite-volume')
+    road = FieldElement(
+        'road',
+        element=KernerKonhauserElement,
+        space=space,
+        values=values,
+        discretization='finite-volume',
+    )
     return System(elements=[road])

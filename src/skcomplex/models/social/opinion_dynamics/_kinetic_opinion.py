@@ -4,16 +4,20 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import EncounterLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, EncounterLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -83,7 +87,7 @@ def persuasion_table(levels: int, confidence: int, persuasion: object, repulsion
     return table
 
 
-def mean_opinion(s: Symbols, opinions: npt.NDArray[np.float64]) -> Expression:
+def mean_opinion(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expression:
     """Return the mean opinion of a distribution over opinion levels.
 
     Args:
@@ -100,7 +104,7 @@ def mean_opinion(s: Symbols, opinions: npt.NDArray[np.float64]) -> Expression:
     return moment(s.f, 1, opinions, normalized=True)
 
 
-def opinion_variance(s: Symbols, opinions: npt.NDArray[np.float64]) -> Expression:
+def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> Expression:
     """Return the variance of the opinions of a distribution, which grows as opinions polarise.
 
     Args:
@@ -133,10 +137,18 @@ class OpinionLevelElement(Element):
         7
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
 
 
-class OpinionEncountersInteraction(BaseInteraction):
+class OpinionEncountersInteraction(Interaction):
     """Conservative encounters between opinion levels, which persuade close opinions and repel distant ones.
 
     Args:
@@ -167,14 +179,26 @@ class OpinionEncountersInteraction(BaseInteraction):
         2
     """
 
-    population: str = role()
-    levels: int = parameter(default=7, domain=NumericDomain.POSITIVE)
-    confidence: int = parameter(default=2, domain=NumericDomain.NONNEGATIVE)
-    eta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    persuasion: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    repulsion: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        levels: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
+        confidence: Annotated[int, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        persuasion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        repulsion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.levels = levels
+        self.confidence = confidence
+        self.eta = eta
+        self.persuasion = persuasion
+        self.repulsion = repulsion
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the encounter of the population with itself.
 
         Args:

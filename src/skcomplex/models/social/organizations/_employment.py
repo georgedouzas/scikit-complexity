@@ -3,16 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import numpy.typing as npt
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -58,10 +61,19 @@ class WorkplaceElement(Element):
         1
     """
 
-    colour: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    employer: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        colour: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        employer: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.colour = colour
+        self.employer = employer
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the worker phase and the employer phase.
 
         Args:

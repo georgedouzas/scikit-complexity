@@ -3,13 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from sage.all__sagemath_symbolics import log
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse_train, where
+from sage.all__sagemath_symbolics import log, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -32,7 +37,15 @@ class TumourElement(Element):
         50.0
     """
 
-    n: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
 class VasculatureElement(Element):
@@ -51,10 +64,18 @@ class VasculatureElement(Element):
         12.7
     """
 
-    K: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.K = K
 
 
-class ExponentialLinearGrowthInteraction(BaseInteraction):
+class ExponentialLinearGrowthInteraction(Interaction):
     """Growth that is exponential, `dn/dt = r0 n`, until it reaches the linear rate `r`, and linear after.
 
     The switch happens at `tau = log(r / (r0 n0)) / r0`, where the two rates meet, so the solution is continuously
@@ -79,11 +100,20 @@ class ExponentialLinearGrowthInteraction(BaseInteraction):
         67.8
     """
 
-    target: str = role()
-    r0: float = parameter(default=0.31, domain=NumericDomain.POSITIVE)
-    r: float = parameter(default=67.8, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.31,
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 67.8,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r0 = r0
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `min(r0 n, r)`.
 
         Args:
@@ -98,7 +128,7 @@ class ExponentialLinearGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, where(exponential < s.r, exponential, s.r))]
 
 
-class PowerLawGrowthInteraction(BaseInteraction):
+class PowerLawGrowthInteraction(Interaction):
     """Growth of a proliferating part that scales as a power of the size, `dn/dt = r n^p`.
 
     Args:
@@ -120,11 +150,20 @@ class PowerLawGrowthInteraction(BaseInteraction):
         0.58
     """
 
-    target: str = role()
-    r: float = parameter(default=1.32, domain=NumericDomain.POSITIVE)
-    p: float = parameter(default=0.58, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.32,
+        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.58,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.p = p
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r n^p`.
 
         Args:
@@ -138,7 +177,7 @@ class PowerLawGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n**s.p)]
 
 
-class ExponentialGrowthInteraction(BaseInteraction):
+class ExponentialGrowthInteraction(Interaction):
     """Growth at a constant per capita rate, `dn/dt = r n`.
 
     Args:
@@ -157,10 +196,18 @@ class ExponentialGrowthInteraction(BaseInteraction):
         0.223
     """
 
-    target: str = role()
-    r: float = parameter(default=0.223, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec()] = 0.223,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r n`.
 
         Args:
@@ -174,7 +221,7 @@ class ExponentialGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class LossInteraction(BaseInteraction):
+class LossInteraction(Interaction):
     """Loss at a constant per capita rate, `dn/dt = -d n`.
 
     Args:
@@ -193,10 +240,18 @@ class LossInteraction(BaseInteraction):
         0.8
     """
 
-    target: str = role()
-    d: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.d = d
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `-d n`.
 
         Args:
@@ -210,7 +265,7 @@ class LossInteraction(BaseInteraction):
         return [RateLaw(s.target.n, -s.d * s.target.n)]
 
 
-class GeneralizedLogisticGrowthInteraction(BaseInteraction):
+class GeneralizedLogisticGrowthInteraction(Interaction):
     """Growth that saturates at a carrying capacity, `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
 
     Args:
@@ -235,12 +290,22 @@ class GeneralizedLogisticGrowthInteraction(BaseInteraction):
         2.0
     """
 
-    target: str = role()
-    r: float = parameter(default=0.305, domain=NumericDomain.POSITIVE)
-    K: float = parameter(default=1221.0, domain=NumericDomain.POSITIVE)
-    p: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.305,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1221.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.K = K
+        self.p = p
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r n (1 - (n / K)^p)`.
 
         Args:
@@ -254,7 +319,7 @@ class GeneralizedLogisticGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n * (1 - (s.target.n / s.K) ** s.p))]
 
 
-class GompertzGrowthInteraction(BaseInteraction):
+class GompertzGrowthInteraction(Interaction):
     """Growth that slows as the logarithm of the room left, `dn/dt = r n log(K / n)`.
 
     Args:
@@ -276,11 +341,20 @@ class GompertzGrowthInteraction(BaseInteraction):
         2000.0
     """
 
-    target: str = role()
-    r: float = parameter(default=0.0719, domain=NumericDomain.POSITIVE)
-    K: float = parameter(default=1964.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0719,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1964.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.r = r
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `r n log(K / n)`.
 
         Args:
@@ -294,7 +368,7 @@ class GompertzGrowthInteraction(BaseInteraction):
         return [RateLaw(s.target.n, s.r * s.target.n * log(s.K / s.target.n))]
 
 
-class VascularSupportInteraction(BaseInteraction):
+class VascularSupportInteraction(Interaction):
     """Gompertz growth under a carrying capacity that the vessels on the tumour surface raise.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`.
@@ -321,12 +395,22 @@ class VascularSupportInteraction(BaseInteraction):
         0.829
     """
 
-    tumour: str = role()
-    vasculature: str = role()
-    r: float = parameter(default=2.63, domain=NumericDomain.POSITIVE)
-    d: float = parameter(default=0.829, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        tumour: Annotated[str, RoleSpec()],
+        vasculature: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.63,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.829,
+    ) -> None:
+        super().__init__(label)
+        self.tumour = tumour
+        self.vasculature = vasculature
+        self.r = r
+        self.d = d
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the Gompertz growth of the tumour and the growth of the capacity.
 
         Args:
@@ -341,7 +425,7 @@ class VascularSupportInteraction(BaseInteraction):
         return [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
 
 
-class LogKillInteraction(BaseInteraction):
+class LogKillInteraction(Interaction):
     """Cell kill proportional to the tumour and to a drug exposure given in a train of rectangular doses.
 
     The kill is `dn/dt = -a n U(t)`, where the exposure `U` is `dose` for `width` time units every `period`, from
@@ -378,25 +462,26 @@ class LogKillInteraction(BaseInteraction):
         21.0
     """
 
-    target: str = role()
-    a: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    dose: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         period: float = 7.0,
         width: float = 1.0,
         start: float = 0.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.a = a
+        self.dose = dose
         self.period = period
         self.width = width
         self.start = start
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `-a n U(t)`.
 
         Args:

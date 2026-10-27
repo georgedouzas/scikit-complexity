@@ -4,16 +4,20 @@
 # License: MIT
 
 from functools import partial
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -67,7 +71,7 @@ def step_table(classes: int, step: int, fields: int = 1) -> npt.NDArray[np.float
     return table
 
 
-def cell_density(s: Symbols, activities: npt.NDArray[np.float64]) -> Expression:
+def cell_density(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Expression:
     """Return the density of a population of cells, the order-0 moment of its distribution.
 
     Args:
@@ -84,7 +88,7 @@ def cell_density(s: Symbols, activities: npt.NDArray[np.float64]) -> Expression:
     return moment(s.f, 0, activities)
 
 
-def mean_activity(s: Symbols, activities: npt.NDArray[np.float64]) -> Expression:
+def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Expression:
     """Return the mean activity of a population of cells.
 
     Args:
@@ -117,10 +121,18 @@ class CellsElement(Element):
         5
     """
 
-    f: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
 
 
-class TumourGrowthInteraction(BaseInteraction):
+class TumourGrowthInteraction(Interaction):
     """Proliferation of tumour cells in the host environment, and their progression to higher activity classes.
 
     Args:
@@ -148,13 +160,24 @@ class TumourGrowthInteraction(BaseInteraction):
         0.3
     """
 
-    tumour: str = role()
-    host: str = role()
-    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
-    growth: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    progression: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        tumour: Annotated[str, RoleSpec()],
+        host: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
+        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        progression: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label)
+        self.tumour = tumour
+        self.host = host
+        self.classes = classes
+        self.growth = growth
+        self.progression = progression
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the proliferation and the progression.
 
         Args:
@@ -171,7 +194,7 @@ class TumourGrowthInteraction(BaseInteraction):
         ]
 
 
-class ImmuneCompetitionInteraction(BaseInteraction):
+class ImmuneCompetitionInteraction(Interaction):
     """Encounters of tumour and immune cells: active immune cells destroy tumour cells, which inhibit immune cells.
 
     A tumour cell meets an immune cell of activation `v_k` and is destroyed at the rate `kill v_k`. An immune cell
@@ -202,13 +225,24 @@ class ImmuneCompetitionInteraction(BaseInteraction):
         1.0
     """
 
-    tumour: str = role()
-    immune: str = role()
-    classes: int = parameter(default=5, domain=NumericDomain.POSITIVE)
-    kill: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    inhibition: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        tumour: Annotated[str, RoleSpec()],
+        immune: Annotated[str, RoleSpec()],
+        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
+        kill: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        inhibition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label)
+        self.tumour = tumour
+        self.immune = immune
+        self.classes = classes
+        self.kill = kill
+        self.inhibition = inhibition
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the destruction of tumour cells and the inhibition of immune cells.
 
         Args:

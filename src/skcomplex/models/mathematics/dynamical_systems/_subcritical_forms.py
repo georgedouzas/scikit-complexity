@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import state
 
-from ....core.base import Expression, NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
 
 
-def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:
+def _subcritical_hopf_rates(s: SimpleNamespace) -> tuple[Expression, Expression]:
     """Return the real and imaginary parts of the right-hand side of the subcritical Hopf normal form."""
     radius = s.x**2 + s.y**2
     real = s.alpha + radius - s.gamma * radius**2
@@ -24,15 +28,29 @@ def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:
 class SubcriticalHopfElement(Element):
     """Subcritical hopf element."""
 
-    x = state(0.1)
-    y = state(0.0)
-    alpha = parameter(-0.1)
-    omega = parameter(1.0)
-    q = parameter(0.0)
-    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    s = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec()] = -0.1,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+        q: Annotated[object, ParameterSpec()] = 0.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        s: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.alpha = alpha
+        self.omega = omega
+        self.q = q
+        self.gamma = gamma
+        self.s = s
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the subcritical hopf element."""
         return [RateLaw(s.x, _subcritical_hopf_rates(s)[0]), RateLaw(s.y, _subcritical_hopf_rates(s)[1])]
 

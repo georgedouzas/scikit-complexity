@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -61,21 +62,23 @@ class ExcitableElementElement(Element):
         5
     """
 
-    phase: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    p: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    stimulus: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        phase: Annotated[float, StateSpec(domain=NN)] = 0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        stimulus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         n_states: int = 5,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.phase = phase
+        self.p = p
+        self.stimulus = stimulus
         self.n_states = n_states
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the stochastic rule of excitation by the stimulus and the neighbours, and of the refractory cycle.
 
         Args:

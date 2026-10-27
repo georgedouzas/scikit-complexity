@@ -4,41 +4,63 @@
 # License: MIT
 
 import math
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, delayed, mean
+from ....core.elements import Element, GroupElement
+from ....core.interactions import BaseInteraction, Interaction, PairInteraction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed, mean
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 from ._utils import _order_parameter
 
 
 class PhaseOscillatorElement(Element):
     """Phase oscillator element."""
 
-    theta = state(0.0)
-    omega = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the phase oscillator element."""
         return [RateLaw(s.theta, s.omega)]
 
 
-class DelayedCouplingInteraction(BaseInteraction):
+class DelayedCouplingInteraction(Interaction):
     """Delayed coupling interaction."""
 
-    source = role()
-    target = role()
-    K = parameter(1.0)
-    tau = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[object, RoleSpec()],
+        target: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec()] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.target = target
+        self.K = K
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the delayed coupling interaction."""
         return [RateLaw(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))]
 
@@ -46,42 +68,71 @@ class DelayedCouplingInteraction(BaseInteraction):
 class SitedOscillatorElement(Element):
     """Sited oscillator element."""
 
-    theta = state(0.0)
-    x = state(default=0.0, vector=True)
-    omega = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        x: Annotated[object, StateSpec(vector=True)] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.x = x
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the sited oscillator element."""
         return [RateLaw(s.theta, s.omega)]
 
 
-class PhaseLagInteraction(BaseInteraction):
+class PhaseLagInteraction(Interaction):
     """Phase lag interaction."""
 
-    target = role()
-    K = parameter(1.0)
-    alpha = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec()] = 1.0,
+        alpha: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.K = K
+        self.alpha = alpha
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the phase lag interaction."""
         return [RateLaw(s.target.theta, -s.K * sin(s.alpha))]
 
 
-def _mean_field_rate(s: Symbols) -> Expression:
+def _mean_field_rate(s: SimpleNamespace) -> Expression:
     """Return `K mean_j sin(theta_j - theta_i - alpha)`, written with the means of `cos theta_j` and `sin theta_j`."""
     shifted = s.target.theta + s.alpha
     return s.K * (mean(sin(s.source.theta)) * cos(shifted) - mean(cos(s.source.theta)) * sin(shifted))
 
 
-class MeanFieldCouplingInteraction(BaseInteraction):
+class MeanFieldCouplingInteraction(Interaction):
     """Mean field coupling interaction."""
 
-    target = role()
-    source = role()
-    K = parameter(1.0)
-    alpha = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        source: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec()] = 1.0,
+        alpha: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.K = K
+        self.alpha = alpha
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the mean field coupling interaction."""
         return [RateLaw(s.target.theta, _mean_field_rate(s))]
 
@@ -89,13 +140,25 @@ class MeanFieldCouplingInteraction(BaseInteraction):
 class MeanFieldAmplitudeElement(Element):
     """Mean field amplitude element."""
 
-    x = state(0.1)
-    y = state(0.0)
-    K = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    Delta = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    omega = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        K: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        Delta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        omega: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.K = K
+        self.Delta = Delta
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the mean field amplitude element."""
         return [
             RateLaw(s.x, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.x - s.omega * s.y),
@@ -108,7 +171,7 @@ def _spread_phases(size: int, seed: int) -> list[float]:
     return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
 
 
-class PhaseCouplingInteraction(BaseInteraction):
+class PhaseCouplingInteraction(PairInteraction):
     """Sine coupling with a phase lag between two phase oscillators, `theta_i' += K sin(theta_j - theta_i - alpha)`.
 
     Every pair of members closer than the cutoff couples both ways. The members carry the vector state `x`, their
@@ -145,26 +208,24 @@ class PhaseCouplingInteraction(BaseInteraction):
         0.0
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
-    K: float = parameter(default=1.0)
-    alpha: float = parameter(default=0.0)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
         *,
+        K: Annotated[float, ParameterSpec()] = 1.0,
+        alpha: Annotated[float, ParameterSpec()] = 0.0,
         period: float | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.K = K
+        self.alpha = alpha
         self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sine coupling of both members of a pair.
 
         Args:

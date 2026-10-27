@@ -4,23 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
-from ....core.spaces import (
-    BoxNeighborhood,
-    LatticeSpace,
-    MooreNeighborhood,
-    VonNeumannNeighborhood,
-)
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ._codes import Wolfram, life
 
 type Array = npt.NDArray[np.float64]
@@ -48,19 +45,19 @@ class ElementaryCellElement(Element):
         110
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         rule: int = 30,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.alive = alive
         self.rule = rule
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the elementary rule on the left, centre, and right cells.
 
         Args:
@@ -99,21 +96,21 @@ class LifeCellElement(Element):
         (2, 3)
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         born: tuple[int, ...] = (3,),
         survive: tuple[int, ...] = (2, 3),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.alive = alive
         self.born = born
         self.survive = survive
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the outer totalistic rule of the cell.
 
         Args:
@@ -160,10 +157,19 @@ class AntCellElement(Element):
         -1
     """
 
-    color: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    ant: float = state(default=-1, domain=NumericDomain.INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        color: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        ant: Annotated[float, StateSpec(domain=ZZ)] = -1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.color = color
+        self.ant = ant
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that moves the ant and flips colors.
 
         Args:

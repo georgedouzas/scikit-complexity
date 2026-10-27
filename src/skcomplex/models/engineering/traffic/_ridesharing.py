@@ -4,21 +4,23 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
@@ -124,14 +126,25 @@ class RiderElement(Element):
         2
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'waited'})
-    destination_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    destination_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    waited: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    assigned: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    money: float = state(default=100.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'waited'}),
+        *,
+        destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        waited: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        assigned: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        money: Annotated[float, StateSpec()] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.destination_x = destination_x
+        self.destination_y = destination_y
+        self.waited = waited
+        self.assigned = assigned
+        self.money = money
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the waiting rule of the phase of driving.
 
         Args:
@@ -199,18 +212,33 @@ class CabElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)})
-    task: float = state(default=IDLE, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    target_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    target_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    destination_x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    destination_y: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    rider: float = state(default=-1.0, domain=NumericDomain.REAL)
-    money: float = state(default=0.0, domain=NumericDomain.REAL)
-    base_fare: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    block_fare: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'task', 'color_range': (0.0, 2.0)}),
+        *,
+        task: Annotated[float, StateSpec(domain=NN)] = IDLE,
+        target_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        target_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        rider: Annotated[float, StateSpec()] = -1.0,
+        money: Annotated[float, StateSpec()] = 0.0,
+        base_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        block_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.task = task
+        self.target_x = target_x
+        self.target_y = target_y
+        self.destination_x = destination_x
+        self.destination_y = destination_y
+        self.rider = rider
+        self.money = money
+        self.base_fare = base_fare
+        self.block_fare = block_fare
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the driving rule of the phase of driving.
 
         Args:
@@ -261,7 +289,7 @@ class CabElement(Element):
             agent.task = IDLE
 
 
-class DispatchInteraction(BaseInteraction):
+class DispatchInteraction(Interaction):
     """Dispatcher that admits new riders and sends the nearest idle cab to every waiting rider.
 
     Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations. The
@@ -297,23 +325,25 @@ class DispatchInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('arrivals',)
-    riders: str = role()
-    cabs: str = role()
-    demand: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
     def __init__(
         self,
         label: str,
         *,
+        riders: Annotated[str, RoleSpec()],
+        cabs: Annotated[str, RoleSpec()],
+        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         width: int = 30,
         height: int = 30,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.riders = riders
+        self.cabs = cabs
+        self.demand = demand
         self.width = width
         self.height = height
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the arrival of riders, the matching of riders with cabs, and the rule that dispatches the cabs.
 
         Args:

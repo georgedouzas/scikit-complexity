@@ -4,16 +4,20 @@
 # License: MIT
 
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 def _size_observables() -> list[ObservableSpec]:
@@ -49,12 +53,23 @@ class GibratFirmElement(Element):
         10
     """
 
-    x: float = state(default=100.0, domain=NumericDomain.REAL)
-    previous: float = state(default=100.0, domain=NumericDomain.REAL)
-    mu: float = parameter(default=1.02, domain=NumericDomain.REAL)
-    sigma: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 100.0,
+        previous: Annotated[float, StateSpec()] = 100.0,
+        mu: Annotated[float, ParameterSpec()] = 1.02,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.previous = previous
+        self.mu = mu
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth rule.
 
         Args:
@@ -109,13 +124,25 @@ class KestenFirmElement(Element):
         10
     """
 
-    x: float = state(default=100.0, domain=NumericDomain.NONNEGATIVE)
-    lambda_low: float = parameter(default=0.48, domain=NumericDomain.NONNEGATIVE)
-    lambda_high: float = parameter(default=1.48, domain=NumericDomain.NONNEGATIVE)
-    b_low: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    b_high: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        lambda_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
+        lambda_high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.48,
+        b_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b_high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.lambda_low = lambda_low
+        self.lambda_high = lambda_high
+        self.b_low = b_low
+        self.b_high = b_high
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth rule.
 
         Args:
@@ -142,7 +169,7 @@ class KestenFirmElement(Element):
         agent.x = factor * agent.x + float(model.rng.uniform(agent.b_low, agent.b_high))
 
 
-class ReflectingFloorInteraction(BaseInteraction):
+class ReflectingFloorInteraction(Interaction):
     """Lower bound on the sizes of a group at a fraction of their mean before the step, `x = max(x, c <x_{t-1}>)`.
 
     Args:
@@ -161,10 +188,18 @@ class ReflectingFloorInteraction(BaseInteraction):
         0.5
     """
 
-    firms: str = role()
-    c: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        firms: Annotated[str, RoleSpec()],
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label)
+        self.firms = firms
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reflection rule.
 
         Args:

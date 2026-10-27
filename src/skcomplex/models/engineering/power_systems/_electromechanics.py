@@ -3,12 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, derivative, pulse_train, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative, pulse_train, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
 
 
 def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:
@@ -16,7 +22,7 @@ def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:
     return where(speed > 0, coefficient, where(speed < 0, -coefficient, 0))
 
 
-def _wheel_load(s: Symbols) -> Expression:
+def _wheel_load(s: SimpleNamespace) -> Expression:
     """Return the force of the two wheels of a bogie: two pulses per period, `spacing` apart."""
     return pulse_train(s.t, s.T, s.width, s.F) + pulse_train(s.t, s.T, s.width, s.F, start=s.spacing)
 
@@ -24,18 +30,35 @@ def _wheel_load(s: Symbols) -> Expression:
 class RegenerativeCarElement(Element):
     """Regenerative car element."""
 
-    v = state(default=20.0)
-    I = state(0.0)
-    Vs = state(0.0)
-    m = parameter(default=1000.0, domain=NumericDomain.POSITIVE)
-    A = parameter(default=1.2, domain=NumericDomain.NONNEGATIVE)
-    L = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    R = parameter(default=0.05, domain=NumericDomain.POSITIVE)
-    C = parameter(default=680.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=50.0, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = 20.0,
+        I: Annotated[object, StateSpec()] = 0.0,
+        Vs: Annotated[object, StateSpec()] = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        A: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        R: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 680.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.I = I
+        self.Vs = Vs
+        self.m = m
+        self.A = A
+        self.L = L
+        self.R = R
+        self.C = C
+        self.alpha = alpha
+        self.beta = beta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the regenerative car element."""
         return [
             RateLaw(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
@@ -47,28 +70,55 @@ class RegenerativeCarElement(Element):
 class FaradayDiskElement(Element):
     """Faraday disk element."""
 
-    I = state(0.0)
-    U = state(0.0)
-    omega = state(0.0)
-    B = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
-    r1 = parameter(default=0.025, domain=NumericDomain.POSITIVE)
-    r2 = parameter(default=0.55, domain=NumericDomain.POSITIVE)
-    L = parameter(default=0.2, domain=NumericDomain.POSITIVE)
-    C = parameter(default=0.75, domain=NumericDomain.POSITIVE)
-    R1 = parameter(default=2.3, domain=NumericDomain.POSITIVE)
-    R2 = parameter(default=109.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    beta = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    J = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    mu = parameter(default=1.2566370614359173e-4, domain=NumericDomain.NONNEGATIVE)
-    N = parameter(default=250.0, domain=NumericDomain.NONNEGATIVE)
-    l = parameter(default=0.05, domain=NumericDomain.POSITIVE)
-    M = parameter(default=4.8)
-    a0 = parameter(8.0)
-    a1 = parameter(default=0.75, domain=NumericDomain.NONNEGATIVE)
-    a3 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        I: Annotated[object, StateSpec()] = 0.0,
+        U: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, StateSpec()] = 0.0,
+        B: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        r1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.025,
+        r2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.55,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.75,
+        R1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.3,
+        R2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 109.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        J: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00012566370614359174,
+        N: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 250.0,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        M: Annotated[object, ParameterSpec()] = 4.8,
+        a0: Annotated[object, ParameterSpec()] = 8.0,
+        a1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        a3: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.I = I
+        self.U = U
+        self.omega = omega
+        self.B = B
+        self.r1 = r1
+        self.r2 = r2
+        self.L = L
+        self.C = C
+        self.R1 = R1
+        self.R2 = R2
+        self.alpha = alpha
+        self.beta = beta
+        self.J = J
+        self.mu = mu
+        self.N = N
+        self.l = l
+        self.M = M
+        self.a0 = a0
+        self.a1 = a1
+        self.a3 = a3
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the faraday disk element."""
         return [
             RateLaw(
@@ -98,23 +148,49 @@ class FaradayDiskElement(Element):
 class RailSegmentElement(Element):
     """Rail segment element."""
 
-    z = state(default=0.0, order=2)
-    zs = state(default=0.0, order=2)
-    Mr = parameter(default=60.0, domain=NumericDomain.POSITIVE)
-    Ms = parameter(default=156.0, domain=NumericDomain.POSITIVE)
-    kr = parameter(default=6000.0, domain=NumericDomain.NONNEGATIVE)
-    br = parameter(default=300.0, domain=NumericDomain.NONNEGATIVE)
-    ks = parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE)
-    bs = parameter(default=520.0, domain=NumericDomain.NONNEGATIVE)
-    k2 = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    alpha = parameter(1.75)
-    beta = parameter(-1.0)
-    F = parameter(default=1000.0, domain=NumericDomain.NONNEGATIVE)
-    T = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    width = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    spacing = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[object, StateSpec(order=2)] = 0.0,
+        z_d1: float = 0.0,
+        zs: Annotated[object, StateSpec(order=2)] = 0.0,
+        zs_d1: float = 0.0,
+        Mr: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
+        Ms: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 156.0,
+        kr: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6000.0,
+        br: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 300.0,
+        ks: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
+        bs: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 520.0,
+        k2: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha: Annotated[object, ParameterSpec()] = 1.75,
+        beta: Annotated[object, ParameterSpec()] = -1.0,
+        F: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        width: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        spacing: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.z_d1 = z_d1
+        self.zs = zs
+        self.zs_d1 = zs_d1
+        self.Mr = Mr
+        self.Ms = Ms
+        self.kr = kr
+        self.br = br
+        self.ks = ks
+        self.bs = bs
+        self.k2 = k2
+        self.alpha = alpha
+        self.beta = beta
+        self.F = F
+        self.T = T
+        self.width = width
+        self.spacing = spacing
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rail segment element."""
         return [
             RateLaw(

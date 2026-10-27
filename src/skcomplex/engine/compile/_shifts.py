@@ -5,7 +5,7 @@
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.spaces import LatticeSpace
+from ...core.spaces._lattice import BOUNDARIES
 
 
 def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
@@ -21,11 +21,11 @@ def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
             value read past the ends of a fixed boundary.
 
     Examples:
-        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.engine.problems import symbol
         >>> from skcomplex.engine.compile._shifts import shift_arguments
-        >>> from skcomplex.core.laws import shift_member
+        >>> from skcomplex.core.laws.utils import shift_member
         >>> shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
         (x, -2, 'fixed', 1.0)
     """
     expression, offset, boundary, fill = call.operands()
-    return expression, int(offset), LatticeSpace.boundaries[int(boundary)], float(fill)
+    return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)

@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import cos, sin, sqrt
+from sage.all__sagemath_symbolics import cos, oo, pi, sin, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import PairInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
-from ...core.elements import GroupElement
 
 
 class SwarmalatorElement(Element):
@@ -41,12 +44,21 @@ class SwarmalatorElement(Element):
         0.0
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03})
-    x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
-    theta: float = state(default=0.0, domain=NumericDomain.ANGLE)
-    omega: float = parameter(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the turning of the phase at the natural frequency.
 
         Args:
@@ -60,7 +72,7 @@ class SwarmalatorElement(Element):
         return [RateLaw(s.theta, s.omega)]
 
 
-class SwarmalatorCouplingInteraction(BaseInteraction):
+class SwarmalatorCouplingInteraction(PairInteraction):
     """Coupling of two swarmalators through their separation `r` and their phase difference `dtheta`.
 
     Each swarmalator moves toward the other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`, and
@@ -106,30 +118,30 @@ class SwarmalatorCouplingInteraction(BaseInteraction):
         0.5
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1e6, domain=NumericDomain.POSITIVE)
-
-    A: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    B: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    J: float = parameter(default=1.0)
-    K: float = parameter(default=0.0)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000000.0,
+        position: str = 'x',
         *,
+        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        K: Annotated[float, ParameterSpec()] = 0.0,
         period: float | None = None,
         n_units: int = 1,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.A = A
+        self.B = B
+        self.J = J
+        self.K = K
         self.period = period
         self.n_units = n_units
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the opposite moves and the opposite phase turns of the two members of a pair.
 
         Args:

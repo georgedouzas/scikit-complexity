@@ -3,19 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import SampleLaw, Symbols, neighbors
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, SampleLaw
+from ....core.laws.utils import neighbors
 from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
-from ....core.specs import EnergySpec, MoveSpec, SamplerSpec
+from ....core.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 NODES = 400
 DEGREE = 4
@@ -54,22 +57,25 @@ class GraphIsingSpinElement(Element):
         'metropolis'
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    J: float = parameter(default=1.0)
-    h: float = parameter(default=0.0)
-    temperature: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         sampler: str = 'metropolis',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.J = J
+        self.h = h
+        self.temperature = temperature
         self.sampler = sampler
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the neighbour-sum energy, the spin flip, and the colored sampler.
 
         Args:

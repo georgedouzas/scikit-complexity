@@ -4,19 +4,21 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.elements import ParticleElement
-from ....core.interactions import PotentialInteraction
-from ....core.laws import EquationLaw, EventLaw, RateLaw, Symbols, derivative
+from ....core.elements import Element, ParticleElement
+from ....core.interactions import Interaction, PotentialInteraction
+from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
 from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction
 from ._mechanics import PendulumElement
 
@@ -36,15 +38,34 @@ class DoublePendulumElement(Element):
     """Double pendulum element."""
 
     visual = VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]})
-    theta1 = state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2)
-    theta2 = state(default=math.pi / 2, domain=NumericDomain.ANGLE, order=2)
-    m1 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    m2 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    l1 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    l2 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta1: Annotated[object, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
+        theta1_d1: float = 0.0,
+        theta2: Annotated[object, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
+        theta2_d1: float = 0.0,
+        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta1 = theta1
+        self.theta1_d1 = theta1_d1
+        self.theta2 = theta2
+        self.theta2_d1 = theta2_d1
+        self.m1 = m1
+        self.m2 = m2
+        self.l1 = l1
+        self.l2 = l2
+        self.g = g
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the double pendulum element."""
         return [
             EquationLaw(
@@ -64,14 +85,23 @@ class DoublePendulumElement(Element):
         ]
 
 
-class PendulumSpringInteraction(BaseInteraction):
+class PendulumSpringInteraction(Interaction):
     """Pendulum spring interaction."""
 
-    first = role()
-    second = role()
-    k = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RoleSpec()],
+        second: Annotated[object, RoleSpec()],
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the pendulum spring interaction."""
         return [
             RateLaw(
@@ -95,15 +125,34 @@ class CartPendulumElement(Element):
     """Cart pendulum element."""
 
     visual = VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]})
-    y = state(default=0.0, order=2)
-    theta = state(default=0.5, domain=NumericDomain.ANGLE, order=2)
-    m1 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    m2 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
-    F = parameter(0.0)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[object, StateSpec(order=2)] = 0.0,
+        y_d1: float = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.5,
+        theta_d1: float = 0.0,
+        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        F: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
+        self.y_d1 = y_d1
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.m1 = m1
+        self.m2 = m2
+        self.l = l
+        self.g = g
+        self.F = F
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cart pendulum element."""
         return [
             EquationLaw(
@@ -119,14 +168,29 @@ class CartPendulumElement(Element):
 class ParametricPendulumElement(Element):
     """Parametric pendulum element."""
 
-    theta = state(default=0.1, domain=NumericDomain.ANGLE, order=2)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    epsilon = parameter(0.2)
-    Omega = parameter(default=2 * math.sqrt(9.81), domain=NumericDomain.NONNEGATIVE)
-    c = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.1,
+        theta_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[object, ParameterSpec()] = 0.2,
+        Omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2 * math.sqrt(9.81),
+        c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.g = g
+        self.l = l
+        self.epsilon = epsilon
+        self.Omega = Omega
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the parametric pendulum element."""
         return [
             EquationLaw(
@@ -141,19 +205,36 @@ class ParametricPendulumElement(Element):
 class BallisticPendulumElement(Element):
     """Ballistic pendulum element."""
 
-    x = state(default=-1.0, order=2)
-    theta = state(default=0.0, domain=NumericDomain.ANGLE, order=2)
-    m = parameter(default=0.01, domain=NumericDomain.POSITIVE)
-    M = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = -1.0,
+        x_d1: float = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.0,
+        theta_d1: float = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        M: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.m = m
+        self.M = M
+        self.l = l
+        self.g = g
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the ballistic pendulum element."""
         return [
             RateLaw(s.x, 0),
             EquationLaw(s.l * derivative(s.theta, 2) == -s.g * sin(s.theta)),
-            EventLaw(
+            CrossingLaw(
                 s.x,
                 {
                     derivative(s.x, 1): 0,
@@ -168,17 +249,37 @@ class BallisticPendulumElement(Element):
 class ClockPendulumElement(Element):
     """Clock pendulum element."""
 
-    theta = state(default=0.2, order=2)
-    x = state(default=0.0, order=2)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    M = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.8, domain=NumericDomain.POSITIVE)
-    rho = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    lam = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    theta_c = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(order=2)] = 0.2,
+        theta_d1: float = 0.0,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        M: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.8,
+        rho: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lam: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        theta_c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.x = x
+        self.x_d1 = x_d1
+        self.m = m
+        self.l = l
+        self.M = M
+        self.g = g
+        self.rho = rho
+        self.lam = lam
+        self.theta_c = theta_c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the clock pendulum element."""
         return [
             EquationLaw(
@@ -196,7 +297,7 @@ class ClockPendulumElement(Element):
         ]
 
 
-def _support_response(pendulum: Symbols, force: Expression) -> list[RateLaw]:
+def _support_response(pendulum: SimpleNamespace, force: Expression) -> list[RateLaw]:
     """Return the accelerations of a supported pendulum and its support under a horizontal force on the support."""
     inertia = pendulum.M + pendulum.m * sin(pendulum.theta) ** 2
     return [
@@ -205,14 +306,23 @@ def _support_response(pendulum: Symbols, force: Expression) -> list[RateLaw]:
     ]
 
 
-class SupportSpringInteraction(BaseInteraction):
+class SupportSpringInteraction(Interaction):
     """Support spring interaction."""
 
-    first = role()
-    second = role()
-    k = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RoleSpec()],
+        second: Annotated[object, RoleSpec()],
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the support spring interaction."""
         return [
             *_support_response(s.first, s.k * (s.second.x - s.first.x)),
@@ -245,12 +355,22 @@ class MagnetInteraction(PotentialInteraction):
         1.0
     """
 
-    target: str = role()
-    center: list[float] = parameter(default=0.0, vector=True)
-    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    d: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        center: Annotated[list[float], ParameterSpec(vector=True)] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.center = center
+        self.gamma = gamma
+        self.d = d
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `-gamma / sqrt(|x - center|**2 + d**2)`.
 
         Args:

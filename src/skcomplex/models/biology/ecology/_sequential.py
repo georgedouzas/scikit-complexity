@@ -3,15 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import Symbols, UpdateLaw, neighbors, total, uniform, where
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction, NeighborInteraction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import neighbors, total, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -49,21 +56,23 @@ class AbundanceElement(Element):
         0.001
     """
 
-    x: float = state(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    age: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    threshold: float = parameter(default=1e-3, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
         k: int = 4,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.age = age
+        self.threshold = threshold
         self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the ageing, and the extinction and replacement of a species below the threshold.
 
         Args:
@@ -77,8 +86,8 @@ class AbundanceElement(Element):
         extinct = where(s.x < s.threshold, 1, 0)
         return [
             UpdateLaw(s.age, s.age + 1),
-            UpdateLaw(add_node(edges=self.k), extinct),
-            UpdateLaw(remove_node(), extinct),
+            UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), extinct),
+            UpdateLaw(TopologyRequestSpec('remove-node'), extinct),
         ]
 
 
@@ -103,11 +112,20 @@ class InfluenceElement(Element):
         0.0
     """
 
-    a: float = state(default=0.0, domain=NumericDomain.REAL)
-    fresh: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[float, StateSpec()] = 0.0,
+        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.fresh = fresh
 
 
-class InfluenceDrawInteraction(BaseInteraction):
+class InfluenceDrawInteraction(NeighborInteraction):
     """First draw of the strength of every new influence of an ecosystem.
 
     Args:
@@ -126,11 +144,18 @@ class InfluenceDrawInteraction(BaseInteraction):
         'influences'
     """
 
-    over: ClassVar[str] = 'neighbors'
-    species: str = role()
-    influences: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        species: Annotated[str, RoleSpec()],
+        influences: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.influences = influences
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the draw of the strength of a new edge.
 
         Args:
@@ -145,7 +170,7 @@ class InfluenceDrawInteraction(BaseInteraction):
         return [UpdateLaw(s.edge.a, where(s.edge.fresh > 1 / 2, drawn, s.edge.a)), UpdateLaw(s.edge.fresh, 0)]
 
 
-class LinearGrowthInteraction(BaseInteraction):
+class LinearGrowthInteraction(Interaction):
     """Linear growth of every species by the abundances of the species that influence it, normalised to one.
 
     Every species grows by `rate` times the sum of the abundances of the species it reads weighted by the strengths of
@@ -170,11 +195,20 @@ class LinearGrowthInteraction(BaseInteraction):
         0.2
     """
 
-    species: str = role()
-    influences: str = role()
-    rate: float = parameter(default=0.2, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        species: Annotated[str, RoleSpec()],
+        influences: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.influences = influences
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the linear growth and the normalisation of the abundances.
 
         Args:

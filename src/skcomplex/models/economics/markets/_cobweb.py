@@ -3,9 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -66,10 +73,18 @@ class MarketElement(Element):
         2.0
     """
 
-    price: float = state(default=1.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        price: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.price = price
 
 
-class CobwebInteraction(BaseInteraction):
+class CobwebInteraction(Interaction):
     """Cobweb model, where supply reacts to the previous price and demand clears the market.
 
     Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
@@ -100,13 +115,24 @@ class CobwebInteraction(BaseInteraction):
         2
     """
 
-    target: str = role()
-    a: float = parameter(default=10.0, domain=NumericDomain.REAL)
-    b: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    c: float = parameter(default=1.0, domain=NumericDomain.REAL)
-    d: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec()] = 10.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        c: Annotated[float, ParameterSpec()] = 1.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the next price `(a - c - d * price) / b`.
 
         Args:

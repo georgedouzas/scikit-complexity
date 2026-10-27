@@ -3,37 +3,43 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
-from ....core.specs import ObservableSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.laws.utils import distributed_delay, step, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
-def _sales(s: Symbols) -> Expression:
+def _sales(s: SimpleNamespace) -> Expression:
     """Return the sales of the car dealership, the demand up to the inventory."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
     return where(s.inventory < demand, s.inventory, demand)
 
 
-def _perceived(s: Symbols) -> Expression:
+def _perceived(s: SimpleNamespace) -> Expression:
     """Return the perceived sales of the car dealership, its sales smoothed over the perception delay."""
     return distributed_delay(_sales(s), conserved=False, time=s.perception_delay)
 
 
-def _desired_inventory(s: Symbols) -> Expression:
+def _desired_inventory(s: SimpleNamespace) -> Expression:
     """Return the inventory the car dealership desires, a coverage of its perceived sales."""
     return s.coverage * _perceived(s)
 
 
-def _orders(s: Symbols) -> Expression:
+def _orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the car dealership, its perceived sales and the gap to its desired inventory."""
     gap_orders = _perceived(s) + (_desired_inventory(s) - s.inventory) / s.response_delay
     return where(gap_orders > 0, gap_orders, 0)
 
 
-def _dealer_laws(s: Symbols) -> list[BaseLaw]:
+def _dealer_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the laws of the car dealership."""
     return [
         TransferLaw(
@@ -49,16 +55,31 @@ def _dealer_laws(s: Symbols) -> list[BaseLaw]:
 class CarDealershipElement(Element):
     """Car dealership element."""
 
-    inventory = state(default=200.0, domain=NumericDomain.NONNEGATIVE, quantity='cars')
-    demand = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    demand_step = parameter(default=2.0, domain=NumericDomain.REAL)
-    step_time = parameter(default=25.0, domain=NumericDomain.NONNEGATIVE)
-    coverage = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    perception_delay = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    response_delay = parameter(default=3.0, domain=NumericDomain.POSITIVE)
-    delivery_delay = parameter(default=5.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        inventory: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
+        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        demand_step: Annotated[object, ParameterSpec()] = 2.0,
+        step_time: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
+        coverage: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        response_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        delivery_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.inventory = inventory
+        self.demand = demand
+        self.demand_step = demand_step
+        self.step_time = step_time
+        self.coverage = coverage
+        self.perception_delay = perception_delay
+        self.response_delay = response_delay
+        self.delivery_delay = delivery_delay
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the car dealership element."""
         return _dealer_laws(s)
 

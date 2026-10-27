@@ -3,25 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols, Totalistic
-from ....core.spaces import (
-    BoxNeighborhood,
-    CayleySpace,
-    GeneratorNeighborhood,
-    LatticeSpace,
-    MemoryNeighborhood,
-)
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.laws.utils import Totalistic
+from ....core.spaces import BoxNeighborhood, CayleySpace, GeneratorNeighborhood, LatticeSpace, MemoryNeighborhood
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 type Array = npt.NDArray[np.float64]
@@ -77,19 +75,19 @@ class MajorityCellElement(Element):
         ('1', 'a', 'a^-1')
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         memory: MemoryNeighborhood = GENERATOR_MEMORY,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.alive = alive
         self.memory = memory
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the majority rule on the memory set.
 
         Args:
@@ -125,19 +123,19 @@ class ParityCellElement(Element):
         3
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
         memory: MemoryNeighborhood = LAMPLIGHTER_MEMORY,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.alive = alive
         self.memory = memory
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the parity rule on the memory set.
 
         Args:
@@ -181,10 +179,19 @@ class LaplacianCellElement(Element):
         3
     """
 
-    value: float = state(default=0, domain=NumericDomain.INTEGER)
-    modulus: float = parameter(3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=ZZ)] = 0,
+        modulus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+        self.modulus = modulus
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the linear rule of the Laplacian.
 
         Args:
@@ -224,9 +231,17 @@ class GoldenMeanCellElement(Element):
         0
     """
 
-    alive: float = state(default=0, domain=NumericDomain.BOOLEAN)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.alive = alive
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the constrained flip of the cell.
 
         Args:
@@ -249,7 +264,7 @@ def _majority_system(
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
-    cells = _random_cells(space.prepare().size_, density, random_state)
+    cells = _random_cells(space.check().prepare().size_, density, random_state)
     return System(
         elements=[
             LatticeElement(
@@ -304,10 +319,10 @@ def free_group_automaton(
         >>> free_group_automaton(radius=3).elements[0].size
         53
     """
-    group = free_group(rank)
+    space = CayleySpace(free_group(rank), ball=radius)
     return _majority_system(
-        CayleySpace(group, ball=radius),
-        GeneratorNeighborhood(group.generators),
+        space,
+        GeneratorNeighborhood(space.check().prepare().generators_),
         density,
         random_state,
     )
@@ -351,7 +366,7 @@ def lamplighter_automaton(
         39
     """
     space = CayleySpace(lamplighter(), ball=radius)
-    cells = _random_cells(space.prepare().size_, density, random_state)
+    cells = _random_cells(space.check().prepare().size_, density, random_state)
     return System(
         elements=[
             LatticeElement(
@@ -400,10 +415,10 @@ def heisenberg_automaton(
         >>> heisenberg_automaton(radius=2).elements[0].size
         17
     """
-    group = heisenberg()
+    space = CayleySpace(heisenberg(), ball=radius)
     return _majority_system(
-        CayleySpace(group, ball=radius),
-        GeneratorNeighborhood(group.generators),
+        space,
+        GeneratorNeighborhood(space.check().prepare().generators_),
         density,
         random_state,
     )
@@ -454,10 +469,10 @@ def baumslag_solitar_automaton(
         >>> baumslag_solitar_automaton(radius=2).elements[0].size
         17
     """
-    group = baumslag_solitar(m, n)
+    space = CayleySpace(baumslag_solitar(m, n), ball=radius)
     return _majority_system(
-        CayleySpace(group, ball=radius),
-        GeneratorNeighborhood(group.generators),
+        space,
+        GeneratorNeighborhood(space.check().prepare().generators_),
         density,
         random_state,
     )

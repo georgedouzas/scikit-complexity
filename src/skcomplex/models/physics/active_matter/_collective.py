@@ -5,28 +5,29 @@
 
 import math
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.elements import FieldElement, ParticleElement
-from ....core.laws import NoiseLaw, RateLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement, ParticleElement
+from ....core.interactions import PairInteraction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import advection, divergence, gradient, laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ...core.elements import GroupElement
 from ._particles import ActiveParticleElement
 
 type Array = npt.NDArray[np.float64]
 
 
-class SoftRepulsionInteraction(BaseInteraction):
+class SoftRepulsionInteraction(PairInteraction):
     """Overdamped repulsion between overlapping disks, which pushes them apart at the speed `k (cutoff - r)`.
 
     Args:
@@ -57,25 +58,22 @@ class SoftRepulsionInteraction(BaseInteraction):
         50.0
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
-    k: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
         *,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
         period: float | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.k = k
         self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the opposite displacements of the two members of an overlapping pair.
 
         Args:
@@ -92,7 +90,7 @@ class SoftRepulsionInteraction(BaseInteraction):
         return [RateLaw(s.first.x, push), RateLaw(s.second.x, -push)]
 
 
-class PhoreticAttractionInteraction(BaseInteraction):
+class PhoreticAttractionInteraction(PairInteraction):
     """Phoretic attraction between active colloids, a drift towards each other at the speed `v0 R^2 / r^2`.
 
     Args:
@@ -126,26 +124,24 @@ class PhoreticAttractionInteraction(BaseInteraction):
         20.0
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
-    v0: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    R: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
         *,
+        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         period: float | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.v0 = v0
+        self.R = R
         self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drifts of the two members of a pair towards each other.
 
         Args:
@@ -162,7 +158,7 @@ class PhoreticAttractionInteraction(BaseInteraction):
         return [RateLaw(s.first.x, -drift), RateLaw(s.second.x, drift)]
 
 
-class CuckerSmaleAlignmentInteraction(BaseInteraction):
+class CuckerSmaleAlignmentInteraction(PairInteraction):
     """Cucker-Smale alignment, `dv_i/dt = K / N sum_j psi(r_ij) (v_j - v_i)` with `psi(r) = (1 + r^2)^(-beta)`.
 
     Args:
@@ -199,28 +195,26 @@ class CuckerSmaleAlignmentInteraction(BaseInteraction):
         0.25
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
-    K: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
         *,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
         period: float | None = None,
         n_agents: int = 1,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.K = K
+        self.beta = beta
         self.period = period
         self.n_agents = n_agents
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the opposite velocity changes of the two members of a pair.
 
         Args:
@@ -285,18 +279,35 @@ class PolarFluidElement(Element):
         0.5
     """
 
-    rho: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    vx: float = state(default=0.0)
-    vy: float = state(default=0.0)
-    a: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    rho_c: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    beta: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    lam: float = parameter(default=1.0)
-    sigma: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    D: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    noise: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        vx: Annotated[float, StateSpec()] = 0.0,
+        vy: Annotated[float, StateSpec()] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lam: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.vx = vx
+        self.vy = vy
+        self.a = a
+        self.rho_c = rho_c
+        self.beta = beta
+        self.lam = lam
+        self.sigma = sigma
+        self.D = D
+        self.noise = noise
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the continuity equation and the Toner-Tu equation of each velocity component.
 
         Args:
@@ -615,4 +626,6 @@ def toner_tu(
     }
     parameters = {'a': a, 'rho_c': rho_c, 'beta': beta, 'lam': lam, 'sigma': sigma, 'D': D}
     space = LatticeSpace(shape, spacing=spacing)
-    return System(elements=[FieldElement('flock', PolarFluidElement, space, values={**values, **parameters})])
+    return System(
+        elements=[FieldElement('flock', element=PolarFluidElement, space=space, values={**values, **parameters})],
+    )

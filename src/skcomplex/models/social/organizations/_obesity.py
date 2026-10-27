@@ -3,19 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -87,9 +91,19 @@ class RestaurantElement(Element):
         ('restaurants', 'RestaurantElement', 3)
     """
 
-    kind: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    sold: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    sold_high: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        kind: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        sold: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        sold_high: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.kind = kind
+        self.sold = sold
+        self.sold_high = sold_high
 
 
 class EaterElement(Element):
@@ -150,21 +164,39 @@ class EaterElement(Element):
         ('people', 'EaterElement', 5)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)})
-    home: npt.ArrayLike = state(default=0.0, vector=True)
-    work: npt.ArrayLike = state(default=0.0, vector=True)
-    weight: float = state(default=70.0, domain=NumericDomain.POSITIVE)
-    height: float = state(default=170.0, domain=NumericDomain.POSITIVE)
-    age: float = state(default=40.0, domain=NumericDomain.POSITIVE)
-    male: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
-    habit: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    calories: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    bmi: float = state(default=24.0, domain=NumericDomain.POSITIVE)
-    day: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    reach: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
-    activity: float = parameter(default=1.55, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'bmi', 'color_range': (18.5, 35.0)}),
+        *,
+        home: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        work: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        weight: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 70.0,
+        height: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 170.0,
+        age: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 40.0,
+        male: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        habit: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        calories: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        bmi: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 24.0,
+        day: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        activity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.55,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.home = home
+        self.work = work
+        self.weight = weight
+        self.height = height
+        self.age = age
+        self.male = male
+        self.habit = habit
+        self.calories = calories
+        self.bmi = bmi
+        self.day = day
+        self.reach = reach
+        self.activity = activity
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the daily rule.
 
         Args:

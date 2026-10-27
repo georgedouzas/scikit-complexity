@@ -3,23 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import networkx as nx
 import numpy as np
-
-from skcomplex.core.declarations import parameter
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
 from ....analysis import assortativity, centrality, communities, motif_zscores, summarize_network
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 BLOCKS = 4
 BLOCK_SIZE = 100
@@ -30,11 +29,23 @@ OUT_DEGREE = 2
 class NetworkMeasuresElement(Element):
     """Network measures element."""
 
-    path_length = parameter(0.0)
-    assortativity = parameter(0.0)
-    modularity = parameter(0.0)
-    agreement = parameter(0.0)
-    triangle_zscore = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        path_length: Annotated[object, ParameterSpec()] = 0.0,
+        assortativity: Annotated[object, ParameterSpec()] = 0.0,
+        modularity: Annotated[object, ParameterSpec()] = 0.0,
+        agreement: Annotated[object, ParameterSpec()] = 0.0,
+        triangle_zscore: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.path_length = path_length
+        self.assortativity = assortativity
+        self.modularity = modularity
+        self.agreement = agreement
+        self.triangle_zscore = triangle_zscore
 
 
 class NetworkNodeElement(Element):
@@ -63,13 +74,23 @@ class NetworkNodeElement(Element):
         ('nodes', 'NetworkNodeElement', 3)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'community'})
-    degree: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    clustering: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    betweenness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    community: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'community'}),
+        *,
+        degree: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        clustering: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        betweenness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        community: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.degree = degree
+        self.clustering = clustering
+        self.betweenness = betweenness
+        self.community = community
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that keeps the node in place.
 
         Args:

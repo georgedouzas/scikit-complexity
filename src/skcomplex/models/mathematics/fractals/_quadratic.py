@@ -4,19 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import CC, NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import UpdateLaw, where
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import where
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 type Window = tuple[float, float, float, float]
 
@@ -28,12 +30,23 @@ JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 class QuadraticMapElement(Element):
     """Quadratic map element."""
 
-    z = state(0.0, domain=NumericDomain.COMPLEX)
-    n = state(0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    c = parameter(0.0, domain=NumericDomain.COMPLEX)
-    radius = parameter(2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[object, StateSpec(domain=CC)] = 0.0,
+        n: Annotated[object, StateSpec(domain=NN)] = 0.0,
+        c: Annotated[object, ParameterSpec(domain=CC)] = 0.0,
+        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.n = n
+        self.c = c
+        self.radius = radius
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the quadratic map element."""
         return [
             UpdateLaw(s.z, where(abs(s.z) <= s.radius, s.z**2 + s.c, s.z)),
@@ -55,7 +68,7 @@ def _escape_field(shape: Sequence[int], z: object, c: object, radius: float) -> 
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
     return System(
-        elements=[FieldElement('plane', QuadraticMapElement, space, values=values, visual=ESCAPE_IMAGE)],
+        elements=[FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE)],
     )
 
 

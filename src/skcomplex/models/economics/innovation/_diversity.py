@@ -3,15 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter
 
-from ....core.base import Expression, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import UpdateLaw, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 def _new_entities(previous: Expression, current: Expression, r: Expression) -> Expression:
@@ -23,11 +27,21 @@ def _new_entities(previous: Expression, current: Expression, r: Expression) -> E
 class AdjacentPossibleElement(Element):
     """Adjacent possible element."""
 
-    x = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    d = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    r = parameter(5.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        d: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r: Annotated[object, ParameterSpec()] = 5.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.d = d
+        self.r = r
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the adjacent possible element."""
         return [UpdateLaw(s.x, s.x + s.d), UpdateLaw(s.d, _new_entities(s.x, s.x + s.d, s.r))]
 

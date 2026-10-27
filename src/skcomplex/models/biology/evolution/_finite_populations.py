@@ -4,18 +4,21 @@
 # License: MIT
 
 from functools import lru_cache
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -78,12 +81,20 @@ class IndividualElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'trait'})
-    trait: float = state(default=0.0, domain=NumericDomain.INTEGER)
-    fitness: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'trait'}),
+        *,
+        trait: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.trait = trait
+        self.fitness = fitness
 
 
-class MoranStepInteraction(BaseInteraction):
+class MoranStepInteraction(Interaction):
     """One generation of the Moran process: as many birth and death events as there are individuals.
 
     At every event an individual reproduces with probability proportional to its fitness `(1 + selection)^trait`,
@@ -109,11 +120,20 @@ class MoranStepInteraction(BaseInteraction):
         0.1
     """
 
-    population: str = role()
-    selection: float = parameter(default=0.0, domain=NumericDomain.REAL)
-    mutation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        selection: Annotated[float, ParameterSpec()] = 0.0,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.selection = selection
+        self.mutation = mutation
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -150,7 +170,7 @@ class MoranStepInteraction(BaseInteraction):
             individual.fitness = (1 + selection) ** trait
 
 
-class TangledNatureStepInteraction(BaseInteraction):
+class TangledNatureStepInteraction(Interaction):
     """One generation of the Tangled Nature model, `N / p_kill` reproduction and killing attempts.
 
     At every attempt a random organism of type `S` reproduces with probability `1 / (1 + exp(-H(S)))`, where
@@ -192,21 +212,24 @@ class TangledNatureStepInteraction(BaseInteraction):
         8
     """
 
-    organisms: str = role()
-    k: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    mu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    p_mut: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    p_kill: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        organisms: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        p_mut: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        p_kill: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         length: int = 8,
         seed: int = 0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.organisms = organisms
+        self.k = k
+        self.mu = mu
+        self.p_mut = p_mut
+        self.p_kill = p_kill
         self.length = length
         self.seed = seed
 
@@ -227,7 +250,7 @@ class TangledNatureStepInteraction(BaseInteraction):
             alive.append(model.create(self.organisms, trait=float(child)))
             counts[child] += 1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -260,7 +283,7 @@ class TangledNatureStepInteraction(BaseInteraction):
                 alive.pop(victim).remove()
 
 
-class AdaptiveClimbingInteraction(BaseInteraction):
+class AdaptiveClimbingInteraction(Interaction):
     """One generation of a population that climbs a random fitness landscape as a whole, under strong selection.
 
     All individuals share one genome. Each mutates one random locus with probability `u`, to a genome of random fitness
@@ -292,22 +315,22 @@ class AdaptiveClimbingInteraction(BaseInteraction):
         0.1
     """
 
-    population: str = role()
-    u: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        population: Annotated[str, RoleSpec()],
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         length: int = 20,
         seed: int = 0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.population = population
+        self.u = u
         self.length = length
         self.seed = seed
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the generation rule.
 
         Args:
@@ -374,14 +397,25 @@ class ClimberElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)})
-    genome: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    n: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    k: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    seed: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)}),
+        *,
+        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        k: Annotated[float, ParameterSpec(domain=NN)] = 2.0,
+        seed: Annotated[float, ParameterSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.genome = genome
+        self.fitness = fitness
+        self.n = n
+        self.k = k
+        self.seed = seed
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the climbing rule.
 
         Args:

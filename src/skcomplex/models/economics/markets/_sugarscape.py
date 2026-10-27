@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 
 type Array = npt.NDArray[np.float64]
@@ -79,12 +80,21 @@ class PatchElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)})
-    sugar: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    capacity: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    growback: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)}),
+        *,
+        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        growback: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.sugar = sugar
+        self.capacity = capacity
+        self.growback = growback
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growback rule in the phase of growth.
 
         Args:
@@ -139,13 +149,23 @@ class ForagerElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'sugar'})
-    patches: ClassVar[str] = 'patches'
-    sugar: float = state(default=10.0, domain=NumericDomain.REAL)
-    vision: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    metabolism: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar'}),
+        *,
+        sugar: Annotated[float, StateSpec()] = 10.0,
+        vision: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        metabolism: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.sugar = sugar
+        self.vision = vision
+        self.metabolism = metabolism
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    patches: ClassVar[str] = 'patches'
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the foraging rule in the phase of foraging.
 
         Args:
@@ -244,7 +264,17 @@ class CensusInteraction(InstitutionInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('population', 'gini')
-    foragers: str = role()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: object,
+        phase: object,
+        foragers: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label, rule=rule, phase=phase)
+        self.foragers = foragers
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Report the population and the Gini coefficient of wealth.

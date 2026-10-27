@@ -4,18 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 type Offset = tuple[int, int]
@@ -110,21 +114,23 @@ class PrisonerElement(Element):
         1.85
     """
 
-    strategy: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
-    temptation: float = parameter(default=1.85, domain=NumericDomain.NONNEGATIVE)
-    noise: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.85,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         imitation: str = 'best',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
+        self.temptation = temptation
+        self.noise = noise
         self.imitation = imitation
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the play and imitation rule over the 5 by 5 square around a player.
 
         Args:
@@ -187,11 +193,21 @@ class ContributorElement(Element):
         4.5
     """
 
-    strategy: float = state(default=1.0, domain=NumericDomain.BOOLEAN)
-    synergy: float = parameter(default=4.5, domain=NumericDomain.NONNEGATIVE)
-    noise: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        synergy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.5,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
+        self.synergy = synergy
+        self.noise = noise
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the play and imitation rule over the sites within three steps of a player.
 
         Args:

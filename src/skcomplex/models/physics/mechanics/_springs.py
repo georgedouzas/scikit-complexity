@@ -3,29 +3,39 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import cos
+from types import SimpleNamespace
+from typing import Annotated
 
-from skcomplex.core.declarations import role
+from sage.all__sagemath_symbolics import cos, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, NumericDomain, parameter
 from ....core.elements import ParticleElement
-from ....core.laws import RateLaw
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 from ..realizations.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
 
 
-class HarmonicForceInteraction(BaseInteraction):
+class HarmonicForceInteraction(Interaction):
     """Harmonic force interaction."""
 
-    target = role()
-    F = parameter(0.0)
-    omega = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        F: Annotated[object, ParameterSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.F = F
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the harmonic force interaction."""
         return [RateLaw(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)]
 

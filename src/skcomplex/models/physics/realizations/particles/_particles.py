@@ -4,22 +4,27 @@
 # License: MIT
 
 
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import sqrt
+from types import SimpleNamespace
+from typing import Annotated
 
-from .....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, SymbolicVector, parameter, role
-from .....core.interactions import PairPotentialInteraction, PotentialInteraction
-from .....core.laws import NoiseLaw, RateLaw, Symbols
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.real_set import RealSet
+
+from .....core.interactions import Interaction, PairPotentialInteraction, PotentialInteraction
+from .....core.laws import BaseLaw, NoiseLaw, RateLaw
+from .....core.specs import ParameterSpec, RoleSpec
 from .....engine.solvers import LammpsFix
 
 
-def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
+def _distance(first: FreeModuleElement, second: FreeModuleElement) -> Expression:
     """Return the Euclidean distance between two position vectors."""
     difference = first - second
     return sqrt(difference.dot_product(difference))
 
 
-class ConstantForceInteraction(BaseInteraction):
+class ConstantForceInteraction(Interaction):
     """Constant force on a particle.
 
     Args:
@@ -38,10 +43,18 @@ class ConstantForceInteraction(BaseInteraction):
         [0, -9.81]
     """
 
-    target: str = role()
-    F: npt.ArrayLike = parameter(default=0.0, vector=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        F: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.F = F
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the velocity change `F / m`.
 
         Args:
@@ -55,7 +68,7 @@ class ConstantForceInteraction(BaseInteraction):
         return [RateLaw(s.target.v, s.F / s.target.m)]
 
 
-class LinearDragInteraction(BaseInteraction):
+class LinearDragInteraction(Interaction):
     """Drag force proportional and opposite to the velocity of a particle.
 
     Args:
@@ -74,10 +87,18 @@ class LinearDragInteraction(BaseInteraction):
         0.1
     """
 
-    target: str = role()
-    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the velocity change `-gamma * v / m`.
 
         Args:
@@ -115,11 +136,20 @@ class HarmonicPotentialInteraction(PotentialInteraction):
         2.0
     """
 
-    target: str = role()
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    center: npt.ArrayLike = parameter(default=0.0, vector=True)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.center = center
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `k * |x - center|**2 / 2`.
 
         Args:
@@ -161,12 +191,22 @@ class SpringInteraction(PotentialInteraction):
         1.0
     """
 
-    first: str = role()
-    second: str = role()
-    k: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    length: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.k = k
+        self.length = length
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `k * (|x_first - x_second| - length)**2 / 2`.
 
         Args:
@@ -204,11 +244,20 @@ class GravityInteraction(PotentialInteraction):
         1.0
     """
 
-    first: str = role()
-    second: str = role()
-    G: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.G = G
 
-    def energy(self, s: Symbols) -> Expression:
+    def _get_energy(self, s: SimpleNamespace) -> Expression:
         """Return `-G * m_first * m_second / |x_first - x_second|`.
 
         Args:
@@ -253,10 +302,23 @@ class LennardJonesInteraction(PairPotentialInteraction):
         1.0
     """
 
-    epsilon: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    sigma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
+    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
 
         Args:
@@ -301,9 +363,21 @@ class SoftSphereInteraction(PairPotentialInteraction):
         50.0
     """
 
-    k: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        period: float | None = None,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        self.k = k
 
-    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
+    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
         """Return `k * (cutoff - r) ** 2 / 2`.
 
         Args:
@@ -320,7 +394,7 @@ class SoftSphereInteraction(PairPotentialInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-class LangevinThermostatInteraction(BaseInteraction):
+class LangevinThermostatInteraction(Interaction):
     """Langevin thermostat, which adds a drag `-gamma * v` and a random force that hold particles at a temperature.
 
     Every velocity component follows `dv = -gamma * v / m * dt + sqrt(2 * gamma * temperature) / m * dW`, with the
@@ -346,11 +420,20 @@ class LangevinThermostatInteraction(BaseInteraction):
         2.0
     """
 
-    target: str = role()
-    temperature: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    gamma: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.temperature = temperature
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drag and the random force on every velocity component.
 
         Args:

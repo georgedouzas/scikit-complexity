@@ -670,7 +670,7 @@ class SamplerSpec:
 class HilbertSpec:
     """Spec of the Hilbert space of a quantum element, with the local operators its laws build Hamiltonians from.
 
-    An element whose state is annotated with a `StateSpec` over `CC^dimension` and that takes a `HilbertSpec` is a
+    An element that takes a `HilbertSpec` and declares a complex state, a `StateSpec` over `CC` or `CC^dimension`, is a
     quantum subsystem. Its laws read every local operator by name, and a group of such elements is the tensor product
     of its members' spaces, in member order.
 

@@ -3,23 +3,33 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from skcomplex.core.declarations import parameter, state
 
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class SaddleNodeElement(Element):
     """Saddle node element."""
 
-    x = state(0.0)
-    mu = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        mu: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.mu = mu
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the saddle node element."""
         return [RateLaw(s.x, s.mu - s.x**2)]
 
@@ -27,13 +37,25 @@ class SaddleNodeElement(Element):
 class HopfElement(Element):
     """Hopf element."""
 
-    x = state(0.1)
-    y = state(0.0)
-    mu = parameter(0.25)
-    omega = parameter(1.0)
-    a = parameter(-1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        mu: Annotated[object, ParameterSpec()] = 0.25,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.mu = mu
+        self.omega = omega
+        self.a = a
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the hopf element."""
         return [
             RateLaw(s.x, s.mu * s.x - s.omega * s.y + s.a * s.x * (s.x**2 + s.y**2)),
@@ -44,13 +66,25 @@ class HopfElement(Element):
 class TakensBogdanovElement(Element):
     """Takens bogdanov element."""
 
-    x = state(0.2)
-    y = state(0.0)
-    beta1 = parameter(0.1)
-    beta2 = parameter(-1.0)
-    sign = parameter(-1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        y: Annotated[object, StateSpec()] = 0.0,
+        beta1: Annotated[object, ParameterSpec()] = 0.1,
+        beta2: Annotated[object, ParameterSpec()] = -1.0,
+        sign: Annotated[object, ParameterSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.sign = sign
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the takens bogdanov element."""
         return [RateLaw(s.x, s.y), RateLaw(s.y, s.beta1 + s.beta2 * s.x + s.x**2 + s.sign * s.x * s.y)]
 
@@ -58,11 +92,21 @@ class TakensBogdanovElement(Element):
 class CuspElement(Element):
     """Cusp element."""
 
-    x = state(0.5)
-    beta1 = parameter(0.0)
-    beta2 = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.5,
+        beta1: Annotated[object, ParameterSpec()] = 0.0,
+        beta2: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.beta1 = beta1
+        self.beta2 = beta2
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the cusp element."""
         return [RateLaw(s.x, s.beta1 + s.beta2 * s.x - s.x**3)]
 

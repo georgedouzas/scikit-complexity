@@ -4,29 +4,32 @@
 # License: MIT
 
 from functools import partial
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, total
+from ....core.elements import Element, LatticeElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
 
-def _fitness_of(genome: Symbols, F0: Expression, couplings: Array) -> Expression:
+def _fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:
     """Return the fitness `F0 + sum_i h_i s_i + sum_ij J_ij s_i s_j / 2` of the genome of a group of loci."""
     return F0 + total(genome.h * genome.s) + total(genome.s * total(genome.s, weights=couplings)) / 2
 
 
-def _field_share(member: Symbols) -> Expression:
+def _field_share(member: SimpleNamespace) -> Expression:
     """Return the share `h_i s_i` of one locus in the fitness of the genome."""
     return member.h * member.s
 
@@ -36,7 +39,7 @@ def _coupling_share(alleles: Array, couplings: Array) -> float:
     return float(alleles @ couplings @ alleles / 2)
 
 
-def _genome_fitness(s: Symbols) -> Expression:
+def _genome_fitness(s: SimpleNamespace) -> Expression:
     """Return the fitness of the genome, the base fitness of the interaction `substitution` and the shares of loci."""
     return s.substitution.F0 + s.field_share + s.coupling_share
 
@@ -61,12 +64,20 @@ class LocusElement(Element):
         10
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64})
-    s: float = state(default=-1.0, domain=NumericDomain.INTEGER)
-    h: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('image', {'low': -1.0, 'high': 1.0, 'history': 64}),
+        *,
+        s: Annotated[float, StateSpec(domain=ZZ)] = -1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.s = s
+        self.h = h
 
 
-class SubstitutionInteraction(BaseInteraction):
+class SubstitutionInteraction(Interaction):
     """Origin and fixation of mutants that flip one locus of the genome of a monomorphic population.
 
     Every locus of each of the `N` individuals mutates at the rate `mu`, so mutants of a given locus arise at the rate
@@ -104,22 +115,24 @@ class SubstitutionInteraction(BaseInteraction):
         50.0
     """
 
-    genome: str = role()
-    N: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    mu: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    F0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        genome: Annotated[str, RoleSpec()],
+        N: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        F0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         couplings: object = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.genome = genome
+        self.N = N
+        self.mu = mu
+        self.F0 = F0
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the substitutions of the allele of every locus, from `-1` to `1` and back.
 
         Args:

@@ -3,9 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -26,10 +33,18 @@ class AssetElement(Element):
         100.0
     """
 
-    price: float = state(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.price = price
 
 
-class GeometricBrownianMotionInteraction(BaseInteraction):
+class GeometricBrownianMotionInteraction(Interaction):
     """Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`.
 
     Args:
@@ -51,11 +66,20 @@ class GeometricBrownianMotionInteraction(BaseInteraction):
         0.3
     """
 
-    target: str = role()
-    mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
-    sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        mu: Annotated[float, ParameterSpec()] = 0.05,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S`.
 
         Args:

@@ -4,25 +4,43 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import NumericDomain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import EquationLaw, derivative
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, EquationLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class ScaleFactorElement(Element):
     """Scale factor element."""
 
-    a = state(default=1.0, domain=NumericDomain.POSITIVE, order=2)
-    H0 = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    omega_matter = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    omega_lambda = parameter(0.7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
+        a_d1: float = 0.0,
+        H0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        omega_matter: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        omega_lambda: Annotated[object, ParameterSpec()] = 0.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.a_d1 = a_d1
+        self.H0 = H0
+        self.omega_matter = omega_matter
+        self.omega_lambda = omega_lambda
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the scale factor element."""
         return [
             EquationLaw(

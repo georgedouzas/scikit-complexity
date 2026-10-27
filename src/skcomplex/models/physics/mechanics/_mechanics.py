@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sin
+from sage.all__sagemath_symbolics import cos, oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role
-
-from ....core.base import BaseInteraction, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import ParticleElement
-from ....core.laws import EquationLaw, EventLaw, RateLaw, derivative
+from ....core.elements import Element, ParticleElement
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 from ..realizations.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
 
 GRAVITY = 9.81
@@ -132,12 +133,26 @@ class PendulumElement(Element):
     """Pendulum element."""
 
     visual = VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True})
-    theta = state(default=0.5, domain=NumericDomain.ANGLE, order=2)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.5,
+        theta_d1: float = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.m = m
+        self.g = g
+        self.l = l
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the pendulum element."""
         return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
@@ -145,14 +160,29 @@ class PendulumElement(Element):
 class OscillatorElement(Element):
     """Oscillator element."""
 
-    x = state(default=1.0, order=2)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    k = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    c = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    F = parameter(default=0.0)
-    omega = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 1.0,
+        x_d1: float = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        F: Annotated[object, ParameterSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.m = m
+        self.k = k
+        self.c = c
+        self.F = F
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the oscillator element."""
         return [RateLaw(s.x, (-s.k * s.x - s.c * derivative(s.x, 1) + s.F * cos(s.omega * s.t)) / s.m)]
 
@@ -256,42 +286,76 @@ def driven_damped_oscillator(
 class BouncingBallElement(Element):
     """Bouncing ball element."""
 
-    h = state(default=1.0, order=2)
-    g = parameter(9.81)
-    e = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[object, StateSpec(order=2)] = 1.0,
+        h_d1: float = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        e: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.h_d1 = h_d1
+        self.g = g
+        self.e = e
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the bouncing ball element."""
         return [
             RateLaw(s.h, -s.g),
-            EventLaw(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
+            CrossingLaw(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
         ]
 
 
 class HangingBallElement(Element):
     """Hanging ball element."""
 
-    x = state(default=0.0, order=2)
-    rest = parameter(0.0)
-    g = parameter(9.81)
-    length = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        rest: Annotated[object, ParameterSpec()] = 0.0,
+        g: Annotated[object, ParameterSpec()] = 9.81,
+        length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.rest = rest
+        self.g = g
+        self.length = length
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the hanging ball element."""
         return [RateLaw(s.x, -s.g / s.length * (s.x - s.rest))]
 
 
-class ElasticCollisionInteraction(BaseInteraction):
+class ElasticCollisionInteraction(Interaction):
     """Elastic collision interaction."""
 
-    left = role()
-    right = role()
-    diameter = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        left: Annotated[object, RoleSpec()],
+        right: Annotated[object, RoleSpec()],
+        diameter: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.left = left
+        self.right = right
+        self.diameter = diameter
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the elastic collision interaction."""
         return [
-            EventLaw(
+            CrossingLaw(
                 s.right.x - s.left.x - s.diameter,
                 {
                     derivative(s.left.x, 1): derivative(s.right.x, 1),
@@ -306,18 +370,31 @@ class DiscBilliardElement(Element):
     """Disc billiard element."""
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
-    x = state(0.3)
-    y = state(0.0)
-    vx = state(0.4)
-    vy = state(1.0)
-    radius = parameter(default=1.0, domain=NumericDomain.POSITIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+        y: Annotated[object, StateSpec()] = 0.0,
+        vx: Annotated[object, StateSpec()] = 0.4,
+        vy: Annotated[object, StateSpec()] = 1.0,
+        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.radius = radius
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the disc billiard element."""
         return [
             RateLaw(s.x, s.vx),
             RateLaw(s.y, s.vy),
-            EventLaw(
+            CrossingLaw(
                 s.x**2 + s.y**2 - s.radius**2,
                 {
                     s.vx: s.vx - 2 * (s.vx * s.x + s.vy * s.y) * s.x / (s.x**2 + s.y**2),

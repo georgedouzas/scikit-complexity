@@ -3,18 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -50,12 +54,20 @@ class BitStringElement(Element):
         ('genomes', 'BitStringElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'fitness'})
-    genome: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    fitness: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness'}),
+        *,
+        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.genome = genome
+        self.fitness = fitness
 
 
-class ReproductionInteraction(BaseInteraction):
+class ReproductionInteraction(Interaction):
     """Death at a constant rate and replacement by mutated copies of parents chosen in proportion to their fitness.
 
     The fitness of a genome is the mean over its loci of a value given to each allele of each locus, an additive
@@ -91,23 +103,24 @@ class ReproductionInteraction(BaseInteraction):
         0.05
     """
 
-    death: float = parameter(0.1, domain=NumericDomain.NONNEGATIVE)
-    mutation: float = parameter(0.05, domain=NumericDomain.NONNEGATIVE)
-    population: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        population: Annotated[str, RoleSpec()],
         zero_values: tuple[float, ...] = (),
         one_values: tuple[float, ...] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.death = death
+        self.mutation = mutation
+        self.population = population
         self.zero_values = zero_values
         self.one_values = one_values
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one generation step.
 
         Args:

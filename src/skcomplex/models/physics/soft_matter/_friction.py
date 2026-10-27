@@ -3,22 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import state
-
-from ....core.base import BaseLaw, NumericDomain, parameter
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import NoiseLaw, RateLaw, Symbols, both, pulse_train, where
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.laws.utils import both, laplacian, pulse_train, where
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 
 
-def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
+def _frictional_block_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the springs, the Coulomb friction with sticking, and the shaking of a block of the chain."""
     force = s.k * laplacian(s.x) - s.anchor * s.x
     moving = abs(s.v) > s.v_stick
@@ -35,19 +37,37 @@ def _frictional_block_laws(s: Symbols) -> list[BaseLaw]:
 class FrictionalBlockElement(Element):
     """Frictional block element."""
 
-    x = state(0.0)
-    v = state(0.0)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    k = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    anchor = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    mu_s = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    mu_d = parameter(default=0.8, domain=NumericDomain.NONNEGATIVE)
-    amplitude = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    shake_time = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    relax_time = parameter(default=8.0, domain=NumericDomain.POSITIVE)
-    v_stick = parameter(default=0.02, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        anchor: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mu_s: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        mu_d: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        shake_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        relax_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        v_stick: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.m = m
+        self.k = k
+        self.anchor = anchor
+        self.mu_s = mu_s
+        self.mu_d = mu_d
+        self.amplitude = amplitude
+        self.shake_time = shake_time
+        self.relax_time = relax_time
+        self.v_stick = v_stick
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the frictional block element."""
         return _frictional_block_laws(s)
 
@@ -122,8 +142,8 @@ def shaken_spring_block(
     """
     chain = FieldElement(
         'chain',
-        FrictionalBlockElement,
-        LatticeSpace(n_blocks, boundary='reflecting'),
+        element=FrictionalBlockElement,
+        space=LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={
             'x': np.zeros(n_blocks),

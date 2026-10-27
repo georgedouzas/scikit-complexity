@@ -3,9 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, mod, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import mod, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -70,22 +77,43 @@ class AdaptrodeElement(Element):
         1.0
     """
 
-    w0: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    w1: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    w2: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    w_max: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha0: float = parameter(default=0.25, domain=NumericDomain.NONNEGATIVE)
-    alpha1: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    alpha2: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    delta0: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    delta1: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    delta2: float = parameter(default=0.002, domain=NumericDomain.NONNEGATIVE)
-    amplitude: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    period: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    width: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    stop: float = parameter(default=150.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        w0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        w1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        w2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        w_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
+        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        delta0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        delta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        delta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
+        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        stop: Annotated[float, ParameterSpec()] = 150.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.w0 = w0
+        self.w1 = w1
+        self.w2 = w2
+        self.w_max = w_max
+        self.alpha0 = alpha0
+        self.alpha1 = alpha1
+        self.alpha2 = alpha2
+        self.delta0 = delta0
+        self.delta1 = delta1
+        self.delta2 = delta2
+        self.amplitude = amplitude
+        self.period = period
+        self.width = width
+        self.stop = stop
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the updates of the three weights driven by the pulse train.
 
         Args:

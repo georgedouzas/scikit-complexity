@@ -3,17 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role, state
-
-from ....core.base import BaseInteraction, Expression, NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import RateLaw, UpdateLaw
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 PAIR = 2
 
@@ -26,15 +28,29 @@ def _logistic(r: Expression, x: Expression) -> Expression:
 class RosslerOscillatorElement(Element):
     """Rossler oscillator element."""
 
-    x1 = state(1.0)
-    x2 = state(0.0)
-    x3 = state(0.0)
-    omega = parameter(1.0)
-    a = parameter(0.2)
-    b = parameter(0.2)
-    c = parameter(5.7)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x1: Annotated[object, StateSpec()] = 1.0,
+        x2: Annotated[object, StateSpec()] = 0.0,
+        x3: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 0.2,
+        b: Annotated[object, ParameterSpec()] = 0.2,
+        c: Annotated[object, ParameterSpec()] = 5.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x1 = x1
+        self.x2 = x2
+        self.x3 = x3
+        self.omega = omega
+        self.a = a
+        self.b = b
+        self.c = c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rossler oscillator element."""
         return [
             RateLaw(s.x1, -s.omega * s.x2 - s.x3),
@@ -43,14 +59,23 @@ class RosslerOscillatorElement(Element):
         ]
 
 
-class DiffusiveCouplingInteraction(BaseInteraction):
+class DiffusiveCouplingInteraction(Interaction):
     """Diffusive coupling interaction."""
 
-    first = role()
-    second = role()
-    k = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RoleSpec()],
+        second: Annotated[object, RoleSpec()],
+        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.k = k
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the diffusive coupling interaction."""
         return [
             RateLaw(s.first.x2, s.k * (s.second.x2 - s.first.x2)),
@@ -61,18 +86,36 @@ class DiffusiveCouplingInteraction(BaseInteraction):
 class LogisticUnitElement(Element):
     """Logistic unit element."""
 
-    x = state(0.3)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
-class AggregateAveragingInteraction(BaseInteraction):
+class AggregateAveragingInteraction(Interaction):
     """Aggregate averaging interaction."""
 
-    first = role()
-    second = role()
-    r = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    kappa = parameter(default=0.4, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RoleSpec()],
+        second: Annotated[object, RoleSpec()],
+        r: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        kappa: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.r = r
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the aggregate averaging interaction."""
         return [
             UpdateLaw(s.first.x, _logistic(s.r, (1 - s.kappa) * s.first.x + s.kappa * s.second.x)),

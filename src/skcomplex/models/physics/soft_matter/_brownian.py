@@ -4,13 +4,15 @@
 # License: MIT
 
 import math
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import cos, sqrt
+from sage.all__sagemath_symbolics import cos, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import BoundaryLaw, NoiseLaw, RateLaw, Symbols
+from ....core.elements import Element
+from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -18,12 +20,23 @@ from ....engine.runtime import register_model
 class DoubleWellElement(Element):
     """Double well element."""
 
-    x = state(-1.0)
-    amplitude = parameter(0.1)
-    frequency = parameter(0.01)
-    D = parameter(default=0.12, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = -1.0,
+        amplitude: Annotated[object, ParameterSpec()] = 0.1,
+        frequency: Annotated[object, ParameterSpec()] = 0.01,
+        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the double well element."""
         return [
             RateLaw(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
@@ -105,22 +118,25 @@ class WallParticleElement(Element):
         'anti-ito'
     """
 
-    z: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    D0: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    a: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    drift: float = parameter(default=0.2)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        D0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        drift: Annotated[float, ParameterSpec()] = 0.2,
         convention: str = 'anti-ito',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.D0 = D0
+        self.a = a
+        self.drift = drift
         self.convention = convention
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the settling drift, the hindered noise, and the reflection at the wall.
 
         Args:

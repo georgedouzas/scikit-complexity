@@ -3,30 +3,44 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import advection, laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class ArbitrageDensityElement(Element):
     """Arbitrage density element."""
 
-    rho = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    D = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    A_x = parameter(default=0.0, domain=NumericDomain.REAL)
-    E = parameter(default=0.5, domain=NumericDomain.REAL)
-    A_t = parameter(default=0.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        A_x: Annotated[object, ParameterSpec()] = 0.0,
+        E: Annotated[object, ParameterSpec()] = 0.5,
+        A_t: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.D = D
+        self.A_x = A_x
+        self.E = E
+        self.A_t = A_t
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the arbitrage density element."""
         return [
             RateLaw(
@@ -92,5 +106,5 @@ def arbitrage_traders(
     rho = np.exp(-(positions**2)) / np.sqrt(np.pi)
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
-    market = FieldElement('market', ArbitrageDensityElement, line, values=values)
+    market = FieldElement('market', element=ArbitrageDensityElement, space=line, values=values)
     return System(elements=[market])

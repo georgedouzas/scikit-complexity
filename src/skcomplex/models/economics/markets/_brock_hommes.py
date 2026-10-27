@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._institutions import InstitutionInteraction
 from ..realizations._learning import heuristics, logit_choice
 
@@ -48,10 +49,20 @@ class SpeculatorElement(Element):
     """
 
     pricing: ClassVar[str] = 'pricing'
-    predictor: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        predictor: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.predictor = predictor
+        self.intensity = intensity
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the choice of heuristic in the phase of choice.
 
         Args:
@@ -133,13 +144,29 @@ class HeuristicPricingInteraction(InstitutionInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('deviation', 'trend_share', 'fitness_fundamentalist', 'fitness_trend')
-    traders: str = role()
-    rate: float = parameter(default=1.1, domain=NumericDomain.POSITIVE)
-    strength: float = parameter(default=1.2, domain=NumericDomain.REAL)
-    cost: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    risk: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    noise: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    initial: float = parameter(default=0.1, domain=NumericDomain.REAL)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: object,
+        phase: object,
+        traders: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
+        strength: Annotated[float, ParameterSpec()] = 1.2,
+        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        risk: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        initial: Annotated[float, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, rule=rule, phase=phase)
+        self.traders = traders
+        self.rate = rate
+        self.strength = strength
+        self.cost = cost
+        self.risk = risk
+        self.noise = noise
+        self.initial = initial
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Clear the price from the forecasts of the traders' heuristics and report the fitnesses.

@@ -4,18 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import exp, tanh
+from sage.all__sagemath_symbolics import Expression, exp, oo, tanh
+from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import EventLaw, RateLaw, Symbols, delayed, maximum
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.laws.utils import delayed, laplacian, maximum
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -85,15 +88,29 @@ class SpikingNeuronElement(Element):
         20.0
     """
 
-    v: float = state(default=0.0)
-    s: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    tau: float = parameter(default=20.0, domain=NumericDomain.POSITIVE)
-    threshold: float = parameter(default=20.0)
-    reset: float = parameter(default=10.0)
-    mu: float = parameter(default=25.0)
-    tau_s: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[float, StateSpec()] = 0.0,
+        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        threshold: Annotated[float, ParameterSpec()] = 20.0,
+        reset: Annotated[float, ParameterSpec()] = 10.0,
+        mu: Annotated[float, ParameterSpec()] = 25.0,
+        tau_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.s = s
+        self.tau = tau
+        self.threshold = threshold
+        self.reset = reset
+        self.mu = mu
+        self.tau_s = tau_s
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the leaky membrane, the decay of the trace, and the spike that resets the potential.
 
         Args:
@@ -107,11 +124,11 @@ class SpikingNeuronElement(Element):
         return [
             RateLaw(s.v, (s.mu - s.v) / s.tau),
             RateLaw(s.s, -s.s / s.tau_s),
-            EventLaw(s.v - s.threshold, {s.v: s.reset, s.s: s.s + 1 / s.tau_s}, direction=1, label='spike'),
+            CrossingLaw(s.v - s.threshold, {s.v: s.reset, s.s: s.s + 1 / s.tau_s}, direction=1, label='spike'),
         ]
 
 
-class DelayedSynapseInteraction(BaseInteraction):
+class DelayedSynapseInteraction(Interaction):
     """Synapse that adds the presynaptic trace from a transmission delay ago to the postsynaptic potential.
 
     The target gains `J s_source(t - D)`, so every presynaptic spike moves the postsynaptic potential by `J` in
@@ -139,12 +156,22 @@ class DelayedSynapseInteraction(BaseInteraction):
         1.5
     """
 
-    source: str = role()
-    target: str = role()
-    J: float = parameter(default=0.5)
-    D: float = parameter(default=1.5, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        J: Annotated[float, ParameterSpec()] = 0.5,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.target = target
+        self.J = J
+        self.D = D
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the delayed synaptic input `J s_source(t - D)`.
 
         Args:
@@ -206,18 +233,35 @@ class TermanWangElement(Element):
         6.0
     """
 
-    x: float = state(default=SILENT)
-    y: float = state(default=0.0)
-    I: float = parameter(default=0.2)
-    m: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    W: float = parameter(default=6.0, domain=NumericDomain.NONNEGATIVE)
-    epsilon: float = parameter(default=0.02, domain=NumericDomain.POSITIVE)
-    gamma: float = parameter(default=6.0, domain=NumericDomain.POSITIVE)
-    beta: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    theta_x: float = parameter(default=-0.5)
-    kappa: float = parameter(default=0.02, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = SILENT,
+        y: Annotated[float, StateSpec()] = 0.0,
+        I: Annotated[float, ParameterSpec()] = 0.2,
+        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        W: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        theta_x: Annotated[float, ParameterSpec()] = -0.5,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.I = I
+        self.m = m
+        self.W = W
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.beta = beta
+        self.theta_x = theta_x
+        self.kappa = kappa
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fast variable with its excitation by the neighbours, and the slow recovery.
 
         Args:
@@ -255,10 +299,19 @@ class InhibitorElement(Element):
         3.0
     """
 
-    z: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    phi: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.phi = phi
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the decay of the inhibitor.
 
         Args:
@@ -272,7 +325,7 @@ class InhibitorElement(Element):
         return [RateLaw(s.z, -s.phi * s.z)]
 
 
-class GlobalInhibitionInteraction(BaseInteraction):
+class GlobalInhibitionInteraction(Interaction):
     """Coupling of a lattice of oscillators to a global inhibitor that the most active oscillator drives.
 
     The inhibitor follows `z' = phi (sigma - z)`, where `sigma` is the largest activity `m H(x - theta_x)` of the
@@ -301,12 +354,22 @@ class GlobalInhibitionInteraction(BaseInteraction):
         1.5
     """
 
-    inhibitor: str = role()
-    oscillators: str = role()
-    W_z: float = parameter(default=1.5, domain=NumericDomain.NONNEGATIVE)
-    theta_z: float = parameter(default=0.1)
+    def __init__(
+        self,
+        label: str,
+        *,
+        inhibitor: Annotated[str, RoleSpec()],
+        oscillators: Annotated[str, RoleSpec()],
+        W_z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        theta_z: Annotated[float, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.inhibitor = inhibitor
+        self.oscillators = oscillators
+        self.W_z = W_z
+        self.theta_z = theta_z
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drive of the inhibitor by the most active oscillator and the inhibition of every oscillator.
 
         Args:
@@ -454,8 +517,8 @@ def legion(
     }
     oscillators = FieldElement(
         'oscillators',
-        TermanWangElement,
-        LatticeSpace(marks.shape),
+        element=TermanWangElement,
+        space=LatticeSpace(marks.shape),
         boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
         values=values,
     )

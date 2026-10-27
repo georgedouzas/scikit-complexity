@@ -3,17 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
-from sage.all__sagemath_symbolics import cos, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import role, state
-
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter
-from ....core.components import Element
-from ....core.laws import EventLaw, RateLaw, Symbols, maximum, mean, where
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.laws.utils import maximum, mean, where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 from ._utils import _order_parameter
 
 
@@ -27,34 +30,51 @@ def _sensitivity(theta: Expression) -> Expression:
     return -sin(theta)
 
 
-def _integrate_and_fire_laws(s: Symbols) -> list[BaseLaw]:
+def _integrate_and_fire_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the charging of an oscillator and the firing of the most charged ones, which kick the others up."""
     largest = maximum(s.x)
     kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
     return [
         RateLaw(s.x, s.S - s.gamma * s.x),
-        EventLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
+        CrossingLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
     ]
 
 
 class WinfreeOscillatorElement(Element):
     """Winfree oscillator element."""
 
-    theta = state(0.0)
-    omega = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.omega = omega
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the winfree oscillator element."""
         return [RateLaw(s.theta, s.omega)]
 
 
-class WinfreeMeanFieldInteraction(BaseInteraction):
+class WinfreeMeanFieldInteraction(Interaction):
     """Winfree mean field interaction."""
 
-    target = role()
-    K = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[object, RoleSpec()],
+        K: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.K = K
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the winfree mean field interaction."""
         return [
             RateLaw(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
@@ -64,12 +84,23 @@ class WinfreeMeanFieldInteraction(BaseInteraction):
 class IntegrateAndFireOscillatorElement(Element):
     """Integrate and fire oscillator element."""
 
-    x = state(0.0)
-    S = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    gamma = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    epsilon = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        S: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.S = S
+        self.gamma = gamma
+        self.epsilon = epsilon
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the integrate and fire oscillator element."""
         return _integrate_and_fire_laws(s)
 

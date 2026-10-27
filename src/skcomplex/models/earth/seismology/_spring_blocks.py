@@ -3,22 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 
-from skcomplex.core.declarations import parameter
-
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols, both, where
-from ....core.laws.utils import laplacian
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import both, laplacian, where
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4Solver
 
 
-def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
+def _spring_block_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the sliding of a block under its springs and the stick-slip friction that weakens with speed."""
     sliding = where(s.v > 0, s.v, 0)
     force = s.k_c * laplacian(s.x) + s.k_p * (s.velocity * s.t - s.x)
@@ -30,16 +30,31 @@ def _spring_block_laws(s: Symbols) -> list[BaseLaw]:
 class SpringBlockElement(Element):
     """Spring block element."""
 
-    x = state(default=0.0, domain=NumericDomain.REAL)
-    v = state(default=0.0, domain=NumericDomain.REAL)
-    m = parameter(1.0)
-    k_c = parameter(2.5)
-    k_p = parameter(1.0)
-    velocity = parameter(0.01)
-    F0 = parameter(1.0)
-    v_c = parameter(0.5)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        m: Annotated[object, ParameterSpec()] = 1.0,
+        k_c: Annotated[object, ParameterSpec()] = 2.5,
+        k_p: Annotated[object, ParameterSpec()] = 1.0,
+        velocity: Annotated[object, ParameterSpec()] = 0.01,
+        F0: Annotated[object, ParameterSpec()] = 1.0,
+        v_c: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.m = m
+        self.k_c = k_c
+        self.k_p = k_p
+        self.velocity = velocity
+        self.F0 = F0
+        self.v_c = v_c
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the spring block element."""
         return _spring_block_laws(s)
 
@@ -106,8 +121,8 @@ def burridge_knopoff(
     offsets = np.random.default_rng(random_state).uniform(-0.5, 0.5, n_blocks)
     fault = FieldElement(
         'fault',
-        SpringBlockElement,
-        LatticeSpace(n_blocks, boundary='reflecting'),
+        element=SpringBlockElement,
+        space=LatticeSpace(n_blocks, boundary='reflecting'),
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={'x': offsets, 'k_c': k_c, 'k_p': k_p, 'velocity': velocity, 'F0': F0, 'v_c': v_c},
     )

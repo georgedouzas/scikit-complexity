@@ -3,11 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, RateLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -44,20 +50,21 @@ class BranchElement(Element):
         5.0
     """
 
-    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    evaporation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        evaporation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         stochastic: bool = True,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.evaporation = evaporation
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the evaporation of the marks.
 
         Args:
@@ -73,7 +80,7 @@ class BranchElement(Element):
         return [RateLaw(s.n, -s.evaporation * s.n)]
 
 
-class TrailChoiceInteraction(BaseInteraction):
+class TrailChoiceInteraction(Interaction):
     """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
@@ -110,23 +117,26 @@ class TrailChoiceInteraction(BaseInteraction):
         2.0
     """
 
-    chosen: str = role()
-    other: str = role()
-    flux: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(default=20.0, domain=NumericDomain.NONNEGATIVE)
-    h: float = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        chosen: Annotated[str, RoleSpec()],
+        other: Annotated[str, RoleSpec()],
+        flux: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         stochastic: bool = True,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.chosen = chosen
+        self.other = other
+        self.flux = flux
+        self.k = k
+        self.h = h
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the marking of the chosen branch at the rate of ants that choose it.
 
         Args:
@@ -160,10 +170,18 @@ class RatsElement(Element):
         90.0
     """
 
-    n: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
 
 
-class NervousnessInteraction(BaseInteraction):
+class NervousnessInteraction(Interaction):
     """Calm rats that become nervous on their own or by meeting nervous rats, and nervous rats that calm down.
 
     A calm rat turns nervous at rate `spontaneous + contagion * nervous / N` and a nervous one calms down at rate
@@ -200,23 +218,26 @@ class NervousnessInteraction(BaseInteraction):
         1.0
     """
 
-    calm: str = role()
-    nervous: str = role()
-    spontaneous: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    contagion: float = parameter(default=2.0, domain=NumericDomain.NONNEGATIVE)
-    calming: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        calm: Annotated[str, RoleSpec()],
+        nervous: Annotated[str, RoleSpec()],
+        spontaneous: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        contagion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        calming: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         stochastic: bool = True,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.calm = calm
+        self.nervous = nervous
+        self.spontaneous = spontaneous
+        self.contagion = contagion
+        self.calming = calming
         self.stochastic = stochastic
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the transitions between calm and nervous.
 
         Args:

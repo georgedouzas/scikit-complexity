@@ -5,19 +5,20 @@
 
 from collections.abc import Mapping
 from functools import partial
-from typing import Any, cast
+from types import SimpleNamespace
+from typing import Annotated, Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import exp
+from sage.all__sagemath_symbolics import ZZ, exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, total, uniform, where
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import total, uniform, where
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -71,22 +72,25 @@ class LearningAgentElement(Element):
         0.5
     """
 
-    sigma: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    Q: float = state(default=0.0)
-    alpha: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-    temperature: float = parameter(default=0.5, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
-        couplings: Any = None,  # noqa: ANN401
-        **values: Any,  # noqa: ANN401
+        sigma: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        Q: Annotated[float, StateSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.sigma = sigma
+        self.Q = Q
+        self.alpha = alpha
+        self.temperature = temperature
         self.couplings = couplings
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the reinforcement of the incentive and the softmax draw of the action, both in parallel.
 
         Args:

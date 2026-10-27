@@ -4,33 +4,56 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import cos, sin
+from sage.all__sagemath_symbolics import cos, oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import EquationLaw, RateLaw, derivative
+from ....core.elements import Element
+from ....core.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class RotatingSwingElement(Element):
     """Rotating swing element."""
 
-    phi = state(default=0.0, domain=NumericDomain.ANGLE, order=2)
-    theta = state(default=0.1, order=2)
-    J = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    n_chairs = parameter(default=8.0, domain=NumericDomain.POSITIVE)
-    a = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    l = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    g = parameter(default=9.81, domain=NumericDomain.POSITIVE)
-    torque = parameter(0.0)
-    friction = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.0,
+        phi_d1: float = 0.0,
+        theta: Annotated[object, StateSpec(order=2)] = 0.1,
+        theta_d1: float = 0.0,
+        J: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n_chairs: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        a: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        torque: Annotated[object, ParameterSpec()] = 0.0,
+        friction: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.phi_d1 = phi_d1
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.J = J
+        self.m = m
+        self.n_chairs = n_chairs
+        self.a = a
+        self.l = l
+        self.g = g
+        self.torque = torque
+        self.friction = friction
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rotating swing element."""
         return [
             EquationLaw(
@@ -57,13 +80,25 @@ class RotatingSwingElement(Element):
 class RotatingBallElement(Element):
     """Rotating ball element."""
 
-    theta = state(default=0.0, domain=NumericDomain.ANGLE)
-    m = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    r = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    beta = parameter(default=math.pi / 2, domain=NumericDomain.POSITIVE)
-    H = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        r: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = math.pi / 2,
+        H: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.m = m
+        self.r = r
+        self.beta = beta
+        self.H = H
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the rotating ball element."""
         return [RateLaw(s.theta, s.H / (s.m * s.r**2 * sin(s.beta) ** 2))]
 
@@ -71,18 +106,41 @@ class RotatingBallElement(Element):
 class GyroscopeElement(Element):
     """Gyroscope element."""
 
-    alpha = state(default=0.0, domain=NumericDomain.ANGLE, order=2)
-    beta = state(default=0.3, order=2)
-    gamma = state(default=0.0, domain=NumericDomain.ANGLE, order=2)
-    A = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    C = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    A1 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    B1 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    C1 = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    A2 = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    torque = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        alpha: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.0,
+        alpha_d1: float = 0.0,
+        beta: Annotated[object, StateSpec(order=2)] = 0.3,
+        beta_d1: float = 0.0,
+        gamma: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.0,
+        gamma_d1: float = 0.0,
+        A: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        A1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        B1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        C1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        A2: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        torque: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.alpha = alpha
+        self.alpha_d1 = alpha_d1
+        self.beta = beta
+        self.beta_d1 = beta_d1
+        self.gamma = gamma
+        self.gamma_d1 = gamma_d1
+        self.A = A
+        self.C = C
+        self.A1 = A1
+        self.B1 = B1
+        self.C1 = C1
+        self.A2 = A2
+        self.torque = torque
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the gyroscope element."""
         return [
             EquationLaw(

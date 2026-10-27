@@ -4,19 +4,21 @@
 # License: MIT
 
 import math
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import I, exp, sin
+from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role
-from ....core.laws import RateLaw, Symbols
+from ....core.elements import GroupElement
+from ....core.interactions import PairInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.elements import GroupElement
 from ._particles import ActiveParticleElement
 
 HEADINGS = VisualSpec(
@@ -25,17 +27,17 @@ HEADINGS = VisualSpec(
 )
 
 
-def _heading(member: Symbols) -> Expression:
+def _heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
     return exp(I * member.theta)
 
 
-def _polarization(s: Symbols) -> Expression:
+def _polarization(s: SimpleNamespace) -> Expression:
     """Return the modulus of the mean heading, the polarization."""
     return abs(s.mean_heading)
 
 
-class PolarAlignmentInteraction(BaseInteraction):
+class PolarAlignmentInteraction(PairInteraction):
     """Alignment torque between two particles closer than the cutoff, `dtheta_i/dt = gamma sin(theta_j - theta_i)`.
 
     Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
@@ -69,25 +71,22 @@ class PolarAlignmentInteraction(BaseInteraction):
         0.5
     """
 
-    over: ClassVar[str] = 'pairs'
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-
-    gamma: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        position: str = 'x',
         *,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         period: float | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.gamma = gamma
         self.period = period
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the opposite torques on the two members of a pair.
 
         Args:

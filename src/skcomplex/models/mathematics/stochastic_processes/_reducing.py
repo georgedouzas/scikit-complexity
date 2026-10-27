@@ -3,15 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class ReducingBallElement(Element):
@@ -40,12 +44,21 @@ class ReducingBallElement(Element):
         ('balls', 'ReducingBallElement', 3)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'level'})
-    level: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    n_states: float = parameter(10.0, domain=NumericDomain.POSITIVE)
-    lam: float = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
+        *,
+        level: Annotated[float, StateSpec(domain=NN)] = 10.0,
+        n_states: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.n_states = n_states
+        self.lam = lam
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the jump rule.
 
         Args:
@@ -97,11 +110,19 @@ class FragmentElement(Element):
         ('fragments', 'FragmentElement', 1)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'length'})
-    length: float = state(default=1000.0, domain=NumericDomain.POSITIVE)
-    rate: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'length'}),
+        *,
+        length: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.length = length
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the breaking rule.
 
         Args:

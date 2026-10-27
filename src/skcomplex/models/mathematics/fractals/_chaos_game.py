@@ -4,18 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression, vector
 
-from ....core.base import BaseLaw, Expression, ValidationError, VisualSpec, state, vector
-from ....core.components import Element
-from ....core.laws import Symbols, UpdateLaw, categorical, where
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, UpdateLaw
+from ....core.laws.utils import categorical, where
 from ....core.spaces import ContinuousSpace
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 type AffineMap = Sequence[float]
 
@@ -64,22 +66,21 @@ class ChaosPointElement(Element):
         3
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()})
-    p: object = state(default=0.0, vector=True)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()}),
         *,
+        p: Annotated[object, StateSpec(vector=True)] = 0.0,
         maps: Sequence[AffineMap] = PRESETS['sierpinski'][0],
         weights: Sequence[float] = PRESETS['sierpinski'][1],
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.p = p
         self.maps = maps
         self.weights = weights
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the move by the drawn map.
 
         Args:
@@ -99,7 +100,7 @@ class ChaosPointElement(Element):
         for index in range(len(images) - 2, -1, -1):
             new_x = where(chosen == index, images[index][0], new_x)
             new_y = where(chosen == index, images[index][1], new_y)
-        return [UpdateLaw(s.p, vector([new_x, new_y]))]
+        return [UpdateLaw(s.p, vector(SR, [new_x, new_y]))]
 
 
 def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: int, random_state: object) -> System:

@@ -3,18 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
-from ....core.laws import NoiseLaw, RateLaw, Symbols
-from ....core.specs import WienerProcessSpec
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec, WienerProcessSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
 from ._assets import AssetElement
 
 
-class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
+class CorrelatedGeometricBrownianMotionInteraction(Interaction):
     """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a `WienerProcessSpec`.
 
     Args:
@@ -47,22 +52,24 @@ class CorrelatedGeometricBrownianMotionInteraction(BaseInteraction):
         1
     """
 
-    target: str = role()
-    market: WienerProcessSpec = role(noise=True)
-    mu: float = parameter(default=0.05, domain=NumericDomain.REAL)
-    sigma: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        market: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
+        mu: Annotated[float, ParameterSpec()] = 0.05,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         index: int = 0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.market = market
+        self.mu = mu
+        self.sigma = sigma
         self.index = index
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S` on process `index` of the market.
 
         Args:

@@ -4,20 +4,22 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element, GroupElement
-from ....core.laws import RateLaw, Symbols, UpdateLaw, neighbors
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import NeighborInteraction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ._kuramoto import PhaseOscillatorElement
 from ._utils import _order_parameter
 
@@ -27,7 +29,15 @@ NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 class LinkElement(Element):
     """Link element."""
 
-    w = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        w: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.w = w
 
 
 def _logistic(r: Expression, x: Expression) -> Expression:
@@ -38,11 +48,21 @@ def _logistic(r: Expression, x: Expression) -> Expression:
 class LogisticNodeElement(Element):
     """Logistic node element."""
 
-    x = state(default=0.5, domain=NumericDomain.REAL)
-    r = parameter(4.0)
-    epsilon = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.5,
+        r: Annotated[object, ParameterSpec()] = 4.0,
+        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
+        self.epsilon = epsilon
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the logistic node element."""
         return [
             UpdateLaw(
@@ -52,7 +72,7 @@ class LogisticNodeElement(Element):
         ]
 
 
-class EdgeCouplingInteraction(BaseInteraction):
+class EdgeCouplingInteraction(NeighborInteraction):
     """Kuramoto coupling along one weighted edge, `theta_i' += K w_ij sin(theta_j - theta_i)` at both of its ends.
 
     The interaction runs once per edge of the network of its oscillators and reads the weight `w` of the edge from
@@ -77,13 +97,20 @@ class EdgeCouplingInteraction(BaseInteraction):
         0.5
     """
 
-    over: ClassVar[str] = 'neighbors'
-    oscillators: str = role()
-    links: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        oscillators: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.oscillators = oscillators
+        self.links = links
+        self.K = K
 
-    K: float = parameter(default=1.0)
-
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the pull of both ends of an edge towards each other.
 
         Args:

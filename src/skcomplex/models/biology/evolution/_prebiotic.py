@@ -5,19 +5,24 @@
 
 import itertools
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, UpdateLaw, total
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import total
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
-def _mean_fitness(master: Symbols) -> Expression:
+def _mean_fitness(master: SimpleNamespace) -> Expression:
     """Return the mean fitness `x0 + (1 - sigma) (1 - x0)` of a population around a master sequence."""
     return master.x + (1 - master.sigma) * (1 - master.x)
 
@@ -38,7 +43,15 @@ class GenotypeClassElement(Element):
         0.1
     """
 
-    x: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
 
 
 class MasterSequenceElement(GenotypeClassElement):
@@ -66,10 +79,20 @@ class MasterSequenceElement(GenotypeClassElement):
         0.2
     """
 
-    u: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    sigma: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: float = 0.0,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual, x=x)
+        self.u = u
+        self.sigma = sigma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the replication of the master sequence without mutation, `x0' = x0 (1 - u) / <W>`.
 
         Args:
@@ -83,7 +106,7 @@ class MasterSequenceElement(GenotypeClassElement):
         return [UpdateLaw(s.x, s.x * (1 - s.u) / _mean_fitness(s))]
 
 
-class MutationInteraction(BaseInteraction):
+class MutationInteraction(Interaction):
     """Replication of a class of mutants, which gains the mutants of the class before it and loses its own.
 
     With the mean fitness `<W>`, the share `k` steps from the master sequence follows
@@ -115,21 +138,22 @@ class MutationInteraction(BaseInteraction):
         False
     """
 
-    target: str = role()
-    source: str = role()
-    master: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        master: Annotated[str, RoleSpec()],
         last: bool = False,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.master = master
         self.last = last
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the next share of the class.
 
         Args:
@@ -150,11 +174,20 @@ class MutationInteraction(BaseInteraction):
 class MoleculeElement(Element):
     """Molecule element."""
 
-    x = state(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    growth = parameter(0.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        growth: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.growth = growth
 
 
-class CatalysisInteraction(BaseInteraction):
+class CatalysisInteraction(Interaction):
     """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
 
     Molecule `i` replicates at the rate `lambda_i + omega sum_j T_ij x_j`, with the 0 or 1 topology `T` of the
@@ -183,20 +216,20 @@ class CatalysisInteraction(BaseInteraction):
         ((0, 1), (1, 0))
     """
 
-    molecules: str = role()
-    omega: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        molecules: Annotated[str, RoleSpec()],
+        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.molecules = molecules
+        self.omega = omega
         self.topology = topology
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the catalysed replication and the common outflow.
 
         Args:

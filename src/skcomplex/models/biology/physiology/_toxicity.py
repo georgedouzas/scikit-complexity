@@ -3,11 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse_train, step
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train, step
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -55,27 +61,31 @@ class DrugToxicityElement(Element):
         4
     """
 
-    c: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    T: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    k: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    eta: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    dose: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         period: float = 7.0,
         width: float = 1.0,
         doses: int = 6,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.c = c
+        self.T = T
+        self.k = k
+        self.eta = eta
+        self.dose = dose
         self.period = period
         self.width = width
         self.doses = doses
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the balance of the drug and the accumulation of toxicity.
 
         Args:

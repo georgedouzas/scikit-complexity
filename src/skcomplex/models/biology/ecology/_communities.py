@@ -4,9 +4,15 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role
-from ....core.laws import RateLaw, Symbols
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.interactions import BaseInteraction, Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._populations import LogisticGrowthInteraction, MortalityInteraction, PopulationElement, PredationInteraction
@@ -22,7 +28,7 @@ WEB_LINKS = (
 )
 
 
-class CompetitionInteraction(BaseInteraction):
+class CompetitionInteraction(Interaction):
     """Lotka-Volterra competition of two species for the same resources.
 
     Each species grows logistically, and the other species fills its carrying capacity in proportion to a competition
@@ -62,16 +68,30 @@ class CompetitionInteraction(BaseInteraction):
         0.5
     """
 
-    first: str = role()
-    second: str = role()
-    r1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    r2: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    K1: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    K2: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    alpha12: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    alpha21: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        alpha12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        alpha21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.r1 = r1
+        self.r2 = r2
+        self.K1 = K1
+        self.K2 = K2
+        self.alpha12 = alpha12
+        self.alpha21 = alpha21
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the logistic rates with the competitor in the crowding term.
 
         Args:
@@ -89,7 +109,7 @@ class CompetitionInteraction(BaseInteraction):
         ]
 
 
-class MutualismInteraction(BaseInteraction):
+class MutualismInteraction(Interaction):
     """Mutualism with a handling time, where encounters feed both species, `a b n1 n2 / (1 + a T n)` each.
 
     The benefit to each species saturates with the abundance of its partner, as the handling time `T` limits how much
@@ -120,13 +140,24 @@ class MutualismInteraction(BaseInteraction):
         0.5
     """
 
-    first: str = role()
-    second: str = role()
-    a: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    handling: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        handling: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.a = a
+        self.b = b
+        self.handling = handling
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the saturating benefits `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
 
         Args:

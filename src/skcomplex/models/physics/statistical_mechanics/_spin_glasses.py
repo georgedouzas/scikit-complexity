@@ -4,18 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import SampleLaw, Symbols, neighbors
+from ....core.elements import Element, LatticeElement
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, SampleLaw
+from ....core.laws.utils import neighbors
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.specs import EnergySpec, MoveSpec, ObservableSpec, SamplerSpec
+from ....core.specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ._fully_connected_spins import SPIN_IMAGE
 
 type Couplings = npt.NDArray[np.floating]
@@ -41,7 +45,7 @@ def _bond_states(right: Couplings, down: Couplings) -> dict[str, Couplings]:
     }
 
 
-def _overlap(member: Symbols) -> Expression:
+def _overlap(member: SimpleNamespace) -> Expression:
     """Return the overlap of a spin with its quenched pattern."""
     return member.spin * member.pattern
 
@@ -84,15 +88,29 @@ class BondSpinElement(Element):
         -1.0
     """
 
-    spin: float = state(default=1.0, domain=NumericDomain.INTEGER)
-    J_up: float = state(default=1.0)
-    J_left: float = state(default=1.0)
-    J_right: float = state(default=1.0)
-    J_down: float = state(default=1.0)
-    h: float = parameter(default=0.0)
-    temperature: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J_up: Annotated[float, StateSpec()] = 1.0,
+        J_left: Annotated[float, StateSpec()] = 1.0,
+        J_right: Annotated[float, StateSpec()] = 1.0,
+        J_down: Annotated[float, StateSpec()] = 1.0,
+        h: Annotated[float, ParameterSpec()] = 0.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.spin = spin
+        self.J_up = J_up
+        self.J_left = J_left
+        self.J_right = J_right
+        self.J_down = J_down
+        self.h = h
+        self.temperature = temperature
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the local energy, the spin flip, and the Metropolis sampler.
 
         Args:
@@ -154,7 +172,32 @@ class MattisSpinElement(BondSpinElement):
         -1.0
     """
 
-    pattern: float = state(default=1.0, domain=NumericDomain.INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        spin: float = 1.0,
+        J_up: float = 1.0,
+        J_left: float = 1.0,
+        J_right: float = 1.0,
+        J_down: float = 1.0,
+        h: float = 0.0,
+        temperature: float = 1.0,
+        pattern: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            visual=visual,
+            spin=spin,
+            J_up=J_up,
+            J_left=J_left,
+            J_right=J_right,
+            J_down=J_down,
+            h=h,
+            temperature=temperature,
+        )
+        self.pattern = pattern
 
 
 def _magnetization_observables(system: System) -> list[ObservableSpec]:

@@ -4,22 +4,26 @@
 # License: MIT
 
 import math
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import SR, oo, sin, vector
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, vector
-from ....core.laws import RateLaw, Symbols, mod, series, where
+from ....core.elements import GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import mod, series, where
 from ....core.spaces import ContinuousSpace
+from ....core.specs import ParameterSpec, RoleSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
-from ...core.elements import GroupElement
 from ._diffusion import BrownianParticleElement
 
 
-class TiltedWashboardInteraction(BaseInteraction):
+class TiltedWashboardInteraction(Interaction):
     """Tilted periodic potential `U(x) - f x`, with `U(x) = U0 cos(2 pi x / L)`, on overdamped particles on a line.
 
     Args:
@@ -44,12 +48,22 @@ class TiltedWashboardInteraction(BaseInteraction):
         0.5
     """
 
-    target: str = role()
-    U0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    L: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    f: float = parameter(default=0.0)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        U0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        f: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.U0 = U0
+        self.L = L
+        self.f = f
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift down the tilted potential.
 
         Args:
@@ -62,10 +76,10 @@ class TiltedWashboardInteraction(BaseInteraction):
         """
         position = s.target.x
         force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * position[0] / s.L) + s.f
-        return [RateLaw(position, vector([force / s.target.gamma]))]
+        return [RateLaw(position, vector(SR, [force / s.target.gamma]))]
 
 
-class FlashingSawtoothInteraction(BaseInteraction):
+class FlashingSawtoothInteraction(Interaction):
     """Sawtooth potential on overdamped particles on a line, turned on and off at given times.
 
     The potential of period `L` has a minimum at every multiple of `L`, rises linearly by `barrier` over the fraction
@@ -100,22 +114,24 @@ class FlashingSawtoothInteraction(BaseInteraction):
         (1.0, 2.5)
     """
 
-    target: str = role()
-    barrier: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    L: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    asymmetry: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
+        barrier: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        asymmetry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         switches: tuple[float, ...] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.target = target
+        self.barrier = barrier
+        self.L = L
+        self.asymmetry = asymmetry
         self.switches = switches
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the drift down the sawtooth while it is on.
 
         Args:
@@ -131,7 +147,7 @@ class FlashingSawtoothInteraction(BaseInteraction):
         position = s.target.x
         rise = s.asymmetry * s.L
         force = where(mod(position[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
-        return [RateLaw(position, vector([on * force / s.target.gamma]))]
+        return [RateLaw(position, vector(SR, [on * force / s.target.gamma]))]
 
 
 @register_model(

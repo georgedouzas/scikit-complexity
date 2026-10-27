@@ -13,7 +13,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from ..core.base import RegistryError
+from ..core.errors import RegistryError
 from ..core.system import System
 from ..engine.runtime import MODELS, ModelEntry, Simulation, summarize
 from ..engine.runtime import create as create_registered

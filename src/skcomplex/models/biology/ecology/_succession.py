@@ -3,16 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
 def _crowding(
-    first: Symbols,
-    second: Symbols,
+    first: SimpleNamespace,
+    second: SimpleNamespace,
     weight_first: Expression,
     weight_second: Expression,
 ) -> Expression:
@@ -40,11 +48,20 @@ class StandElement(Element):
         196.11
     """
 
-    volume: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    mature: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        volume: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.volume = volume
+        self.mature = mature
 
 
-class PioneerGrowthInteraction(BaseInteraction):
+class PioneerGrowthInteraction(Interaction):
     """Michaelis-Menten regrowth of pioneer trees, whose input from seeds the other groups suppress.
 
     Alone, the volume follows `V(t) = V_mat t / (K_M + t)` after a clear cut, which is
@@ -79,14 +96,26 @@ class PioneerGrowthInteraction(BaseInteraction):
         3.65
     """
 
-    target: str = role()
-    intermediate: str = role()
-    climax: str = role()
-    half_time: float = parameter(default=3.65, domain=NumericDomain.POSITIVE)
-    w_intermediate: float = parameter(default=0.32, domain=NumericDomain.NONNEGATIVE)
-    w_climax: float = parameter(default=0.68, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        intermediate: Annotated[str, RoleSpec()],
+        climax: Annotated[str, RoleSpec()],
+        half_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.65,
+        w_intermediate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.32,
+        w_climax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.68,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.intermediate = intermediate
+        self.climax = climax
+        self.half_time = half_time
+        self.w_intermediate = w_intermediate
+        self.w_climax = w_climax
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the regrowth with the suppressed input from seeds.
 
         Args:
@@ -103,7 +132,7 @@ class PioneerGrowthInteraction(BaseInteraction):
         return [RateLaw(volume, (volume * (volume / mature - 2) + suppression * mature) / s.half_time)]
 
 
-class SuccessionalGrowthInteraction(BaseInteraction):
+class SuccessionalGrowthInteraction(Interaction):
     """Logistic growth of intermediate or climax trees, crowded by their own group and another, with seedling input.
 
     The rate is `dV/dt = a + g V (1 - w_1 V_1 / V_mat,1 - w_2 V_2 / V_mat,2)`, with weights normalized to sum to one.
@@ -140,15 +169,28 @@ class SuccessionalGrowthInteraction(BaseInteraction):
         0.1
     """
 
-    target: str = role()
-    first: str = role()
-    second: str = role()
-    g: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-    w_first: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    w_second: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    seedlings: float = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        w_first: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        w_second: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        seedlings: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.first = first
+        self.second = second
+        self.g = g
+        self.w_first = w_first
+        self.w_second = w_second
+        self.seedlings = seedlings
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the crowded logistic growth with the seedling input.
 
         Args:

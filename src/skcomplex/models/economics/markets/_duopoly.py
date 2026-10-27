@@ -4,22 +4,25 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import ModelView
 
 N_FIRMS = 2
 
 
-def _price(s: Symbols) -> Expression:
+def _price(s: SimpleNamespace) -> Expression:
     """Return the market price of the total output under the inverse demand of the interaction `market`."""
     return s.market.a - s.market.b * s.total
 
@@ -43,10 +46,19 @@ class DuopolistElement(Element):
         2
     """
 
-    output: float = state(default=50.0, domain=NumericDomain.NONNEGATIVE)
-    cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        output: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.output = output
+        self.cost = cost
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the market sets the outputs of both firms at once.
 
         Args:
@@ -60,7 +72,7 @@ class DuopolistElement(Element):
         return []
 
 
-class CournotAdjustmentInteraction(BaseInteraction):
+class CournotAdjustmentInteraction(Interaction):
     """Simultaneous best responses of two firms to their beliefs about the rival's last output.
 
     Under the inverse demand `P = a - b Q`, each firm sets `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the
@@ -88,12 +100,22 @@ class CournotAdjustmentInteraction(BaseInteraction):
         0.1
     """
 
-    firms: str = role()
-    a: float = parameter(default=1500.0, domain=NumericDomain.POSITIVE)
-    b: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    error: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        firms: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1500.0,
+        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        error: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.firms = firms
+        self.a = a
+        self.b = b
+        self.error = error
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that sets both outputs.
 
         Args:

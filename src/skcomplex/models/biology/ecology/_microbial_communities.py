@@ -4,16 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, ValidationError, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, total
+from ....core.elements import Element, GroupElement
+from ....core.errors import ValidationError
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import total
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
@@ -38,11 +43,20 @@ class MicrobeElement(Element):
         0.8
     """
 
-    x: float = state(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    b: float = parameter(default=1.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.b = b
 
 
-class GeneralizedLotkaVolterraInteraction(BaseInteraction):
+class GeneralizedLotkaVolterraInteraction(Interaction):
     """Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`.
 
     The sum over the species is a total over the group weighted by row `i` of the matrix. The diagonal entries are the
@@ -67,19 +81,18 @@ class GeneralizedLotkaVolterraInteraction(BaseInteraction):
         ((-1.0, 0.5), (0.5, -1.0))
     """
 
-    community: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        community: Annotated[str, RoleSpec()],
         a: Sequence[Sequence[float]] = ((-1.0,),),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.community = community
         self.a = a
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the generalized Lotka-Volterra growth of every species.
 
         Args:

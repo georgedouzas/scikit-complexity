@@ -3,27 +3,45 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
-from ...core.laws import Symbols
 
 
 class QuadraticSupplyMarketElement(Element):
     """Quadratic supply market element."""
 
-    P = state(default=1.0, domain=NumericDomain.REAL)
-    k = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    beta = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    lam = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    delta = parameter(default=1.0, domain=NumericDomain.POSITIVE)
-    alpha = parameter(default=2.0, domain=NumericDomain.POSITIVE)
-    gamma = parameter(default=-0.1, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        P: Annotated[object, StateSpec()] = 1.0,
+        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        delta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        gamma: Annotated[object, ParameterSpec()] = -0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.P = P
+        self.k = k
+        self.beta = beta
+        self.lam = lam
+        self.delta = delta
+        self.alpha = alpha
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the quadratic supply market element."""
         return [RateLaw(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))]
 

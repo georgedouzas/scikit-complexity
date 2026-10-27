@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, RuleLaw, Symbols
+from ....core.elements import Element, FieldElement, GroupElement
+from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 GROUND = 'land/ground.G'
 TRAIL = 'land/ground.V'
@@ -59,13 +60,25 @@ class GroundElement(Element):
         200.0
     """
 
-    G: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    V: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    T: float = parameter(default=200.0, domain=NumericDomain.POSITIVE)
-    D: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    tau: float = parameter(default=1.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.G = G
+        self.V = V
+        self.T = T
+        self.D = D
+        self.tau = tau
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fading of the structure and the smoothing of the trail potential.
 
         Args:
@@ -121,15 +134,29 @@ class WalkerElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'goal_x'})
-    goal_x: float = state(default=0.0)
-    goal_y: float = state(default=0.0)
-    directedness: float = parameter(default=3.0, domain=NumericDomain.NONNEGATIVE)
-    attraction: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    intensity: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    G_max: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    width: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
-    height: float = parameter(default=30.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'goal_x'}),
+        *,
+        goal_x: Annotated[float, StateSpec()] = 0.0,
+        goal_y: Annotated[float, StateSpec()] = 0.0,
+        directedness: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        G_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.goal_x = goal_x
+        self.goal_y = goal_y
+        self.directedness = directedness
+        self.attraction = attraction
+        self.intensity = intensity
+        self.G_max = G_max
+        self.width = width
+        self.height = height
 
     def _choose_goal(self, agent: AgentView, model: ModelView) -> None:
         """Pick another entry point as the new goal."""
@@ -149,7 +176,7 @@ class WalkerElement(Element):
         alignment = steps @ heading / (lengths * max(float(np.hypot(*heading)), 1e-12))
         return np.exp(agent.directedness * (alignment - alignment.max()))
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the walking rule.
 
         Args:
@@ -246,8 +273,8 @@ def active_walkers(
     )
     ground = FieldElement(
         'ground',
-        GroundElement,
-        LatticeSpace((size, size), boundary='reflecting'),
+        element=GroundElement,
+        space=LatticeSpace((size, size), boundary='reflecting'),
         values={'T': T},
     )
     return System(

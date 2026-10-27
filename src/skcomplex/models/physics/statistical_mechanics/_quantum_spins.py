@@ -2,15 +2,21 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any
 
-from ....core.base import BaseInteraction, NumericDomain, ValidationError, parameter, role
-from ....core.laws import DissipatorLaw, GeneratorLaw, Symbols
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import LatticeElement
+from ....core.errors import ValidationError
+from ....core.interactions import BaseInteraction, Interaction, NeighborInteraction
+from ....core.laws import DissipatorLaw, GeneratorLaw
+from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ....core.system import System
-from ....engine.compile import Operator
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 from ..realizations.quantum import SpinElement
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
@@ -26,7 +32,7 @@ def _initial_labels(n_sites: int, initial: str) -> list[str]:
     return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
 
-def local_magnetization(member: Symbols) -> Operator:
+def local_magnetization(member: SimpleNamespace) -> Expression:
     """Return the `z` component of one spin.
 
     Args:
@@ -37,10 +43,10 @@ def local_magnetization(member: Symbols) -> Operator:
         operator:
             The local magnetisation.
     """
-    return member.z
+    return local_operator(member.psi, 'z')
 
 
-def total_magnetization(s: Symbols) -> Operator:
+def total_magnetization(s: SimpleNamespace) -> Expression:
     """Return the sum of the `z` components of the spins of the chain.
 
     Args:
@@ -51,10 +57,10 @@ def total_magnetization(s: Symbols) -> Operator:
         operator:
             The total magnetisation.
     """
-    return sum((member.z for member in s.chain), start=Operator({}))
+    return sum(local_operator(member.psi, 'z') for member in s.chain)
 
 
-class XXZExchangeInteraction(BaseInteraction):
+class XXZExchangeInteraction(NeighborInteraction):
     """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
 
     Args:
@@ -76,28 +82,40 @@ class XXZExchangeInteraction(BaseInteraction):
         0.5
     """
 
-    over: ClassVar[str] = 'neighbors'
-    target: str = role()
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        delta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.J = J
+        self.delta = delta
 
-    J: float = parameter(default=1.0, domain=NumericDomain.REAL)
-    delta: float = parameter(default=1.0, domain=NumericDomain.REAL)
-
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the exchange Hamiltonian of one bond.
 
         Args:
             s:
-                The namespace of the bond, with `s.first` and `s.second`.
+                The namespace of the bond, with `s.source` and `s.target`.
 
         Returns:
             laws:
                 The Hamiltonian of the bond.
         """
-        first, second = s.first, s.second
-        return [GeneratorLaw(s.J * (first.x * second.x + first.y * second.y + s.delta * first.z * second.z))]
+        first, second = s.source.psi, s.target.psi
+        exchange = (
+            local_operator(first, 'x') * local_operator(second, 'x')
+            + local_operator(first, 'y') * local_operator(second, 'y')
+            + s.delta * local_operator(first, 'z') * local_operator(second, 'z')
+        )
+        return [GeneratorLaw(s.J * exchange)]
 
 
-class ZeemanFieldInteraction(BaseInteraction):
+class ZeemanFieldInteraction(Interaction):
     """Uniform field `-h Σ S^z_i` on the spins of a chain.
 
     Args:
@@ -116,10 +134,18 @@ class ZeemanFieldInteraction(BaseInteraction):
         0.2
     """
 
-    target: str = role()
-    h: float = parameter(default=0.0, domain=NumericDomain.REAL)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        h: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.h = h
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the Hamiltonian of the field.
 
         Args:
@@ -130,10 +156,10 @@ class ZeemanFieldInteraction(BaseInteraction):
             laws:
                 The field Hamiltonian.
         """
-        return [GeneratorLaw(-s.h * sum((member.z for member in s.target), start=Operator({})))]
+        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
 
 
-class DephasingInteraction(BaseInteraction):
+class DephasingInteraction(Interaction):
     """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
 
     Args:
@@ -152,10 +178,18 @@ class DephasingInteraction(BaseInteraction):
         0.1
     """
 
-    target: str = role()
-    gamma: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gamma = gamma
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return one dissipator per spin.
 
         Args:
@@ -166,7 +200,7 @@ class DephasingInteraction(BaseInteraction):
             laws:
                 The dissipators.
         """
-        return [DissipatorLaw(member.z, s.gamma) for member in s.target]
+        return [DissipatorLaw(local_operator(member.psi, 'z'), s.gamma) for member in s.target]
 
 
 @register_model(
@@ -176,8 +210,8 @@ class DephasingInteraction(BaseInteraction):
     defaults={'until': 8.0, 'dt': 0.05},
     initial_state=lambda initial, **_: {'quantum_heisenberg.state': 'ground'} if initial == 'ground' else None,
     observables=lambda system: [
-        expectation('sz', local_magnetization, group='chain'),
-        expectation('magnetization', total_magnetization),
+        ObservableSpec('sz', local_magnetization, group='chain'),
+        ObservableSpec('magnetization', total_magnetization),
     ],
 )
 def quantum_heisenberg(
@@ -243,7 +277,7 @@ def quantum_heisenberg(
         raise ValidationError(error_msg)
     space = LatticeSpace(n_sites, boundary=BOUNDARIES[boundary])
     labels = _initial_labels(n_sites, initial)
-    chain = LatticeElement('chain', element=SpinElement, space=space, values={'initial': labels})
+    chain = LatticeElement('chain', element=SpinElement, space=space, values={'psi': labels})
     interactions: list[BaseInteraction] = [
         XXZExchangeInteraction('exchange', target='chain', J=J, delta=delta),
         ZeemanFieldInteraction('field', target='chain', h=h),

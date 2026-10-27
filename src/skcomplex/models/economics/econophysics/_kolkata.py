@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
@@ -43,12 +47,23 @@ class DinerElement(Element):
         10
     """
 
-    restaurant: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    crowd: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    served: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    restaurants: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        restaurant: Annotated[float, StateSpec(domain=NN)] = 0,
+        crowd: Annotated[float, StateSpec(domain=NN)] = 0,
+        served: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        restaurants: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.restaurant = restaurant
+        self.crowd = crowd
+        self.served = served
+        self.restaurants = restaurants
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the choice rule.
 
         Args:
@@ -119,7 +134,7 @@ class CrowdAvoidingDinerElement(DinerElement):
             agent.restaurant = float(other + (other >= agent.restaurant))
 
 
-class RestaurantsInteraction(BaseInteraction):
+class RestaurantsInteraction(Interaction):
     """Restaurants that each serve one of the diners who come, chosen at random, every evening.
 
     Args:
@@ -142,19 +157,19 @@ class RestaurantsInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
-    diners: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        diners: Annotated[str, RoleSpec()],
         n_restaurants: int = 100,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.diners = diners
         self.n_restaurants = n_restaurants
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the serving rule.
 
         Args:

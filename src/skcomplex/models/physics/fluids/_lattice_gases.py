@@ -4,17 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
-from ....core.components import Element
-from ....core.laws import LocalRuleLaw, Symbols
+from ....core.elements import Element, LatticeElement
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import LatticeElement
 
 type Array = npt.NDArray[np.float64]
 
@@ -106,15 +109,29 @@ class FHPSiteElement(Element):
         0
     """
 
-    n0: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    n1: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    n2: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    n3: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    n4: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    n5: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    density: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n0: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        n1: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        n2: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        n3: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        n4: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        n5: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        density: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n0 = n0
+        self.n1 = n1
+        self.n2 = n2
+        self.n3 = n3
+        self.n4 = n4
+        self.n5 = n5
+        self.density = density
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the collision, the propagation along the six directions, and the count of particles.
 
         Args:
@@ -177,7 +194,7 @@ def fhp_lattice_gas(
         >>> fhp_lattice_gas((8, 8)).elements[0].size
         64
     """
-    space = LatticeSpace(tuple(shape), geometry='triangular').prepare()
+    space = LatticeSpace(tuple(shape), geometry='triangular').check().prepare()
     positions = space.positions_
     centre = positions.mean(axis=0)
     size = min(space.shape_) / 6 if radius is None else radius

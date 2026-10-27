@@ -3,14 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 class PolyaUrnElement(Element):
@@ -41,20 +44,21 @@ class PolyaUrnElement(Element):
         2
     """
 
-    red: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    blue: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        red: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        blue: Annotated[float, StateSpec(domain=NN)] = 1.0,
         added: int = 1,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.red = red
+        self.blue = blue
         self.added = added
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the draws of a red and of a blue ball.
 
         Args:

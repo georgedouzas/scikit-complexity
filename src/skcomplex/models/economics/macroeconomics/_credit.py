@@ -3,20 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._markets import MarketInteraction, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
@@ -104,31 +106,43 @@ class FirmElement(Element):
         10
     """
 
-    net_worth: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    bid: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    loan: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    rate: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    partner: float = state(default=-1, domain=NumericDomain.INTEGER)
-    gross_return: float = state(default=0.0, domain=NumericDomain.REAL)
-    injected: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    defaulted: float = state(default=0, domain=NumericDomain.BOOLEAN)
-    leverage: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    mean_return: float = parameter(default=0.03, domain=NumericDomain.REAL)
-    volatility: float = parameter(default=0.3, domain=NumericDomain.NONNEGATIVE)
-    entry: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        net_worth: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        loan: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        partner: Annotated[float, StateSpec(domain=ZZ)] = -1,
+        gross_return: Annotated[float, StateSpec()] = 0.0,
+        injected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        defaulted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        leverage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        mean_return: Annotated[float, ParameterSpec()] = 0.03,
+        volatility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        entry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         lenders: str = 'banks',
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.net_worth = net_worth
+        self.demand = demand
+        self.bid = bid
+        self.loan = loan
+        self.rate = rate
+        self.partner = partner
+        self.gross_return = gross_return
+        self.injected = injected
+        self.defaulted = defaulted
+        self.leverage = leverage
+        self.mean_return = mean_return
+        self.volatility = volatility
+        self.entry = entry
         self.lenders = lenders
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the borrowing plan and the investment rule.
 
         Args:
@@ -217,15 +231,29 @@ class BankElement(Element):
         5
     """
 
-    equity: float = state(default=100.0, domain=NumericDomain.REAL)
-    ask: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    lent: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    losses: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
-    capital_ratio: float = parameter(default=0.1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        equity: Annotated[float, StateSpec()] = 100.0,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        lent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        losses: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        capital_ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.equity = equity
+        self.ask = ask
+        self.supply = supply
+        self.lent = lent
+        self.losses = losses
+        self.alpha = alpha
+        self.capital_ratio = capital_ratio
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the quoting rule.
 
         Args:

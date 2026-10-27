@@ -5,22 +5,24 @@
 
 import math
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 
@@ -121,12 +123,23 @@ class BarterTraderElement(Element):
         4
     """
 
-    good1: float = state(default=10.0, domain=NumericDomain.POSITIVE)
-    good2: float = state(default=10.0, domain=NumericDomain.POSITIVE)
-    mrs: float = state(default=1.0, domain=NumericDomain.POSITIVE)
-    links: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        good1: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
+        good2: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
+        mrs: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        links: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.good1 = good1
+        self.good2 = good2
+        self.mrs = mrs
+        self.links = links
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule that records the rate of substitution.
 
         Args:
@@ -152,7 +165,7 @@ class BarterTraderElement(Element):
         agent.mrs = agent.good2 / agent.good1
 
 
-class BilateralBarterInteraction(BaseInteraction):
+class BilateralBarterInteraction(Interaction):
     """Barter in which every trader searches its neighbours and trades with the one whose rate differs the most.
 
     Each pair trades single units of the first good at the price `(g2 + g2') / (g1 + g1')` of their pooled bundles,
@@ -176,10 +189,19 @@ class BilateralBarterInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('trades', 'searches')
-    traders: str = role()
-    units: int = parameter(default=100, domain=NumericDomain.NONNEGATIVE_INTEGER)
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def __init__(
+        self,
+        label: str,
+        *,
+        traders: Annotated[str, RoleSpec()],
+        units: Annotated[int, ParameterSpec(domain=NN)] = 100,
+    ) -> None:
+        super().__init__(label)
+        self.traders = traders
+        self.units = units
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matching of every trader with its best neighbour and the rule that trades along the pairs.
 
         Args:

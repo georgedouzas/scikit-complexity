@@ -3,15 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VariableKind, declarations_of, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
+from ....engine.problems import VariableKind, declarations_of
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 WASH = 0
 VALET = 1
@@ -46,11 +51,21 @@ class CarElement(Element):
         1
     """
 
-    stage: float = state(default=WASH, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    work: float = state(default=525.0, domain=NumericDomain.REAL)
-    crew: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        stage: Annotated[float, StateSpec(domain=NN)] = WASH,
+        work: Annotated[float, StateSpec()] = 525.0,
+        crew: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stage = stage
+        self.work = work
+        self.crew = crew
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the workers and the till act on the cars.
 
         Args:
@@ -82,7 +97,7 @@ class WasherElement(Element):
 
     cars: ClassVar[str] = 'cars'
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the work rule.
 
         Args:
@@ -140,12 +155,23 @@ class TillElement(Element):
         1
     """
 
-    revenue: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    washes: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    valets: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    turned_away: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        washes: Annotated[float, StateSpec(domain=NN)] = 0,
+        valets: Annotated[float, StateSpec(domain=NN)] = 0,
+        turned_away: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.revenue = revenue
+        self.washes = washes
+        self.valets = valets
+        self.turned_away = turned_away
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the car wash books the payments.
 
         Args:
@@ -159,7 +185,7 @@ class TillElement(Element):
         return []
 
 
-class CarWashOperationInteraction(BaseInteraction):
+class CarWashOperationInteraction(Interaction):
     """Arrival of passing cars, completion of washes and valets, and payment, once every second.
 
     A passing car turns in with a probability, unless the wash queue holds `balk` cars or more. A washed car stays for
@@ -205,16 +231,32 @@ class CarWashOperationInteraction(BaseInteraction):
         0.01
     """
 
-    cars: str = role()
-    till: str = role()
-    p_pass: float = parameter(default=0.33, domain=NumericDomain.NONNEGATIVE)
-    p_enter: float = parameter(default=0.005, domain=NumericDomain.NONNEGATIVE)
-    p_valet: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    wash_work: float = parameter(default=525.0, domain=NumericDomain.POSITIVE)
-    valet_work: float = parameter(default=1750.0, domain=NumericDomain.POSITIVE)
-    wash_price: float = parameter(default=4.0, domain=NumericDomain.NONNEGATIVE)
-    valet_price: float = parameter(default=10.0, domain=NumericDomain.NONNEGATIVE)
-    balk: float = parameter(default=3.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[str, RoleSpec()],
+        till: Annotated[str, RoleSpec()],
+        p_pass: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.33,
+        p_enter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        p_valet: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        wash_work: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 525.0,
+        valet_work: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1750.0,
+        wash_price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        valet_price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        balk: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.till = till
+        self.p_pass = p_pass
+        self.p_enter = p_enter
+        self.p_valet = p_valet
+        self.wash_work = wash_work
+        self.valet_work = valet_work
+        self.wash_price = wash_price
+        self.valet_price = valet_price
+        self.balk = balk
 
     def _finish(self, car: AgentView, till: AgentView, model: ModelView, values: dict[str, float]) -> None:
         """Move a car whose work is done to the valet, or take its payment and let it leave."""
@@ -229,7 +271,7 @@ class CarWashOperationInteraction(BaseInteraction):
             till.valets += 1
         car.remove()
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one second.
 
         Args:

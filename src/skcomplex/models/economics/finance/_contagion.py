@@ -4,19 +4,21 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -72,11 +74,21 @@ class BankElement(Element):
         3
     """
 
-    h: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    status: float = state(default=UNDISTRESSED, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    value: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
+        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.status = status
+        self.value = value
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the cascade updates every bank at once.
 
         Args:
@@ -90,7 +102,7 @@ class BankElement(Element):
         return []
 
 
-class DebtRankCascadeInteraction(BaseInteraction):
+class DebtRankCascadeInteraction(Interaction):
     """Synchronous spread of distress, `h_i = min(1, h_i + sum_j W_ji h_j)` over the distressed banks `j`.
 
     A bank whose distress becomes positive turns distressed, and a distressed bank turns inactive after one step, so
@@ -115,19 +127,18 @@ class DebtRankCascadeInteraction(BaseInteraction):
         [[0.0, 0.5], [0.0, 0.0]]
     """
 
-    banks: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        banks: Annotated[str, RoleSpec()],
         impact: Sequence[Sequence[float]] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.banks = banks
         self.impact = impact
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the cascade rule.
 
         Args:

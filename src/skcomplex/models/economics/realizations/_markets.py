@@ -10,13 +10,14 @@ import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, ClassVar, Self
+from typing import Annotated, Any, ClassVar, Self
 
 import numpy as np
 from matching.games import HospitalResident
 
-from ....core.base import BaseInteraction, BaseLaw, role
-from ....core.laws import RuleLaw, Symbols
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import RoleSpec
 
 type Preference = Callable[[Any, Any], float]
 
@@ -629,7 +630,7 @@ def _write(agent: Any, name: str | None, value: float) -> None:  # noqa: ANN401
         setattr(agent, name, value)
 
 
-class MarketInteraction(BaseInteraction):
+class MarketInteraction(Interaction):
     """Market between two agent groups, matched by a protocol and settled by transfers between the agents.
 
     Buyers state the highest price they pay in the state `bid` and the quantity they want in `demand`, and sellers the
@@ -688,13 +689,13 @@ class MarketInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume', 'unmatched')
-    buyers: str = role()
-    sellers: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        buyers: Annotated[str, RoleSpec()],
+        sellers: Annotated[str, RoleSpec()],
         protocol: Protocol = BILATERAL_SEARCH,
         phase: str | None = None,
         bid: str = 'bid',
@@ -704,9 +705,10 @@ class MarketInteraction(BaseInteraction):
         money: str | None = 'money',
         goods: str | None = 'goods',
         on_trade: Callable[[Trade, Any], None] | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.buyers = buyers
+        self.sellers = sellers
         self.protocol = protocol
         self.phase = phase
         self.bid = bid
@@ -723,7 +725,7 @@ class MarketInteraction(BaseInteraction):
         self.protocol.check()
         return self
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the clearing rule in the market's phase.
 
         Args:

@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, ClassVar
+from types import SimpleNamespace
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 from scipy import ndimage
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Integers = npt.NDArray[np.int64]
 
@@ -109,12 +112,21 @@ class VillageElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'culture'})
-    culture: float = state(default=0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    features: float = parameter(default=5.0, domain=NumericDomain.POSITIVE)
-    traits: float = parameter(default=10.0, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'culture'}),
+        *,
+        culture: Annotated[float, StateSpec(domain=NN)] = 0,
+        features: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        traits: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.culture = culture
+        self.features = features
+        self.traits = traits
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the cultural interaction rule.
 
         Args:
@@ -150,7 +162,7 @@ class VillageElement(Element):
             agent.culture += float((int(other[feature]) - int(own[feature])) * traits**feature)
 
 
-class CultureCensusInteraction(BaseInteraction):
+class CultureCensusInteraction(Interaction):
     """Census of the cultures of the villages, which reports the share of the largest cultural region.
 
     Args:
@@ -179,23 +191,23 @@ class CultureCensusInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('largest_region', 'cultures')
-    villages: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        villages: Annotated[str, RoleSpec()],
         width: int = 10,
         height: int = 10,
         phase: str | None = None,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.villages = villages
         self.width = width
         self.height = height
         self.phase = phase
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the census in its phase.
 
         Args:

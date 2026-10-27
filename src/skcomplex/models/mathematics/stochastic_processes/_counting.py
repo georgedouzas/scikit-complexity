@@ -3,24 +3,38 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
-from ....core.base import BaseLaw, NumericDomain, VisualSpec, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, RuleLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, JumpLaw, RuleLaw
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class PoissonCounterElement(Element):
     """Poisson counter element."""
 
-    count = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    rate = parameter(1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        count: Annotated[object, StateSpec(domain=NN)] = 0.0,
+        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.count = count
+        self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the poisson counter element."""
         return [JumpLaw(s.rate, {s.count: 1})]
 
@@ -48,12 +62,21 @@ class BernoulliTrialElement(Element):
         ('trials', 'BernoulliTrialElement', 4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'successes'})
-    outcome: float = state(default=0.0, domain=NumericDomain.BOOLEAN)
-    successes: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    p: float = parameter(0.5, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('traits', {'color_by': 'successes'}),
+        *,
+        outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        successes: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.outcome = outcome
+        self.successes = successes
+        self.p = p
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the trial rule.
 
         Args:

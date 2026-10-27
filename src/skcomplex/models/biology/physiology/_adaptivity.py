@@ -3,11 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
-from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, pulse_train, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train, where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -102,41 +109,57 @@ class AdaptiveResponderElement(Element):
         10.0
     """
 
-    e: float = state(default=0.0)
-    c: float = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    S: float = state(default=1.0)
-    response_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    restore_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    repair_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    prepare_cost: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    eta: float = parameter(default=0.5, domain=NumericDomain.NONNEGATIVE)
-    anticipation: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    c0: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    tau: float = parameter(default=50.0, domain=NumericDomain.POSITIVE)
-    k0: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
-    kappa: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    price: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    theta: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    repair: float = parameter(default=5.0, domain=NumericDomain.NONNEGATIVE)
-    upkeep: float = parameter(default=0.05, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        e: Annotated[float, StateSpec()] = 0.0,
+        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        S: Annotated[float, StateSpec()] = 1.0,
+        response_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        restore_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        repair_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        prepare_cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        anticipation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        c0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
+        k0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        price: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        repair: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        upkeep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         height: float = 1.0,
         width: float = 2.0,
         period: float = 10.0,
         start: float = 1.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.e = e
+        self.c = c
+        self.S = S
+        self.response_cost = response_cost
+        self.restore_cost = restore_cost
+        self.repair_cost = repair_cost
+        self.prepare_cost = prepare_cost
+        self.eta = eta
+        self.anticipation = anticipation
+        self.c0 = c0
+        self.tau = tau
+        self.k0 = k0
+        self.kappa = kappa
+        self.price = price
+        self.theta = theta
+        self.repair = repair
+        self.upkeep = upkeep
         self.height = height
         self.width = width
         self.period = period
         self.start = start
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the excursion, the capacity, the reserves, and the four costs.
 
         Args:

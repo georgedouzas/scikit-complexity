@@ -4,13 +4,18 @@
 # License: MIT
 
 import math
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseLaw, NumericDomain, ValidationError, parameter, state
-from ....core.components import Element
-from ....core.laws import NoiseLaw, RateLaw, Symbols, ramp
+from ....core.elements import Element
+from ....core.errors import ValidationError
+from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.laws.utils import ramp
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyamaSolver
@@ -88,19 +93,37 @@ class StochasticEnergyBalanceElement(Element):
         1.0
     """
 
-    T: float = state(default=290.0)
-    mu: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    lam: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    drift: float = parameter(default=0.0)
-    rho: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    b_ini: float = parameter(default=1.69e-5, domain=NumericDomain.NONNEGATIVE)
-    b_fin: float = parameter(default=1.69e-5, domain=NumericDomain.NONNEGATIVE)
-    a_ini: float = parameter(default=0.6927, domain=NumericDomain.NONNEGATIVE)
-    nu: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    c0: float = parameter(default=C0, domain=NumericDomain.POSITIVE)
-    c1: float = parameter(default=C1, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[float, StateSpec()] = 290.0,
+        mu: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        lam: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        drift: Annotated[float, ParameterSpec()] = 0.0,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
+        b_fin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
+        a_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6927,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C0,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.mu = mu
+        self.lam = lam
+        self.drift = drift
+        self.rho = rho
+        self.b_ini = b_ini
+        self.b_fin = b_fin
+        self.a_ini = a_ini
+        self.nu = nu
+        self.c0 = c0
+        self.c1 = c1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the energy balance with its noise, the drift of `mu`, and the logistic ramp of `b2` and `a2`.
 
         Args:
@@ -161,26 +184,29 @@ class RampedFoldElement(Element):
         0.004
     """
 
-    x: float = state(default=-1.3247)
-    a: float = parameter(default=-1.0)
-    b: float = parameter(default=1.0)
-    sigma: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-
     def __init__(
         self,
         label: str,
+        visual: VisualSpec | None = None,
         *,
+        x: Annotated[float, StateSpec()] = -1.3247,
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
         phi0: float = -1.0,
         phi1: float = 1.0,
         rate: float = 0.004,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.b = b
+        self.sigma = sigma
         self.phi0 = phi0
         self.phi1 = phi1
         self.rate = rate
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the fold with its ramped control and its noise.
 
         Args:

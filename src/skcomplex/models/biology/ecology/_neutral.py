@@ -3,12 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import JumpLaw, Symbols, where
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, JumpLaw
+from ....core.laws.utils import where
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
 
 
 class NeutralSpeciesElement(Element):
@@ -42,13 +48,25 @@ class NeutralSpeciesElement(Element):
         50
     """
 
-    n: float = state(default=10.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    b0: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    b1: float = parameter(default=0.9, domain=NumericDomain.NONNEGATIVE)
-    d0: float = parameter(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    d1: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        n: Annotated[float, StateSpec(domain=NN)] = 10.0,
+        b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        d0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.n = n
+        self.b0 = b0
+        self.b1 = b1
+        self.d0 = d0
+        self.d1 = d1
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the birth and death events.
 
         Args:

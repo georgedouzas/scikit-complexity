@@ -3,9 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, UpdateLaw, lag
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import lag
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -50,12 +58,25 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
 class IncomeElement(Element):
     """Income element."""
 
-    Y = state(default=110.0, lags=1, initial=(100.0,))
-    c = parameter(0.8)
-    v = parameter(1.5)
-    G = parameter(20.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Y: Annotated[object, StateSpec(lags=1, initial=(100.0,))] = 110.0,
+        Y_lag1: float = 100.0,
+        c: Annotated[object, ParameterSpec()] = 0.8,
+        v: Annotated[object, ParameterSpec()] = 1.5,
+        G: Annotated[object, ParameterSpec()] = 20.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Y = Y
+        self.Y_lag1 = Y_lag1
+        self.c = c
+        self.v = v
+        self.G = G
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the income element."""
         return [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)]
 
@@ -122,10 +143,18 @@ class EconomyElement(Element):
         1.0
     """
 
-    k: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        k: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.k = k
 
 
-class SolowGrowthInteraction(BaseInteraction):
+class SolowGrowthInteraction(Interaction):
     """Solow growth, `dk/dt = s * k**alpha - delta * k`.
 
     Args:
@@ -150,12 +179,22 @@ class SolowGrowthInteraction(BaseInteraction):
         0.3
     """
 
-    target: str = role()
-    s: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    alpha: float = parameter(default=0.3, domain=NumericDomain.POSITIVE)
-    delta: float = parameter(default=0.05, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.s = s
+        self.alpha = alpha
+        self.delta = delta
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate `s * k**alpha - delta * k`.
 
         Args:

@@ -4,20 +4,22 @@
 # License: MIT
 
 import math
-from typing import Any, ClassVar, cast
+from types import SimpleNamespace
+from typing import Annotated, Any, ClassVar, cast
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
-from ....core.components import Element
-from ....core.laws import MatchLaw, RuleLaw, Symbols, transfer
-from ....core.laws.utils import matches
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, MatchLaw, RuleLaw
+from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 from ..realizations._markets import OrderBook, Trade
 
 LOWEST_PRICE = 0.01
@@ -95,23 +97,43 @@ class StockTraderElement(Element):
         4
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)})
-    strategy: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    money: float = state(default=1000.0, domain=NumericDomain.REAL)
-    shares: float = state(default=10.0, domain=NumericDomain.REAL)
-    bid: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    ask: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    demand: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    supply: float = state(default=0.0, domain=NumericDomain.NONNEGATIVE)
-    wealth: float = state(default=0.0, domain=NumericDomain.REAL)
-    gain: float = state(default=0.0, domain=NumericDomain.REAL)
-    fundamental: float = parameter(default=100.0, domain=NumericDomain.POSITIVE)
-    reversion: float = parameter(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    extrapolation: float = parameter(default=1.0, domain=NumericDomain.NONNEGATIVE)
-    noise: float = parameter(default=0.02, domain=NumericDomain.NONNEGATIVE)
-    imitation: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strategy', 'color_range': (0.0, 1.0)}),
+        *,
+        strategy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        money: Annotated[float, StateSpec()] = 1000.0,
+        shares: Annotated[float, StateSpec()] = 10.0,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        wealth: Annotated[float, StateSpec()] = 0.0,
+        gain: Annotated[float, StateSpec()] = 0.0,
+        fundamental: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        reversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        extrapolation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        imitation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
+        self.money = money
+        self.shares = shares
+        self.bid = bid
+        self.ask = ask
+        self.demand = demand
+        self.supply = supply
+        self.wealth = wealth
+        self.gain = gain
+        self.fundamental = fundamental
+        self.reversion = reversion
+        self.extrapolation = extrapolation
+        self.noise = noise
+        self.imitation = imitation
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the quoting, accounting, and imitation rules in their phases.
 
         Args:
@@ -190,7 +212,7 @@ class StockTraderElement(Element):
             agent.strategy = other.strategy
 
 
-class BookInteraction(BaseInteraction):
+class BookInteraction(Interaction):
     """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
 
     The matching law pairs buy and sell orders with the order book of `skcomplex.models.economics.realizations`, and
@@ -218,19 +240,19 @@ class BookInteraction(BaseInteraction):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume')
-    traders: str = role()
 
     def __init__(
         self,
         label: str,
         *,
+        traders: Annotated[str, RoleSpec()],
         opening: float = 100.0,
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.traders = traders
         self.opening = opening
 
-    def laws(self, s: Symbols) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
         """Return the matching of orders and the settlement rule.
 
         Args:

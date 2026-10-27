@@ -4,19 +4,21 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
-from ....core.specs import ObservableSpec
+from ....core.elements import Element, GroupElement
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 type Array = npt.NDArray[np.float64]
 
@@ -100,9 +102,17 @@ class PartElement(Element):
         5
     """
 
-    cost: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.cost = cost
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since redesigns change several components at once.
 
         Args:
@@ -116,7 +126,7 @@ class PartElement(Element):
         return []
 
 
-class RedesignInteraction(BaseInteraction):
+class RedesignInteraction(Interaction):
     """Attempt to cut the cost of a technology by redesigning a random component and the components that depend on it.
 
     The redesigned components get new costs drawn uniformly from `[0, 1]`, and the redesign is kept only if the total
@@ -141,19 +151,18 @@ class RedesignInteraction(BaseInteraction):
         [[1.0]]
     """
 
-    components: str = role()
-
     def __init__(
         self,
         label: str,
         *,
+        components: Annotated[str, RoleSpec()],
         dependencies: Sequence[Sequence[float]] = (),
-        **values: Any,  # noqa: ANN401
     ) -> None:
-        super().__init__(label, **values)
+        super().__init__(label)
+        self.components = components
         self.dependencies = dependencies
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the redesign rule.
 
         Args:
@@ -208,11 +217,21 @@ class TechnologyElement(Element):
         3
     """
 
-    arity: float = state(default=2, domain=NumericDomain.NONNEGATIVE_INTEGER)
-    table: float = state(default=NAND[1], domain=NumericDomain.NONNEGATIVE_INTEGER)
-    cost: float = state(default=1, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        arity: Annotated[float, StateSpec(domain=NN)] = 2,
+        table: Annotated[float, StateSpec(domain=NN)] = NAND[1],
+        cost: Annotated[float, StateSpec(domain=NN)] = 1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.arity = arity
+        self.table = table
+        self.cost = cost
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since inventions combine several technologies at once.
 
         Args:
@@ -226,7 +245,7 @@ class TechnologyElement(Element):
         return []
 
 
-class InventionInteraction(BaseInteraction):
+class InventionInteraction(Interaction):
     """Random wiring of technologies of the pool into a circuit, kept if it computes a wanted function more cheaply.
 
     A circuit has between one and `max_inputs` inputs and wires between two and `max_components` technologies in a
@@ -253,9 +272,18 @@ class InventionInteraction(BaseInteraction):
         6
     """
 
-    technologies: str = role()
-    max_components: float = parameter(default=12, domain=NumericDomain.POSITIVE)
-    max_inputs: float = parameter(default=3, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        *,
+        technologies: Annotated[str, RoleSpec()],
+        max_components: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12,
+        max_inputs: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+    ) -> None:
+        super().__init__(label)
+        self.technologies = technologies
+        self.max_components = max_components
+        self.max_inputs = max_inputs
 
     def _wire(self, pool: list[AgentView], model: ModelView) -> tuple[int, int, int]:
         """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
@@ -270,7 +298,7 @@ class InventionInteraction(BaseInteraction):
             cost += int(part.cost)
         return n_inputs, signals[-1], cost
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the invention rule.
 
         Args:

@@ -3,13 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, state
-from ....core.components import Element
-from ....core.laws import RuleLaw, Symbols
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN
+
+from ....core.elements import Element, GroupElement
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.specs import StateSpec, VisualSpec
 from ....core.system import System
-from ....engine.backends import AgentView, ModelView
 from ....engine.runtime import register_model
-from ...core.elements import GroupElement
+from ....engine.solvers import AgentView, ModelView
 
 
 class TraderElement(Element):
@@ -29,9 +33,17 @@ class TraderElement(Element):
         ('traders', 'TraderElement', 100)
     """
 
-    wealth: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        wealth: Annotated[float, StateSpec(domain=NN)] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.wealth = wealth
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the exchange rule.
 
         Args:

@@ -3,18 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import sin
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.base import Expression, NumericDomain, parameter, state
-from ....core.components import Element
-from ....core.laws import RateLaw, Symbols, derivative
-from ....core.specs import ObservableSpec
+from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import derivative
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
-from ...core.base import BaseLaw
 
 
-def _piezo_voltage(s: Symbols) -> Expression:
+def _piezo_voltage(s: SimpleNamespace) -> Expression:
     """Return the voltage of the piezoelectric bar, `n d k2 (y2 - y1) / C`."""
     harvester = s.harvester
     return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
@@ -23,20 +26,43 @@ def _piezo_voltage(s: Symbols) -> Expression:
 class PiezoHarvesterElement(Element):
     """Piezo harvester element."""
 
-    y1 = state(default=0.0, order=2)
-    y2 = state(default=0.0, order=2)
-    m1 = parameter(default=40.0, domain=NumericDomain.POSITIVE)
-    m2 = parameter(default=400.0, domain=NumericDomain.POSITIVE)
-    k1 = parameter(default=2.0e5, domain=NumericDomain.NONNEGATIVE)
-    k2 = parameter(default=2.0e4, domain=NumericDomain.NONNEGATIVE)
-    b = parameter(default=1500.0, domain=NumericDomain.NONNEGATIVE)
-    A = parameter(default=0.01, domain=NumericDomain.NONNEGATIVE)
-    omega = parameter(default=9.42, domain=NumericDomain.NONNEGATIVE)
-    n = parameter(default=10.0, domain=NumericDomain.POSITIVE)
-    d = parameter(default=4.0e-10, domain=NumericDomain.POSITIVE)
-    C = parameter(default=1.0e-8, domain=NumericDomain.POSITIVE)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y1: Annotated[object, StateSpec(order=2)] = 0.0,
+        y1_d1: float = 0.0,
+        y2: Annotated[object, StateSpec(order=2)] = 0.0,
+        y2_d1: float = 0.0,
+        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
+        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 400.0,
+        k1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
+        k2: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20000.0,
+        b: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
+        A: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.42,
+        n: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        d: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4e-10,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-08,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y1 = y1
+        self.y1_d1 = y1_d1
+        self.y2 = y2
+        self.y2_d1 = y2_d1
+        self.m1 = m1
+        self.m2 = m2
+        self.k1 = k1
+        self.k2 = k2
+        self.b = b
+        self.A = A
+        self.omega = omega
+        self.n = n
+        self.d = d
+        self.C = C
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the piezo harvester element."""
         return [
             RateLaw(

@@ -3,20 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Annotated, Any
 
 import numpy as np
-from sage.all__sagemath_symbolics import tanh
+from sage.all__sagemath_symbolics import Expression, oo, tanh
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.declarations import parameter
-
-from ....core.base import BaseLaw, Expression, NumericDomain, state
-from ....core.components import Element
-from ....core.elements import FieldElement
-from ....core.laws import RateLaw, Symbols, where
-from ....core.laws.utils import gradient, laplacian
+from ....core.elements import Element, FieldElement
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import gradient, laplacian, where
 from ....core.spaces import LatticeSpace
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -39,7 +37,7 @@ def _daisyworld_growth(s: Any, albedo: Expression) -> Expression:  # noqa: ANN40
     return where(growth > 0, growth, 0)
 
 
-def _daisyworld_laws(s: Symbols) -> list[BaseLaw]:
+def _daisyworld_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the growth and death of white and black daisies on the bare ground."""
     bare = s.p - s.white - s.black
     return [
@@ -53,7 +51,7 @@ def _daisyworld_temperature(s: Any) -> Expression:  # noqa: ANN401
     return _daisyworld_emission(s.planet) ** (1 / 4)
 
 
-def _budyko_sellers_laws(s: Symbols) -> list[BaseLaw]:
+def _budyko_sellers_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the absorbed insolation, the linearized outgoing radiation, and the meridional diffusion of heat."""
     legendre = (3 * s.x**2 - 1) / 2
     insolation = s.Q * (1 + s.s2 * legendre)
@@ -66,16 +64,31 @@ def _budyko_sellers_laws(s: Symbols) -> list[BaseLaw]:
 class IceAlbedoClimateElement(Element):
     """Ice albedo climate element."""
 
-    T = state(default=290.0, domain=NumericDomain.POSITIVE)
-    s = parameter(1.0)
-    epsilon = parameter(0.65)
-    sigma = parameter(1.6e-10)
-    albedo = parameter(0.5)
-    contrast = parameter(0.2)
-    T_ice = parameter(263.0)
-    width = parameter(4.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 290.0,
+        s: Annotated[object, ParameterSpec()] = 1.0,
+        epsilon: Annotated[object, ParameterSpec()] = 0.65,
+        sigma: Annotated[object, ParameterSpec()] = 1.6e-10,
+        albedo: Annotated[object, ParameterSpec()] = 0.5,
+        contrast: Annotated[object, ParameterSpec()] = 0.2,
+        T_ice: Annotated[object, ParameterSpec()] = 263.0,
+        width: Annotated[object, ParameterSpec()] = 4.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.s = s
+        self.epsilon = epsilon
+        self.sigma = sigma
+        self.albedo = albedo
+        self.contrast = contrast
+        self.T_ice = T_ice
+        self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the ice albedo climate element."""
         return [
             RateLaw(
@@ -88,21 +101,41 @@ class IceAlbedoClimateElement(Element):
 class LatitudeBandElement(Element):
     """Latitude band element."""
 
-    T = state(default=15.0, domain=NumericDomain.REAL)
-    x = parameter(0.5)
-    Q = parameter(334.4)
-    s2 = parameter(-0.482)
-    A = parameter(203.3)
-    B = parameter(2.09)
-    D = parameter(0.649)
-    C = parameter(10.0)
-    albedo_ice = parameter(0.62)
-    albedo_free = parameter(0.319)
-    albedo_slope = parameter(0.202)
-    T_ice = parameter(-10.0)
-    width = parameter(1.0)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[object, StateSpec()] = 15.0,
+        x: Annotated[object, ParameterSpec()] = 0.5,
+        Q: Annotated[object, ParameterSpec()] = 334.4,
+        s2: Annotated[object, ParameterSpec()] = -0.482,
+        A: Annotated[object, ParameterSpec()] = 203.3,
+        B: Annotated[object, ParameterSpec()] = 2.09,
+        D: Annotated[object, ParameterSpec()] = 0.649,
+        C: Annotated[object, ParameterSpec()] = 10.0,
+        albedo_ice: Annotated[object, ParameterSpec()] = 0.62,
+        albedo_free: Annotated[object, ParameterSpec()] = 0.319,
+        albedo_slope: Annotated[object, ParameterSpec()] = 0.202,
+        T_ice: Annotated[object, ParameterSpec()] = -10.0,
+        width: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.x = x
+        self.Q = Q
+        self.s2 = s2
+        self.A = A
+        self.B = B
+        self.D = D
+        self.C = C
+        self.albedo_ice = albedo_ice
+        self.albedo_free = albedo_free
+        self.albedo_slope = albedo_slope
+        self.T_ice = T_ice
+        self.width = width
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the latitude band element."""
         return _budyko_sellers_laws(s)
 
@@ -110,21 +143,41 @@ class LatitudeBandElement(Element):
 class DaisyworldElement(Element):
     """Daisyworld element."""
 
-    white = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    black = state(default=0.2, domain=NumericDomain.NONNEGATIVE)
-    L = parameter(1.0)
-    S = parameter(917.0)
-    sigma = parameter(5.67e-8)
-    q = parameter(2.06e9)
-    p = parameter(1.0)
-    gamma = parameter(0.3)
-    k = parameter(0.003265)
-    optimum = parameter(295.5)
-    albedo_ground = parameter(0.5)
-    albedo_white = parameter(0.75)
-    albedo_black = parameter(0.25)
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        white: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        black: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        L: Annotated[object, ParameterSpec()] = 1.0,
+        S: Annotated[object, ParameterSpec()] = 917.0,
+        sigma: Annotated[object, ParameterSpec()] = 5.67e-08,
+        q: Annotated[object, ParameterSpec()] = 2060000000.0,
+        p: Annotated[object, ParameterSpec()] = 1.0,
+        gamma: Annotated[object, ParameterSpec()] = 0.3,
+        k: Annotated[object, ParameterSpec()] = 0.003265,
+        optimum: Annotated[object, ParameterSpec()] = 295.5,
+        albedo_ground: Annotated[object, ParameterSpec()] = 0.5,
+        albedo_white: Annotated[object, ParameterSpec()] = 0.75,
+        albedo_black: Annotated[object, ParameterSpec()] = 0.25,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.white = white
+        self.black = black
+        self.L = L
+        self.S = S
+        self.sigma = sigma
+        self.q = q
+        self.p = p
+        self.gamma = gamma
+        self.k = k
+        self.optimum = optimum
+        self.albedo_ground = albedo_ground
+        self.albedo_white = albedo_white
+        self.albedo_black = albedo_black
 
-    def laws(self, s: Symbols) -> list[BaseLaw]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the daisyworld element."""
         return _daisyworld_laws(s)
 
@@ -258,8 +311,8 @@ def budyko_sellers(
     x = (np.arange(n_bands) + 0.5) / n_bands
     bands = FieldElement(
         'bands',
-        LatitudeBandElement,
-        LatticeSpace(n_bands, spacing=1 / n_bands),
+        element=LatitudeBandElement,
+        space=LatticeSpace(n_bands, spacing=1 / n_bands),
         boundary={'T': 'zero-flux'},
         values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
     )
