@@ -59,8 +59,6 @@ class QuantumSolver(BaseSolver[QuantumProblem]):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={GeneratorLaw, DissipatorLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
@@ -215,20 +213,31 @@ class UnitarySolver(QuantumSolver):
             The largest number of internal steps between two frames.
 
     Examples:
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.engine.solvers import UnitarySolver
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.core.laws import GeneratorLaw
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
-        >>> from operator import attrgetter
-        >>> class RabiElement(QubitElement):
-        ...     def laws(self, s):
-        ...         return [GeneratorLaw(s.x / 2)]
-        >>> system = System(elements=[RabiElement('q')])
-        >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z).run(until=np.pi)
-        >>> float(round(simulation.trajectory_.values('z')[-1], 6))
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import UnitarySolver
+        >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
+        >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
+        >>> z = [ObservableSpec('z', element='q', variable='z')]
+        >>> system = System(elements=[QubitElement('q')])
+        >>> simulation = Simulation(system, solver=UnitarySolver(), dt=np.pi, observables=z)
+        >>> float(round(simulation.run(until=np.pi).trajectory_.values('q.z')[-1], 6))
         -1.0
     """
 
@@ -260,20 +269,32 @@ class LindbladSolver(QuantumSolver):
             The largest number of internal steps between two frames.
 
     Examples:
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.engine.solvers import LindbladSolver
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.core.laws import DissipatorLaw
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
-        >>> from operator import attrgetter
-        >>> class DecayingElement(QubitElement):
-        ...     def laws(self, s):
-        ...         return [DissipatorLaw(s.minus, 0.5)]
-        >>> system = System(elements=[DecayingElement('q')])
-        >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z).run(until=2.0)
-        >>> bool(abs((1 + simulation.trajectory_.values('z')[-1]) / 2 - np.exp(-1.0)) < 1e-6)
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import LindbladSolver
+        >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
+        >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
+        >>> z = [ObservableSpec('z', element='q', variable='z')]
+        >>> system = System(elements=[QubitElement('q')])
+        >>> simulation = Simulation(system, solver=LindbladSolver(), dt=1.0, observables=z)
+        >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
+        >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
 
@@ -308,20 +329,32 @@ class QuantumTrajectoriesSolver(QuantumSolver):
             The initial state is a mixed density matrix.
 
     Examples:
-        >>> from skcomplex.engine.solvers import QuantumTrajectoriesSolver
-        >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.core.laws import DissipatorLaw
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
-        >>> from operator import attrgetter
-        >>> class DecayingElement(QubitElement):
-        ...     def laws(self, s):
-        ...         return [DissipatorLaw(s.minus, 1.0)]
-        >>> system = System(elements=[DecayingElement('q')])
-        >>> z = [expectation('z', attrgetter('q.z'))]
-        >>> simulation = Simulation(system, solver=QuantumTrajectoriesSolver(), dt=1.0, random_state=0, observables=z)
-        >>> simulation = simulation.run(until=20.0)
-        >>> float(simulation.trajectory_.values('z')[-1])
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import QuantumTrajectoriesSolver
+        >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
+        >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 1.0)]
+        >>> z = [ObservableSpec('z', element='q', variable='z')]
+        >>> system = System(elements=[QubitElement('q')])
+        >>> solver = QuantumTrajectoriesSolver()
+        >>> simulation = Simulation(system, solver=solver, dt=1.0, random_state=0, observables=z).run(until=20.0)
+        >>> float(simulation.trajectory_.values('q.z')[-1])
         -1.0
     """
 

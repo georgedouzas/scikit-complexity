@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
 from ...core.types import Vector
-from ..compile._quantum_views import view_of
+from ..compile._quantum_views import QuantumView, member_of
 from ..compile.passes._quantum import QuantumProblem, QuantumTerm, expect, state_of
 from ..problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
@@ -22,10 +22,15 @@ from ._images import SPACE_TIME, ImageVisual
 from ._utils import log_scalars
 
 
+def _view_of(element: CompiledElement) -> QuantumView:
+    """Return the quantum view of a compiled element, of its first member for a group."""
+    return QuantumView(member_of(element.element))
+
+
 def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
     """Return the lattice shape of the local values of a quantum group or particle, or `None` for scalar values."""
     space = getattr(element.element, 'space', None)
-    if element.members is None and view_of(element.element).display is not None:
+    if element.members is None and _view_of(element).display is not None:
         return None
     return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
@@ -34,14 +39,17 @@ def _profile_name(element: CompiledElement) -> str:
     """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
     if element.members is None:
         return 'probability'
-    return str(view_of(element.element).display)
+    return str(_view_of(element).display)
 
 
 def _local_matrices(problem: QuantumProblem, path: str, name: str) -> list[sp.csr_array]:
     """Return the matrices on the whole space of one local operator of every member of an element or group."""
     cached = problem.cache.get(f'{path}:{name}')
     if cached is None:
-        cached = [problem.lowering.terms(getattr(member, name), path)[0].matrix for member in problem.members[path]]
+        subsystems = [
+            item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
+        ]
+        cached = [problem.lowering.matrix(((item.key, item.operators[name]),), path) for item in subsystems]
         problem.cache[f'{path}:{name}'] = cached
     return cached
 
@@ -74,7 +82,7 @@ def local_values(problem: QuantumProblem, path: str, x: Vector) -> dict[str, Any
             A mapping from the name of a local operator, or `'probability'`, to an array or a number.
     """
     element = next(item for item in problem.elements if item.path == path)
-    display = view_of(element.element).display
+    display = _view_of(element).display
     if element.members is None and display is None:
         index = problem.subsystems.index(path)
         shaped = _probabilities(problem, x).reshape(problem.dimensions)
@@ -84,7 +92,7 @@ def local_values(problem: QuantumProblem, path: str, x: Vector) -> dict[str, Any
         matrices = _local_matrices(problem, path, display)
         values = [expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
         return {display: np.real(np.asarray(values))}
-    names = [name for name, local in view_of(element.element).local_operators().items() if local.hermitian]
+    names = [name for name, local in _view_of(element).local_operators().items() if local.hermitian]
     return {
         name: float(np.real(expect(problem, [QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
         for name in names

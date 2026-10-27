@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
+from sage.all__sagemath_symbolics import Expression
 
 from ..core.errors import AnalysisError, ParameterError
 from ..core.system import System
@@ -153,10 +154,29 @@ def spectrum(
             A parameter name is not part of the system.
 
     Examples:
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.system import System
+        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(
+        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
         >>> from skcomplex.analysis import spectrum
-        >>> from skcomplex.models import create
-        >>> spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist()
-        [-2.0, -1.0]
+        >>> spectrum(System(elements=[QubitElement('q')]), k=2).energies.round(6).tolist()
+        [-1.0, 1.0]
     """
     problem = _quantum_problem(system)
     p = _parameters_of(problem, parameters)
@@ -184,11 +204,30 @@ def ground_state(
             The ground state energy and the ground state vector.
 
     Examples:
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.system import System
+        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(
+        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
         >>> from skcomplex.analysis import ground_state
-        >>> from skcomplex.models import create
-        >>> energy, state = ground_state(create('quantum_heisenberg', n_sites=4))
-        >>> round(energy, 6), state.shape
-        (-2.0, (16,))
+        >>> energy, state = ground_state(System(elements=[QubitElement('q')]))
+        >>> round(energy, 6), np.abs(state).round(6).tolist()
+        (-1.0, [0.0, 1.0])
     """
     found = spectrum(system, 1, parameters=parameters)
     return float(found.energies[0]), found.states[:, 0]
@@ -210,9 +249,29 @@ def purity(trajectory: Trajectory) -> npt.NDArray[np.float64]:
             The trajectory is not quantum.
 
     Examples:
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
+        >>> from skcomplex.core.system import System
+        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(
+        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> from skcomplex.analysis import purity
-        >>> from skcomplex.models import run
-        >>> trajectory = run('quantum_heisenberg', n_sites=4, gamma=0.5, settings={'until': 1.0}).trajectory_
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> trajectory = Simulation(System(elements=[QubitElement('q')]), dt=1.0).run(until=1.0).trajectory_
         >>> bool(purity(trajectory)[-1] < 1)
         True
     """
@@ -241,14 +300,31 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
             The trajectory is not quantum, or a subsystem is not part of it.
 
     Examples:
-        >>> from skcomplex.core.elements import GroupElement
+        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.analysis import entanglement_entropy
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
+        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(
+        ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.hilbert = hilbert
+        ...
+        ...     def _get_laws(self, s):
+        ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
+        >>> from skcomplex.analysis import entanglement_entropy
+        >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.models.physics.realizations.quantum import SpinElement
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
+        >>> system = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
         >>> trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
         >>> bool(np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2)))
         True
@@ -274,8 +350,8 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
     return np.asarray(values, dtype=float)
 
 
-def hamiltonian_of(system: System | BaseProblem) -> Any:  # noqa: ANN401
-    """Return the Hamiltonian of a quantum system as one operator, printed in operator notation.
+def hamiltonian_of(system: System | BaseProblem) -> Expression:
+    """Return the Hamiltonian of a quantum system, the sum of the operators of its generator laws.
 
     Args:
         system:
@@ -283,24 +359,41 @@ def hamiltonian_of(system: System | BaseProblem) -> Any:  # noqa: ANN401
 
     Returns:
         hamiltonian:
-            The sum of the Hamiltonian laws of the system.
+            A Sage expression of local operators, whose subsystems are the symbols of the states of the elements,
+            named `<state>_<path>`, and whose parameters are named `<parameter>_<path>`.
 
     Raises:
         AnalysisError:
             The system is not quantum.
 
     Examples:
-        >>> from skcomplex.core.declarations import parameter
-        >>> from skcomplex.analysis import hamiltonian_of
-        >>> from skcomplex.core.laws import GeneratorLaw
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import CC, SR
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
+        >>> from skcomplex.core.laws.utils import local_operator
+        >>> from skcomplex.core.specs import HilbertSpec, ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations.quantum import QubitElement
-        >>> class DrivenElement(QubitElement):
-        ...     omega = parameter(1.0)
+        >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
+        >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
+        >>> class QubitElement(Element):
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         psi: Annotated[object, StateSpec(domain=CC**2)] = 'up',
+        ...         omega: Annotated[float, ParameterSpec()] = 1.0,
+        ...         hilbert=QUBIT,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.psi = psi
+        ...         self.omega = omega
+        ...         self.hilbert = hilbert
         ...
-        ...     def laws(self, s):
-        ...         return [GeneratorLaw(s.omega / 2 * s.z)]
-        >>> hamiltonian_of(System(elements=[DrivenElement('q')])).text
-        '1/2*omega_q*q.z'
+        ...     def _get_laws(self, s):
+        ...         return [GeneratorLaw(s.omega / 2 * local_operator(s.psi, SR.symbol('z')))]
+        >>> from skcomplex.analysis import hamiltonian_of
+        >>> hamiltonian_of(System(elements=[QubitElement('q')]))
+        1/2*omega_q*local_operator(psi_q, z)
     """
     return _quantum_problem(system).hamiltonian_operator
