@@ -45,7 +45,7 @@ def _table(space: Sites, reach: Reach) -> Indices:
 
 def _count(reach: Reach) -> int:
     """Return the number of cells a neighbourhood of offsets or a memory set reads."""
-    return len(reach.offsets if isinstance(reach, LatticeNeighborhood) else reach.elements)
+    return len(reach.check().prepare().offsets_ if isinstance(reach, LatticeNeighborhood) else reach.elements)
 
 
 def _size(space: Sites) -> int:
@@ -63,8 +63,9 @@ def _with_center(neighborhood: Reach) -> Reach:
     """Return a neighbourhood with the site itself first, as outer totalistic rules read it."""
     if isinstance(neighborhood, MemoryNeighborhood):
         return MemoryNeighborhood((IDENTITY, *neighborhood.elements))
-    zero = (0,) * len(neighborhood.offsets[0])
-    return LatticeNeighborhood((zero, *neighborhood.offsets))
+    offsets = neighborhood.check().prepare().offsets_
+    zero = (0,) * len(offsets[0])
+    return LatticeNeighborhood((zero, *offsets))
 
 
 def _evaluate(rule: object, patterns: Codes) -> npt.NDArray[Any]:
@@ -601,8 +602,8 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
         error_msg = 'Composed automata share their space and their number of states.'
         raise AnalysisError(error_msg)
     inner, outer = first.reads, second.reads
-    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.offsets
-    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.offsets
+    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.check().prepare().offsets_
+    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.check().prepare().offsets_
     composite: list[Any] = []
     columns = []
     for base in outer_items:
@@ -1027,12 +1028,13 @@ class LinearAutomaton:
             error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
             raise AnalysisError(error_msg)
         field = _field_of(self.field)
-        n_dim = len(self.neighborhood.offsets[0])
+        offsets = self.neighborhood.check().prepare().offsets_
+        n_dim = len(offsets[0])
         ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(n_dim)])
         variables = ring.gens()
         terms = (
             field(QQ(coefficient)) * np.prod([variable**step for variable, step in zip(variables, offset, strict=True)])
-            for offset, coefficient in zip(self.neighborhood.offsets, self.coefficients, strict=True)
+            for offset, coefficient in zip(offsets, self.coefficients, strict=True)
         )
         return sum(terms, ring.zero())
 

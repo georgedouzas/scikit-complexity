@@ -160,9 +160,8 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
     values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
-    return System(
-        elements=[FieldElement('cells', BrusselatorElement, space, values=values, discretization=discretization)],
-    )
+    cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
+    return System(elements=[cells])
 
 
 def test_dispersion_relation_finds_the_turing_band():

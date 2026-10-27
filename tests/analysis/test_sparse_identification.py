@@ -7,7 +7,7 @@ from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver, resolve_solver
+from skcomplex.engine.solvers import DEFAULT_SOLVERS, ScipyODESolver
 from skcomplex.models import create
 
 LORENZ_TERMS = {
@@ -46,7 +46,7 @@ def test_sindy_surrogate_surrogate_validates_with_ode_solver():
     report = validate(model.system_)
     assert not report.errors
     assert isinstance(model.system_.time, ContinuousTime)
-    assert isinstance(resolve_solver(compile_system(model.system_), 'auto'), ScipyODESolver)
+    assert DEFAULT_SOLVERS[compile_system(model.system_).form] is ScipyODESolver
 
 
 def test_sindy_surrogate_surrogate_follows_trajectory():

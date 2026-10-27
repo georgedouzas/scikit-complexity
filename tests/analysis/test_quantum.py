@@ -83,6 +83,8 @@ def test_purity_of_pure_and_dephased_runs():
 def test_hamiltonian_of_prints_operators_and_equations_of_refuses():
     """Test that a quantum system prints its Hamiltonian and has no state equations."""
     system = create('quantum_heisenberg', n_sites=2, boundary='open')
-    assert hamiltonian_of(compile_system(system)).text.startswith('J_exchange*chain[0].x*chain[1].x')
+    hamiltonian = hamiltonian_of(compile_system(system))
+    assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
+    assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)
     with pytest.raises(AnalysisError, match='hamiltonian_of'):
         equations_of(system)
