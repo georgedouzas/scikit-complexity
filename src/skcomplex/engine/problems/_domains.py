@@ -36,8 +36,15 @@ def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
     return np.where(inside, angles, np.pi - np.mod(np.pi - angles, 2 * np.pi))
 
 
+def _is_number(item: object) -> bool:
+    """Check whether an element of a finite set is a number, which a state stores as it is."""
+    return isinstance(item, int | float) or getattr(item, 'is_numeric', lambda: False)()
+
+
 def labels_of(domain: object) -> tuple[object, ...] | None:
     """Return the labels of a finite domain stored as indices, or `None` for a numeric or a boolean domain.
+
+    A finite set of numbers, such as the spins `FiniteEnumeratedSet([-1, 1])`, stores its values as they are.
 
     Args:
         domain:
@@ -54,6 +61,8 @@ def labels_of(domain: object) -> tuple[object, ...] | None:
         ('S', 'I', 'R')
     """
     if not isinstance(domain, FiniteEnumeratedSet) or frozenset(domain) in BOOLEAN_LABELS:
+        return None
+    if all(_is_number(item) for item in domain):
         return None
     return tuple(domain)
 
@@ -83,7 +92,9 @@ def domain_kind(domain: object, period: object = None) -> DomainKind:
     if domain is CC:
         return DomainKind.COMPLEX
     if isinstance(domain, FiniteEnumeratedSet):
-        return DomainKind.CATEGORICAL if labels_of(domain) is not None else DomainKind.BOOLEAN
+        if labels_of(domain) is not None:
+            return DomainKind.CATEGORICAL
+        return DomainKind.BOOLEAN if frozenset(domain) in BOOLEAN_LABELS else DomainKind.INTEGER
     if domain is ZZ or domain is NN:
         return DomainKind.INTEGER
     return DomainKind.REAL
