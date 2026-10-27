@@ -293,6 +293,10 @@ class CayleySpace(BaseSpace):
             self.positions_[sites] = length * np.column_stack([np.cos(angles), np.sin(angles)])
         return self
 
+    def _get_lacks(self) -> frozenset[str]:
+        """Return the options lattices offer that a Cayley graph does not: image visuals."""
+        return frozenset({'image'})
+
     def _default_neighborhood(self) -> MemoryNeighborhood:
         """Return the memory set of the generators and their inverses, without the site itself."""
         return MemoryNeighborhood(tuple(word for name in self.generators_ for word in (name, f'{name}^-1')))
