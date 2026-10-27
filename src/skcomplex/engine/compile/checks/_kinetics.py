@@ -12,6 +12,7 @@ from ....core.laws import EncounterLaw, ProliferationLaw
 from .._census import Census
 from .._compilation import Compilation
 from .._issues import Issue
+from .._kinetic_encounters import kinetic_table
 
 PROBABILITY_TOLERANCE = 1e-9
 LISTED_ENCOUNTERS = 3
@@ -25,11 +26,11 @@ def _probability_sum(total: object) -> float | None:
 
 def _unnormalized(law: EncounterLaw | ProliferationLaw) -> list[tuple[int, int, float]]:
     """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
-    table = law.transition if isinstance(law, EncounterLaw) else law.outcomes
-    if table is None:
+    value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
+    if value is None:
         return []
-    sums = table.sum(axis=2)
-    rates = np.broadcast_to(law.rate, sums.shape)
+    sums = kinetic_table(value).sum(axis=2)
+    rates = np.broadcast_to(kinetic_table(law.rate), sums.shape)
     found = []
     for (candidate, field_activity), total in np.ndenumerate(sums):
         rate = rates[candidate, field_activity]

@@ -52,7 +52,7 @@ class KineticSolver(Solver):
 
     Examples:
         >>> from skcomplex.engine.solvers import KineticSolver
-        >>> from skcomplex.core.base import 
+        >>> from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
         >>> KineticSolver(n=1000).supports.laws == {EncounterLaw, ProliferationLaw, DestructionLaw}
         True
     """
@@ -61,8 +61,6 @@ class KineticSolver(Solver):
         time={ContinuousTime},
         space={LatticeSpace},
         laws={EncounterLaw, ProliferationLaw, DestructionLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 

@@ -19,6 +19,36 @@ KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
 
 
+def _effect(law: KineticLaw) -> str:
+    """Return what an encounter law does to particles, `'transition'`, `'proliferation'`, or `'destruction'`."""
+    if isinstance(law, EncounterLaw):
+        return 'transition'
+    return 'proliferation' if isinstance(law, ProliferationLaw) else 'destruction'
+
+
+def kinetic_table(value: object) -> npt.NDArray[Any]:
+    """Return a rate or outcome table of an encounter law as an array of floats, or of Sage expressions.
+
+    Args:
+        value:
+            The table, a number, a Sage expression, or a nested sequence of them.
+
+    Returns:
+        table:
+            A float array when every entry is a number, otherwise an object array of Sage expressions.
+
+    Examples:
+        >>> from skcomplex.engine.compile._kinetic_encounters import kinetic_table
+        >>> kinetic_table([[0.5, 0.5]]).dtype
+        dtype('float64')
+    """
+    array = np.asarray(value, dtype=object)
+    try:
+        return np.asarray(array, dtype=float)
+    except TypeError:
+        return np.asarray(np.vectorize(SR, otypes=[object])(array), dtype=object)
+
+
 def _nonzero(table: npt.NDArray[Any]) -> tuple[Indices, ...]:
     """Return the indices of the entries of a table that are not zero, numbers or Sage expressions."""
     if table.dtype != object:
@@ -64,8 +94,8 @@ def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> 
     """Return the outcome table of a law, the identity on the candidate's activity for a proliferation without one."""
     if isinstance(law, DestructionLaw):
         return None
-    table = law.transition if isinstance(law, EncounterLaw) else law.outcomes
-    if table is None:
+    value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
+    if value is None:
         if sizes[0] != sizes[2]:
             error_msg = (
                 f'A proliferation of {owner} has no outcome table, so the new particles keep the candidate activity, '
@@ -75,6 +105,7 @@ def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> 
         identity = np.zeros(sizes)
         identity[np.arange(sizes[0]), :, np.arange(sizes[0])] = 1.0
         return identity
+    table = kinetic_table(value)
     if table.shape != sizes:
         error_msg = (
             f'An encounter law of {owner} has an outcome table of shape {table.shape}, but its candidate, field, and '
@@ -84,14 +115,16 @@ def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> 
     return table
 
 
-def _check_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> None:
-    """Raise an error when the rate table of a law does not have one row per candidate and one column per field."""
-    if law.rate.ndim and law.rate.shape != sizes[:2]:
+def _checked_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any]:
+    """Return the rate table of a law, after checking that it has one row per candidate and one column per field."""
+    rate = kinetic_table(law.rate)
+    if rate.ndim and rate.shape != sizes[:2]:
         error_msg = (
-            f'An encounter law of {owner} has a rate of shape {law.rate.shape}, but its candidate and field groups '
+            f'An encounter law of {owner} has a rate of shape {rate.shape}, but its candidate and field groups '
             f'need the shape {sizes[:2]}.'
         )
         raise ValidationError(error_msg)
+    return rate
 
 
 def compile_encounter(
@@ -133,19 +166,19 @@ def compile_encounter(
     test_symbol = getattr(law, 'test', None)
     test = candidate if test_symbol is None else _group_indices(test_symbol, references, owner)
     sizes = (candidate.size, field_indices.size, test.size)
-    _check_rate(law, sizes, owner)
+    rates = _checked_rate(law, sizes, owner)
     table = _outcome_table(law, sizes, owner)
     grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-    rate = TableValues(law.rate, grid, _parameter_indices(law.rate, references, owner), time)
+    rate = TableValues(rates, grid, _parameter_indices(rates, references, owner), time)
     if table is None:
         empty = np.zeros(0, dtype=np.intp)
-        return CompiledEncounter(owner, law.effect, candidate, field_indices, test, rate, (empty,) * 3, None)
+        return CompiledEncounter(owner, _effect(law), candidate, field_indices, test, rate, (empty,) * 3, None)
     positions = _nonzero(table)
     entries = (positions[0], positions[1], positions[2])
     probabilities = TableValues(table, positions, _parameter_indices(table, references, owner), time)
     return CompiledEncounter(
         owner,
-        law.effect,
+        _effect(law),
         candidate,
         field_indices,
         test,
