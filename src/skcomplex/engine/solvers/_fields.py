@@ -59,7 +59,7 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
     kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])
 
     def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
-        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).prepare()
+        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
         table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
         inside = table < size
         return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
@@ -190,8 +190,6 @@ class _SplitSolver(Solver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 
@@ -574,8 +572,6 @@ class SSPRKSolver(Solver):
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 

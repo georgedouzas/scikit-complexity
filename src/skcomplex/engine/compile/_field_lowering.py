@@ -305,7 +305,7 @@ class FieldLowering:
                 self._tables[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
                 dimensions = cast('LatticeSpace', space).shape_
-                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).prepare()
+                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).check().prepare()
                 table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
                 self._tables[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self._tables[key]

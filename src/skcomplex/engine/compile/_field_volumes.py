@@ -11,6 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, solve
+from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.elements import FieldElement
 from ...core.errors import ValidationError
@@ -287,7 +288,7 @@ def compile_volumes(
     n_dim = space.n_dim_
     expressions = []
     for law, _ in laws:
-        components = law.fluxes
+        components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
         if len(components) != n_dim:
             error_msg = f'A flux of {owner} has {len(components)} components for a {n_dim}D lattice.'
             raise ValidationError(error_msg)

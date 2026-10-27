@@ -6,14 +6,14 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
-from ..core.elements import Element
+from ..core.elements import FieldElement
 from ..core.errors import AnalysisError
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
@@ -122,7 +122,7 @@ def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
     return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
 
 
-def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array) -> Array:
+def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
     spacings = np.asarray(lattice.spacings_, dtype=float)
     if field.discretization == 'spectral':
@@ -130,11 +130,11 @@ def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array)
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
 
-def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
+def _single_field(system: System) -> tuple[FieldElement, LatticeSpace]:
     """Return the one field of a system and its periodic lattice, or raise an error."""
-    fields = [element for element in system.elements if isinstance(element, _Field)]
+    fields = [element for element in system.elements if isinstance(element, FieldElement)]
     if len(fields) != 1 or len(system.elements) != 1 or system.interactions or system.systems:
-        error_msg = 'The dispersion relation takes a system of one field, a site group on a lattice.'
+        error_msg = 'The dispersion relation takes a system of one field on a lattice.'
         raise AnalysisError(error_msg)
     field = fields[0]
     if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
@@ -143,7 +143,7 @@ def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
     return field, field.space.check().prepare()
 
 
-def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+def _linearised_rates(field: FieldElement) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Return the rate of every state with its Laplacians as eigenvalues, the state symbols, and the field's values."""
     states = list(declarations_of(field.element, VariableKind.STATE))
     member = field.element(field.label)
@@ -157,8 +157,8 @@ def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], 
         parameters[name] = float(value)
     names = {name: symbol(f'_{name}_') for name in states}
     rates: dict[str, Any] = {}
-    for law in member.run(SimpleNamespace(**names, **parameters, t=symbol('t'))):
-        targets = law.check().targets if isinstance(law, RateLaw) else ()
+    for law in member.check().run(SimpleNamespace(**names, **parameters, t=symbol('t'))):
+        targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
         target = next((name for name, item in names.items() if targets and targets[0] is item), None)
         if not isinstance(law, RateLaw) or target is None:
             error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
@@ -610,14 +610,3 @@ def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -
     leading = spectra[np.arange(len(waves)), np.argmax(spectra.real, axis=1)]
     magnitudes = np.linalg.norm(waves, axis=1)
     return DispersionRelation(waves, magnitudes, leading.real, leading.imag, dict(zip(order, uniform, strict=True)))
-
-
-@runtime_checkable
-class _Field(Protocol):
-    """Group of members at the sites of a space whose differential operators a discretization evaluates."""
-
-    label: str
-    element: type[Element]
-    space: object
-    values: Mapping[str, Any] | None
-    discretization: str
