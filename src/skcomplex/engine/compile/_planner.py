@@ -21,7 +21,7 @@ def _solved(kinds: set[type], solvers: list[Any]) -> bool:
     Co-simulation is left out, since it runs partitions that each need a solver of their own.
     """
     single = [solver for solver in solvers if solver.form != Form.COUPLED]
-    return not single or any(kinds <= set(solver.supports.laws) for solver in single)
+    return not single or any(not solver.supports.missing('laws', kinds) for solver in single)
 
 
 def _listed(owners: Mapping[str, Iterable[object]]) -> str:
