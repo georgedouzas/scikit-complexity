@@ -69,9 +69,9 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
             The energy has symbols other than the distance or functions Lepton does not know.
 
     Examples:
+        >>> from skcomplex.engine.problems import symbol
         >>> from skcomplex.engine.solvers import lepton_expression
-        >>> from skcomplex.core.base import symbol
-        >>> x = symbol('x', RealSet.open(0, oo))
+        >>> x = symbol('x')
         >>> lepton_expression(4 * (x**-12 - x**-6), x)
         '-4/r^6 + 4/r^12'
     """
@@ -93,7 +93,7 @@ class LeptonPrinter:
     Examples:
         >>> from sage.all__sagemath_symbolics import exp
         >>> from skcomplex.engine.solvers import LeptonPrinter
-        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.engine.problems import symbol
         >>> r = symbol('r')
         >>> LeptonPrinter().doprint(2 * exp(-r / 3) + r**2)
         'r^2 + 2*exp(-r/3)'

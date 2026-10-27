@@ -776,26 +776,18 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.core.elements import ParticleElement
-        >>> from skcomplex.models.physics.realizations.particles import ConstantForceInteraction
         >>> from skcomplex.engine.solvers import VelocityVerletSolver
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[ParticleElement('ball')],
-        ...         interactions=[ConstantForceInteraction('push', target='ball', F=2.0)],
-        ...         space=ContinuousSpace(n_dim=1),
-        ...     ),
-        ... )
+        >>> system = System(elements=[ParticleElement('ball', v=2.0)], space=ContinuousSpace(n_dim=1))
+        >>> problem = compile_system(system)
         >>> stepper = VelocityVerletSolver(dt=0.1).prepare(problem, np.random.default_rng(0))
         >>> stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0).round(10).tolist()
-        [1.0, 2.0]
+        [2.0, 2.0]
     """
 
     supports: ClassVar[SupportSpec] = SupportSpec(
         time={ContinuousTime},
         space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
         laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
-        
-        
         orders={OrderKind.INTEGER},
     )
 

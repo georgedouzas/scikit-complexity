@@ -94,7 +94,7 @@ def _controls(problem: Problem, symbols: Sequence[Expression]) -> tuple[_Control
     if not controls:
         error_msg = (
             'The system has no bounded adaptive parameter to control. Declare a control input with '
-            '`parameter(initial, adaptive=True, bounds=(lower, upper))`.'
+            '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
         )
         raise SolverError(error_msg)
     return tuple(controls)
