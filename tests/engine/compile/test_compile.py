@@ -33,7 +33,7 @@ from skcomplex.models.physics.realizations.particles import ConstantForceInterac
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 
 from ...conftest import CallableGrowthInteraction, NodeElement, _correlated, _summed
-from .conftest import _pair
+from .conftest import PairElement
 
 
 class UndeclaredInteraction(Interaction):
@@ -787,14 +787,14 @@ def test_compile_system_without_processes_keeps_identity_columns():
 
 def test_compile_system_shares_local_process():
     """Test that two laws of one element on one local process share one column."""
-    problem = compile_system(System(elements=[_pair()('pair')]))
+    problem = compile_system(System(elements=[PairElement('pair')]))
     np.testing.assert_array_equal(problem.noise_columns, [0, 0])
     assert problem.n_processes == 1
 
 
 def test_compile_system_gives_members_their_own_local_process():
     """Test that a local process of a group law gives every member its own process."""
-    problem = compile_system(System(elements=[GroupElement('pairs', element=_pair(), size=3)]))
+    problem = compile_system(System(elements=[GroupElement('pairs', element=PairElement, size=3)]))
     np.testing.assert_array_equal(problem.noise_columns, [0, 1, 2, 0, 1, 2])
 
 
@@ -814,7 +814,7 @@ def test_compile_system_factors_singular_covariance():
 
 def test_stratonovich_correction_covers_cross_terms():
     """Test that a shared Stratonovich process adds the cross terms `C G_kl dG_ij/dx_k` to the drift."""
-    problem = compile_system(System(elements=[_pair(conventions=('stratonovich', 'stratonovich'))('pair')]))
+    problem = compile_system(System(elements=[PairElement('pair', conventions=('stratonovich', 'stratonovich'))]))
     drift = problem.drift(0.0, np.asarray([2.0, 3.0]), problem.initial_parameters)
     np.testing.assert_allclose(drift, [0.5 * 0.5 * 0.5 * 2.0, 0.5 * 0.5 * 0.5 * 3.0])
 

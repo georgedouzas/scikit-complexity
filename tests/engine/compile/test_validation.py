@@ -34,7 +34,7 @@ from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, Validatio
 from skcomplex.engine.problems import Form, NoiseKind
 
 from ...conftest import HoldingElement, _correlated
-from .conftest import _pair
+from .conftest import PairElement
 
 
 class StockElement(Element):
@@ -475,7 +475,7 @@ class SingleInteraction(Interaction):
 
 def test_validate_reports_mixed_conventions():
     """Test that laws of different conventions on one process are reported with both laws and the process."""
-    issues = validate(System(elements=[_pair(conventions=('ito', 'stratonovich'))('pair')])).issues
+    issues = validate(System(elements=[PairElement('pair', conventions=('ito', 'stratonovich'))])).issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
     assert 'ito NoiseLaw of pair' in issue.message
     assert 'stratonovich NoiseLaw of pair' in issue.message
@@ -558,7 +558,7 @@ def test_validate_reports_wiener_under_discrete_time():
 
 def test_validate_reports_milstein_with_shared_process():
     """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
-    (issue,) = validate(System(elements=[_pair()('pair')]), solver='milstein').issues
+    (issue,) = validate(System(elements=[PairElement('pair')]), solver='milstein').issues
     assert issue.code == 'noise-unsupported'
     assert 'NoiseLaw of pair' in issue.message
     assert 'euler-maruyama' in issue.fix
@@ -567,7 +567,7 @@ def test_validate_reports_milstein_with_shared_process():
 
 def test_validate_reports_lammps_with_shared_process():
     """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
-    issues = validate(System(elements=[_pair()('pair')]), solver='lammps').issues
+    issues = validate(System(elements=[PairElement('pair')]), solver='lammps').issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
     assert 'NoiseLaw of pair' in issue.message
     assert 'numba, numpy' in issue.fix
