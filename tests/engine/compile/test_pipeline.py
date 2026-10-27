@@ -6,6 +6,7 @@ import pytest
 
 from skcomplex.core.errors import PipelineError
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import BasePass, Compilation, compile_system, order_passes, run_passes
 from skcomplex.models import create
 
@@ -97,5 +98,5 @@ def test_compile_system_flattens_the_system_once(monkeypatch):
                 return flatten(*args, **kwargs)
 
             monkeypatch.setattr(module, 'flatten_system', counted)
-    compile_system(create('lotka_volterra'), backend='numpy')
+    compile_system(create('lotka_volterra'), backend=NumpyBackend())
     assert len(calls) == 1

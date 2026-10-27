@@ -1,5 +1,6 @@
 """Test the `_observables` module of `skcomplex.engine.compile`."""
 
+import dataclasses
 from typing import Annotated
 
 import pytest
@@ -11,9 +12,10 @@ from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import total
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of, runs_rules, validate
+from skcomplex.engine.backends import NumpyBackend
+from skcomplex.engine.compile import ObservableEvaluator, compile_system, validate
 from skcomplex.engine.compile.passes import contains_quantum
-from skcomplex.models import catalog, create
+from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.ecology import PopulationElement
 
 
@@ -31,61 +33,65 @@ class ObservedValueElement(Element):
         self.y = y
 
 
-def _observed(entry_name):
-    """Return the observables of a model that laws read at the current state, with their paths."""
-    system = create(entry_name)
-    groups = {
-        scope: {item.label: item for item in [*system_of(system, scope).elements]}
-        for scope, _ in observables_of(system)
-    }
+def _observed(name):
+    """Return a model with its observables, and the paths of those that laws read at the current state."""
+    system = create(name)
+    observables = describe(name).observables_of(system)
+    nodes = {node.path: node for node in validate(system, observables=observables).compilation.nodes}
     found, blocked = [], set()
-    for scope, observable in observables_of(system):
-        group = groups[scope].get(observable.group) if observable.group is not None else None
-        agents = isinstance(group, GroupElement) and runs_rules(group)
-        if scope in blocked or (
-            observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
-        ):
+    for observable in observables:
+        scope = observable.label.rpartition('/')[0]
+        group = nodes.get(f'{scope}/{observable.group}' if scope else observable.group)
+        agents = group is not None and group.is_agent
+        unread = observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
+        if scope in blocked or observable.element is not None or unread:
             blocked.add(scope)
             continue
-        found.append(f'{scope}/{observable.label}' if scope else observable.label)
-    return system, found
+        found.append(observable.label)
+    return system, observables, found
 
 
-def system_of(system, scope):
-    """Return the subsystem at a path."""
-    for label in filter(None, scope.split('/')):
-        system = next(child for child in system.systems if child.label == label)
-    return system
+class ReadInteraction(Interaction):
+    """Rate of a probe at the modulus of the value it reads from a source."""
 
+    def __init__(
+        self,
+        label: str,
+        *,
+        probe: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.probe = probe
+        self.source = source
 
-def _readers(paths):
-    """Return one reader of the modulus of every observable, added to a probe element."""
-    readers = []
-    for index, path in enumerate(paths):
-        Read = type(
-            f'Read{index}',
-            (BaseInteraction,),
-            {'probe': role(), 'source': role(), 'laws': lambda self, s: [RateLaw(s.probe.y, abs(s.source.value))]},
-        )
-        readers.append(Read(f'read_{index}', probe=f'probe_{index}', source=f'model/{path}'))
-    return readers
+    def _get_laws(self, s):
+        """Return the rate of the probe."""
+        return [RateLaw(s.probe.y, abs(s.source.value))]
 
 
 @pytest.mark.parametrize(
-    'entry',
-    [entry for entry in catalog() if any(True for _ in observables_of(create(entry.name)))],
-    ids=lambda entry: entry.name,
+    'name',
+    [listing.name for listing in catalog() if describe(listing.name).observables is not None],
 )
-def test_reductions_agree_with_observables(entry):
+def test_reductions_agree_with_observables(name):
     """Test that laws reading a model's observables at a state read the values the observable evaluator records."""
-    model, paths = _observed(entry.name)
+    model, observables, paths = _observed(name)
     if contains_quantum(model):
         pytest.skip('A quantum system cannot share a co-simulation with classical readers.')
+    if 'distribution' in describe(name).tags:
+        pytest.skip('The observables of a distribution take its moments, which laws read only inside its reductions.')
     if not paths:
         pytest.skip('The model has no observable that laws read at the current state.')
     model.label = 'model'
     probes = [ObservedValueElement(f'probe_{index}') for index in range(len(paths))]
-    problem = compile_system(System(elements=[*probes, *[model]], interactions=_readers(paths)), backend='numpy')
+    readers = [
+        ReadInteraction(f'read_{index}', probe=f'probe_{index}', source=f'model/{path}')
+        for index, path in enumerate(paths)
+    ]
+    nested = [dataclasses.replace(observable, label=f'model/{observable.label}') for observable in observables]
+    system = System(elements=probes, systems=[model], interactions=readers)
+    problem = compile_system(system, backend=NumpyBackend(), observables=nested)
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)
@@ -167,7 +173,7 @@ def _village(interaction):
         ],
     )
     land = System('land', elements=[PopulationElement('soil')])
-    return System(elements=[land, village], interactions=[interaction])
+    return System(systems=[land, village], interactions=[interaction])
 
 
 def test_held_reduction_reads_one_group():

@@ -16,6 +16,7 @@ from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, maximum, mean, minimum, total, variance
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 
@@ -198,9 +199,9 @@ def _group_of(laws, size=10, values=None):
     return System(elements=[GroupElement('units', element=unit, size=size, values={'x': values})]), values
 
 
-def _rates(system, backend='numpy'):
+def _rates(system, backend=NumpyBackend):
     """Return the drift of a system at its initial state."""
-    problem = compile_system(system, backend=backend)
+    problem = compile_system(system, backend=backend())
     return problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 
 
@@ -258,7 +259,7 @@ def _all_to_all(theta, omega, K=2.0):
     return omega + K / theta.size * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_nonlinear_function_of_total(backend):
     """Test that every member reads the hyperbolic tangent of the group total."""
     system, x = _group_of(lambda s: [RateLaw(s.x, -s.x + tanh(total(s.x)))], size=50)
@@ -312,7 +313,7 @@ def test_maximum_drives_single_element(largest, drive):
     assert rates[problem.states.entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_count_and_mean_with_condition(backend):
     """Test that a count and a mean with a condition read the selected members."""
     values = [0.1, 0.2, 0.9, 0.3, 0.7, 0.0, 0.4, 0.6, 0.2, 0.1]
@@ -323,7 +324,7 @@ def test_count_and_mean_with_condition(backend):
     np.testing.assert_allclose(_rates(system, backend), 3 + 10 * x[x > 0.5].mean(), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_no_selected_members(backend):
     """Test that the reductions of no selected members are 0, the count included."""
     selected = lambda s: s.x > 10  # noqa: E731
@@ -344,7 +345,7 @@ def test_no_selected_members(backend):
 
 
 @pytest.mark.parametrize('sparse', [False, True], ids=['dense', 'sparse'])
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_payoff_matrix(sparse, backend):
     """Test that a weighted total gives every member its row of the payoff matrix times the shares."""
     payoff = RNG.normal(size=(3, 3))
@@ -360,7 +361,7 @@ def test_weights_of_wrong_shape():
         compile_system(system)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_mean_fitness(backend):
     """Test that nested reductions give the replicator equation, whose rates sum to 0 on the simplex."""
     payoff = RNG.normal(size=(4, 4))
@@ -441,11 +442,11 @@ def test_interaction_reads_second_group_through_reductions():
         ],
         interactions=[CouplingInteraction('coupling', target='first', source='second')],
     )
-    for backend in ('numpy', 'numba'):
+    for backend in (NumpyBackend, NumbaBackend):
         np.testing.assert_allclose(_rates(system, backend), np.r_[second.mean() - first, np.zeros(6)], atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_kuramoto_through_observables(backend):
     """Test that laws reading observables of their own partition compile to one ODE at the current state."""
     system, theta, omega = _kuramoto(40, observables=True)
@@ -453,7 +454,7 @@ def test_kuramoto_through_observables(backend):
         ObservableSpec('X', _cosine, group='oscillators'),
         ObservableSpec('Y', _sine, group='oscillators'),
     ]
-    problem = compile_system(system, backend=backend, observables=observables)
+    problem = compile_system(system, backend=backend(), observables=observables)
     assert problem.form.name == 'ODE'
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, _all_to_all(theta, omega), atol=1e-12)
@@ -513,7 +514,7 @@ def test_observable_read_in_its_own_partition():
         assert rate == pytest.approx(trajectory.values('mean_wealth')[row], abs=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_synchronous_map(backend):
     """Test that every member of coupled maps updates from the mean of the values at step n."""
     epsilon = 0.3
@@ -521,13 +522,13 @@ def test_synchronous_map(backend):
         lambda s: [UpdateLaw(s.x, (1 - epsilon) * 4 * s.x * (1 - s.x) + epsilon * mean(4 * s.x * (1 - s.x)))],
         values=RNG.uniform(size=10),
     )
-    problem = compile_system(system, backend=backend)
+    problem = compile_system(system, backend=backend())
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     logistic = 4 * x * (1 - x)
     np.testing.assert_allclose(updated, (1 - epsilon) * logistic + epsilon * logistic.mean(), atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_propensity_after_event(backend):
     """Test that the propensities of mean-field SIS equal those computed from the state after every event."""
     beta, gamma, size = 2.0, 1.0, 30
@@ -539,7 +540,7 @@ def test_propensity_after_event(backend):
         ]
 
     system, _ = _group_of(sis, size=size, values=(RNG.uniform(size=size) < 0.3).astype(float))
-    problem = compile_system(system, backend=backend)
+    problem = compile_system(system, backend=backend())
     state, p = problem.initial_state.copy(), problem.initial_parameters
     for channel in RNG.integers(0, 2 * size, 20):
         infected = state > 0.5
@@ -548,14 +549,14 @@ def test_propensity_after_event(backend):
         np.testing.assert_allclose(rates, expected, atol=1e-12)
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
-    trajectory = Simulation(system, backend=backend).run(until=2).trajectory_
+    trajectory = Simulation(system, backend=backend()).run(until=2).trajectory_
     assert set(np.unique(trajectory.values('units.x'))) <= {0.0, 1.0}
 
 
 def test_backends_agree():
     """Test that NumPy and Numba give the same mean-field Kuramoto drift on 2000 members."""
     system, _, _ = _kuramoto(2000)
-    numpy_rates, numba_rates = _rates(system, 'numpy'), _rates(system, 'numba')
+    numpy_rates, numba_rates = _rates(system, NumpyBackend), _rates(system, NumbaBackend)
     np.testing.assert_allclose(numba_rates, numpy_rates, rtol=1e-12, atol=1e-12)
 
 
@@ -563,7 +564,7 @@ def test_linear_cost():
     """Test that one Numba drift evaluation grows linearly with the size of a mean-field group."""
     durations = []
     for size in (10_000, 100_000):
-        problem = compile_system(_kuramoto(size)[0], backend='numba')
+        problem = compile_system(_kuramoto(size)[0], backend=NumbaBackend())
         x, p = problem.initial_state, problem.initial_parameters
         problem.drift(0.0, x, p)
         samples = []
@@ -600,7 +601,7 @@ def test_element_set_reduction():
     )
     problem = compile_system(system)
     assert problem.states.names == ['unit_0.x', 'unit_1.x', 'unit_2.x']
-    for backend in ('numpy', 'numba'):
+    for backend in (NumpyBackend, NumbaBackend):
         np.testing.assert_allclose(_rates(system, backend), [6.0, 6.0, 6.0])
 
 
@@ -635,7 +636,7 @@ def test_compile_system_divides_by_count_in_interaction():
     np.testing.assert_allclose(_rates(system), np.arange(1.0, 5.0) / 4, atol=1e-12)
 
 
-@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_compile_system_divides_by_weighted_total_in_interaction(backend):
     """Test that an interaction law may divide a member state by a weighted total."""
     weights, values = RNG.uniform(0.5, 1.5, size=(4, 4)), np.arange(1.0, 5.0)

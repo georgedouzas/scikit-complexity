@@ -9,25 +9,112 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumpyBackend
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.problems import Form, OrderKind, SupportSpec
-from skcomplex.engine.solvers import GrunwaldLetnikovSolver
+from skcomplex.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver
 
 
-def _fractional(amplitude, hurst):
-    """Return an element type driven by one fractional noise law."""
-    return type(
-        'FractionalElement',
-        (Element,),
-        {
-            'x': state(0.0),
-            'D': parameter(1.0),
-            'laws': lambda self, s: [FractionalNoiseLaw(s.x, amplitude(s), hurst=hurst)],
-        },
-    )
+class RoughElement(Element):
+    """Element driven by fractional noise of the Hurst index 1, outside the open interval."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+
+    def _get_laws(self, s):
+        """Return the noise on the state."""
+        return [FractionalNoiseLaw(s.x, 1, hurst=1.0)]
+
+
+class MultiplicativeElement(Element):
+    """Element driven by fractional noise whose amplitude reads its own state."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+
+    def _get_laws(self, s):
+        """Return the noise on the state."""
+        return [FractionalNoiseLaw(s.x, s.x, hurst=0.7)]
+
+
+class BrownianElement(Element):
+    """Element driven by fractional noise of the Hurst index 1/2, which is ordinary noise."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+
+    def _get_laws(self, s):
+        """Return the noise on the state."""
+        return [FractionalNoiseLaw(s.x, s.x, hurst=0.5)]
+
+
+class PlainElement(Element):
+    """Element driven by ordinary noise whose amplitude reads its own state."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+
+    def _get_laws(self, s):
+        """Return the noise on the state."""
+        return [NoiseLaw(s.x, s.x)]
+
+
+class PersistentElement(Element):
+    """Element driven by fractional noise of the Hurst index 0.3 with an amplitude of a parameter."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.D = D
+
+    def _get_laws(self, s):
+        """Return the noise on the state."""
+        return [FractionalNoiseLaw(s.x, (2 * s.D) ** 0.5, hurst=0.3)]
 
 
 class RelaxingElement(Element):
@@ -96,18 +183,18 @@ class ShakenElement(Element):
 
 def test_validate_fractional_state_with_rk4_names_fractional_solvers():
     """Test that a fractional state with the solver rk4 gives one error naming the state and the fractional solvers."""
-    report = validate(System(elements=[RelaxingElement('r')]), solver='rk4')
+    report = validate(System(elements=[RelaxingElement('r')]), solver=RK4Solver())
     assert [issue.code for issue in report.errors] == ['order-unsupported']
     assert 'r.x' in report.errors[0].message
-    assert 'fractional-abm, grunwald-letnikov, l1' in report.errors[0].fix
+    assert 'FractionalABMSolver' in report.errors[0].fix
 
 
 def test_validate_order_out_of_range_names_interval():
-    """Test that a state of order 1.5 gives one error naming the state and the interval of fractional orders."""
+    """Test that a state of order 1.5 gives one error naming the element and the interval of fractional orders."""
     report = validate(System(elements=[OverorderedElement('a')]))
-    assert [issue.code for issue in report.errors] == ['fractional-order']
-    assert 'a.x' in report.errors[0].message
-    assert '(0, 1)' in report.errors[0].fix
+    assert [issue.code for issue in report.errors] == ['structure']
+    assert 'a: The order 1.5' in report.errors[0].message
+    assert '(0, 1)' in report.errors[0].message
 
 
 def test_validate_fractional_state_under_discrete_time_suggests_continuous_time():
@@ -128,8 +215,8 @@ def test_validate_fractional_state_with_backend_without_orders():
 
     report = validate(System(elements=[RelaxingElement('r')]), backend=IntegerBackend())
     assert [issue.code for issue in report.errors] == ['order-unsupported']
-    assert 'numba, numpy' in report.errors[0].fix
-    assert validate(System(elements=[RelaxingElement('r')]), backend='numba').ok
+    assert 'fractional orders' in report.errors[0].fix
+    assert validate(System(elements=[RelaxingElement('r')]), backend=NumbaBackend()).ok
 
 
 def test_validate_noise_on_fractional_state_is_unsupported():
@@ -143,42 +230,29 @@ def test_validate_fractional_state_with_fractional_solver():
     """Test that a fractional state with a fractional solver and default settings is valid."""
     system = System(elements=[RelaxingElement('r')])
     assert validate(system).ok
-    assert validate(system, solver='l1').ok
+    assert validate(system, solver=L1Solver()).ok
     assert validate(system, solver=GrunwaldLetnikovSolver()).ok
 
 
 def test_compile_system_rejects_a_hurst_index_out_of_range():
-    """Test that a Hurst index of 1 names the law and the value and states the open interval."""
-    rough = _fractional(lambda s: 1, 1.0)
-    with pytest.raises(ValidationError, match=r'fractional noise law of f.x of f has the Hurst index 1.*\(0, 1\)'):
-        compile_system(System(elements=[rough('f')]))
+    """Test that a Hurst index of 1 names the element and the value and states the open interval."""
+    with pytest.raises(
+        ValidationError,
+        match=r'f: The Hurst index of the noise of x_f is 1.0. Give a number in \(0, 1\)',
+    ):
+        compile_system(System(elements=[RoughElement('f')]))
 
 
 def test_compile_system_rejects_a_state_dependent_fractional_amplitude():
     """Test that a fractional amplitude that reads its own state names the state and the supported case."""
-    multiplicative = _fractional(lambda s: s.x, 0.7)
     with pytest.raises(ValidationError, match=r'depends on the state f.x. Only state-independent amplitudes'):
-        compile_system(System(elements=[multiplicative('f')]))
+        compile_system(System(elements=[MultiplicativeElement('f')]))
 
 
 def test_compile_system_lowers_a_hurst_index_of_one_half_to_noise():
     """Test that fractional noise of Hurst index 1/2 compiles to an ordinary noise row with no fractional rows."""
-    problem = compile_system(System(elements=[GroupElement('f', element=_fractional(lambda s: s.x, 0.5), size=3)]))
-    plain = compile_system(
-        System(
-            elements=[
-                GroupElement(
-                    'f',
-                    element=type(
-                        'PlainElement',
-                        (Element,),
-                        {'x': state(0.0), 'laws': lambda self, s: [NoiseLaw(s.x, s.x)]},
-                    ),
-                    size=3,
-                ),
-            ],
-        ),
-    )
+    problem = compile_system(System(elements=[GroupElement('f', element=BrownianElement, size=3)]))
+    plain = compile_system(System(elements=[GroupElement('f', element=PlainElement, size=3)]))
     assert problem.form == Form.SDE
     assert problem.fractional == ()
     assert np.array_equal(problem.noise_rows, plain.noise_rows)
@@ -187,7 +261,7 @@ def test_compile_system_lowers_a_hurst_index_of_one_half_to_noise():
 def test_compile_system_records_the_hurst_index_of_fractional_rows():
     """Test that fractional rows of a group record the Hurst index of every row from the parameters."""
     problem = compile_system(
-        System(elements=[GroupElement('f', element=_fractional(lambda s: (2 * s.D) ** 0.5, 0.3), size=4)]),
+        System(elements=[GroupElement('f', element=PersistentElement, size=4)]),
     )
     rows = problem.fractional[0]
     assert rows.positions.tolist() == [0, 1, 2, 3]

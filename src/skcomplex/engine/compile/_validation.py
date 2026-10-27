@@ -22,6 +22,7 @@ from ...core.errors import (
     SpaceTooLargeError,
     ValidationError,
 )
+from ...core.interactions import HyperedgeInteraction, NeighborInteraction
 from ...core.laws import JumpLaw, NoiseLaw
 from ...core.laws.utils import NeighborReduction, neighborhoods_in, reductions_in
 from ...core.spaces import (
@@ -128,23 +129,18 @@ def _layer_issues(node: Any, space: BaseSpace | None) -> list[Issue]:  # noqa: A
 
 
 def _binding_issues(nodes: list[Node]) -> list[Issue]:
-    """Return the interactions whose binding lacks its roles and parameters, or that the space does not offer."""
+    """Return the interactions over neighbours or hyperedges whose bound members live on a space without them."""
     by_path = {node.path: node for node in nodes}
     issues = []
     for node in nodes:
         interaction = node.component
-        over = getattr(type(interaction), 'over', None)
-        if over is None or over == 'members':
+        if isinstance(interaction, NeighborInteraction):
+            over = 'neighbors'
+        elif isinstance(interaction, HyperedgeInteraction):
+            over = 'hyperedges'
+        else:
             continue
         roles = declarations_of(type(interaction), VariableKind.ROLE)
-        if over == 'pairs':
-            missing = [name for name in ('first', 'second') if name not in roles]
-            missing += [] if 'cutoff' in declarations_of(type(interaction), VariableKind.PARAMETER) else ['cutoff']
-            if missing:
-                message = 'The binding over pairs needs the roles first and second and the parameter cutoff.'
-                fix = f'Declare {", ".join(missing)} on {type(interaction).__name__}.'
-                issues.append(Issue('binding', node.path, message, fix))
-            continue
         bound = [by_path.get(f'{node.scope}{getattr(interaction, name, "")}') for name in roles]
         members = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
         target = next(iter(members), None)
@@ -205,7 +201,7 @@ def _space_issues(system: System, nodes: list[Node]) -> list[Issue]:
         spaces.setdefault(id(system.space), (system.label, system.space))
     for path, space in spaces.values():
         try:
-            space.check()
+            space.check().prepare()
         except SpaceTooLargeError as error:
             fix = 'Ask for a smaller ball, or raise max_sites.'
             issues.append(Issue('space-too-large', path, str(error), fix, error=SpaceTooLargeError))

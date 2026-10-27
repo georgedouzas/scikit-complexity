@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import inspect
 from abc import ABC, abstractmethod
 from typing import Self
@@ -72,11 +73,13 @@ class BasePart(BaseEstimator, ABC):
             raise ValidationError(error_msg)
 
     @classmethod
+    @functools.cache
     def _get_specs(cls) -> dict[str, Spec]:
         """Return the spec of every argument of the constructor annotated with one, in the order of the constructor.
 
         The annotations of the constructors of the bases count too, and a subclass wins, so a subclass that takes an
-        argument of its base again without annotating it keeps the spec of the base.
+        argument of its base again without annotating it keeps the spec of the base. The specs of a class are read
+        once, since compiling a system reads them for every part.
 
         Returns:
             specs:

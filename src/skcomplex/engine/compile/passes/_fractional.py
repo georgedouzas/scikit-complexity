@@ -30,8 +30,10 @@ from ...problems import (
     declarations_of,
     symbols_of,
 )
+from .._census import Census, CensusRecord
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations, is_interaction
+from .._forms import FORMS
 from .._issues import Issue
 from .._pipeline import BasePass
 from .._specs import KernelSpec, state_name
@@ -124,6 +126,26 @@ def _support_issues(states: list[FractionalState], solver: object, backend: obje
     return issues
 
 
+def _law_issues(states: list[FractionalState], records: list[CensusRecord]) -> list[Issue]:
+    """Return the laws on fractional states of a class that takes the problem off the ODE form, the fractional one."""
+    names = {item.name for item in states}
+    ode = set().union(*(kinds for kinds, form in FORMS.items() if form == Form.ODE))
+    others = tuple(set().union(*(kinds for kinds, form in FORMS.items() if form != Form.ODE)) - ode)
+    issues = []
+    for record in records:
+        targets = sorted({entry.name for entry in record.targets} & names)
+        if not targets or not isinstance(record.law, others):
+            continue
+        name = type(record.law).__name__
+        message = (
+            f'The {name} of {record.path} targets {", ".join(targets)}, a state of a fractional order, but no '
+            f'fractional solver runs {name}.'
+        )
+        fix = 'Declare an integer order, or change the state with rate laws alone.'
+        issues.append(Issue('solver-unsupported', record.path, message, fix, error=SolverError))
+    return issues
+
+
 def _owned_fractional(compilation: Compilation) -> list[FractionalState]:
     """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
     declared = {entry.name for entry in cast('Declarations', compilation.layout).states}
@@ -208,6 +230,7 @@ def order_issues(compilation: Compilation) -> list[Issue]:
             )
             fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
             issues.append(Issue('fractional-time', item.path, message, fix))
+    issues += _law_issues(states, cast('Census', compilation.census).records)
     return issues + _support_issues(states, compilation.solver, compilation.backend)
 
 

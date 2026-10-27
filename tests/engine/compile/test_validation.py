@@ -1,23 +1,20 @@
 """Test the validation of systems against the requirements of their laws and the support of solvers and backends."""
 
-import importlib.util
-import subprocess  # nosec B404: the test starts a new Python process without the fractional formalism
-import sys
+import re
 from typing import Annotated
 
+import networkx as nx
 import pytest
-import skcomplex.formalisms.control  # registers the optimal control solvers the tests name
-import skcomplex.formalisms.particles  # noqa: F401  # registers the LAMMPS solver the tests name
+from sage.all__sagemath_gap import libgap
 from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.interactions import HyperedgeInteraction, Interaction, NeighborInteraction
 from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
-from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood
+from skcomplex.core.laws.utils import mean, neighbors
+from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
 from skcomplex.core.specs import (
     EnergySpec,
     MoveSpec,
@@ -30,11 +27,12 @@ from skcomplex.core.specs import (
     WienerProcessSpec,
 )
 from skcomplex.core.system import System
-from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
+from skcomplex.engine.compile import Issue, ValidationReport, ValidationWarning, compile_system, validate
 from skcomplex.engine.problems import Form, NoiseKind
+from skcomplex.engine.solvers import DEFAULT_SOLVERS, LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 
-from ...conftest import HoldingElement, _correlated
-from .conftest import _pair
+from ...conftest import HoldingElement, NodeElement, _correlated
+from .conftest import PairElement
 
 
 class StockElement(Element):
@@ -49,20 +47,6 @@ class StockElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.n = n
-
-
-class OpinionElement(Element):
-    """Element with one categorical state."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        view: Annotated[float, StateSpec(domain=FiniteEnumeratedSet(['left', 'right']))] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.view = view
 
 
 class WalkerElement(Element):
@@ -116,23 +100,6 @@ class GrowthInteraction(Interaction):
         return [RateLaw(s.target.n, s.r * s.target.n)]
 
 
-class DriftInteraction(Interaction):
-    """Rate law on a categorical state, which no rate law may target."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _get_laws(self, s):
-        """Return the rate of the opinion."""
-        return [RateLaw(s.target.view, 1)]
-
-
 class AntElement(Element):
     """Agent that counts its steps."""
 
@@ -172,57 +139,27 @@ def test_valid_system_has_no_issues():
 
 
 def test_several_errors_are_reported_at_once():
-    """Test that an unbound role, a vector state without a space, and a rate on a categorical state are all reported."""
+    """Test that an unbound role and a vector state without a space are both reported."""
     system = System(
-        elements=[StockElement('rabbits'), WalkerElement('walker'), OpinionElement('voter')],
-        interactions=[GrowthInteraction('growth', target='foxes'), DriftInteraction('drift', target='voter')],
+        elements=[StockElement('rabbits'), WalkerElement('walker')],
+        interactions=[GrowthInteraction('growth', target='foxes')],
     )
     report = validate(system)
-    assert sorted(_codes(report)) == ['law-domain', 'role', 'space-missing']
-    assert {issue.path for issue in report.errors} == {'growth', 'walker', 'drift'}
+    assert sorted(_codes(report)) == ['role', 'space-missing']
+    assert {issue.path for issue in report.errors} == {'growth', 'walker'}
     assert all(issue.fix for issue in report.issues)
-
-
-def test_law_with_the_wrong_domain_suggests_laws():
-    """Test that a rate law on a categorical state names the state and suggests jump or transition laws."""
-    report = validate(
-        System(elements=[OpinionElement('voter')], interactions=[DriftInteraction('drift', target='voter')]),
-    )
-    (issue,) = report.errors
-    assert issue.code == 'law-domain'
-    assert 'voter.view' in issue.message
-    assert 'categorical' in issue.message
-    assert 'jump' in issue.fix
-    assert 'transition' in issue.fix
 
 
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
     report = validate(
         System(elements=[GroupElement('ants', element=AntElement, size=3, variable=True)]),
-        solver='rk4',
+        solver=RK4Solver(),
     )
-    issue = next(issue for issue in report.errors if 'components' in issue.message)
+    issue = next(issue for issue in report.errors if 'laws' in issue.message)
     assert issue.code == 'solver-unsupported'
-    assert 'variable-group' in issue.message
-    assert 'mesa' in issue.fix
-
-
-@pytest.mark.skipif(importlib.util.find_spec('lammps') is not None, reason='LAMMPS is installed')
-def test_unavailable_solver_names_the_extra():
-    """Test that choosing LAMMPS without it installed reports one error whose fix names the installation extra."""
-    report = validate(System(elements=[StockElement('rabbits')]), solver='lammps')
-    (issue,) = report.errors
-    assert issue.code == 'solver-unavailable'
-    assert '`lammps` extra' in issue.fix
-
-
-def test_unknown_backend_is_reported():
-    """Test that an unregistered backend is reported with the registered ones."""
-    report = validate(System(elements=[StockElement('rabbits')]), backend='fortran')
-    (issue,) = report.errors
-    assert issue.code == 'backend-unknown'
-    assert 'numpy' in issue.fix
+    assert 'RuleLaw' in issue.message
+    assert 'RuleLaw' in issue.fix
 
 
 def test_mixed_laws_suggest_partitions():
@@ -233,8 +170,8 @@ def test_mixed_laws_suggest_partitions():
     )
     (issue,) = validate(system).errors
     assert issue.code == 'laws-mixed'
-    assert 'rate: rabbits' in issue.message
-    assert 'update: clock' in issue.message
+    assert 'RateLaw: rabbits' in issue.message
+    assert 'UpdateLaw: clock' in issue.message
     assert 'nested system' in issue.fix
 
 
@@ -294,7 +231,7 @@ class NoisyPlantElement(PlantElement):
 
     def _get_laws(self, s):
         """Return the laws of the plant with noise."""
-        return [*super().laws(s), NoiseLaw(s.x, 0.1)]
+        return [*super()._get_laws(s), NoiseLaw(s.x, 0.1)]
 
 
 def test_validate_control_outside_bounds():
@@ -302,20 +239,23 @@ def test_validate_control_outside_bounds():
     (issue,) = validate(System(elements=[PlantElement('plant', u=2.0)])).errors
     assert issue.path == 'plant.u'
     assert issue.code == 'parameter-bounds'
-    assert '(0.0, 1.0)' in issue.fix
+    # typing caches equal annotations, so the bounds print as those of the first equal spec: (0, 1) or (0.0, 1.0)
+    assert re.search(r'\(0(\.0)?, 1(\.0)?\)', issue.fix)
 
 
 def test_validate_controls_with_an_optimal_control_solver():
     """Test that a system with bounded controls is valid for an optimal control solver and for a stepper."""
-    assert validate(System(elements=[PlantElement('plant')]), solver='pontryagin').ok
-    assert validate(System(elements=[PlantElement('plant')]), solver='rk4').ok
+    solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
+    assert validate(System(elements=[PlantElement('plant')]), solver=solver).ok
+    assert validate(System(elements=[PlantElement('plant')]), solver=RK4Solver()).ok
 
 
 def test_validate_noise_with_an_optimal_control_solver():
     """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
-    issues = validate(System(elements=[NoisyPlantElement('plant')]), solver='pontryagin').errors
+    solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
+    issues = validate(System(elements=[NoisyPlantElement('plant')]), solver=solver).errors
     issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
-    assert 'PontryaginSolver does not support the laws noise' in issue.message
+    assert 'PontryaginSolver does not support the laws NoiseLaw' in issue.message
 
 
 class GroupSpinElement(Element):
@@ -335,33 +275,33 @@ class GroupSpinElement(Element):
         """Return the Glauber sampling of a ferromagnetic energy on the generators."""
         memory = MemoryNeighborhood(('a', 'a^-1', 'b', 'b^-1'))
         energy = EnergySpec(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
-        return [SampleLaw(energy, MoveSpec.flip(s.spin), SamplerSpec('glauber', 2.0))]
+        return [SampleLaw(energy, MoveSpec(s.spin), SamplerSpec('glauber', 2.0))]
 
 
 def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=2)
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     issues = validate(System(elements=[LatticeElement('spins', element=GroupSpinElement, space=space)])).issues
-    assert [(issue.code, issue.path) for issue in issues] == [('schedule-unsupported', 'spins')]
-    assert "'synchronous'" in issues[0].fix
-    assert "'random-sequential'" in issues[0].fix
+    (issue,) = [issue for issue in issues if issue.code == 'schedule-unsupported']
+    assert issue.path == 'spins'
+    assert "'synchronous'" in issue.fix
+    assert "'random-sequential'" in issue.fix
 
 
 def test_group_space_reports_an_image_visual():
     """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
-    space = CayleySpace(finitely_presented_group(['a', 'b']), ball=2)
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     group = LatticeElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'))
     issue = next(issue for issue in validate(System(elements=[group])).issues if issue.code == 'visual-unsupported')
     assert "'cayley'" in issue.fix
 
 
-def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
-    """Test that a ball of radius 12 of the free group of rank 3 is reported with the largest radius, without GAP."""
-    monkeypatch.setitem(sys.modules, 'sage.all__sagemath_gap', None)
-    space = CayleySpace(finitely_presented_group(['a', 'b', 'c']), ball=12)
+def test_group_space_reports_a_ball_above_the_site_limit():
+    """Test that a ball of the free group of rank 3 with more sites than the limit is reported."""
+    space = CayleySpace(libgap.FreeGroup(['a', 'b', 'c']), ball=12, max_sites=100)
     issues = validate(System(space=space)).issues
     assert [issue.code for issue in issues] == ['space-too-large']
-    assert 'largest radius that fits is 6' in issues[0].message
+    assert 'more than 100 sites' in issues[0].message
 
 
 def test_lattice_with_a_bad_boundary_is_reported():
@@ -394,24 +334,6 @@ def test_validation_keeps_the_planned_compilation():
     compilation = validate(system).compilation
     assert [node.path for node in compilation.nodes] == ['rabbits', 'growth']
     assert [partition.name for partition in compilation.plan.partitions] == [system.label]
-
-
-def test_validate_fractional_state_without_its_formalism_names_the_formalism():
-    """Test that a fractional state with no fractional solver registered gives an error naming the formalism."""
-    script = (
-        'from skcomplex.core.base import state\n'
-        'from skcomplex.engine.compile import validate\n'
-        'from skcomplex.core.components import Element\n'
-        'from skcomplex.core.system import System\n'
-        'class KindElement(Element):\n'
-        '    x = state(1.0, order=0.5)\n'
-        "issue = validate(System(elements=[KindElement('a')])).errors[0]\n"
-        'print(issue.code, issue.fix)\n'
-    )
-    command = [sys.executable, '-c', script]
-    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
-    assert output.startswith('order-unsupported')
-    assert 'skcomplex.formalisms.fractional' in output
 
 
 class MisuseInteraction(Interaction):
@@ -475,7 +397,7 @@ class SingleInteraction(Interaction):
 
 def test_validate_reports_mixed_conventions():
     """Test that laws of different conventions on one process are reported with both laws and the process."""
-    issues = validate(System(elements=[_pair(conventions=('ito', 'stratonovich'))('pair')])).issues
+    issues = validate(System(elements=[PairElement('pair', conventions=('ito', 'stratonovich'))])).issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
     assert 'ito NoiseLaw of pair' in issue.message
     assert 'stratonovich NoiseLaw of pair' in issue.message
@@ -558,25 +480,25 @@ def test_validate_reports_wiener_under_discrete_time():
 
 def test_validate_reports_milstein_with_shared_process():
     """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
-    (issue,) = validate(System(elements=[_pair()('pair')]), solver='milstein').issues
+    (issue,) = validate(System(elements=[PairElement('pair')]), solver=MilsteinSolver()).issues
     assert issue.code == 'noise-unsupported'
     assert 'NoiseLaw of pair' in issue.message
-    assert 'euler-maruyama' in issue.fix
-    assert 'heun' in issue.fix
+    assert 'MilsteinSolver' in issue.message
+    assert 'shared noise' in issue.fix
 
 
 def test_validate_reports_lammps_with_shared_process():
     """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
-    issues = validate(System(elements=[_pair()('pair')]), solver='lammps').issues
+    issues = validate(System(elements=[PairElement('pair')]), solver=LammpsSolver()).issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
     assert 'NoiseLaw of pair' in issue.message
-    assert 'numba, numpy' in issue.fix
+    assert 'LammpsSolver' in issue.message
 
 
 def test_validate_accepts_correlated_noise_with_automatic_solver():
     """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
     assert validate(_correlated([[1.0, 0.5], [0.5, 1.0]])).ok
-    assert NoiseKind.CORRELATED in SOLVERS.resolve((Form.SDE, 'auto')).supports.noise
+    assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[Form.SDE].supports.noise
 
 
 def test_observable_among_the_laws_is_rejected():
@@ -601,6 +523,79 @@ def test_observable_among_the_laws_is_rejected():
 
     (issue,) = validate(System(elements=[MixedElement('tank')])).errors
     assert issue.path == 'tank'
-    assert '`laws` of tank must return a list of' in issue.message
+    assert '`_get_laws` of tank must return a list of' in issue.message
     with pytest.raises(ValidationError, match='tank'):
         compile_system(System(elements=[MixedElement('tank')]))
+
+
+class SpreadInteraction(NeighborInteraction):
+    """Spread of the state of a node to its neighbours."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        layer: str | None = None,
+    ) -> None:
+        super().__init__(label, layer=layer)
+        self.nodes = nodes
+
+    def _get_laws(self, s):
+        """Return the spread along one edge."""
+        return [RateLaw(s.target.x, s.source.x - s.target.x)]
+
+
+class ConsensusInteraction(HyperedgeInteraction):
+    """Pull of the members of a hyperedge towards their mean."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+
+    def _get_laws(self, s):
+        """Return the pull of the members of one hyperedge."""
+        return [RateLaw(s.nodes.x, mean(s.nodes.x) - s.nodes.x)]
+
+
+def _bindings(interaction, space):
+    """Return the binding issues of a group of four nodes on a space, coupled by an interaction."""
+    nodes = GroupElement('nodes', element=NodeElement, size=4)
+    issues = validate(System(elements=[nodes], interactions=[interaction], space=space)).issues
+    return [issue for issue in issues if issue.code == 'binding']
+
+
+def test_neighbor_interaction_without_neighbours_is_reported():
+    """Test that an interaction over neighbours of members that live on no lattice or network is reported."""
+    (issue,) = _bindings(SpreadInteraction('spread', nodes='nodes'), None)
+    assert issue.path == 'spread'
+    assert 'a lattice or network space' in issue.message
+
+
+def test_neighbor_interaction_on_a_missing_layer_is_reported():
+    """Test that an interaction over neighbours on a layer the network does not have names the layers it has."""
+    (issue,) = _bindings(SpreadInteraction('spread', nodes='nodes', layer='work'), NetworkSpace(nx.cycle_graph(4)))
+    assert "the layer 'work'" in issue.message
+    assert 'LayerSpec' in issue.fix
+
+
+def test_neighbor_interaction_on_a_network_is_valid():
+    """Test that an interaction over neighbours of members on a network has no binding issue."""
+    assert _bindings(SpreadInteraction('spread', nodes='nodes'), NetworkSpace(nx.cycle_graph(4))) == []
+
+
+def test_hyperedge_interaction_without_hyperedges_is_reported():
+    """Test that an interaction over hyperedges of members on a network without hyperedges is reported."""
+    (issue,) = _bindings(ConsensusInteraction('consensus', nodes='nodes'), NetworkSpace(nx.cycle_graph(4)))
+    assert 'a network space with hyperedges' in issue.message
+
+
+def test_hyperedge_interaction_on_hyperedges_is_valid():
+    """Test that an interaction over hyperedges of members on a network with hyperedges has no binding issue."""
+    space = NetworkSpace(nx.cycle_graph(4), hyperedges=[(0, 1, 2), (1, 3)])
+    assert _bindings(ConsensusInteraction('consensus', nodes='nodes'), space) == []

@@ -1,5 +1,7 @@
 """Test the compilation of renewal laws."""
 
+from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
@@ -50,17 +52,42 @@ class DecayElement(Element):
         return [RateLaw(s.y, -s.y)]
 
 
-def _renewal(waiting, reset=None):
-    """Return an element type with one renewal law of a waiting time and a reset of its state `x`."""
-    return type(
-        'RenewingElement',
-        (Element,),
-        {
-            'x': state(0.0),
-            'a': parameter(1.0),
-            'laws': lambda self, s: [JumpLaw(waiting=waiting(s), reset=reset(s) if reset else None)],
-        },
-    )
+class RenewingElement(Element):
+    """Element with one renewal law of a waiting time, a function of the namespace of its symbols."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        waiting: Callable[[SimpleNamespace], object] = lambda s: draw('wait', 'expon'),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.waiting = waiting
+
+    def _get_laws(self, s):
+        """Return the renewal law of the renewing element."""
+        return [JumpLaw(waiting=self.waiting(s))]
+
+
+class MeanResetElement(Element):
+    """Element whose renewal law resets its state to the mean over its group."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+    def _get_laws(self, s):
+        """Return the renewal law of the mean reset element."""
+        return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.x: mean(s.x)})]
 
 
 def test_compile_system_gives_renewal_laws_alone_the_renewal_form():
@@ -110,16 +137,16 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
 
 def test_compile_system_rejects_an_unknown_distribution():
     """Test that a draw from an unknown distribution names the law, the distribution, and the closest names."""
-    typo = _renewal(lambda s: draw('wait', 'paretto', b=1.5))
+    typo = RenewingElement('r', waiting=lambda s: draw('wait', 'paretto', b=1.5))
     with pytest.raises(ValidationError, match=r"RenewalLaw of r draws 'wait' from the distribution 'paretto'.*pareto"):
-        compile_system(System(elements=[typo('r')]))
+        compile_system(System(elements=[typo]))
 
 
 def test_compile_system_rejects_unknown_keywords():
     """Test that a draw with a keyword its distribution does not take lists the keywords it takes."""
-    wrong = _renewal(lambda s: draw('wait', 'pareto', alpha=1.5))
+    wrong = RenewingElement('r', waiting=lambda s: draw('wait', 'pareto', alpha=1.5))
     with pytest.raises(ValidationError, match=r'pareto takes b, loc, scale'):
-        compile_system(System(elements=[wrong('r')]))
+        compile_system(System(elements=[wrong]))
 
 
 @pytest.mark.parametrize(
@@ -133,14 +160,13 @@ def test_compile_system_rejects_unknown_keywords():
 def test_compile_system_rejects_waiting_times_that_can_be_negative(waiting):
     """Test that a waiting time from a distribution with negative values asks for nonnegative support."""
     with pytest.raises(ValidationError, match=r'renewal law r of r draws its waiting time.*nonnegative support'):
-        compile_system(System(elements=[_renewal(waiting)('r')]))
+        compile_system(System(elements=[RenewingElement('r', waiting=waiting)]))
 
 
 def test_compile_system_rejects_reductions_in_renewal_laws():
     """Test that a renewal law that reads a reduction over its group raises an error."""
-    reading = _renewal(lambda s: draw('wait', 'expon'), lambda s: {s.x: mean(s.x)})
     with pytest.raises(ValidationError, match=r'reads a reduction over a group'):
-        compile_system(System(elements=[GroupElement('g', element=reading, size=3)]))
+        compile_system(System(elements=[GroupElement('g', element=MeanResetElement, size=3)]))
 
 
 def test_compile_system_accepts_draws_in_update_laws_from_scipy():

@@ -285,7 +285,7 @@ class Node:
                 if hasattr(self.component, variable)
                 else default_of(self.component, variable)
             )
-        values = self.component.values or {}
+        values = self.component.values_
         default = default_of(self.component.element, variable)
         if variable not in values:
             return default

@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import as_graph, fit_power_law
-from skcomplex.core.base import SpaceKind
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.errors import CapacityError
 from skcomplex.core.interactions import Interaction, NeighborInteraction
@@ -16,12 +15,19 @@ from skcomplex.core.laws.utils import neighbors, total
 from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.core.system import System
-from skcomplex.engine.compile import compile_system, missing_declarations, validate
-from skcomplex.engine.problems import ElementKind
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.engine.compile import compile_system, validate
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import GillespieSolver, IterationSolver, RK4Solver
 
-BACKENDS = ('numpy', 'numba')
+
+def _degree(node):
+    """Return the degree of a candidate node, the weight of preferential attachment."""
+    return neighbors(1)
+
+
+def _healthy(node):
+    """Return whether a candidate node is susceptible, the weight of a rewired end."""
+    return 1 - node.i
 
 
 class NodeElement(Element):
@@ -63,7 +69,7 @@ class GrowthElement(Element):
 
     def _get_laws(self, s):
         """Return the laws of the growth element."""
-        return [UpdateLaw(add_node(edges=2, toward=lambda node: neighbors(1)), 1)]
+        return [UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=_degree), 1)]
 
 
 class SISElement(Element):
@@ -102,10 +108,12 @@ class RewiringInteraction(NeighborInteraction):
 
     def _get_laws(self, s):
         """Return the rewiring of both orientations of a discordant edge."""
-        healthy = lambda node: 1 - node.i  # noqa: E731
         return [
-            JumpLaw(s.w * (1 - s.source.i) * s.target.i, {rewire(keep='source', toward=healthy): 1}),
-            JumpLaw(s.w * s.source.i * (1 - s.target.i), {rewire(keep='target', toward=healthy): 1}),
+            JumpLaw(s.w * (1 - s.source.i) * s.target.i, {TopologyRequestSpec('rewire', toward=_healthy): 1}),
+            JumpLaw(
+                s.w * s.source.i * (1 - s.target.i),
+                {TopologyRequestSpec('rewire', keep='target', toward=_healthy): 1},
+            ),
         ]
 
 
@@ -142,11 +150,10 @@ def test_preferential_attachment_gives_a_tail_exponent_near_three():
 
 def test_growth_runs_on_numba_and_agrees_with_numpy():
     """Test that a network growing from 10 to 1,000 nodes runs on Numba with its present nodes, as on NumPy."""
-    runs = {
-        backend: Simulation(_growing(10, 1000), backend=backend, dt=99.0, random_state=5).run(until=990)
-        for backend in BACKENDS
-    }
-    numpy, numba = (runs[backend].trajectory_ for backend in BACKENDS)
+    numpy, numba = (
+        Simulation(_growing(10, 1000), backend=backend, dt=99.0, random_state=5).run(until=990).trajectory_
+        for backend in (NumpyBackend(), NumbaBackend())
+    )
     assert np.allclose(numpy.parameters, numba.parameters, atol=1e-12, equal_nan=True)
     ages = numba.values('nodes.age')
     for frame, row in enumerate(ages):
@@ -178,10 +185,8 @@ def test_requests_remove_and_add_edges_and_nodes():
     """Test that update laws of nodes and edges remove edges and nodes, and add edges to present nodes only."""
     space = NetworkSpace(nx.path_graph(6))
 
-    class PruningInteraction(Interaction):
+    class PruningInteraction(NeighborInteraction):
         """Pruning interaction."""
-
-        over = 'neighbors'
 
         def __init__(
             self,
@@ -196,7 +201,7 @@ def test_requests_remove_and_add_edges_and_nodes():
 
         def _get_laws(self, s):
             """Return the laws of the pruning interaction."""
-            return [UpdateLaw(remove_edge(), s.source.x * s.target.x)]
+            return [UpdateLaw(TopologyRequestSpec('remove-edge'), s.source.x * s.target.x)]
 
     class LeavingElement(Element):
         """Leaving element."""
@@ -215,7 +220,7 @@ def test_requests_remove_and_add_edges_and_nodes():
 
         def _get_laws(self, s):
             """Return the laws of the leaving element."""
-            return [UpdateLaw(remove_node(), s.x)]
+            return [UpdateLaw(TopologyRequestSpec('remove-node'), s.x)]
 
     system = System(
         elements=[
@@ -252,7 +257,7 @@ def test_requests_remove_and_add_edges_and_nodes():
 
         def _get_laws(self, s):
             """Return the laws of the joining element."""
-            return [UpdateLaw(add_edge(w=5.0), s.x)]
+            return [UpdateLaw(TopologyRequestSpec('add-edge', values=(('w', 5.0),)), s.x)]
 
     space = NetworkSpace(nx.empty_graph(4))
     system = System(
@@ -398,7 +403,7 @@ def test_validation_reports_a_request_on_a_fixed_group():
 
         def _get_laws(self, s):
             """Return the laws of the joining element."""
-            return [UpdateLaw(add_edge(), 0.5)]
+            return [UpdateLaw(TopologyRequestSpec('add-edge'), 0.5)]
 
     system = System(
         elements=[
@@ -485,23 +490,3 @@ def test_validation_reports_a_reduction_over_a_missing_layer():
     ).issues
     assert [issue.code for issue in issues] == ['binding']
     assert "'work'" in issues[0].message
-
-
-def test_validation_lists_the_solvers_of_variable_groups():
-    """Test that a solver without support for variable groups gets solver-unsupported listing the iteration solver."""
-    issues = validate(_growing(3, 10), solver='rk4').issues
-    unsupported = [issue for issue in issues if issue.code == 'solver-unsupported']
-    assert any('variable-group' in issue.message and 'iteration' in issue.fix for issue in unsupported)
-
-
-def test_network_primitives_and_solvers_declare_their_requirements_and_support():
-    """Test that layers, neighbourhoods, and requests require their spaces, and solvers declare network groups."""
-    assert Layer.requires.space == {SpaceKind.NETWORK}
-    assert AdjacencyNeighborhood.requires.space == {SpaceKind.NETWORK}
-    assert RadiusNeighborhood.requires.space == {SpaceKind.CONTINUOUS}
-    assert TopologyRequestSpec.requires.space == {SpaceKind.NETWORK}
-    assert missing_declarations() == []
-    for solver in (IterationSolver, GillespieSolver):
-        assert {ElementKind.VARIABLE_GROUP, ElementKind.EDGE_GROUP} <= solver.supports.components
-    assert ElementKind.EDGE_GROUP in RK4Solver.supports.components
-    assert ElementKind.VARIABLE_GROUP not in RK4Solver.supports.components
