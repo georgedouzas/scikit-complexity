@@ -207,19 +207,27 @@ def linearize(
             A name is not an adaptive parameter, a state, or a control, or the system has no symbolic vector field.
 
     Examples:
-        >>> from skcomplex.core.declarations import state
+        >>> from typing import Annotated
         >>> from skcomplex.analysis import controllability, linearize
-        >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.laws import RateLaw
+        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> class CartElement(Element):
-        ...     x = state(0.0)
-        ...     v = state(0.0)
-        ...     force = parameter(0.0, adaptive=True, bounds=(-1, 1))
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         x: Annotated[float, StateSpec()] = 0.0,
+        ...         v: Annotated[float, StateSpec()] = 0.0,
+        ...         force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-1, 1))] = 0.0,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.x = x
+        ...         self.v = v
+        ...         self.force = force
         ...
-        ...     def laws(self, s):
-        ...         return [RateLaw(s.x, s.v), RateLaw(s.v, s.force)]
+        ...     def _get_laws(self, namespace):
+        ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
         >>> model = linearize(System(elements=[CartElement('cart')]))
         >>> model.B.tolist(), controllability(model.A, model.B)
         ([[0.0], [1.0]], 2)
@@ -243,8 +251,14 @@ def linearize(
     point[dynamics.time] = 0.0
     state_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in states] for row in states], point)
     input_matrix = _evaluated([[rates[row].diff(by_name[column]) for column in inputs] for row in states], point)
-    output_matrix = np.array([[float(row == column) for column in states] for row in observed]).reshape(-1, len(states))
-    feedthrough = np.array([[float(row == column) for column in inputs] for row in observed]).reshape(-1, len(inputs))
+    output_matrix = np.array([[float(row == column) for column in states] for row in observed]).reshape(
+        len(observed),
+        len(states),
+    )
+    feedthrough = np.array([[float(row == column) for column in inputs] for row in observed]).reshape(
+        len(observed),
+        len(inputs),
+    )
     return StateSpace(
         state_matrix,
         input_matrix,

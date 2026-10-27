@@ -186,8 +186,8 @@ def _sign_error(error: Exception) -> AnalysisError:
     names = sorted(set(re.findall(r'[A-Za-z_][A-Za-z0-9_]*', expression))) if match else []
     error_msg = (
         f'Maxima needs the sign of {expression} to solve the equations. Declare the parameters '
-        f'{", ".join(names) or "involved"} with `parameter(..., domain=Domain.POSITIVE)` or another domain that gives '
-        'their sign.'
+        f'{", ".join(names) or "involved"} with `ParameterSpec(domain=RealSet.open(0, oo))` or another domain that '
+        'gives their sign.'
     )
     return AnalysisError(error_msg)
 
@@ -326,6 +326,12 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
                 solution = desolve(equation, unknown.function, ivar=problem.time, ics=conditions)
             else:
                 solution = desolve_laplace(equation, unknown.function, ivar=problem.time, ics=conditions)
+            if solution.is_relational():
+                error_msg = (
+                    f'Maxima found only the implicit solution {solution} for {unknown.name}. Simulate the system '
+                    'numerically instead.'
+                )
+                raise AnalysisError(error_msg)
             solutions = {unknown.name: unknown.function == solution}
         else:
             first_order, functions = _first_order(problem)

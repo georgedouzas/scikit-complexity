@@ -131,7 +131,7 @@ def with_values[P: BaseProblem](problem: P, paths: Mapping[str, Any]) -> P:
             raise ValidationError(error_msg)
         entry = layout.entry(name)
         if not contains(entry.domain, value):
-            error_msg = f'{name} = {value!r} is not in the {entry.domain.value} domain.'
+            error_msg = f'{name} = {value!r} is not in its domain {entry.domain}.'
             raise ValidationError(error_msg)
         vector[entry.indices] = entry.encode(value)
     return dataclasses.replace(problem, initial_state=states, initial_parameters=parameters)

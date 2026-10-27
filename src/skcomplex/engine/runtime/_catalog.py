@@ -52,7 +52,7 @@ class ModelEntry:
 
         initial_state:
             A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
-            state name, or `None` for the components' own.
+            state name, or `None` for the elements' own.
     """
 
     name: str
@@ -74,7 +74,7 @@ class ModelEntry:
 
         Returns:
             initial_state:
-                The initial values by dotted state name, empty for the components' own.
+                The initial values by dotted state name, empty for the elements' own.
         """
         if self.initial_state is None:
             return {}
@@ -185,14 +185,20 @@ def register_model(
             A default run setting is unknown, or a factory argument has no default.
 
     Examples:
+        >>> from typing import Annotated
+        >>> from skcomplex.core.elements import Element
+        >>> from skcomplex.core.specs import StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationElement
         >>> from skcomplex.engine.runtime import create, register_model
+        >>> class PopulationElement(Element):
+        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 1.0):
+        ...         super().__init__(label)
+        ...         self.n = n
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
         ...     return System(elements=[PopulationElement('a', n=n)])
-        >>> create('constant_population').components[0].n
+        >>> create('constant_population').elements[0].n
         3.0
     """
 

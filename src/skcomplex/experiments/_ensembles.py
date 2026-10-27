@@ -9,18 +9,41 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..core import laws
 from ..core.elements import Element, GroupElement
 from ..core.errors import ValidationError
+from ..core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    EmissionLaw,
+    EquationLaw,
+    JumpLaw,
+    NoiseLaw,
+    RateLaw,
+    TransferLaw,
+    TransitionLaw,
+    UpdateLaw,
+)
 from ..core.system import System
 from ..engine.compile._probe import probe_laws
 
-CORE_LAWS = tuple(getattr(laws, name) for name in laws.__all__ if name.endswith('Law') and name != 'BaseLaw')
+PLAIN_LAWS = (
+    RateLaw,
+    NoiseLaw,
+    JumpLaw,
+    UpdateLaw,
+    BoundaryLaw,
+    CrossingLaw,
+    TransitionLaw,
+    EmissionLaw,
+    TransferLaw,
+    EquationLaw,
+)
+"""Laws of elements that a group of members of the same type runs as one vectorised simulation."""
 
 
 def _has_formalism_laws(element: Element) -> bool:
-    """Check whether an element follows laws other than the core ones, such as the rules of agents."""
-    return any(not isinstance(law, CORE_LAWS) for law in probe_laws(element) or [])
+    """Check whether an element follows laws other than the plain ones, such as the rules of agents."""
+    return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
 def _check_plain(system: System) -> None:
@@ -41,7 +64,7 @@ def _member_values(
 ) -> dict[str, dict[str, Any]]:
     """Return the per-member values of every element by its label, checked against the elements and the size."""
     by_label: dict[str, dict[str, Any]] = {element.label: {} for element in system.elements}
-    names = {element.label: set(element.get_params()) - {'label'} for element in system.elements}
+    names = {element.label: set(element._get_specs()) for element in system.elements}
     for path, value in values.items():
         label, _, name = path.partition('.')
         if label not in names or name not in names[label]:
@@ -98,10 +121,8 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
             element.label,
             element=type(element),
             size=size,
-            values={
-                **{name: value for name, value in element.get_params().items() if name != 'label'},
-                **by_label[element.label],
-            },
+            values={**{name: getattr(element, name) for name in element._get_specs()}, **by_label[element.label]},
+            visual=element.visual,
         )
         for element in system.elements
     ]

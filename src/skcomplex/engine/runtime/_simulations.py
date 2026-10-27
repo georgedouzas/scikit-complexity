@@ -116,7 +116,7 @@ class Simulation(BaseEstimator):
             `ConservationError` that names the observable and the first frame that breaks it.
 
         initial_state:
-            Initial values that replace those of the components, by dotted state name, such as `{'rabbits.n': 20}`.
+            Initial values that replace those of the elements, by dotted state name, such as `{'rabbits.n': 20}`.
             The whole state of a quantum system is `<system label>.state`, which takes a vector, a density matrix, or
             `'ground'` for the ground state.
 
