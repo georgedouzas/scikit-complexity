@@ -1,13 +1,12 @@
-"""Test the named random draws of update laws."""
+"""Test the `_draws` module of `skcomplex.core.laws.utils`."""
 
 import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import pytest
+from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.laws import is_draw
-from skcomplex.core.laws.utils import Draw, bernoulli, categorical, draws_in, normal, uniform
-from skcomplex.engine.problems import symbol
+from skcomplex.core.laws.utils import bernoulli, categorical, draw, draws_in, normal, uniform
 
 
 def test_uniform_merges_uses_of_one_name():
@@ -33,27 +32,28 @@ def test_categorical_rejects_empty_weights():
 
 
 def test_draws_in_finds_nested_draws():
-    """Test that draws in the arguments of other draws are found."""
-    x = symbol('x')
+    """Test that draws in the arguments of other draws are found, and other expressions hold none."""
+    x = var('x')
     found = draws_in(x + bernoulli('flip', uniform('p')))
-    assert sorted(draw.name for draw in found) == ['flip', 'p']
+    assert sorted(item.name for item in found) == ['flip', 'p']
+    assert draws_in(x + 1) == []
 
 
-def test_draw_of_rejects_other_expressions():
-    """Test that only draw calls convert to draws."""
-    with pytest.raises(ValidationError, match='not a random draw'):
-        Draw.of(symbol('x') + 1)
+def test_draw_of_a_scipy_distribution_keeps_its_keywords():
+    """Test that a draw from a `scipy.stats` distribution keeps its name and its arguments by keyword."""
+    (found,) = draws_in(draw('wait', 'gamma', a=2.0, scale=var('s')))
+    assert (found.kind, found.name, found.distribution) == ('draw', 'wait', 'gamma')
+    assert found.parameters == {'a': 2.0, 'scale': var('s')}
 
 
-def test_is_draw_pickles_with_its_name():
+def test_draw_pickles_with_its_name():
     """Test that a draw survives pickling with its kind and name."""
-    data = pickle.dumps(categorical('k', [1, 2]))
-    restored = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
-    assert is_draw(restored)
-    assert (Draw.of(restored).kind, Draw.of(restored).name) == ('categorical', 'k')
+    restored = pickle.loads(pickle.dumps(categorical('k', [1, 2])))  # noqa: S301  # nosec B301: loads its own dump
+    (found,) = draws_in(restored)
+    assert (found.kind, found.name) == ('categorical', 'k')
 
 
-def test_draws_in_has_no_derivative():
+def test_draw_has_no_derivative():
     """Test that a draw differentiates to zero."""
-    x = symbol('x')
+    x = var('x')
     assert uniform('u', 0, x).diff(x) == 0

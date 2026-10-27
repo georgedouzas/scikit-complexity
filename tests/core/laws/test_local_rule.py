@@ -1,47 +1,32 @@
-"""Test the laws of lattice models and the states they change."""
+"""Test the `_local_rule` module of `skcomplex.core.laws`."""
 
 import pytest
+from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
-from skcomplex.core.spaces import VonNeumannNeighborhood
-from skcomplex.core.specs import EnergySpec, MoveSpec, SamplerSpec
-from skcomplex.engine.problems import symbol
-
-
-def test_relaxation_targets_the_states_of_its_relaxation_laws():
-    """Test that a relaxation checks its laws and targets the states they change, in order of first appearance."""
-    height, grains = symbol('height'), symbol('grains')
-    topple = LocalRuleLaw((height, grains), VonNeumannNeighborhood(center=True), lambda z, *n: z)
-    settle = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z)
-    drop = DriveLaw(height, lambda values, *, random: values + 1)
-    law = RelaxationLaw([drop], [topple, settle], lambda *values: True).check()
-    assert law.targets == (height, grains)
-    assert law.drive[0].targets == (height,)
-    assert law.relax[1].targets == (height,)
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.laws import LocalRuleLaw
+from skcomplex.core.laws.utils import Totalistic
+from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, ContinuousTime, DiscreteTime, LatticeSpace
 
 
-def test_sample_targets_the_state_of_its_move():
-    """Test that a Monte Carlo sample checks its move and sampler and targets the moved state."""
-    spin = symbol('spin')
-    law = SampleLaw(
-        EnergySpec(-spin, VonNeumannNeighborhood()),
-        MoveSpec.flip(spin),
-        SamplerSpec('glauber', 2.0),
-    ).check()
-    assert law.targets == (spin,)
-    assert law.move.targets == (spin,)
-    with pytest.raises(ValueError, match='Unknown sampler'):
-        SampleLaw(EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec.flip(spin), SamplerSpec('other')).check()
+def test_local_rule_targets_one_state_or_several_together():
+    """Test that a local rule targets one lattice state, or a tuple of them that it updates together."""
+    height, grains = var('height grains')
+    assert LocalRuleLaw(height, BoxNeighborhood(), Totalistic({2: 1})).check().prepare().targets_ == (height,)
+    together = LocalRuleLaw((height, grains), BoxNeighborhood(), lambda z, *n: (z, z)).check().prepare()
+    assert together.targets_ == (height, grains)
 
 
-@pytest.mark.parametrize(
-    'law',
-    [
-        DriveLaw((symbol('a'), symbol('b')), lambda values, *, random: values),
-        MoveSpec((symbol('a'), symbol('b'))),
-    ],
-)
-def test_laws_of_one_lattice_state_reject_several_targets(law):
-    """Test that a drive and a move change one lattice state."""
-    with pytest.raises(ValueError, match='changes one lattice state'):
-        law.check()
+def test_local_rule_requires_discrete_time_on_sites():
+    """Test that a local rule runs in discrete time on a lattice, a network, or a Cayley graph."""
+    requirements = LocalRuleLaw(var('cell'), BoxNeighborhood(), Totalistic({2: 1}))._get_requirements()
+    assert requirements.time == (DiscreteTime,)
+    assert LatticeSpace in requirements.space
+    assert CayleySpace in requirements.space
+    assert ContinuousTime not in requirements.time
+
+
+def test_local_rule_rejects_an_unknown_schedule():
+    """Test that a local rule rejects a schedule it does not know."""
+    with pytest.raises(ValidationError, match='Unknown schedule'):
+        LocalRuleLaw(var('cell'), BoxNeighborhood(), Totalistic({2: 1}), schedule='parallel').check()
