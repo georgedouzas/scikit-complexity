@@ -1,4 +1,4 @@
-"""Test the replication of systems of single elements into vectorised ensembles."""
+"""Test the `_ensembles` module of `skcomplex.experiments`."""
 
 import numpy as np
 import pytest
